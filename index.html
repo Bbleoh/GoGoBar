@@ -1,26 +1,42 @@
-<!DOCTYPE html>
-<html lang="it">
-<head>
-    <meta charset="UTF-8">
-    <title>Il Mio Hub di Progetti</title>
-    <style>
-        body { font-family: sans-serif; text-align: center; padding: 50px; }
-        .project-card { border: 1px solid #ccc; padding: 20px; margin: 10px; display: inline-block; border-radius: 8px; }
-        a { text-decoration: none; color: #007bff; font-weight: bold; }
-    </style>
-</head>
-<body>
-    <h1>Benvenuti nel mio Portfolio</h1>
-    <p>Ecco i link ai miei siti ospitati su GitHub:</p>
+import React from 'react';
 
-    <div class="project-card">
-        <h3>Sito Meteo</h3>
-        <a href="https://tuousername.github.io/nome-repo-meteo/">Vai al progetto →</a>
-    </div>
+const progetti = [
+  { id: 1, titolo: "Sito Meteo", desc: "App che usa API esterne.", link: "progetto-meteo/" },
+  { id: 2, titolo: "Dashboard Task", desc: "Gestore di attività giornaliere.", link: "progetto-task/" },
+  { id: 3, titolo: "Portfolio Fotografia", desc: "Galleria immagini interattiva.", link: "progetto-foto/" },
+  // Aggiungi qui i tuoi altri progetti
+];
 
-    <div class="project-card">
-        <h3>App To-Do</h3>
-        <a href="https://tuousername.github.io/nome-repo-todo/">Vai al progetto →</a>
+function App() {
+  return (
+    <div className="min-h-screen bg-gray-900 text-white p-8">
+      <header className="max-w-4xl mx-auto text-center mb-12">
+        <h1 className="text-5xl font-extrabold mb-4 bg-gradient-to-r from-blue-400 to-emerald-400 bg-clip-text text-transparent">
+          Il Mio Hub Creativo
+        </h1>
+        <p className="text-gray-400">Benvenuti nel mio spazio personale. Esplora i miei siti web ospitati su GitHub.</p>
+      </header>
+
+      <main className="max-w-6xl mx-auto grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {progetti.map((p) => (
+          <div key={p.id} className="bg-gray-800 border border-gray-700 rounded-xl p-6 hover:shadow-2xl hover:shadow-blue-500/20 transition-all duration-300 transform hover:-translate-y-2">
+            <h2 className="text-2xl font-bold mb-2">{p.titolo}</h2>
+            <p className="text-gray-400 mb-6">{p.desc}</p>
+            <a 
+              href={p.link} 
+              className="inline-block w-full text-center bg-blue-600 hover:bg-blue-500 text-white font-semibold py-2 px-4 rounded-lg transition-colors"
+            >
+              Apri Progetto →
+            </a>
+          </div>
+        ))}
+      </main>
+
+      <footer className="mt-20 text-center text-gray-500 border-t border-gray-800 pt-8">
+        © 2026 - Creato con React e GitHub Pages
+      </footer>
     </div>
-</body>
-</html>
+  );
+}
+
+export default App;
