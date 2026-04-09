@@ -4,186 +4,175 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Bisca del Tromba – Classifica</title>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700&family=Playfair+Display:wght@700;900&family=IM+Fell+English+SC&display=swap');
-
-  :root { --gold:#c9a84c; --gold-light:#f0d080; }
-  * { margin:0; padding:0; box-sizing:border-box; }
+  :root{--gold:#c9a84c;--gold-light:#f0d080;}
+  *{margin:0;padding:0;box-sizing:border-box;}
 
   body {
     min-height:100vh;
-    background:#0a0f0a;
-    color:#ddd;
-    font-family:'IM Fell English SC', serif;
+    background:#070e07;
+    font-family:'IM Fell English SC',serif;
     display:flex; flex-direction:column; align-items:center;
-    padding:40px 20px 60px;
+    padding:48px 20px 80px;
   }
-
-  /* felt texture overlay */
   body::before {
     content:'';
     position:fixed; inset:0; z-index:-1;
     background:
-      radial-gradient(ellipse at 50% 0%, rgba(20,60,20,.8) 0%, #050a05 70%),
-      repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,.03) 2px, rgba(0,0,0,.03) 4px);
+      radial-gradient(ellipse at 50% 0%, rgba(18,52,18,.9) 0%, #040804 65%),
+      repeating-linear-gradient(0deg,transparent,transparent 3px,rgba(0,0,0,.04) 3px,rgba(0,0,0,.04) 6px);
   }
 
-  header {
-    text-align:center;
-    margin-bottom:40px;
-  }
+  header { text-align:center; margin-bottom:48px; }
   h1 {
-    font-family:'Cinzel Decorative', cursive;
+    font-family:'Cinzel Decorative',cursive;
     color:var(--gold);
-    font-size:clamp(1.4rem, 4vw, 2.6rem);
-    text-shadow:0 0 24px rgba(201,168,76,.7), 2px 2px 4px #000;
-    letter-spacing:3px;
-    margin-bottom:8px;
+    font-size:clamp(1.6rem,5vw,3rem);
+    text-shadow:0 0 28px rgba(201,168,76,.65),2px 2px 6px #000;
+    letter-spacing:4px;
+    margin-bottom:10px;
   }
   .subtitle {
-    color:rgba(201,168,76,.6);
-    font-size:.95rem;
-    letter-spacing:2px;
+    color:rgba(201,168,76,.55);
+    font-size:1rem;
+    letter-spacing:3px;
+    margin-bottom:28px;
   }
-
-  /* play button */
   .play-btn {
     display:inline-block;
-    margin:24px auto 0;
-    padding:14px 48px;
+    padding:14px 52px;
     border-radius:40px;
-    background:linear-gradient(135deg, #7a5000, var(--gold));
+    background:linear-gradient(135deg,#7a5000,var(--gold));
     color:#000;
-    font-family:'Cinzel Decorative', cursive;
+    font-family:'Cinzel Decorative',cursive;
     font-size:1.05rem;
     letter-spacing:2px;
     text-decoration:none;
-    box-shadow:0 4px 24px rgba(201,168,76,.45);
+    box-shadow:0 4px 24px rgba(201,168,76,.4);
     transition:all .2s;
   }
   .play-btn:hover {
     transform:scale(1.04) translateY(-2px);
-    box-shadow:0 8px 32px rgba(201,168,76,.7);
+    box-shadow:0 8px 36px rgba(201,168,76,.7);
   }
 
-  /* leaderboard card */
-  .lb-card {
+  .card {
     width:100%;
-    max-width:640px;
-    background:rgba(10,30,10,.85);
+    max-width:680px;
+    background:rgba(8,24,8,.9);
     border:2px solid var(--gold);
-    border-radius:16px;
+    border-radius:18px;
     overflow:hidden;
-    box-shadow:0 0 40px rgba(201,168,76,.18), inset 0 0 30px rgba(0,0,0,.5);
-    margin-top:36px;
+    box-shadow:0 0 50px rgba(201,168,76,.16),inset 0 0 40px rgba(0,0,0,.5);
+    margin-top:40px;
   }
 
-  .lb-title {
-    padding:18px 24px 14px;
-    border-bottom:1px solid rgba(201,168,76,.3);
+  .card-header {
+    padding:20px 28px 16px;
+    border-bottom:1px solid rgba(201,168,76,.25);
     display:flex; align-items:center; justify-content:space-between;
+    flex-wrap:wrap; gap:8px;
   }
-  .lb-title h2 {
-    font-family:'Cinzel Decorative', cursive;
+  .card-header h2 {
+    font-family:'Cinzel Decorative',cursive;
     color:var(--gold);
-    font-size:1.05rem;
+    font-size:1.1rem;
     letter-spacing:2px;
   }
-  .live-dot {
-    display:flex; align-items:center; gap:6px;
-    font-size:.72rem; letter-spacing:1px; color:#2ecc71;
+  .refresh-btn {
+    background:none;
+    border:1px solid rgba(201,168,76,.4);
+    color:var(--gold);
+    border-radius:6px;
+    padding:5px 14px;
+    font-family:'IM Fell English SC',serif;
+    font-size:.82rem;
+    cursor:pointer;
+    letter-spacing:1px;
+    transition:all .15s;
   }
-  .live-dot::before {
-    content:'';
-    width:8px; height:8px; border-radius:50%;
-    background:#2ecc71;
-    animation:pulse 1.5s infinite;
-  }
-  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.25} }
+  .refresh-btn:hover { background:rgba(201,168,76,.1); }
+  .refresh-btn:disabled { opacity:.4; cursor:not-allowed; }
 
-  table {
-    width:100%;
-    border-collapse:collapse;
-  }
+  table { width:100%; border-collapse:collapse; }
   thead th {
-    padding:10px 20px;
+    padding:10px 24px;
     text-align:left;
     color:var(--gold);
     font-size:.78rem;
     letter-spacing:2px;
-    border-bottom:1px solid rgba(201,168,76,.25);
-    font-family:'Cinzel Decorative', cursive;
+    border-bottom:1px solid rgba(201,168,76,.2);
+    font-family:'Cinzel Decorative',cursive;
     font-weight:400;
   }
   tbody td {
-    padding:12px 20px;
-    border-bottom:1px solid rgba(255,255,255,.05);
-    font-size:.95rem;
+    padding:13px 24px;
     color:var(--gold-light);
+    font-size:.95rem;
+    border-bottom:1px solid rgba(255,255,255,.04);
     transition:background .15s;
   }
-  tbody tr:hover td { background:rgba(201,168,76,.06); }
+  tbody tr:hover td { background:rgba(201,168,76,.05); }
   tbody tr:last-child td { border-bottom:none; }
 
-  .rank { width:40px; font-weight:900; font-size:1.05rem; color:var(--gold); }
-  .rank.g { color:#ffd700; }
-  .rank.s { color:#c0c0c0; }
-  .rank.b { color:#cd7f32; }
+  .rank { width:44px; font-weight:900; font-size:1.05rem; color:var(--gold); }
+  .rank.gold   { color:#ffd700; }
+  .rank.silver { color:#c0c0c0; }
+  .rank.bronze { color:#cd7f32; }
   .score-col { text-align:right; color:#fff; font-weight:700; font-size:1.05rem; }
-  .date-col  { text-align:right; color:rgba(201,168,76,.5); font-size:.78rem; }
+  .date-col  { text-align:right; color:rgba(201,168,76,.4); font-size:.78rem; }
 
-  .new-row { animation:flash .9s ease; }
-  @keyframes flash { from{background:rgba(46,204,113,.22)} to{background:transparent} }
-
-  .lb-footer {
-    padding:10px 20px;
-    border-top:1px solid rgba(201,168,76,.15);
+  .card-footer {
+    padding:10px 24px;
+    border-top:1px solid rgba(201,168,76,.12);
     font-size:.72rem;
-    color:rgba(201,168,76,.4);
+    color:rgba(201,168,76,.35);
     text-align:right;
     letter-spacing:1px;
   }
 
-  /* not-configured warning */
   .warn {
     color:#e74c3c;
-    background:rgba(231,76,60,.1);
-    border:1px solid rgba(231,76,60,.3);
-    border-radius:8px;
-    padding:16px 24px;
-    font-size:.9rem;
-    line-height:1.6;
-    margin-top:20px;
-    max-width:500px;
+    background:rgba(231,76,60,.08);
+    border:1px solid rgba(231,76,60,.25);
+    border-radius:10px;
+    padding:20px 28px;
+    font-size:.92rem;
+    line-height:1.7;
+    max-width:560px;
     text-align:center;
+    margin-top:24px;
   }
   code {
     background:rgba(255,255,255,.08);
     border-radius:4px;
-    padding:1px 6px;
+    padding:1px 7px;
     font-family:monospace;
+    font-size:.88em;
   }
+  .empty { color:rgba(201,168,76,.35); text-align:center; padding:36px; font-size:.92rem; }
+  .loading { color:rgba(201,168,76,.4); text-align:center; padding:36px; }
 </style>
 </head>
 <body>
 
 <header>
   <h1>♠ Bisca del Tromba ♠</h1>
-  <p class="subtitle">Classifica Globale dei Campioni</p>
+  <p class="subtitle">Hall of Fame — Cashout Globale</p>
   <a class="play-btn" href="index.html">🎴 Gioca Ora</a>
 </header>
 
-<div id="warn-box" style="display:none" class="warn">
-  ⚙️ <strong>Supabase non configurato.</strong><br>
+<div id="warn" class="warn" style="display:none">
+  ⚙️ <strong>Gist non configurato.</strong><br>
   Apri <code>leaderboard.html</code> e <code>index.html</code> e sostituisci<br>
-  <code>SUPABASE_URL</code> e <code>SUPABASE_ANON_KEY</code> con le tue credenziali.
+  <code>GIST_ID</code> con l'ID del tuo Gist pubblico.
 </div>
 
-<div class="lb-card" id="lb-card">
-  <div class="lb-title">
-    <h2>🏆 Top 20 Cashout</h2>
-    <span class="live-dot" id="live-label">LIVE</span>
+<div class="card" id="main-card">
+  <div class="card-header">
+    <h2>🏆 Top Cashout</h2>
+    <button class="refresh-btn" id="refresh-btn" onclick="load()">↺ Aggiorna</button>
   </div>
   <table>
     <thead>
@@ -194,98 +183,78 @@
         <th style="text-align:right">Data</th>
       </tr>
     </thead>
-    <tbody id="lb-body">
-      <tr><td colspan="4" style="text-align:center;padding:30px;color:rgba(201,168,76,.4);">Caricamento...</td></tr>
+    <tbody id="tbody">
+      <tr><td colspan="4" class="loading">Caricamento...</td></tr>
     </tbody>
   </table>
-  <div class="lb-footer" id="lb-footer">—</div>
+  <div class="card-footer" id="footer">—</div>
 </div>
 
 <script>
 /* ════════════════════════════════════════════════════
-   SUPABASE CONFIG — stesse credenziali di index.html
+   CONFIG — solo GIST_ID, lettura pubblica (no token)
 ════════════════════════════════════════════════════ */
-const SUPABASE_URL      = 'https://XXXXX.supabase.co';       // ← sostituisci
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.XXXXXX'; // ← sostituisci
-const GAME_ID           = 'bisca-del-tromba';
+const GIST_ID     = 'ef1e2705e3c70988b3a2423e07427495.js';  // ← stessa cosa di index.html
+const SCORES_FILE = 'leaderboard.json';
 
-const _ok = !SUPABASE_URL.includes('XXXXX');
+const _ok = !GIST_ID.includes('IL_TUO');
+
 if (!_ok) {
-  document.getElementById('warn-box').style.display = 'block';
-  document.getElementById('lb-card').style.display  = 'none';
+  document.getElementById('warn').style.display = 'block';
+  document.getElementById('main-card').style.display = 'none';
 }
 
-const { createClient } = supabase;
-const sb = _ok ? createClient(SUPABASE_URL, SUPABASE_ANON_KEY) : null;
-
 function esc(s) {
-  return String(s)
-    .replace(/&/g,'&amp;').replace(/</g,'&lt;')
-    .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 }
 function fmtDate(iso) {
   if (!iso) return '';
   return new Date(iso).toLocaleDateString('it-IT',{day:'2-digit',month:'2-digit',year:'2-digit'});
 }
 
-let lastInsertedId = null;
-
-function render(rows) {
-  const tbody = document.getElementById('lb-body');
-  if (!rows || !rows.length) {
-    tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;padding:30px;color:rgba(201,168,76,.4);">Ancora nessun cashout — sii il primo!</td></tr>';
-    return;
-  }
-  tbody.innerHTML = rows.map((r,i) => {
-    const medal = i===0?'🥇':i===1?'🥈':i===2?'🥉':(i+1)+'.';
-    const rc    = i===0?'g':i===1?'s':i===2?'b':'';
-    const nc    = r.id === lastInsertedId ? 'new-row' : '';
-    return `<tr class="${nc}">
-      <td class="rank ${rc}">${medal}</td>
-      <td>${esc(r.player_name)}</td>
-      <td class="score-col">€${Number(r.score).toLocaleString('it-IT')}</td>
-      <td class="date-col">${fmtDate(r.created_at)}</td>
-    </tr>`;
-  }).join('');
-}
-
 async function load() {
   if (!_ok) return;
+  const btn = document.getElementById('refresh-btn');
+  btn.disabled = true;
+  btn.textContent = '...';
   try {
-    const { data, error } = await sb
-      .from('leaderboards')
-      .select('id,player_name,score,created_at')
-      .eq('game_id', GAME_ID)
-      .order('score', { ascending: false })
-      .limit(20);
-    if (error) throw error;
-    render(data || []);
-    document.getElementById('lb-footer').textContent =
-      'Aggiornato: ' + new Date().toLocaleTimeString('it-IT');
-  } catch(e) {
-    document.getElementById('lb-footer').textContent = 'Errore: ' + e.message;
-  }
-}
-
-/* Real-time: aggiorna automaticamente quando qualcuno fa cashout */
-function subscribe() {
-  if (!_ok) return;
-  sb.channel('lb-hub')
-    .on('postgres_changes', {
-      event:'INSERT', schema:'public', table:'leaderboards',
-      filter:`game_id=eq.${GAME_ID}`
-    }, payload => {
-      lastInsertedId = payload.new.id;
-      load();
-    })
-    .subscribe(status => {
-      document.getElementById('live-label').textContent =
-        status === 'SUBSCRIBED' ? 'LIVE' : 'connessione...';
+    // Lettura pubblica del Gist — nessun token necessario
+    const res = await fetch(`https://api.github.com/gists/${GIST_ID}`, {
+      headers: { 'Accept': 'application/vnd.github.v3+json' }
     });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const gist   = await res.json();
+    const raw    = gist.files[SCORES_FILE]?.content || '[]';
+    const scores = JSON.parse(raw);
+
+    const tbody = document.getElementById('tbody');
+    if (!scores.length) {
+      tbody.innerHTML = '<tr><td colspan="4" class="empty">Nessun cashout ancora — sii il primo!</td></tr>';
+    } else {
+      tbody.innerHTML = scores.slice(0,20).map((r,i) => {
+        const medal = i===0?'🥇':i===1?'🥈':i===2?'🥉':(i+1)+'.';
+        const rc    = i===0?'gold':i===1?'silver':i===2?'bronze':'';
+        return `<tr>
+          <td class="rank ${rc}">${medal}</td>
+          <td>${esc(r.name)}</td>
+          <td class="score-col">€${Number(r.score).toLocaleString('it-IT')}</td>
+          <td class="date-col">${fmtDate(r.date)}</td>
+        </tr>`;
+      }).join('');
+    }
+    document.getElementById('footer').textContent =
+      'Aggiornato: ' + new Date().toLocaleTimeString('it-IT') +
+      ' · ' + scores.length + ' record totali';
+  } catch(e) {
+    document.getElementById('footer').textContent = 'Errore: ' + e.message;
+  }
+  btn.disabled = false;
+  btn.textContent = '↺ Aggiorna';
 }
 
 load();
-subscribe();
+// Refresh automatico ogni 60 secondi
+setInterval(load, 60000);
 </script>
 </body>
 </html>
