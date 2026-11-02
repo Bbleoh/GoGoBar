@@ -32,7 +32,7 @@ const CONTENUTI = {
       descrizione: "Allora, è un gioco stra mega divertente perché c'è Marf che corre e scappa dalle femmine.",
       tag: ['Follia', 'Divertimento', 'Wow'],
       link: 'giochi/corri-marf/',
-      immagine: 'giochi/corri-marf/copertina.jpg?v=3',
+      immagine: 'giochi/corri-marf/copertina.jpg?v=4',
       inEvidenza: true,
     },
     {
