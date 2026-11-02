@@ -114,7 +114,7 @@
   <div id="grid"></div>
 </section>
 
-<script src="../contenuti.js"></script>
+<script src="../contenuti.js?v=3"></script>
 <script>
 /*
  * Pagina Video: legge i video da contenuti.js.
@@ -122,7 +122,12 @@
  * così ogni video ha il suo link da mandare agli amici.
  */
 (function () {
-  const video = TUTTI_I_VIDEO.filter(v => v.youtube && !v.inArrivo);
+  // tutti i video in una lista sola, qualunque sia il formato di contenuti.js
+  // (anche se il browser ha ancora in cache una versione vecchia del file)
+  const TUTTI = (typeof TUTTI_I_VIDEO !== 'undefined') ? TUTTI_I_VIDEO
+    : ((typeof CONTENUTI !== 'undefined' && CONTENUTI.video) || []).flatMap(p =>
+        p.video ? p.video.map(v => Object.assign({ playlist: p.playlist }, v)) : [p]);
+  const video = TUTTI.filter(v => v.youtube && !v.inArrivo);
   const grid = document.getElementById('grid');
 
   if (!video.length) {
