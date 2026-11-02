@@ -252,6 +252,10 @@
   document.getElementById('gioca').addEventListener('click', inizia);
   document.getElementById('riprova').addEventListener('click', inizia);
 
+  // aprendo la pagina con #prova le ragazze non ti prendono mai (utile per provare le animazioni)
+  var PROVA = location.hash === '#prova';
+  if (PROVA) window.corriMarfProva = { salta: function () { salta(); }, giu: function (v) { giu(v); }, stato: function () { return g; } };
+
   /* ── Stato ── */
   var FRASI = ['MARF!', 'Aspettaaa!', 'Dove scappi?', 'Ti amo Marf!', 'Un bacino!', 'Marfiiino!', 'Torna qui!'];
   var stato = 'menu'; // menu | gioco | preso
@@ -263,7 +267,9 @@
       marf: { y: TERRA, vy: 0, salti: 0, giu: false, botta: 0 },
       distacco: 230,       // px tra la prima inseguitrice e Marf: a 0 ti prendono
       ostacoli: [], birreA: [], prossimo: 1.2, prossimaBirra: 3,
-      fumetto: null, prossimoFumetto: 1.5, scatto: 0, scuoti: 0
+      fumetto: null, prossimoFumetto: 1.5, scatto: 0, scuoti: 0,
+      anim: nuovaAnim(), ragazze: [0, 1, 2].map(function (i) { return { fase: i * 0.37, posa: null }; }),
+      fx: []
     };
   }
   nuovaPartita();
@@ -303,6 +309,8 @@
     if (m.salti < 2) {
       m.vy = m.salti === 0 ? -720 : -620; m.salti++; m.giu = false;
       bip(m.salti === 1 ? 420 : 560, 0.12);
+      if (m.salti === 1) polvere(MARF_X - 4, TERRA, 5, 1);
+      else g.anim.giro = 1;                       // secondo salto: capriola
     }
   }
   function giu(attivo) {
@@ -369,6 +377,7 @@
   /* ── Aggiornamento ── */
   function aggiorna(dt) {
     g.t += dt;
+    animaTutto(dt);
     if (stato !== 'gioco') return;
     var m = g.marf;
 
@@ -380,7 +389,10 @@
     // fisica di Marf
     m.vy += 2100 * dt;
     m.y += m.vy * dt;
-    if (m.y >= TERRA) { m.y = TERRA; m.vy = 0; m.salti = 0; }
+    if (m.y >= TERRA) {
+      if (m.vy > 250) atterraggio(m.vy);
+      m.y = TERRA; m.vy = 0; m.salti = 0;
+    }
     if (m.botta > 0) m.botta -= dt;
     if (g.scatto > 0) g.scatto -= dt;
     if (g.scuoti > 0) g.scuoti -= dt;
@@ -426,6 +438,7 @@
     }
     if (g.fumetto && (g.fumetto.t -= dt) <= 0) g.fumetto = null;
 
+    if (PROVA) g.distacco = Math.max(g.distacco, 120);   // modalità prova: non ti prendono mai
     if (g.distacco <= 0) preso();
   }
 
@@ -453,6 +466,7 @@
     sfondo();
     g.birreA.forEach(birra);
     g.ostacoli.forEach(ostacolo);
+    disegnaPolvere();
     inseguitrici();
     marf();
     if (stato !== 'menu') hud();
@@ -565,6 +579,7 @@
 
   function marf() {
     var m = g.marf;
+    if (PEZZI.pronto) { marfNuovo(); return; }
     if (m.botta > 0 && Math.floor(m.botta * 12) % 2 === 0) return; // lampeggia dopo una botta
     var aTerra = m.y >= TERRA, scivola = m.giu && aTerra;
     var corre = stato === 'gioco' && aTerra;
@@ -591,8 +606,7 @@
       bA = -s * ampB; gA = bA + 1.6; bB = s * ampB; gB = bB + 1.6;
     } else { cA = 0.15; sA = 0; cB = -0.15; sB = -0.1; bA = -0.3; gA = 0.8; bB = 0.3; gB = 1.2; }
 
-    if (PEZZI.pronto) marfPezzi(anca, cA, sA, cB, sB, bA, gA, bB, gB, corre, salto, scivola, p);
-    else {
+    {
 
     // dietro: gamba e braccio lontani
     gambaMarf(-2, anca, cB, sB, true);
@@ -676,104 +690,334 @@
       ctx.beginPath(); ctx.arc(MARF_X - 22, TERRA - 5, 5, 0, Math.PI * 2); ctx.arc(MARF_X - 30, TERRA - 8, 4, 0, Math.PI * 2); ctx.fill();
     }
   }
-  /* ── Marf a pezzi: i disegni di Leo (marf-pezzi.webp) montati su uno scheletro ──
-     Coordinate in pixel del foglio originale (girato verso destra), K le porta nel mondo. */
-  var PEZZI = { img: new Image(), pronto: false };
-  PEZZI.img.onload = function () { PEZZI.pronto = true; };
-  PEZZI.img.src = 'marf-pezzi.webp';
-  var K = 0.066, ATL_S = 0.25;
-  var ATLANTE = {
-    testa: [0, 0, 91, 94], busto: [93, 0, 90, 162],
-    braccio: [185, 0, 39, 85], braccioDietro: [226, 0, 39, 85],
-    avambraccio: [267, 0, 35, 113], avambraccioDietro: [304, 0, 35, 113],
-    coscia: [341, 0, 45, 108], cosciaDietro: [388, 0, 45, 108],
-    gamba: [435, 0, 63, 116], gambaDietro: [500, 0, 63, 116]
-  };
-  // perni (in px del pezzo) e lunghezze delle ossa
-  var COSCIA = { px: 90, py: 50, L: 350 }, STINCO = { px: 72, py: 25 };
-  var OMERO = { px: 78, py: 50, L: 255 }, AVAMB = { px: 70, py: 32 };
-  var GAMBA_TOT = 350 + 464 - 25;                  // dall'anca alla suola
-  var SPALLA = [-30, -365], BUSTO = [-159, -522];  // rispetto all'anca
-  var TESTA = { x: -127, y: -822, collo: [187, 370], scala: 1.15 };
+  /* ── Personaggi a pezzi: i fogli disegnati da Leo, scontornati e montati su uno scheletro ──
+     I dati vengono dallo script che taglia i fogli: per ogni pezzo il rettangolo nell'atlante
+     (scala 0.25), l'origine e il perno in pixel del foglio originale (girato verso destra),
+     la lunghezza delle ossa; anca e spalla sono punti del foglio. K porta i pixel nel mondo. */
+  var RIG_DATI = {"marf":{"atlante":{"testa":[0,0,87,92],"busto":[89,0,91,165],"braccio":[182,0,41,95],"braccioDietro":[225,0,41,95],"avambraccio":[268,0,34,111],"avambraccioDietro":[304,0,34,111],"coscia":[340,0,44,101],"cosciaDietro":[386,0,44,101],"stinco":[432,0,36,93],"stincoDietro":[470,0,36,93],"piede":[508,0,56,33],"piedeDietro":[566,0,56,33]},"parti":{"testa":{"o":[1060,10],"w":346,"h":368,"p":[155,355]},"busto":{"o":[1046,355],"w":364,"h":658},"braccio":{"o":[546,88],"w":163,"h":381,"p":[82,62],"L":295},"avambraccio":{"o":[575,484],"w":137,"h":442,"p":[65,31]},"coscia":{"o":[48,65],"w":177,"h":405,"p":[87,50],"L":330},"stinco":{"o":[62,484],"w":144,"h":371,"p":[68,26],"L":330},"piede":{"o":[1215,862],"w":224,"h":133,"p":[47,25]}},"anca":[1215,940],"spalla":[1105,572],"testaGiu":35},"ragazza":{"atlante":{"busto":[0,0,109,242],"braccio":[111,0,45,90],"braccioDietro":[158,0,45,90],"avambraccio":[205,0,38,115],"avambraccioDietro":[245,0,38,115],"coscia":[285,0,54,112],"cosciaDietro":[341,0,54,112],"stinco":[397,0,29,75],"stincoDietro":[428,0,29,75],"piede":[459,0,55,30],"piedeDietro":[516,0,55,30]},"parti":{"busto":{"o":[1070,29],"w":437,"h":969},"braccio":{"o":[576,88],"w":178,"h":359,"p":[92,52],"L":280},"avambraccio":{"o":[596,477],"w":151,"h":461,"p":[72,33]},"coscia":{"o":[26,97],"w":215,"h":448,"p":[104,53],"L":370},"stinco":{"o":[99,559],"w":114,"h":301,"p":[51,16],"L":265},"piede":{"o":[1299,867],"w":220,"h":120,"p":[41,18]}},"anca":[1290,915],"spalla":[1200,560],"testaGiu":0}};
+  var RIG = {};
+  Object.keys(RIG_DATI).forEach(function (nome) {
+    var d = RIG_DATI[nome], img = new Image();
+    var r = { d: d, img: img, pronto: false, K: 0.062 };
+    r.gamba = d.parti.coscia.L + d.parti.stinco.L + (d.parti.piede.h - d.parti.piede.p[1]); // anca → suola
+    img.onload = function () { r.pronto = true; };
+    img.src = nome + '-pezzi.webp?v=2';
+    RIG[nome] = r;
+  });
+  var PEZZI = RIG.marf;
+  var ATL_S = 0.25;
 
-  function pezzo(nome, px, py, ang, scalaExtra) {
-    var r = ATLANTE[nome], k = K * (scalaExtra || 1);
+  function pezzoR(R, nome, dietro, ang) {
+    var pt = R.d.parti[nome], at = R.d.atlante[nome + (dietro ? 'Dietro' : '')], k = R.K;
     ctx.save(); ctx.rotate(-ang);
-    ctx.drawImage(PEZZI.img, r[0], r[1], r[2], r[3], -px * k, -py * k, r[2] / ATL_S * k, r[3] / ATL_S * k);
+    ctx.drawImage(R.img, at[0], at[1], at[2], at[3], -pt.p[0] * k, -pt.p[1] * k, pt.w * k, pt.h * k);
     ctx.restore();
   }
-  function gambaPezzi(dietro, coscia, stinco, anca) {
-    var suf = dietro ? 'Dietro' : '';
+  function lungo(R, nome, ang) { var L = R.d.parti[nome].L * R.K; ctx.translate(Math.sin(ang) * L, Math.cos(ang) * L); }
+  function gambaR(R, dietro, coscia, stinco, piede, anca) {
     ctx.save(); ctx.translate(dietro ? -4 : 3, anca);
-    ctx.save();
-    ctx.translate(Math.sin(coscia) * COSCIA.L * K, Math.cos(coscia) * COSCIA.L * K);
-    pezzo('gamba' + suf, STINCO.px, STINCO.py, stinco);
+    ctx.save(); lungo(R, 'coscia', coscia);
+    ctx.save(); lungo(R, 'stinco', stinco);
+    pezzoR(R, 'piede', dietro, piede);
     ctx.restore();
-    pezzo('coscia' + suf, COSCIA.px, COSCIA.py, coscia);
+    pezzoR(R, 'stinco', dietro, stinco);
     ctx.restore();
-  }
-  function braccioPezzi(dietro, omero, avamb) {
-    var suf = dietro ? 'Dietro' : '';
-    ctx.save(); ctx.translate((SPALLA[0] + (dietro ? -14 : 0)) * K, SPALLA[1] * K);
-    ctx.save();
-    ctx.translate(Math.sin(omero) * OMERO.L * K, Math.cos(omero) * OMERO.L * K);
-    pezzo('avambraccio' + suf, AVAMB.px, AVAMB.py, avamb);
-    ctx.restore();
-    pezzo('braccio' + suf, OMERO.px, OMERO.py, omero);
+    pezzoR(R, 'coscia', dietro, coscia);
     ctx.restore();
   }
-  function marfPezzi(anca, cA, sA, cB, sB, bA, gA, bB, gB, corre, salto, scivola, p) {
-    var piega = corre ? 0.12 : (salto ? 0.06 : 0);   // in corsa si sporge in avanti
+  function braccioR(R, dietro, omero, avamb) {
+    var k = R.K, A = R.d.anca, Sp = R.d.spalla;
+    ctx.save(); ctx.translate((Sp[0] - A[0] - (dietro ? 12 : 0)) * k, (Sp[1] - A[1]) * k);
+    ctx.save(); lungo(R, 'braccio', omero);
+    pezzoR(R, 'avambraccio', dietro, avamb);
+    ctx.restore();
+    pezzoR(R, 'braccio', dietro, omero);
+    ctx.restore();
+  }
+  // disegna il personaggio con l'origine sui piedi; anca = y dell'anca (negativa)
+  function personaggio(R, anca, po) {
+    var k = R.K, A = R.d.anca, pt = R.d.parti, piega = po.lean, testaAng = po.head;
     ctx.save(); ctx.translate(0, anca); ctx.rotate(-piega);
-    braccioPezzi(true, bB, gB);   // braccio lontano, dietro a tutto
+    braccioR(R, true, po.bB, po.gB);              // braccio lontano, dietro a tutto
     ctx.restore();
-    gambaPezzi(true, cB, sB, anca);
-    gambaPezzi(false, cA, sA, anca);
+    gambaR(R, true, po.cB, po.sB, po.fB, anca);
+    gambaR(R, false, po.cA, po.sA, po.fA, anca);
     ctx.save(); ctx.translate(0, anca); ctx.rotate(-piega);
-    // testa (dietro al busto, così il cappuccio copre il collo), un po' più grande e che dondola
-    ctx.save();
-    ctx.translate((TESTA.x + TESTA.collo[0]) * K, (TESTA.y + TESTA.collo[1]) * K);
-    pezzo('testa', TESTA.collo[0], TESTA.collo[1], corre ? Math.sin(p * 2) * 0.05 : 0, TESTA.scala);
-    ctx.restore();
-    ctx.drawImage(PEZZI.img, ATLANTE.busto[0], 0, ATLANTE.busto[2], ATLANTE.busto[3],
-      BUSTO[0] * K, BUSTO[1] * K, ATLANTE.busto[2] / ATL_S * K, ATLANTE.busto[3] / ATL_S * K);
-    braccioPezzi(false, bA, gA);
+    if (pt.testa) {                                // testa separata: dietro al busto, così il cappuccio copre il collo
+      var t = pt.testa;
+      ctx.save();
+      ctx.translate((t.o[0] + t.p[0] - A[0]) * k, (t.o[1] + t.p[1] + R.d.testaGiu - A[1]) * k);
+      pezzoR(R, 'testa', false, testaAng || 0);
+      ctx.restore();
+    }
+    var b = R.d.atlante.busto;
+    ctx.drawImage(R.img, b[0], b[1], b[2], b[3], (pt.busto.o[0] - A[0]) * k, (pt.busto.o[1] - A[1]) * k, pt.busto.w * k, pt.busto.h * k);
+    braccioR(R, false, po.bA, po.gA);
     ctx.restore();
   }
+  /* ── Animazione ──────────────────────────────────────────────────────────
+     Come nei cutout animati: ogni movimento è fatto di pose chiave
+     (contatto, carico, spinta, stacco, ritorno, passaggio, slancio per la corsa)
+     interpolate con curve morbide (Catmull-Rom). Fra uno stato e l'altro
+     (corsa, salto, atterraggio, scivolata) la posa non salta: ogni giuntura
+     insegue quella nuova con una molla, quindi i passaggi sono sempre fluidi.
+     L'anca si alza e si abbassa da sola tenendo il piede d'appoggio a terra. */
+  var TAU = Math.PI * 2;
+  var CHIAVI = ['cA', 'sA', 'fA', 'cB', 'sB', 'fB', 'bA', 'gA', 'bB', 'gB', 'lean', 'head'];
+
+  function catmull(p0, p1, p2, p3, t) {
+    var t2 = t * t, t3 = t2 * t;
+    return 0.5 * (2 * p1 + (-p0 + p2) * t + (2 * p0 - 5 * p1 + 4 * p2 - p3) * t2 + (-p0 + 3 * p1 - 3 * p2 + p3) * t3);
+  }
+  // curva ciclica: chiavi [[tempo 0..1, valore], ...]
+  function curva(k, t) {
+    t = ((t % 1) + 1) % 1;
+    var n = k.length, i = n - 1;
+    for (var j = 0; j < n; j++) if (k[j][0] > t) { i = j - 1; break; }
+    if (i < 0) i = n - 1;
+    var a = k[i], b = k[(i + 1) % n];
+    var ta = a[0], tb = b[0] <= ta ? b[0] + 1 : b[0], tt = t < ta ? t + 1 : t;
+    var u = (tt - ta) / (tb - ta);
+    return catmull(k[(i - 1 + n) % n][1], a[1], b[1], k[(i + 2) % n][1], u);
+  }
+
+  // Ciclo di corsa di una gamba (0 = il tallone tocca terra davanti).
+  // coscia e piede sono angoli assoluti, ginocchio è relativo alla coscia (negativo = piegato).
+  var CORSA = {
+    coscia:    [[0, .55], [.12, .32], [.3, -.18], [.45, -.52], [.62, -.32], [.8, .58], [.92, .76]],
+    ginocchio: [[0, -.12], [.12, -.55], [.3, -.28], [.45, -.32], [.62, -1.85], [.8, -1.6], [.92, -.45]],
+    piede:     [[0, .3], [.12, 0], [.3, -.04], [.45, -.7], [.62, -.85], [.8, -.35], [.92, .15]],
+    // braccio dello stesso lato: va indietro quando la gamba va avanti
+    omero:     [[0, -.72], [.25, -.05], [.5, .8], [.75, .05]],
+    gomito:    [[0, 1.2], [.25, 1.45], [.5, 1.9], [.75, 1.5]]
+  };
+  function posaCorsa(t, amp, out) {
+    out = out || {};
+    var cA = curva(CORSA.coscia, t) * amp, cB = curva(CORSA.coscia, t + .5) * amp;
+    out.cA = cA; out.sA = cA + curva(CORSA.ginocchio, t); out.fA = curva(CORSA.piede, t);
+    out.cB = cB; out.sB = cB + curva(CORSA.ginocchio, t + .5); out.fB = curva(CORSA.piede, t + .5);
+    // le braccia arrivano un attimo dopo le gambe (sovrapposizione)
+    out.bA = curva(CORSA.omero, t - .04) * amp; out.gA = out.bA + curva(CORSA.gomito, t - .04);
+    out.bB = curva(CORSA.omero, t + .46) * amp; out.gB = out.bB + curva(CORSA.gomito, t + .46);
+    var oscilla = Math.sin(TAU * 2 * t + 1.1);          // due passi per ciclo
+    out.lean = 0.17 + 0.035 * oscilla;
+    out.head = -0.6 * 0.035 * oscilla;                   // la testa compensa e resta stabile
+    return out;
+  }
+  function mescola(a, b, u, out) {
+    out = out || {};
+    for (var i = 0; i < CHIAVI.length; i++) { var k = CHIAVI[i]; out[k] = a[k] + (b[k] - a[k]) * u; }
+    return out;
+  }
+  function liscia(x) { x = Math.max(0, Math.min(1, x)); return x * x * (3 - 2 * x); }
+
+  // pose fisse
+  var P_SALITA = { cA: 1.25, sA: -.35, fA: -.3, cB: -.45, sB: -1.55, fB: -.9, bA: 2.5, gA: 2.75, bB: -.95, gB: -.45, lean: .2, head: -.05 };
+  var P_CIMA   = { cA: 1.1, sA: -.45, fA: -.2, cB: .35, sB: -1.35, fB: -.6, bA: 1.9, gA: 2.5, bB: -.6, gB: .1, lean: .12, head: 0 };
+  var P_DISCESA= { cA: .55, sA: .2, fA: .25, cB: -.15, sB: -.75, fB: -.3, bA: 1.55, gA: 1.85, bB: -1.25, gB: -.9, lean: .04, head: .05 };
+  var P_PALLA  = { cA: 1.7, sA: -.6, fA: -.4, cB: 1.5, sB: -.8, fB: -.5, bA: 1.2, gA: 2.6, bB: .9, gB: 2.4, lean: .3, head: -.1 };
+  var P_ATTERRA= { cA: .7, sA: -.55, fA: 0, cB: -.15, sB: -1.4, fB: -.2, bA: .55, gA: 1.4, bB: -.45, gB: .5, lean: .42, head: -.2 };
+  // scivolata: il corpo ruota all'indietro di ROT_SCIVOLA, quindi questi angoli sono "nel corpo"
+  var ROT_SCIVOLA = -1.1;
+  var P_SCIVOLA= { cA: .5, sA: .47, fA: .2, cB: .15, sB: -1.35, fB: -1.0, bA: -1.75, gA: -1.45, bB: 1.45, gB: 1.95, lean: 0, head: -.65 };
+  var P_FERMO  = { cA: .08, sA: .02, fA: 0, cB: -.08, sB: -.12, fB: 0, bA: -.15, gA: .35, bB: .15, gB: .6, lean: .03, head: 0 };
+
+  function nuovaAnim() {
+    return { fase: 0, posa: null, anca: null, scivola: 0, giro: 0, atterra: 0, ripresa: 1, eraInAria: false, tmp: {}, tmp2: {} };
+  }
+
+  // quanto scende il punto più basso del piede (in unità del mondo), per tenere il piede a terra
+  function piedeBasso(R, f) {
+    var p = R.d.parti.piede, k = R.K, sn = Math.sin(f), cs = Math.cos(f);
+    var yb = (p.h - p.p[1] - 6), x1 = -p.p[0], x2 = p.w - p.p[0];
+    return Math.max(-x1 * sn + yb * cs, -x2 * sn + yb * cs) * k;
+  }
+  function altezzaAnca(R, po) {
+    var k = R.K, L1 = R.d.parti.coscia.L * k, L2 = R.d.parti.stinco.L * k;
+    var a = L1 * Math.cos(po.cA) + L2 * Math.cos(po.sA) + piedeBasso(R, po.fA);
+    var b = L1 * Math.cos(po.cB) + L2 * Math.cos(po.sB) + piedeBasso(R, po.fB);
+    return -Math.max(a, b);
+  }
+  function verso(cur, tgt, dt, vel) {
+    var u = 1 - Math.exp(-dt * vel);
+    for (var i = 0; i < CHIAVI.length; i++) { var k = CHIAVI[i]; cur[k] += (tgt[k] - cur[k]) * u; }
+  }
+
+  function atterraggio(vy) {
+    var a = g.anim;
+    a.atterra = Math.min(1, 0.45 + vy / 1600);
+    a.ripresa = 0; a.giro = 0;
+    polvere(MARF_X, TERRA, 7 + Math.floor(vy / 200), 1.4);
+  }
+
+  function animaTutto(dt) {
+    if (!g) return;
+    animaMarf(dt);
+    animaRagazze(dt);
+    aggiornaPolvere(dt);
+  }
+
+  function animaMarf(dt) {
+    var a = g.anim, m = g.marf, R = PEZZI;
+    if (!R || !R.pronto) return;
+    if (!a.posa) a.posa = posaCorsa(a.fase, 1, {});
+    var inGioco = stato === 'gioco', aTerra = m.y >= TERRA;
+    var vel = inGioco ? g.vel : 380;
+    var target;
+    a.ripresa = Math.min(1, a.ripresa + dt * 3.2);
+
+    if (stato === 'preso') {                           // preso: si ferma e si arrende
+      target = P_FERMO; verso(a.posa, target, dt, 6);
+    } else if (!aTerra && inGioco) {
+      var u = (m.vy + 650) / 1300;                     // -650 → salita, 0 → cima, +650 → discesa
+      target = u < .5 ? mescola(P_SALITA, P_CIMA, liscia(u * 2), a.tmp) : mescola(P_CIMA, P_DISCESA, liscia(u * 2 - 1), a.tmp);
+      if (a.giro > 0) target = mescola(target, P_PALLA, liscia(Math.min(1, a.giro * 2.2)), a.tmp2);
+      verso(a.posa, target, dt, 14);
+      a.ripresa = 0;
+    } else {
+      var freq = 1.45 + vel / 430;                      // passi più rapidi quando va veloce
+      var fasePrima = a.fase;
+      a.fase += dt * freq;
+      target = posaCorsa(a.fase, 0.92 + Math.min(vel, 820) / 4000, a.tmp);
+      if (a.atterra > 0) target = mescola(target, P_ATTERRA, liscia(a.atterra), a.tmp2);
+      if (m.botta > 0.75) {                             // inciampo appena preso l'ostacolo
+        var b = liscia((m.botta - 0.75) / 0.35);
+        target.lean += 0.45 * b; target.head -= 0.3 * b;
+        target.bA += Math.sin(g.t * 38) * 0.9 * b; target.bB += Math.cos(g.t * 33) * 0.9 * b;
+      }
+      verso(a.posa, target, dt, 10 + 32 * a.ripresa);
+      // polvere a ogni appoggio
+      if (inGioco && a.scivola < .2 && Math.floor(fasePrima * 2) !== Math.floor(a.fase * 2)) polvere(MARF_X + 6, TERRA, 2, .5);
+    }
+    a.atterra = Math.max(0, a.atterra - dt * 5.5);
+    if (a.giro > 0) a.giro = Math.max(0, a.giro - dt * 1.9);
+
+    // scivolata: il corpo si stende piano piano e si rialza piano piano
+    var vuoleScivolare = inGioco && m.giu && aTerra;
+    a.scivola += ((vuoleScivolare ? 1 : 0) - a.scivola) * (1 - Math.exp(-dt * (vuoleScivolare ? 16 : 10)));
+    if (a.scivola > 0.02) {
+      mescola(a.posa, P_SCIVOLA, liscia(a.scivola), a.mostra || (a.mostra = {}));
+      if (vuoleScivolare && Math.random() < dt * 30) polvere(MARF_X + 34, TERRA, 1, .9);
+    } else a.mostra = null;
+
+    // anca: a terra la decide il piede d'appoggio, in aria resta all'altezza da in piedi
+    var po = a.mostra || a.posa;
+    var ancaVoluta = aTerra || !inGioco ? altezzaAnca(R, a.posa) : -R.gamba * R.K * 0.97;
+    ancaVoluta += (-R.gamba * R.K * 0.3 - ancaVoluta) * liscia(a.scivola);   // in scivolata l'anca va giù
+    if (a.anca === null) a.anca = ancaVoluta;
+    a.anca += (ancaVoluta - a.anca) * (1 - Math.exp(-dt * (aTerra ? 30 : 12)));
+  }
+
+  function marfNuovo() {
+    var a = g.anim, m = g.marf, R = PEZZI;
+    if (a.anca === null) return;
+    var po = a.mostra || a.posa;
+    ctx.save();
+    if (m.botta > 0) ctx.globalAlpha = Math.floor(m.botta * 12) % 2 === 0 ? 0.35 : 1;  // lampeggia dopo una botta
+    ctx.translate(MARF_X, m.y);
+    if (a.giro > 0) {                                    // capriola del doppio salto, attorno alla pancia
+      var cy = a.anca * 1.35, giro = (1 - Math.pow(a.giro, 1.6)) * TAU;
+      ctx.translate(0, cy); ctx.rotate(giro); ctx.translate(0, -cy);
+    }
+    if (a.scivola > 0.02) {                              // scivolata: ruota all'indietro attorno all'anca
+      ctx.translate(-6 * a.scivola, a.anca); ctx.rotate(ROT_SCIVOLA * liscia(a.scivola)); ctx.translate(0, -a.anca);
+    }
+    personaggio(R, a.anca, po);
+    ctx.restore();
+    if (g.scatto > 0) { // scie dello scatto
+      ctx.strokeStyle = 'rgba(228,179,60,.6)'; ctx.lineWidth = 3;
+      for (var i = 0; i < 3; i++) { ctx.beginPath(); ctx.moveTo(MARF_X - 30 - i * 12, m.y - 30 - i * 20); ctx.lineTo(MARF_X - 70 - i * 12, m.y - 30 - i * 20); ctx.stroke(); }
+    }
+  }
+
+  // ragazze: stessa corsa, un po' più saltellante, col braccio che cerca di afferrare Marf
+  function animaRagazze(dt) {
+    var R = RIG.ragazza;
+    if (!R || !R.pronto || !g.ragazze) return;
+    var vel = stato === 'gioco' ? g.vel : 380;
+    g.ragazze.forEach(function (r, i) {
+      if (stato !== 'preso') r.fase += dt * (1.5 + vel / 430) * (1 + i * 0.03);
+      var t = posaCorsa(r.fase, 1, r.tmp || (r.tmp = {}));
+      var afferra = Math.sin(g.t * 6 + i * 2);
+      t.bA = 1.3 + 0.22 * afferra; t.gA = t.bA + 0.25 + 0.2 * Math.max(0, -afferra);
+      t.lean = 0.22 + (t.lean - 0.17);
+      if (!r.posa) r.posa = mescola(t, t, 0);
+      verso(r.posa, t, dt, 30);
+      r.anca = altezzaAnca(R, r.posa);
+    });
+  }
+
+  // polvere: nuvolette che restano indietro mentre il mondo scorre
+  function polvere(x, y, n, forza) {
+    if (!g) return;
+    for (var i = 0; i < n; i++) {
+      g.fx.push({ x: x + (Math.random() - .5) * 10, y: y - Math.random() * 3,
+        vx: -(30 + Math.random() * 90) * forza, vy: -(20 + Math.random() * 70) * forza,
+        r: 2.5 + Math.random() * 3.5 * forza, vita: 0.35 + Math.random() * 0.35, t: 0 });
+    }
+    if (g.fx.length > 80) g.fx.splice(0, g.fx.length - 80);
+  }
+  function aggiornaPolvere(dt) {
+    var scorre = stato === 'gioco' ? g.vel : 0;
+    for (var i = g.fx.length - 1; i >= 0; i--) {
+      var p = g.fx[i];
+      p.t += dt; if (p.t >= p.vita) { g.fx.splice(i, 1); continue; }
+      p.x += (p.vx - scorre * 0.6) * dt; p.y += p.vy * dt; p.vy += 120 * dt; p.vx *= 1 - dt * 3;
+      if (p.y > TERRA) { p.y = TERRA; p.vy = 0; }
+    }
+  }
+  function disegnaPolvere() {
+    if (!g.fx) return;
+    g.fx.forEach(function (p) {
+      var u = p.t / p.vita;
+      ctx.fillStyle = 'rgba(241,239,233,' + (0.38 * (1 - u)).toFixed(3) + ')';
+      ctx.beginPath(); ctx.arc(p.x, p.y, p.r * (1 + u * 1.2), 0, TAU); ctx.fill();
+    });
+  }
+  var GAMBA_TOT = PEZZI.gamba, K = PEZZI.K;
 
   function gamba(x, y, ang) {
     ctx.beginPath(); ctx.moveTo(x, y);
     ctx.lineTo(x + Math.sin(ang) * 36, y + Math.cos(ang) * 36); ctx.stroke();
   }
 
-  // Le tre inseguitrici (provvisorie)
+  // Le tre inseguitrici: per ora la stessa ragazza ripetuta (poi ne arrivano altre)
   var RAGAZZE = [
-    { capelli: '#f2c94c', vestito: '#e05d8c' },
-    { capelli: '#3b2a1c', vestito: '#9b5de5' },
-    { capelli: '#c0392b', vestito: '#e4b33c' }
+    { capelli: '#f2c94c', vestito: '#e05d8c', rig: 'ragazza', scala: 1 },
+    { capelli: '#3b2a1c', vestito: '#9b5de5', rig: 'ragazza', scala: 0.96 },
+    { capelli: '#c0392b', vestito: '#e4b33c', rig: 'ragazza', scala: 1.03 }
   ];
   function inseguitrici() {
     if (stato === 'menu') return;
     var fronte = MARF_X - 30 - Math.max(g.distacco, 0);
     var fase = g.t * 14;
     for (var i = RAGAZZE.length - 1; i >= 0; i--) {
-      var r = RAGAZZE[i];
-      var x = fronte - i * 46, y = TERRA - Math.abs(Math.sin(fase + i)) * 6;
+      var r = RAGAZZE[i], R = RIG[r.rig];
+      var x = fronte - i * 46, y = TERRA - Math.abs(Math.sin(fase + i)) * 4;
       if (x < -60) continue;
-      ctx.save(); ctx.translate(x, y); ctx.lineCap = 'round';
-      ctx.strokeStyle = '#e8b98f'; ctx.lineWidth = 7;
-      var a = Math.sin(fase + i * 1.3) * 0.8;
-      gamba(-3, -30, a); gamba(3, -30, -a);
-      ctx.fillStyle = r.vestito;
-      ctx.beginPath(); ctx.moveTo(-18, -30); ctx.lineTo(18, -30); ctx.lineTo(10, -70); ctx.lineTo(-10, -70); ctx.closePath(); ctx.fill();
-      ctx.strokeStyle = '#e8b98f'; ctx.lineWidth = 6;
-      ctx.beginPath(); ctx.moveTo(6, -64); ctx.lineTo(30, -76 + Math.sin(fase + i) * 6); ctx.stroke();
-      ctx.fillStyle = r.capelli; ctx.beginPath(); ctx.arc(-4, -86, 21, 0, Math.PI * 2); ctx.fill();
-      ctx.fillRect(-24, -88, 14, 34);
-      ctx.fillStyle = '#e8b98f'; ctx.beginPath(); ctx.arc(2, -86, 16, 0, Math.PI * 2); ctx.fill();
-      ctx.fillStyle = '#111'; ctx.beginPath(); ctx.arc(8, -89, 2.5, 0, Math.PI * 2); ctx.fill();
-      ctx.fillStyle = '#d2452f'; ctx.beginPath(); ctx.arc(11, -79, 3.5, 0, Math.PI * 2); ctx.fill();
-      ctx.fillStyle = '#ff5c8a'; cuore(14, -112 - Math.abs(Math.sin(fase * 0.5 + i)) * 10, 7);
+      ctx.save(); ctx.translate(x, y);
+      if (R && R.pronto && g.ragazze && g.ragazze[i].posa) {
+        var gr = g.ragazze[i];
+        ctx.translate(0, TERRA - y);                    // il rimbalzo lo fa già lo scheletro
+        ctx.scale(r.scala, r.scala);
+        personaggio(R, gr.anca, gr.posa);
+        ctx.fillStyle = '#ff5c8a'; cuore(16, -112 - Math.abs(Math.sin(fase * 0.5 + i)) * 10, 7);
+      } else {
+        ctx.lineCap = 'round';
+        ctx.strokeStyle = '#e8b98f'; ctx.lineWidth = 7;
+        var a = Math.sin(fase + i * 1.3) * 0.8;
+        gamba(-3, -30, a); gamba(3, -30, -a);
+        ctx.fillStyle = r.vestito;
+        ctx.beginPath(); ctx.moveTo(-18, -30); ctx.lineTo(18, -30); ctx.lineTo(10, -70); ctx.lineTo(-10, -70); ctx.closePath(); ctx.fill();
+        ctx.strokeStyle = '#e8b98f'; ctx.lineWidth = 6;
+        ctx.beginPath(); ctx.moveTo(6, -64); ctx.lineTo(30, -76 + Math.sin(fase + i) * 6); ctx.stroke();
+        ctx.fillStyle = r.capelli; ctx.beginPath(); ctx.arc(-4, -86, 21, 0, Math.PI * 2); ctx.fill();
+        ctx.fillRect(-24, -88, 14, 34);
+        ctx.fillStyle = '#e8b98f'; ctx.beginPath(); ctx.arc(2, -86, 16, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = '#111'; ctx.beginPath(); ctx.arc(8, -89, 2.5, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = '#d2452f'; ctx.beginPath(); ctx.arc(11, -79, 3.5, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = '#ff5c8a'; cuore(14, -112 - Math.abs(Math.sin(fase * 0.5 + i)) * 10, 7);
+      }
       ctx.restore();
       if (g.fumetto && g.fumetto.chi === i && stato === 'gioco') fumetto(x, y - 120, g.fumetto.testo);
     }
