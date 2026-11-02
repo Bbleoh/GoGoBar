@@ -148,7 +148,7 @@
   'use strict';
 
   /* ── Mondo logico: 960 × 420, scalato per stare nello schermo ── */
-  var W = 960, H = 420, TERRA = 369;   // TERRA = dove poggiano i piedi, sul marciapiede
+  var W = 960, H = 420, TERRA = 360;   // TERRA = dove poggiano i piedi, sul marciapiede
   var cv = document.getElementById('c');
   var ctx = cv.getContext('2d');
   var scala = 1;
@@ -254,7 +254,7 @@
 
   // aprendo la pagina con #prova le ragazze non ti prendono mai (utile per provare le animazioni)
   var PROVA = location.hash === '#prova';
-  if (PROVA) window.corriMarfProva = { salta: function () { salta(); }, giu: function (v) { giu(v); }, stato: function () { return g; } };
+  if (PROVA) window.corriMarfProva = { salta: function () { salta(); }, giu: function (v) { giu(v); }, stato: function () { return g; }, vai: function (m) { scorrimento = m * 40; g.metri = m; } };
 
   /* ── Stato ── */
   var FRASI = ['MARF!', 'Aspettaaa!', 'Dove scappi?', 'Ti amo Marf!', 'Un bacino!', 'Marfiiino!', 'Torna qui!'];
@@ -475,22 +475,24 @@
   }
 
   /* ── Sfondo a strati (i disegni di Leo), dal più lontano:
-     1 cielo · 2 monumenti (uno ogni 2 km) · 3 palazzi e colline che si alternano · 4 strada.
-     Le strisce sono alte 724 px e si ripetono in orizzontale. ── */
+     1 cielo · 2 palazzi e colline che si alternano ogni QUARTIERE_M metri · 3 strada.
+     I monumenti stanno davanti a palazzi/colline, proprio sulla giuntura fra due tratti:
+     torre Telecom a 2 km, centro idrico Acea a 4 km, poi di nuovo ogni 4 km.
+     Tutte le strisce sono disegnate alla stessa scala (le originali sono alte 724 px). ── */
   var SF = {};
   ['cielo.jpg', 'colline.webp', 'palazzi.webp', 'strada.webp', 'torre-telecom.webp', 'centro-idrico.webp'].forEach(function (n) {
-    var img = new Image(); img.src = 'sfondo/' + n + '?v=2'; SF[n.split('.')[0]] = img;
+    var img = new Image(); img.src = 'sfondo/' + n + '?v=3'; SF[n.split('.')[0]] = img;
   });
-  var SF_S = H / 724;                      // scala delle strisce
-  var STRADA_Y = 604 * SF_S;               // dove inizia la strada (riga 604 della striscia)
+  var SF_S = H / 724;                      // scala unica delle strisce: il cielo riempie lo schermo, niente zoom
+  var STRADA_Y = H + 1 - 136 * SF_S;       // la striscia della strada (136 px) poggia sul fondo dello schermo
   var QUARTIERE_M = 1000;                  // ogni quanti metri si passa da palazzi a colline e viceversa
-  var MONUMENTO_M = 2000;                  // ogni quanti metri compare un monumento
   var MONUMENTI = [
-    { img: 'torre-telecom', alto: 300 },   // Torre Telecom di Tor Pagnotta
-    { img: 'centro-idrico', alto: 255 }    // centro idrico Acea di Vigna Murata
+    { img: 'torre-telecom', alto: 300 },   // Torre Telecom di Tor Pagnotta (km 2, 6, 10…)
+    { img: 'centro-idrico', alto: 245 }    // centro idrico Acea di Vigna Murata (km 4, 8, 12…)
   ];
+  var GIUNTURA_X = W * 0.6;                // la giuntura k arriva qui sullo schermo intorno al metro k·QUARTIERE_M
   function pronta(img) { return img && img.complete && img.naturalWidth > 0; }
-  // ripete una striscia: par = velocità rispetto alla strada, tipo(i) può scegliere l'immagine della i-esima ripetizione
+  // ripete una striscia: par = velocità rispetto alla strada
   function striscia(par, larg, disegna) {
     var L = scorrimento * par, i0 = Math.floor(L / larg);
     for (var i = i0; i * larg - L < W; i++) disegna(i, Math.floor(i * larg - L));
@@ -502,65 +504,57 @@
       striscia(0.03, cw, function (i, x) { ctx.drawImage(SF.cielo, x, 0, cw + 1, H); });
     } else {
       var cielo = ctx.createLinearGradient(0, 0, 0, STRADA_Y);
-      cielo.addColorStop(0, '#4a86d8'); cielo.addColorStop(1, '#a9c4e0');
+      cielo.addColorStop(0, '#4a86d8'); cielo.addColorStop(1, '#f3dfb4');
       ctx.fillStyle = cielo; ctx.fillRect(0, 0, W, H);
     }
-    // 2. monumenti: il numero k compare intorno al km 2k (il primo si vede subito)
-    var parM = 0.12, passo = MONUMENTO_M * 40 * parM, Lm = scorrimento * parM;
-    for (var k = Math.max(0, Math.floor((Lm - W) / passo)); k <= Math.floor((Lm + W) / passo) + 1; k++) {
-      var mo = MONUMENTI[k % MONUMENTI.length], img = SF[mo.img];
-      if (!pronta(img)) continue;
-      var mh = mo.alto, mw = img.naturalWidth * mh / img.naturalHeight;
-      var mx = k * passo + W * 0.72 - Lm;
-      if (mx + mw < 0 || mx > W) continue;
-      ctx.drawImage(img, Math.floor(mx), STRADA_Y + 6 - mh, mw, mh);
-    }
-    // 3. palazzi o colline, a tratti di QUARTIERE_M metri
-    var parQ = 0.32, sq = SF_S * 1.5;
+    // 2. palazzi o colline: N ripetizioni per tratto, la parallasse è scelta perché un tratto duri QUARTIERE_M metri
     if (pronta(SF.palazzi) && pronta(SF.colline)) {
-      var qw = Math.ceil(SF.palazzi.naturalWidth * sq);
-      striscia(parQ, qw, function (i, x) {
-        var metri = Math.max(0, (i * qw - W) / parQ / 40);
-        var img = Math.floor(metri / QUARTIERE_M) % 2 ? SF.colline : SF.palazzi;
-        var h = img.naturalHeight * sq;
-        ctx.drawImage(img, x, STRADA_Y + 3 - h, qw + 1, h);
-      });
+      var qw = Math.round(SF.palazzi.naturalWidth * SF_S);
+      var N = Math.max(1, Math.round(QUARTIERE_M * 40 * 0.32 / qw));
+      var par = N * qw / (QUARTIERE_M * 40);
+      var L = scorrimento * par - GIUNTURA_X;           // in coordinate dello strato, la giuntura k è a x = k·N·qw
+      var fondo = STRADA_Y + 4;
+      for (var i = Math.floor(L / qw); i * qw - L < W; i++) {
+        var img = Math.floor(i / N) % 2 ? SF.colline : SF.palazzi;
+        if (i < 0) img = SF.palazzi;
+        var h = img.naturalHeight * SF_S;
+        ctx.drawImage(img, Math.floor(i * qw - L), fondo - h, qw + 1, h);
+      }
+      // monumenti sulle giunture pari (k = 2, 4, 6… → km 2, 4, 6…)
+      for (var k = Math.max(2, Math.floor((L - 400) / (N * qw))); k * N * qw - L < W + 400; k++) {
+        if (k % 2) continue;
+        var mo = MONUMENTI[(k / 2 - 1) % MONUMENTI.length], mi = SF[mo.img];
+        if (!pronta(mi)) continue;
+        var mh = mo.alto, mw = mi.naturalWidth * mh / mi.naturalHeight;
+        var mx = k * N * qw - L - mw / 2;
+        if (mx + mw < 0 || mx > W) continue;
+        ctx.drawImage(mi, Math.floor(mx), fondo + 2 - mh, mw, mh);
+      }
     }
-    // 4. strada
+    // 3. strada
     if (pronta(SF.strada)) {
-      var sw = Math.ceil(SF.strada.naturalWidth * SF_S), sh = SF.strada.naturalHeight * SF_S;
+      var sw = Math.round(SF.strada.naturalWidth * SF_S), sh = SF.strada.naturalHeight * SF_S;
       striscia(1, sw, function (i, x) { ctx.drawImage(SF.strada, x, STRADA_Y, sw + 1, sh); });
     } else {
       ctx.fillStyle = '#4a4550'; ctx.fillRect(0, STRADA_Y, W, H - STRADA_Y);
     }
   }
 
-  function palazzi(par, colore, altezzaBase, seme, insegne) {
-    var off = (scorrimento * par) % 1200;
-    for (var k = 0; k < 2; k++) {
-      for (var i = 0; i < 12; i++) {
-        var w = 70 + pseudo(i * seme) * 60, h = altezzaBase + pseudo(i * seme + 7) * 120;
-        var x = i * 100 - off + k * 1200;
-        if (x > W || x + w < 0) continue;
-        ctx.fillStyle = colore; ctx.fillRect(x, TERRA - h, w, h);
-        if (insegne && pseudo(i * 13) > 0.6) {
-          ctx.fillStyle = pseudo(i * 5) > 0.5 ? '#e4b33c' : '#d2452f';
-          ctx.font = '600 16px Fredoka, sans-serif'; ctx.textAlign = 'left';
-          ctx.fillText(pseudo(i * 3) > 0.5 ? 'BAR' : 'GOGO', x + 10, TERRA - h + 26);
-        }
-        ctx.fillStyle = 'rgba(246,215,122,.25)';
-        for (var fy = TERRA - h + 40; fy < TERRA - 20; fy += 28)
-          for (var fx = x + 10; fx < x + w - 14; fx += 22)
-            if (pseudo(fx * 0.7 + fy) > 0.55) ctx.fillRect(fx, fy, 9, 12);
-      }
-    }
-  }
-  function pseudo(n) { var s = Math.sin(n * 12.9898) * 43758.5453; return s - Math.floor(s); }
-
+  // oggetti disegnati da Leo: la canna (al posto della birra) e la ragazza accovacciata (al posto della sedia)
+  var OGG = {};
+  ['canna', 'ragazza-accovacciata'].forEach(function (n) {
+    var img = new Image(); img.src = n + '.webp?v=1'; OGG[n] = img;
+  });
   function birra(b) {
     var y = b.y + Math.sin(g.t * 5 + b.x * 0.02) * 4;
     ctx.save(); ctx.translate(b.x, y);
     ctx.fillStyle = 'rgba(228,179,60,.25)'; ctx.beginPath(); ctx.arc(0, 0, 22, 0, Math.PI * 2); ctx.fill();
+    if (pronta(OGG.canna)) {
+      var cw = 46, ch = cw * OGG.canna.naturalHeight / OGG.canna.naturalWidth;
+      ctx.rotate(Math.sin(g.t * 3 + b.x * 0.01) * 0.12);
+      ctx.drawImage(OGG.canna, -cw / 2, -ch / 2, cw, ch);
+      ctx.restore(); return;
+    }
     ctx.fillStyle = '#e4b33c'; ctx.fillRect(-9, -12, 18, 26);
     ctx.fillStyle = '#fff6dc'; ctx.fillRect(-10, -18, 20, 8);
     ctx.strokeStyle = '#e4b33c'; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(11, 0, 6, -Math.PI / 2, Math.PI / 2); ctx.stroke();
@@ -569,7 +563,10 @@
 
   function ostacolo(o) {
     ctx.save();
-    if (o.tipo === 'sedia') {
+    if (o.tipo === 'sedia' && pronta(OGG['ragazza-accovacciata'])) {
+      var ri = OGG['ragazza-accovacciata'], rh = o.h + 6, rw = rh * ri.naturalWidth / ri.naturalHeight;
+      ctx.drawImage(ri, o.x + o.w / 2 - rw / 2, TERRA + 2 - rh, rw, rh);
+    } else if (o.tipo === 'sedia') {
       ctx.fillStyle = '#b07a3c';
       ctx.fillRect(o.x, TERRA - 30, o.w, 8);
       ctx.fillRect(o.x + o.w - 8, TERRA - o.h, 8, o.h);
@@ -867,8 +864,8 @@
   var P_PALLA  = { cA: 1.7, sA: -.6, fA: -.4, cB: 1.5, sB: -.8, fB: -.5, bA: 1.2, gA: 2.6, bB: .9, gB: 2.4, lean: .3, head: -.1 };
   var P_ATTERRA= { cA: .7, sA: -.55, fA: 0, cB: -.15, sB: -1.4, fB: -.2, bA: .55, gA: 1.4, bB: -.45, gB: .5, lean: .42, head: -.2 };
   // scivolata: il corpo ruota all'indietro di ROT_SCIVOLA, quindi questi angoli sono "nel corpo"
-  var ROT_SCIVOLA = -1.1;
-  var P_SCIVOLA= { cA: .5, sA: .47, fA: .2, cB: .15, sB: -1.35, fB: -1.0, bA: -1.75, gA: -1.45, bB: 1.45, gB: 1.95, lean: 0, head: -.65 };
+  var ROT_SCIVOLA = -1.25;
+  var P_SCIVOLA= { cA: .37, sA: .4, fA: .6, cB: .85, sB: -.35, fB: .3, bA: -2.8, gA: -1.4, bB: .7, gB: 2.35, lean: 0, head: -.8 };
   var P_FERMO  = { cA: .08, sA: .02, fA: 0, cB: -.08, sB: -.12, fB: 0, bA: -.15, gA: .35, bB: .15, gB: .6, lean: .03, head: 0 };
 
   function nuovaAnim() {
@@ -953,7 +950,7 @@
     // anca: a terra la decide il piede d'appoggio, in aria resta all'altezza da in piedi
     var po = a.mostra || a.posa;
     var ancaVoluta = aTerra || !inGioco ? altezzaAnca(R, a.posa) : -R.gamba * R.K * 0.97;
-    ancaVoluta += (-R.gamba * R.K * 0.3 - ancaVoluta) * liscia(a.scivola);   // in scivolata l'anca va giù
+    ancaVoluta += (-R.gamba * R.K * 0.08 - ancaVoluta) * liscia(a.scivola);   // in scivolata l'anca va giù
     if (a.anca === null) a.anca = ancaVoluta;
     a.anca += (ancaVoluta - a.anca) * (1 - Math.exp(-dt * (aTerra ? 30 : 12)));
   }
