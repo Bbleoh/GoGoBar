@@ -50,7 +50,7 @@
       border-bottom: 1px solid var(--line);
     }
     .brand {
-      font-family: var(--display); font-weight: 700; font-size: 1.35rem;
+      font-family: var(--display); font-weight: 700; font-size: 2rem; line-height: 1;
       text-decoration: none; letter-spacing: -.01em;
     }
     .brand span { color: var(--gold); }
@@ -79,15 +79,13 @@
       -webkit-mask-image: linear-gradient(to bottom, #000 30%, transparent 100%);
               mask-image: linear-gradient(to bottom, #000 30%, transparent 100%);
     }
-    .eyebrow {
-      font-family: var(--mono); font-size: .72rem; letter-spacing: .2em; text-transform: uppercase;
-      color: var(--gold); margin-bottom: 1rem;
-    }
     .hero-logo { display: block; width: min(100%, 620px); height: auto; margin-left: -1.5%; }
     .hero-text {
-      margin-top: 1.4rem; max-width: 42ch;
-      font-size: clamp(1rem, 1.4vw, 1.15rem); line-height: 1.6; color: var(--cream);
+      margin-top: 1.2rem;
+      font-family: var(--display); font-weight: 600;
+      font-size: clamp(1.5rem, 3vw, 2.3rem); line-height: 1.15; color: var(--cream);
     }
+    .hero-text b { color: var(--gold); font-weight: 700; }
     .cta { display: flex; flex-wrap: wrap; gap: .7rem; margin-top: 1.8rem; }
     .btn {
       display: inline-flex; align-items: center; gap: .5rem;
@@ -204,6 +202,10 @@
       scrollbar-width: thin; scrollbar-color: var(--line) transparent;
     }
     .rail > * { scroll-snap-align: start; }
+    .playlist-head { display: flex; align-items: baseline; gap: .7rem; margin: 1.6rem 0 .8rem; }
+    .playlist-head:first-child { margin-top: 0; }
+    .playlist-head h3 { font-family: var(--display); font-weight: 600; font-size: 1.25rem; color: var(--gold-2); }
+    .playlist-head span { font-family: var(--mono); font-size: .68rem; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
     .rail .card h3 { font-size: 1.05rem; }
     .rail .card-body { padding: .85rem 1rem 1rem; }
 
@@ -240,7 +242,7 @@
     @media (max-width: 560px) {
       .highlights { grid-template-columns: 1fr; }
       .rail { grid-auto-columns: 78%; }
-      .brand { font-size: 1.15rem; }
+      .brand { font-size: 1.55rem; }
       .nav-links a { font-size: .66rem; }
     }
   </style>
@@ -258,9 +260,8 @@
 
 <header class="hero">
   <div>
-    <p class="eyebrow">Il fantastico sito del</p>
     <img class="hero-logo" src="img/logo-miao.webp" alt="Collettivo M.I.A.O." width="990" height="452">
-    <p class="hero-text">Video, musica e giochi fatti in casa. Fare casino è una cosa seria.</p>
+    <p class="hero-text"><b>MI</b>nchia <b>A</b>nche <b>O</b>ggi?</p>
     <div class="cta">
       <a class="btn btn-primary" href="video/">▶ Guarda i video</a>
       <a class="btn btn-ghost" href="giochi/bisca-del-tromba/">Siediti alla bisca</a>
@@ -295,7 +296,7 @@
     <h2>Video <small data-count="video"></small></h2>
     <a href="video/">Vedi tutti →</a>
   </div>
-  <div class="rail" id="rail-video"></div>
+  <div id="playlists"></div>
 </section>
 
 <!-- GIOCHI -->
@@ -346,7 +347,7 @@
   const thumb = id => 'https://i.ytimg.com/vi/' + id + '/hqdefault.jpg';
 
   // i video YouTube portano alla pagina Video, già sul video giusto
-  (CONTENUTI.video || []).forEach(v => { if (v.youtube && !v.link) v.link = 'video/#' + v.youtube; });
+  TUTTI_I_VIDEO.forEach(v => { if (v.youtube && !v.link) v.link = 'video/#' + v.youtube; });
 
   function card(item, kicker) {
     const ok = pubblicato(item);
@@ -376,7 +377,7 @@
   }
 
   // ── sezioni ──
-  const video  = CONTENUTI.video  || [];
+  const video  = TUTTI_I_VIDEO;
   const giochi = CONTENUTI.giochi || [];
   const musica = CONTENUTI.musica || [];
   const VUOTO = {
@@ -390,13 +391,25 @@
     if (!lista.length) { contenitore.append(el('p', 'empty-note', VUOTO[nome])); return; }
     lista.forEach(i => contenitore.append(card(i)));
   }
-  riempi('video',  video,  document.getElementById('rail-video'));
+  // video: una riga che scorre per ogni playlist
+  document.querySelector('[data-count="video"]').textContent = video.filter(pubblicato).length || '';
+  const pl = document.getElementById('playlists');
+  if (!video.length) pl.append(el('p', 'empty-note', VUOTO.video));
+  CONTENUTI.video.forEach(function (p) {
+    const lista = TUTTI_I_VIDEO.filter(v => v.playlist === p.playlist);
+    if (!lista.length) return;
+    const head = el('div', 'playlist-head');
+    head.append(el('h3', null, p.playlist), el('span', null, lista.length + (lista.length === 1 ? ' video' : ' video')));
+    const rail = el('div', 'rail');
+    lista.forEach(v => rail.append(card(v)));
+    pl.append(head, rail);
+  });
   riempi('giochi', giochi, document.getElementById('grid-giochi'));
   riempi('musica', musica, document.getElementById('grid-musica'));
 
   // ── in evidenza: ultimo video + gioco in evidenza + classifica ──
   const hl = document.getElementById('highlights');
-  const primoVideo = video.find(pubblicato);
+  const primoVideo = video.find(v => v.inEvidenza && pubblicato(v)) || video.find(pubblicato);
   if (primoVideo) hl.append(card(primoVideo, 'Video in evidenza'));
   const giocoTop = giochi.find(g => g.inEvidenza && pubblicato(g)) || giochi.find(pubblicato);
   if (giocoTop) hl.append(card(giocoTop, 'Gioca ora'));
