@@ -194,6 +194,26 @@
     .board li .punti { font-family: var(--mono); color: var(--gold-2); }
     .board .vuoto { font-size: .9rem; color: var(--cream); line-height: 1.5; }
     .board .btn { align-self: flex-start; font-size: .9rem; padding: .55rem 1.1rem; margin-top: auto; }
+    .board { min-width: 0; }
+    .board-head { display: flex; align-items: center; justify-content: space-between; gap: .5rem; }
+    .board-frecce { display: flex; gap: .3rem; }
+    .board-frecce button, .board-pallini button { border: 0; cursor: pointer; font: inherit; }
+    .board-frecce button {
+      width: 1.9rem; height: 1.9rem; border-radius: 50%; background: var(--raised); color: var(--ivory);
+      font-size: 1.2rem; line-height: 1; display: grid; place-items: center; transition: background .2s, color .2s;
+    }
+    .board-frecce button:hover { background: var(--gold); color: #1a1408; }
+    .board-pista {
+      display: grid; grid-auto-flow: column; grid-auto-columns: 100%; flex: 1;
+      overflow-x: auto; scroll-snap-type: x mandatory; scrollbar-width: none; overscroll-behavior-x: contain;
+    }
+    .board-pista::-webkit-scrollbar { display: none; }
+    .board-scheda { scroll-snap-align: start; display: flex; flex-direction: column; gap: .8rem; min-width: 0; padding-right: 2px; }
+    .board-gioco { font-family: var(--mono); font-size: .68rem; letter-spacing: .14em; text-transform: uppercase; color: var(--muted); }
+    .board-scheda h3 { margin-top: -.5rem; }
+    .board-pallini { display: flex; justify-content: center; gap: .4rem; }
+    .board-pallini button { width: .5rem; height: .5rem; border-radius: 50%; background: var(--line); padding: 0; transition: background .2s, width .2s; }
+    .board-pallini button.on { background: var(--gold); width: 1.3rem; border-radius: 999px; }
 
     /* video: riga che scorre */
     .rail {
@@ -289,7 +309,7 @@
 
 <header class="hero">
   <div>
-    <img class="hero-logo" src="img/logo-miao.webp" alt="Collettivo M.I.A.O." width="990" height="452">
+    <img class="hero-logo" src="img/logo-miao.webp?v=2" alt="Collettivo M.I.A.O." width="990" height="452">
     <p class="hero-text"><b>MI</b>nchia <b>A</b>nche <b>O</b>ggi?</p>
     <div class="cta">
       <a class="btn btn-primary" href="video/">▶ Guarda i video</a>
@@ -351,8 +371,9 @@
 <noscript><p style="padding:2rem;font-family:monospace">Per vedere i contenuti serve JavaScript attivo.</p></noscript>
 
 <script src="contenuti.js?v=6"></script>
-<!-- classifica della Bisca: se il file non c'è ancora, il riquadro mostra "in arrivo" -->
+<!-- classifiche dei giochi: se un file non c'è ancora, la sua scheda invita a giocare -->
 <script src="giochi/bisca-del-tromba/classifica.js?v=3" onerror="window.BiscaClassifica = null"></script>
+<script src="giochi/corri-marf/classifica.js?v=1" onerror="window.CorriMarfClassifica = null"></script>
 <script>
 /*
  * Costruisce la homepage a partire da CONTENUTI (vedi contenuti.js).
@@ -487,30 +508,71 @@
   if (giocoTop) hl.append(card(giocoTop, 'Gioca ora'));
   hl.append(classifica());
 
+  // ── classifiche: una scheda per gioco, si scorrono in orizzontale ──
+  // Per aggiungere un gioco: il suo classifica.js deve esporre
+  // window.<api>.carica(n) → Promise<[{nome, punti}]>, poi aggiungi una riga qui.
   function classifica() {
+    const GIOCHI_CLASSIFICA = [
+      { gioco: 'La Bisca der Tromba', titolo: '🏆 I più lerci di GoGoBar', api: 'BiscaClassifica',
+        link: BISCA, cta: 'Siediti al tavolo', punti: n => '€' + n.toLocaleString('it-IT') },
+      { gioco: 'Corri Marf!', titolo: '🏃 I più veloci a scappare', api: 'CorriMarfClassifica',
+        link: 'giochi/corri-marf/', cta: 'Corri anche tu', punti: n => n.toLocaleString('it-IT') + ' pt' },
+    ];
     const box = el('div', 'card board');
-    box.append(el('span', 'card-kicker', 'Classifica · Bisca del Tromba'));
-    box.append(el('h3', null, '🏆 I più lerci di GoGoBar'));
-    const corpo = el('div'); corpo.append(el('p', 'vuoto', 'Carico la classifica...'));
-    box.append(corpo);
-    const gioca = el('a', 'btn btn-ghost', 'Siediti al tavolo'); gioca.href = BISCA;
-    box.append(gioca);
+    const testa = el('div', 'board-head');
+    const kicker = el('span', 'card-kicker', 'Classifiche');
+    const frecce = el('div', 'board-frecce');
+    const prev = el('button', null, '‹'), next = el('button', null, '›');
+    prev.type = next.type = 'button';
+    prev.setAttribute('aria-label', 'Classifica precedente');
+    next.setAttribute('aria-label', 'Classifica successiva');
+    frecce.append(prev, next);
+    testa.append(kicker, frecce);
+    const pista = el('div', 'board-pista');
+    const pallini = el('div', 'board-pallini');
+    box.append(testa, pista, pallini);
 
-    function vuota() {
-      corpo.replaceChildren(el('p', 'vuoto', 'Ancora nessun campione. Il primo posto è libero: vai a prendertelo.'));
+    GIOCHI_CLASSIFICA.forEach(function (g, i) {
+      const scheda = el('div', 'board-scheda');
+      scheda.append(el('span', 'board-gioco', g.gioco), el('h3', null, g.titolo));
+      const corpo = el('div'); corpo.append(el('p', 'vuoto', 'Carico la classifica...'));
+      const gioca = el('a', 'btn btn-ghost', g.cta); gioca.href = g.link;
+      scheda.append(corpo, gioca);
+      pista.append(scheda);
+      const dot = el('button', null); dot.type = 'button';
+      dot.setAttribute('aria-label', g.gioco);
+      dot.onclick = () => vai(i);
+      pallini.append(dot);
+
+      function vuota() {
+        corpo.replaceChildren(el('p', 'vuoto', 'Ancora nessun campione. Il primo posto è libero: vai a prendertelo.'));
+      }
+      const api = window[g.api];
+      if (!api || typeof api.carica !== 'function') return vuota();
+      Promise.resolve(api.carica(5)).then(function (righe) {
+        if (!Array.isArray(righe) || !righe.length) return vuota();
+        const ol = el('ol');
+        righe.slice(0, 5).forEach(function (r) {
+          const li = el('li');
+          li.append(el('span', 'nome', r.nome), el('span', 'punti', g.punti(Number(r.punti) || 0)));
+          ol.append(li);
+        });
+        corpo.replaceChildren(ol);
+      }).catch(vuota);
+    });
+
+    const schede = () => pista.children.length;
+    const attuale = () => pista.clientWidth ? Math.round(pista.scrollLeft / pista.clientWidth) : 0;
+    function vai(i) { pista.scrollTo({ left: ((i + schede()) % schede()) * pista.clientWidth, behavior: 'smooth' }); }
+    function segna() {
+      const i = attuale();
+      [...pallini.children].forEach((d, k) => d.classList.toggle('on', k === i));
     }
-    const api = window.BiscaClassifica;
-    if (!api || typeof api.carica !== 'function') { vuota(); return box; }
-    Promise.resolve(api.carica(5)).then(function (righe) {
-      if (!Array.isArray(righe) || !righe.length) return vuota();
-      const ol = el('ol');
-      righe.slice(0, 5).forEach(function (r) {
-        const li = el('li');
-        li.append(el('span', 'nome', r.nome), el('span', 'punti', '€' + Number(r.punti).toLocaleString('it-IT')));
-        ol.append(li);
-      });
-      corpo.replaceChildren(ol);
-    }).catch(vuota);
+    prev.onclick = () => vai(attuale() - 1);
+    next.onclick = () => vai(attuale() + 1);
+    pista.addEventListener('scroll', segna, { passive: true });
+    segna();
+    requestAnimationFrame(segna);
     return box;
   }
 })();
