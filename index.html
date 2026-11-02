@@ -318,9 +318,9 @@
 
 <noscript><p style="padding:2rem;font-family:monospace">Per vedere i contenuti serve JavaScript attivo.</p></noscript>
 
-<script src="contenuti.js"></script>
+<script src="contenuti.js?v=3"></script>
 <!-- classifica della Bisca: se il file non c'è ancora, il riquadro mostra "in arrivo" -->
-<script src="giochi/bisca-del-tromba/classifica.js" onerror="window.BiscaClassifica = null"></script>
+<script src="giochi/bisca-del-tromba/classifica.js?v=3" onerror="window.BiscaClassifica = null"></script>
 <script>
 /*
  * Costruisce la homepage a partire da CONTENUTI (vedi contenuti.js).
@@ -347,7 +347,12 @@
   const thumb = id => 'https://i.ytimg.com/vi/' + id + '/hqdefault.jpg';
 
   // i video YouTube portano alla pagina Video, già sul video giusto
-  TUTTI_I_VIDEO.forEach(v => { if (v.youtube && !v.link) v.link = 'video/#' + v.youtube; });
+  // tutti i video in una lista sola, qualunque sia il formato di contenuti.js
+  // (anche se il browser ha ancora in cache una versione vecchia del file)
+  const TUTTI = (typeof TUTTI_I_VIDEO !== 'undefined') ? TUTTI_I_VIDEO
+    : ((typeof CONTENUTI !== 'undefined' && CONTENUTI.video) || []).flatMap(p =>
+        p.video ? p.video.map(v => Object.assign({ playlist: p.playlist }, v)) : [p]);
+  TUTTI.forEach(v => { if (v.youtube && !v.link) v.link = 'video/#' + v.youtube; });
 
   function card(item, kicker) {
     const ok = pubblicato(item);
@@ -377,7 +382,7 @@
   }
 
   // ── sezioni ──
-  const video  = TUTTI_I_VIDEO;
+  const video  = TUTTI;
   const giochi = CONTENUTI.giochi || [];
   const musica = CONTENUTI.musica || [];
   const VUOTO = {
@@ -395,8 +400,10 @@
   document.querySelector('[data-count="video"]').textContent = video.filter(pubblicato).length || '';
   const pl = document.getElementById('playlists');
   if (!video.length) pl.append(el('p', 'empty-note', VUOTO.video));
-  CONTENUTI.video.forEach(function (p) {
-    const lista = TUTTI_I_VIDEO.filter(v => v.playlist === p.playlist);
+  const nomiPlaylist = [...new Set(TUTTI.map(v => v.playlist || 'Video'))];
+  nomiPlaylist.forEach(function (nome) {
+    const p = { playlist: nome };
+    const lista = TUTTI.filter(v => (v.playlist || 'Video') === nome);
     if (!lista.length) return;
     const head = el('div', 'playlist-head');
     head.append(el('h3', null, p.playlist), el('span', null, lista.length + (lista.length === 1 ? ' video' : ' video')));
