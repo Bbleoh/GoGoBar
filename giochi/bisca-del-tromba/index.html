@@ -68,6 +68,8 @@
 
   .score-badge{background:rgba(0,0,0,.8);border:1px solid var(--gold);color:var(--gold-light);
     font-size:1.9rem;padding:4px 18px;border-radius:12px;margin-top:2px;display:inline-block;font-weight:700;}
+  .score-badge:empty{display:none;}
+  @media(max-height:900px){#keys-hint{display:none;}}
   .divider{border:none;border-top:1px dashed rgba(201,168,76,.3);}
   #message{text-align:center;min-height:34px;font-family:'Playfair Display',serif;
     font-size:clamp(1rem,2.4vw,1.6rem);font-weight:900;color:var(--gold-light);
@@ -124,13 +126,49 @@
   .chip-500{background:radial-gradient(circle at 35% 35%,#8e44ad,#4a1575);color:#f0d080;}
 
   #deal-btn{font-family:'Cinzel Decorative',cursive;background:linear-gradient(135deg,#7a5000,var(--gold));
-    border:2px solid rgba(255,255,255,.5);color:#000;padding:8px 50px;border-radius:36px;
+    border:2px solid rgba(255,255,255,.5);color:#000;padding:8px 36px;border-radius:36px;
     font-size:1.1rem;cursor:pointer;letter-spacing:2px;box-shadow:0 4px 18px rgba(201,168,76,.5);transition:all .15s;}
   #deal-btn:hover:not(:disabled){transform:scale(1.05);box-shadow:0 6px 28px rgba(201,168,76,.85);}
   #deal-btn:disabled{opacity:.35;cursor:not-allowed;}
-  #clear-bet-btn{font-family:'IM Fell English SC',serif;background:transparent;border:1px solid rgba(231,76,60,.5);
-    color:#e74c3c;padding:5px 16px;border-radius:4px;font-size:.88rem;cursor:pointer;margin-left:12px;transition:all .15s;}
-  #clear-bet-btn:hover{background:rgba(231,76,60,.15);}
+
+
+  /* BET TOOLS */
+  #bet-inner{display:flex;flex-direction:column;align-items:center;max-width:100%;}
+  #bet-tools{display:flex;gap:10px;align-items:center;justify-content:center;flex-wrap:wrap;}
+  .bet-tool{font-family:'IM Fell English SC',serif;background:rgba(0,0,0,.6);border:1px solid var(--gold);
+    color:var(--gold-light);padding:6px 14px;border-radius:18px;font-size:.92rem;cursor:pointer;transition:all .15s;}
+  .bet-tool:hover:not(:disabled){background:rgba(201,168,76,.2);}
+  .bet-tool:disabled{opacity:.3;cursor:not-allowed;}
+  .bet-tool.danger{border-color:rgba(231,76,60,.6);color:#e74c3c;}
+  #keys-hint{font-size:.7rem;color:var(--gold);opacity:.45;margin-top:4px;letter-spacing:1px;}
+
+  /* STATS MODAL */
+  #stats-modal{display:none;position:fixed;inset:0;z-index:45;background:rgba(0,0,0,.82);
+    align-items:center;justify-content:center;padding:16px;}
+  #stats-modal.show{display:flex;}
+  .stats-box{max-width:560px;max-height:90vh;overflow-y:auto;position:relative;padding:28px 28px 22px;}
+  .stats-box h3{font-family:'Cinzel Decorative',cursive;color:var(--gold);font-size:1rem;margin:18px 0 10px;letter-spacing:1px;}
+  #stats-close{position:absolute;top:12px;right:14px;background:none;border:none;color:var(--gold);font-size:1.3rem;cursor:pointer;}
+  #trofei-count{font-family:'IM Fell English SC',serif;font-size:.85rem;opacity:.7;margin-left:6px;}
+  .stat-row{display:flex;justify-content:space-between;gap:12px;padding:5px 4px;border-bottom:1px solid rgba(201,168,76,.12);
+    font-family:'IM Fell English SC',serif;font-size:.98rem;text-align:left;}
+  .stat-row b{color:#fff;}
+  #trofei-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px;margin-bottom:18px;}
+  .trofeo{border:1px solid rgba(201,168,76,.2);border-radius:10px;padding:8px;display:flex;flex-direction:column;
+    align-items:center;gap:2px;opacity:.45;font-family:'IM Fell English SC',serif;}
+  .trofeo.ok{opacity:1;border-color:var(--gold);background:rgba(201,168,76,.08);}
+  .trofeo-icon{font-size:1.6rem;}
+  .trofeo b{font-size:.85rem;color:var(--gold-light);}
+  .trofeo small{font-size:.7rem;opacity:.75;line-height:1.25;}
+
+  /* TOAST TROFEO */
+  #toast{position:fixed;top:70px;left:50%;transform:translate(-50%,-20px);z-index:60;opacity:0;pointer-events:none;
+    background:rgba(8,22,8,.97);border:2px solid var(--gold);border-radius:14px;padding:10px 18px;
+    display:flex;align-items:center;gap:12px;color:var(--gold-light);font-family:'IM Fell English SC',serif;
+    box-shadow:0 0 30px rgba(201,168,76,.5);transition:opacity .3s,transform .3s;}
+  #toast.show{opacity:1;transform:translate(-50%,0);}
+  #toast b{color:var(--gold);}
+  .toast-icon{font-size:1.9rem;}
 
   /* TOP BARS */
   #top-left-bar{position:fixed;top:14px;left:14px;z-index:15;display:flex;gap:8px;}
@@ -214,9 +252,44 @@
   #overlay-box p{font-size:1.1rem;margin-bottom:22px;}
 
   @media(max-width:1000px){#croupier-panel{width:320px;}#croupier-img{width:300px;}}
-  @media(max-width:700px){#croupier-panel{width:150px;}#croupier-img{width:140px;}#lb-panel{width:100%;}}
-  @media(max-width:480px){#croupier-panel{width:0;padding:0;}#croupier-img{display:none;}}
   @media(max-height:660px){#croupier-img{max-height:55vh;}}
+
+  /* TELEFONO: niente croupier laterale, tavolo a tutta larghezza e scorrevole sopra la barra puntate */
+  @media(max-width:700px){
+    #croupier-panel{display:none;}
+    #lb-panel{width:100%;}
+    #game{overflow-y:auto;padding:64px 10px 250px;-webkit-overflow-scrolling:touch;}
+    #title-bar{white-space:normal;font-size:1.15rem;letter-spacing:1px;}
+    #hud{gap:12px;margin-bottom:14px;}
+    .hud-box{padding:4px 12px;font-size:.85rem;}
+    .hud-box span{font-size:1.7rem;}
+    #table{padding:16px 10px 20px;border-radius:14px;}
+    #table::before{font-size:.66rem;letter-spacing:2px;padding:2px 10px;}
+    .hand-area,#player-hands{min-height:92px;}
+    #player-hands{gap:10px;flex-wrap:wrap;}
+    .card{width:56px;height:84px;border-radius:7px;}
+    .card-rank{font-size:1.45rem;padding:4px 0 0 4px;}
+    .card-suit{font-size:1.7rem;padding:0 4px 4px 0;}
+    .score-badge{font-size:1.2rem;padding:3px 12px;}
+    #message{font-size:1rem;min-height:26px;}
+    #action-btns{gap:8px;}
+    .btn{padding:9px 14px;font-size:.88rem;}
+    #insurance-bar{font-size:.88rem;padding:8px;}
+    #chips-row{gap:6px;}
+    .chip{width:46px;height:46px;font-size:.6rem;border-width:3px;}
+    #deal-btn{padding:8px 22px;font-size:.95rem;}
+    .bet-tool{padding:6px 10px;font-size:.85rem;}
+    #keys-hint{display:none;}
+    body.in-gioco #bet-area{display:none;}
+    .top-btn .lbl{display:none;}
+    .top-btn{padding:7px 11px;font-size:1rem;}
+    #top-left-bar{top:10px;left:10px;gap:6px;}
+    #top-right-bar{top:10px;right:10px;gap:6px;}
+    .icon-btn{width:38px;height:38px;font-size:1rem;}
+    .modal-box{padding:28px 20px;}
+    #overlay-box{padding:28px 22px;margin:0 16px;}
+  }
+  @media(hover:none){#keys-hint{display:none;}}
 </style>
 </head>
 <body>
@@ -227,7 +300,7 @@
 <div class="modal-overlay" id="name-modal">
   <div class="modal-box">
     <h2>♠ Bisca del Tromba ♠</h2>
-    <p>Benvenuto! Inserisci il tuo nome per sederti al tavolo.<br>Verrà usato nella classifica globale al momento del cashout.</p>
+    <p><span id="name-intro">Benvenuto! Inserisci il tuo nome per sederti al tavolo.</span><br>Verrà usato nella classifica globale al momento del cashout.</p>
     <input class="modal-input" id="name-input" type="text" maxlength="20" placeholder="Il tuo nome..." autocomplete="off">
     <div class="modal-error" id="name-error"></div>
     <button class="btn safe" style="width:100%;padding:12px;" onclick="confirmName()">Entra al Tavolo</button>
@@ -274,8 +347,9 @@
 
 <!-- ══ TOP BUTTONS ══ -->
 <div id="top-left-bar">
-  <button class="top-btn" onclick="toggleLeaderboard()">🏆 Classifica</button>
-  <button class="top-btn cashout" id="cashout-btn" onclick="openCashout()" disabled>💰 Cashout</button>
+  <button class="top-btn" onclick="toggleLeaderboard()" title="Classifica">🏆<span class="lbl"> Classifica</span></button>
+  <button class="top-btn" onclick="apriStats()" title="Statistiche">📊<span class="lbl"> Statistiche</span></button>
+  <button class="top-btn cashout" id="cashout-btn" onclick="openCashout()" disabled title="Cashout">💰<span class="lbl"> Cashout</span></button>
 </div>
 <div id="top-right-bar">
   <button class="icon-btn" id="mute-btn"  onclick="toggleMute()"  title="Musica">🔊</button>
@@ -301,14 +375,14 @@
       <div id="message"></div>
       <div id="insurance-bar">
         <span>Il banco mostra un Asso — Assicurazione? (metà puntata)</span>
-        <button class="btn safe" onclick="takeInsurance()">Sì</button>
-        <button class="btn danger" onclick="declineInsurance()">No</button>
+        <button class="btn safe" onclick="takeInsurance()" title="Tasto Y">Sì</button>
+        <button class="btn danger" onclick="declineInsurance()" title="Tasto N">No</button>
       </div>
       <div id="action-btns">
-        <button class="btn" id="btn-hit"    onclick="hit()"        disabled>Carta</button>
-        <button class="btn" id="btn-stand"  onclick="stand()"      disabled>Stai</button>
-        <button class="btn" id="btn-double" onclick="doubleDown()" disabled>Raddoppia</button>
-        <button class="btn" id="btn-split"  onclick="splitHand()"  disabled>Split</button>
+        <button class="btn" id="btn-hit" title="Tasto C"    onclick="hit()"        disabled>Carta</button>
+        <button class="btn" id="btn-stand" title="Tasto S"  onclick="stand()"      disabled>Stai</button>
+        <button class="btn" id="btn-double" title="Tasto D" onclick="doubleDown()" disabled>Raddoppia</button>
+        <button class="btn" id="btn-split" title="Tasto P"  onclick="splitHand()"  disabled>Split</button>
       </div>
       <hr class="divider">
       <div class="zone-label">— GIOCATORE —</div>
@@ -320,10 +394,8 @@
 
 <!-- ══ BET AREA ══ -->
 <div id="bet-area">
-  <div id="current-bet-display">
-    Seleziona la puntata
-    <button id="clear-bet-btn" onclick="clearBet()">✕ Annulla</button>
-  </div>
+  <div id="bet-inner">
+  <div id="current-bet-display">Seleziona la puntata</div>
   <div id="chips-row">
     <div class="chip chip-1"   id="chip-1"   onclick="addBet(1)">€1</div>
     <div class="chip chip-5"   id="chip-5"   onclick="addBet(5)">€5</div>
@@ -332,8 +404,28 @@
     <div class="chip chip-100" id="chip-100" onclick="addBet(100)">€100</div>
     <div class="chip chip-500" id="chip-500" onclick="addBet(500)">€500</div>
   </div>
-  <button id="deal-btn" onclick="deal()" disabled>DISTRIBUISCI</button>
+  <div id="bet-tools">
+    <button class="bet-tool" id="repeat-btn" onclick="repeatBet()" title="Tasto R">↺ Ripeti</button>
+    <button class="bet-tool" id="double-bet-btn" onclick="doubleBet()" title="Tasto X">×2</button>
+    <button id="deal-btn" onclick="deal()" disabled title="Invio">DISTRIBUISCI</button>
+    <button class="bet-tool danger" id="clear-bet-btn" onclick="clearBet()" title="Tasto Esc">✕ Annulla</button>
+  </div>
+  <div id="keys-hint">Tasti: C carta · S stai · D raddoppia · P split · R ripeti · X ×2 · Invio distribuisci</div>
+  </div>
 </div>
+
+<!-- ══ STATISTICHE & TROFEI ══ -->
+<div id="stats-modal">
+  <div class="modal-box stats-box">
+    <button id="stats-close" onclick="chiudiStats()" aria-label="Chiudi">✕</button>
+    <h2>📊 Statistiche</h2>
+    <div id="stats-list"></div>
+    <h3>🏆 Trofei <span id="trofei-count"></span></h3>
+    <div id="trofei-grid"></div>
+    <button class="btn danger" id="stats-reset" onclick="azzeraStats()">Azzera statistiche</button>
+  </div>
+</div>
+<div id="toast"></div>
 
 <!-- ══ GAME OVER OVERLAY ══ -->
 <div id="overlay">
@@ -348,106 +440,43 @@
 <audio id="audio2" preload="metadata"><source src="assets/musica-2.mp3" type="audio/mpeg"></audio>
 
 
+<script src="classifica.js"></script>
 <script>
 /* ════════════════════════════════════════════════════════════════
-   DREAMLO LEADERBOARD
-   Public  code (read) : 69da44ea8f40bc2f603f46c3
-   Private code (write): oavX4wuOqES8Hwt8_psrUwkb4arhOHDEGp9uJRvDrKCQ
-
-   API endpoints used:
-     Add score : GET dreamlo.com/lb/{PRIVATE}/add/{name}/{score}
-     Read JSON : GET dreamlo.com/lb/{PUBLIC}/json-top/10
+   MEMORIA NEL BROWSER (saldo, nome, statistiche, trofei)
+   Ogni accesso è protetto: in navigazione privata può fallire.
 ════════════════════════════════════════════════════════════════ */
-const DL_PUBLIC  = '69da44ea8f40bc2f603f46c3';
-const DL_PRIVATE = 'oavX4wuOqES8Hwt8_psrUwkb4arhOHDEGp9uJRvDrKCQ';
-const DL_BASE    = 'https://www.dreamlo.com/lb';
-
-/* ── JSONP helper ──
-   Dreamlo non ha header CORS → fetch() fallisce sempre da browser.
-   La soluzione ufficiale è JSONP: si inietta un <script> tag che chiama
-   un callback globale con i dati. Funziona senza CORS.
-*/
-function jsonp(url, callbackName) {
-  return new Promise((resolve, reject) => {
-    const timeoutId = setTimeout(() => {
-      delete window[callbackName];
-      reject(new Error('Timeout dreamlo'));
-    }, 8000);
-
-    window[callbackName] = (data) => {
-      clearTimeout(timeoutId);
-      delete window[callbackName];
-      resolve(data);
-    };
-
-    const script = document.createElement('script');
-    script.src = url + (url.includes('?') ? '&' : '?') + 'callback=' + callbackName;
-    script.onerror = () => {
-      clearTimeout(timeoutId);
-      delete window[callbackName];
-      reject(new Error('Errore caricamento dreamlo'));
-    };
-    document.head.appendChild(script);
-    // Rimuovi il tag script dopo l'esecuzione
-    script.onload = () => script.remove();
-  });
+const MEM_KEY = 'biscaTromba.v1';
+function memLeggi() {
+  try { return JSON.parse(localStorage.getItem(MEM_KEY)) || {}; } catch (e) { return {}; }
+}
+function memScrivi() {
+  try {
+    localStorage.setItem(MEM_KEY, JSON.stringify({
+      nome: playerName, saldo: balance, ultimaPuntata: lastBet, stats: stats, trofei: trofei
+    }));
+  } catch (e) {}
 }
 
-/* ── Dreamlo add via script injection (no CORS needed for write either) ──
-   Per l'aggiunta usiamo un <img> tag su http (workaround classico):
-   dreamlo accetta richieste GET pure, l'img src le esegue senza CORS.
-*/
-function dlAdd(name, score) {
-  return new Promise((resolve, reject) => {
-    const url = `${DL_BASE}/${DL_PRIVATE}/add/${encodeURIComponent(name)}/${score}`;
-    // Usiamo uno script tag vuoto — dreamlo risponde con testo ma
-    // l'importante è che la request arrivi al server.
-    const img = new Image();
-    img.onload = img.onerror = () => resolve(); // successo o fallimento → risolviamo comunque
-    img.src = url;
-    // Timeout di sicurezza
-    setTimeout(resolve, 5000);
-  });
-}
-
-/**
- * saveScore(playerName, score)
- * Valida e invia un cashout a dreamlo.
- */
-async function saveScore(playerName, score) {
-  const name = String(playerName).trim();
-  if (!name)             throw new Error('Nome vuoto.');
-  if (name.length > 20)  throw new Error('Nome troppo lungo (max 20 caratteri).');
-  if (!/^[\wÀ-ÿ _\-]+$/.test(name)) throw new Error('Nome con caratteri non validi.');
-
-  const s = Math.floor(Number(score));
-  if (!Number.isFinite(s) || s < 0) throw new Error('Punteggio non valido.');
-
-  await dlAdd(name, s);
-}
-
-/**
- * getTopScores(limit)
- * Legge i top punteggi via JSONP (unico metodo CORS-free con dreamlo).
- * Dreamlo JSONP endpoint: /lb/{PUBLIC}/jsonp-top/{n}
- */
-async function getTopScores(limit = 10) {
-  const cbName = '_dl_cb_' + Date.now();
-  const url    = `${DL_BASE}/${DL_PUBLIC}/jsonp-top/${limit}`;
-  const data   = await jsonp(url, cbName);
-  // dreamlo JSONP restituisce: callback({ "dreamlo": { "leaderboard": { "entry": [...] } } })
-  const raw = data?.dreamlo?.leaderboard?.entry ?? [];
-  return (Array.isArray(raw) ? raw : [raw]).slice(0, limit);
-}
-
+/* ════════════════════════════════════════════════════════════════
+   CLASSIFICA (servizio in classifica.js, condiviso con la home)
+════════════════════════════════════════════════════════════════ */
 function escHtml(s) {
   return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+function dataBreve(iso) {
+  if (!iso) return '';
+  const d = new Date(iso);
+  return isNaN(d) ? '' : d.toLocaleDateString('it-IT', { day:'2-digit', month:'2-digit', year:'2-digit' });
 }
 
 function renderLeaderboard(entries) {
   const tbody = document.getElementById('lb-body');
-  if (!entries || !entries.length) {
-    tbody.innerHTML = '<tr><td colspan="3" style="color:rgba(201,168,76,.5);text-align:center;padding:24px;">Nessun cashout ancora — sii il primo!</td></tr>';
+  if (!entries.length) {
+    const testo = window.BiscaClassifica && BiscaClassifica.attiva
+      ? 'Nessun cashout ancora — sii il primo!'
+      : 'La classifica online non è ancora attiva.';
+    tbody.innerHTML = '<tr><td colspan="4" id="lb-empty">' + testo + '</td></tr>';
     return;
   }
   tbody.innerHTML = entries.map((r, i) => {
@@ -455,37 +484,34 @@ function renderLeaderboard(entries) {
     const rc    = i===0?'gold':i===1?'silver':i===2?'bronze':'';
     return `<tr>
       <td class="lb-rank ${rc}">${medal}</td>
-      <td class="lb-name">${escHtml(r.playerName ?? r.name ?? '—')}</td>
-      <td class="lb-score">€${Number(r.score).toLocaleString('it-IT')}</td>
+      <td class="lb-name">${escHtml(r.nome)}</td>
+      <td class="lb-score">€${r.punti.toLocaleString('it-IT')}</td>
+      <td class="lb-date">${dataBreve(r.data)}</td>
     </tr>`;
   }).join('');
-  document.getElementById('lb-status').textContent =
-    'Aggiornato: ' + new Date().toLocaleTimeString('it-IT');
 }
 
 let _lbLoaded = false;
-
 async function refreshLeaderboard() {
-  try {
-    document.getElementById('lb-status').textContent = 'Caricamento...';
-    const entries = await getTopScores(10);
-    renderLeaderboard(entries);
-    _lbLoaded = true;
-  } catch(e) {
-    document.getElementById('lb-status').textContent = 'Errore: ' + e.message;
-  }
+  const st = document.getElementById('lb-status');
+  st.textContent = 'Caricamento...';
+  const entries = window.BiscaClassifica ? await BiscaClassifica.carica(10) : [];
+  renderLeaderboard(entries);
+  _lbLoaded = true;
+  st.textContent = 'Aggiornato: ' + new Date().toLocaleTimeString('it-IT');
 }
 
 function toggleLeaderboard() {
   const panel = document.getElementById('lb-panel');
   panel.classList.toggle('open');
-  if (panel.classList.contains('open') && !_lbLoaded) refreshLeaderboard();
+  if (panel.classList.contains('open')) refreshLeaderboard();
 }
 
 /* ════════════════════════════════════════════════════════════════
    PLAYER NAME
 ════════════════════════════════════════════════════════════════ */
 let playerName = '';
+const NOME_OK = /^[\wÀ-ÿ _\-]+$/;
 
 function confirmName() {
   const input = document.getElementById('name-input');
@@ -494,34 +520,33 @@ function confirmName() {
   errEl.textContent = '';
   if (!val)           { errEl.textContent = 'Inserisci un nome.'; return; }
   if (val.length > 20){ errEl.textContent = 'Max 20 caratteri.'; return; }
-  if (!/^[\wÀ-ÿ _\-]+$/.test(val)) { errEl.textContent = 'Solo lettere, numeri, spazi e trattini.'; return; }
+  if (!NOME_OK.test(val)) { errEl.textContent = 'Solo lettere, numeri, spazi e trattini.'; return; }
   playerName = val;
   document.getElementById('overlay-name').textContent = playerName;
   document.getElementById('name-modal').style.display = 'none';
-  msg('Benvenuto, ' + playerName + '!');
+  msg(balance !== 50 ? 'Bentornato, ' + playerName + '! Il tuo saldo ti aspettava.' : 'Benvenuto, ' + playerName + '!');
+  memScrivi();
   updateCashoutBtn();
   startMusic();
 }
 
 document.addEventListener('DOMContentLoaded', () => {
-  document.getElementById('name-input').addEventListener('keydown', e => {
-    if (e.key === 'Enter') confirmName();
-  });
-  setTimeout(() => document.getElementById('name-input').focus(), 150);
+  const input = document.getElementById('name-input');
+  input.addEventListener('keydown', e => { if (e.key === 'Enter') confirmName(); });
+  setTimeout(() => input.focus(), 150);
 });
 
 /* ════════════════════════════════════════════════════════════════
    CASHOUT
 ════════════════════════════════════════════════════════════════ */
 function updateCashoutBtn() {
-  const btn = document.getElementById('cashout-btn');
-  btn.disabled = !playerName || phase !== 'bet' || balance <= 0;
+  document.getElementById('cashout-btn').disabled = !playerName || phase !== 'bet' || balance <= 0;
 }
 
 function openCashout() {
   if (!playerName || phase !== 'bet' || balance <= 0) return;
   document.getElementById('cashout-msg').textContent =
-    `Incassa €${balance} come "${playerName}" e salva in classifica globale?`;
+    `Incassa €${balance} come "${playerName}" e salva in classifica globale? Poi si riparte da €50.`;
   document.getElementById('cashout-error').textContent = '';
   const btn = document.getElementById('cashout-confirm-btn');
   btn.disabled = false;
@@ -540,12 +565,12 @@ async function executeCashout() {
   btn.disabled  = true;
   btn.textContent = 'Salvataggio...';
   try {
-    await saveScore(playerName, balance);
+    await BiscaClassifica.salva(playerName, balance);
+    stats.cashout++;
+    sblocca('incasso');
     closeCashoutModal();
-    // Ricarica classifica e mostrala
-    await refreshLeaderboard();
     document.getElementById('lb-panel').classList.add('open');
-    _lbLoaded = true;
+    await refreshLeaderboard();
     setTimeout(() => resetGame(), 600);
   } catch(e) {
     errEl.textContent = e.message;
@@ -553,6 +578,7 @@ async function executeCashout() {
     btn.textContent = 'Incassa & Salva';
   }
 }
+
 /* ════════════════════════════════════════════════════════════════
    AUDIO — music & sfx separati, music avvia sul PRIMO click
 ════════════════════════════════════════════════════════════════ */
@@ -582,7 +608,6 @@ function playTrack(n) {
 A1.addEventListener('ended', () => playTrack(2));
 A2.addEventListener('ended', () => playTrack(1));
 
-/* startMusic: avvia la musica, può essere chiamata più volte in sicurezza */
 function startMusic() {
   if (musicOn) return;
   musicOn = true;
@@ -590,16 +615,7 @@ function startMusic() {
   playTrack(1);
 }
 
-/*
- * Unlock AudioContext al primo evento utente QUALSIASI.
- * Non avviamo la musica qui — lo facciamo su deal() e confirmName(),
- * così il pulsante 🔊 non interferisce.
- * Usiamo capture:true per intercettare prima dei handler specifici.
- */
-function _unlockAudio() {
-  if (actx) return; // già creato
-  getAC(); // crea e riprende il context
-}
+function _unlockAudio() { if (!actx) getAC(); }
 ['pointerdown','keydown','touchstart'].forEach(ev =>
   document.addEventListener(ev, _unlockAudio, { once: true, capture: true })
 );
@@ -690,6 +706,20 @@ function sfxError() {
   } catch(e) {}
 }
 
+function sfxTrofeo() {
+  if (sfxOff) return;
+  try {
+    const c=getAC();
+    [784,988,1175,1568].forEach((f,i) => {
+      const o=c.createOscillator(),g=c.createGain();
+      o.connect(g);g.connect(c.destination);o.type='sine';o.frequency.value=f;
+      const t=c.currentTime+i*.07;
+      g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(.12,t+.02);
+      g.gain.exponentialRampToValueAtTime(.001,t+.5);o.start(t);o.stop(t+.51);
+    });
+  } catch(e) {}
+}
+
 /* ════════════════════════════════════════════════════════════════
    CROUPIER
 ════════════════════════════════════════════════════════════════ */
@@ -699,7 +729,6 @@ const IMGS = {
   vincente: 'assets/croupier-vincente.png',
   lose:     'assets/croupier-lose.png',
 };
-// precarica le immagini del croupier così il cambio è istantaneo
 Object.values(IMGS).forEach(src => { const i = new Image(); i.src = src; });
 function setCroupier(s) {
   const img = document.getElementById('croupier-img');
@@ -721,8 +750,8 @@ function buildCard(card, hidden = false) {
   const rk = document.createElement('div'); rk.className = 'card-rank'; rk.textContent = card.rank;
   const st = document.createElement('div'); st.className = 'card-suit'; st.textContent = card.suit;
   el.appendChild(rk);
-  el.appendChild(document.createElement('div')); // top-right empty
-  el.appendChild(document.createElement('div')); // bottom-left empty
+  el.appendChild(document.createElement('div'));
+  el.appendChild(document.createElement('div'));
   el.appendChild(st);
   return el;
 }
@@ -746,27 +775,116 @@ function isBust(h) { return total(h)>21; }
 /* ════════════════════════════════════════════════════════════════
    GAME STATE
 ════════════════════════════════════════════════════════════════ */
-let deck=[], balance=50, currentBet=0;
-let dealerHand=[], playerHands=[[]], curHand=0, handBets=[0], insBet=0;
+const SALDO_INIZIALE = 50;
+let deck=[], balance=SALDO_INIZIALE, currentBet=0, lastBet=0;
+let dealerHand=[], playerHands=[[]], curHand=0, handBets=[0], handDoubled=[false], insBet=0;
 let phase = 'bet';
+let allInRound = false;
 
 const CHIP_VALUES = [1,5,10,50,100,500];
+
+/* ════════════════════════════════════════════════════════════════
+   STATISTICHE & TROFEI
+════════════════════════════════════════════════════════════════ */
+const STATS_ZERO = {
+  mani:0, vinte:0, perse:0, pari:0, blackjack:0, sballate:0,
+  serie:0, serieMax:0, recordSaldo:SALDO_INIZIALE, vincitaMax:0, cashout:0, bancarotte:0
+};
+let stats  = Object.assign({}, STATS_ZERO);
+let trofei = {}; // id → data ISO di sblocco
+
+const TROFEI = [
+  { id:'prima',      icona:'🃏', nome:'Si siede al tavolo', desc:'Gioca la prima mano' },
+  { id:'bj',         icona:'♠️', nome:'Blackjack!',          desc:'Fai il tuo primo blackjack' },
+  { id:'tripletta',  icona:'🔥', nome:'Tripletta',          desc:'Vinci 3 mani di fila' },
+  { id:'cinquina',   icona:'⚡', nome:'Inarrestabile',      desc:'Vinci 5 mani di fila' },
+  { id:'raddoppio',  icona:'✌️', nome:'Raddoppio d\'oro',   desc:'Vinci una mano raddoppiata' },
+  { id:'split',      icona:'✂️', nome:'Spaccatutto',        desc:'Vinci tutte le mani di uno split' },
+  { id:'cinquecarte',icona:'🖐️', nome:'Mano lunga',         desc:'Vinci con 5 o più carte' },
+  { id:'assicurato', icona:'🛡️', nome:'Assicurato',         desc:'Incassa un\'assicurazione' },
+  { id:'allin',      icona:'🎲', nome:'All in',             desc:'Punta tutto il saldo e vinci' },
+  { id:'cento',      icona:'💶', nome:'Centone',            desc:'Arriva a €100 di saldo' },
+  { id:'mille',      icona:'💰', nome:'Il Tromba trema',    desc:'Arriva a €1.000 di saldo' },
+  { id:'diecimila',  icona:'👑', nome:'Padrone della bisca',desc:'Arriva a €10.000 di saldo' },
+  { id:'veterano',   icona:'🎖️', nome:'Veterano',           desc:'Gioca 100 mani' },
+  { id:'incasso',    icona:'🏦', nome:'Incassatore',        desc:'Fai il primo cashout' },
+  { id:'rovina',     icona:'💸', nome:'Rovinato',           desc:'Perdi tutto il saldo' },
+];
+
+function sblocca(id) {
+  if (trofei[id]) return;
+  const t = TROFEI.find(x => x.id === id);
+  if (!t) return;
+  trofei[id] = new Date().toISOString();
+  memScrivi();
+  mostraToast(t);
+}
+
+let toastCoda = Promise.resolve();
+function mostraToast(t) {
+  toastCoda = toastCoda.then(() => new Promise(res => {
+    const box = document.getElementById('toast');
+    box.innerHTML = `<span class="toast-icon">${t.icona}</span><div><b>Trofeo sbloccato!</b><br>${escHtml(t.nome)}</div>`;
+    box.classList.add('show');
+    sfxTrofeo();
+    setTimeout(() => { box.classList.remove('show'); setTimeout(res, 350); }, 2600);
+  }));
+}
+
+function controllaSaldo() {
+  if (balance > stats.recordSaldo) stats.recordSaldo = balance;
+  if (balance >= 100)   sblocca('cento');
+  if (balance >= 1000)  sblocca('mille');
+  if (balance >= 10000) sblocca('diecimila');
+}
+
+function apriStats() {
+  const s = stats;
+  const perc = s.mani ? Math.round(s.vinte / s.mani * 100) : 0;
+  const righe = [
+    ['Mani giocate', s.mani], ['Vinte', s.vinte + (s.mani ? ` (${perc}%)` : '')],
+    ['Perse', s.perse], ['Pareggi', s.pari], ['Blackjack', s.blackjack], ['Sballate', s.sballate],
+    ['Serie vincente migliore', s.serieMax], ['Record di saldo', '€' + s.recordSaldo.toLocaleString('it-IT')],
+    ['Vincita più alta in una mano', '€' + s.vincitaMax.toLocaleString('it-IT')],
+    ['Cashout', s.cashout], ['Bancarotte', s.bancarotte],
+  ];
+  document.getElementById('stats-list').innerHTML =
+    righe.map(([k,v]) => `<div class="stat-row"><span>${k}</span><b>${v}</b></div>`).join('');
+  const n = TROFEI.filter(t => trofei[t.id]).length;
+  document.getElementById('trofei-count').textContent = `${n} / ${TROFEI.length}`;
+  document.getElementById('trofei-grid').innerHTML = TROFEI.map(t => {
+    const ok = !!trofei[t.id];
+    return `<div class="trofeo ${ok?'ok':''}" title="${escHtml(t.desc)}">
+      <span class="trofeo-icon">${ok ? t.icona : '🔒'}</span>
+      <b>${escHtml(t.nome)}</b><small>${escHtml(t.desc)}</small></div>`;
+  }).join('');
+  document.getElementById('stats-modal').classList.add('show');
+}
+function chiudiStats() { document.getElementById('stats-modal').classList.remove('show'); }
+function azzeraStats() {
+  if (!document.getElementById('stats-reset').dataset.sure) {
+    const b = document.getElementById('stats-reset');
+    b.dataset.sure = '1'; b.textContent = 'Sicuro? Clicca di nuovo';
+    setTimeout(() => { delete b.dataset.sure; b.textContent = 'Azzera statistiche'; }, 3000);
+    return;
+  }
+  stats = Object.assign({}, STATS_ZERO, { recordSaldo: balance });
+  trofei = {};
+  memScrivi();
+  apriStats();
+}
 
 /* ════════════════════════════════════════════════════════════════
    UI HELPERS
 ════════════════════════════════════════════════════════════════ */
 function updateHUD() {
-  document.getElementById('balance-display').textContent = '€' + balance;
-  document.getElementById('bet-display').textContent     = '€' + currentBet;
+  document.getElementById('balance-display').textContent = '€' + balance.toLocaleString('it-IT');
+  document.getElementById('bet-display').textContent     = '€' + currentBet.toLocaleString('it-IT');
   updateCashoutBtn();
   updateChipStates();
+  updateBetTools();
 }
 
-/**
- * Abilita/disabilita le fiches in base al saldo residuo.
- * Le fiches disponibili ricevono un leggero glow di "invito".
- * Chiamata ogni volta che balance o currentBet cambiano.
- */
 function updateChipStates() {
   const canBet = (phase === 'bet');
   const remaining = balance - currentBet;
@@ -777,6 +895,14 @@ function updateChipStates() {
     el.classList.toggle('chip-disabled',  !affordable);
     el.classList.toggle('chip-available',  affordable);
   });
+}
+
+function updateBetTools() {
+  const canBet = phase === 'bet' && balance > 0;
+  document.getElementById('repeat-btn').disabled = !canBet || lastBet <= 0 || currentBet === lastBet;
+  document.getElementById('double-bet-btn').disabled = !canBet || currentBet <= 0 || currentBet * 2 > balance;
+  document.getElementById('clear-bet-btn').disabled = !canBet || currentBet <= 0;
+  document.getElementById('deal-btn').disabled = !canBet || currentBet <= 0;
 }
 
 function msg(t, c='') { const e=document.getElementById('message'); e.textContent=t; e.className=c; }
@@ -792,7 +918,7 @@ function renderP() {
   const ct=document.getElementById('player-hands'); ct.innerHTML='';
   playerHands.forEach((h,i) => {
     const div=document.createElement('div');
-    div.className='split-hand'+(i===curHand&&phase==='player'?' active-hand':'');
+    div.className='split-hand'+(i===curHand&&phase==='player'&&playerHands.length>1?' active-hand':'');
     const row=document.createElement('div'); row.className='cards-row';
     h.forEach(c => row.appendChild(buildCard(c)));
     const b=document.createElement('div'); b.className='score-badge';
@@ -812,26 +938,25 @@ function btns(h,s,d,sp) {
 function betArea(on) {
   document.getElementById('chips-row').style.pointerEvents = on ? 'auto' : 'none';
   document.getElementById('chips-row').style.opacity       = on ? '1'    : '.42';
-  document.getElementById('deal-btn').disabled             = !on || currentBet===0;
-  document.getElementById('clear-bet-btn').style.display   = on ? 'inline' : 'none';
-  if (on) updateChipStates(); // ← riaccende le fiches all'apertura di ogni nuova mano
+  document.getElementById('bet-tools').style.visibility    = on ? 'visible' : 'hidden';
+  document.body.classList.toggle('in-gioco', !on); // sul telefono nasconde la barra puntate durante la mano
+  updateHUD();
 }
 
+/* sposta le fiches a destra del croupier solo su schermi larghi */
 function updateChipsOffset() {
-  const w = document.getElementById('croupier-panel').offsetWidth;
-  ['chips-row','current-bet-display','deal-btn'].forEach(id =>
-    document.getElementById(id).style.marginLeft = w + 'px'
-  );
+  const wide = window.innerWidth > 700;
+  const w = wide ? document.getElementById('croupier-panel').offsetWidth : 0;
+  document.getElementById('bet-inner').style.marginLeft = w + 'px';
 }
 window.addEventListener('resize', updateChipsOffset);
 
 /* ════════════════════════════════════════════════════════════════
-   BET — con blocco se supera il saldo
+   BET
 ════════════════════════════════════════════════════════════════ */
 function addBet(v) {
   if (phase !== 'bet') return;
   const el = document.getElementById('chip-' + v);
-  // Blocca se supera il saldo
   if (currentBet + v > balance) {
     sfxError();
     if (el) {
@@ -845,33 +970,52 @@ function addBet(v) {
   sfxChip();
   currentBet += v;
   updateHUD();
-  document.getElementById('deal-btn').disabled = false;
 }
 
 function clearBet() {
   if (phase !== 'bet') return;
   currentBet = 0;
   updateHUD();
-  document.getElementById('deal-btn').disabled = true;
   msg('');
+}
+
+function repeatBet() {
+  if (phase !== 'bet' || lastBet <= 0) return;
+  currentBet = Math.min(lastBet, balance);
+  sfxChip();
+  if (currentBet < lastBet) msg('Saldo basso: punto tutto quello che hai (€' + currentBet + ').', 'push');
+  updateHUD();
+}
+
+function doubleBet() {
+  if (phase !== 'bet' || currentBet <= 0) return;
+  if (currentBet * 2 > balance) { sfxError(); msg('Non hai abbastanza per raddoppiare la puntata.', 'lose'); return; }
+  currentBet *= 2;
+  sfxChip();
+  updateHUD();
 }
 
 /* ════════════════════════════════════════════════════════════════
    DEAL
 ════════════════════════════════════════════════════════════════ */
 function deal() {
-  if (currentBet <= 0) return;
+  if (phase !== 'bet' || currentBet <= 0) return;
   if (currentBet > balance) { msg('Saldo insufficiente!','lose'); return; }
   if (deck.length < 52) deck = newDeck(6);
 
-  startMusic(); // garantito: deal è sempre un click utente
-  balance -= currentBet; updateHUD();
+  startMusic();
+  allInRound = currentBet === balance;
+  lastBet = currentBet;
+  balance -= currentBet;
+  phase = 'deal';
   betArea(false); btns(false,false,false,false);
+  memScrivi(); // la puntata è già scalata: ricaricare la pagina non la restituisce
 
   dealerHand  = [deck.pop(), deck.pop()];
   playerHands = [[deck.pop(), deck.pop()]];
   handBets    = [currentBet];
-  curHand=0; insBet=0; phase='player';
+  handDoubled = [false];
+  curHand=0; insBet=0;
 
   [0,160,320,480].forEach(t => setTimeout(sfxCard, t));
   renderD(false); renderP();
@@ -883,6 +1027,22 @@ function deal() {
     document.getElementById('insurance-bar').classList.add('show');
     return;
   }
+  dopoAssicurazione();
+}
+
+/* Il banco controlla la carta coperta (con Asso o figura/10 scoperti):
+   se ha blackjack la mano finisce subito, prima che il giocatore punti altro. */
+function dopoAssicurazione() {
+  phase='player';
+  if (cv(dealerHand[0]) >= 10 && isBJ(dealerHand)) {
+    msg('Il banco controlla la carta coperta...');
+    setTimeout(finishRound, 700);
+    return;
+  }
+  if (dealerHand[0].rank==='A' || cv(dealerHand[0])===10) {
+    if (insBet > 0) msg('Il banco non ha blackjack: assicurazione persa.');
+    else msg('Il banco non ha blackjack. Tocca a te.');
+  }
   if (isBJ(playerHands[0])) { finishRound(); return; }
   enableActions();
 }
@@ -891,19 +1051,18 @@ function deal() {
    INSURANCE
 ════════════════════════════════════════════════════════════════ */
 function takeInsurance() {
+  if (phase !== 'insurance') return;
   const cost=Math.floor(handBets[0]/2);
-  if(cost>balance) { msg('Saldo insufficiente.','lose'); declineInsurance(); return; }
-  insBet=cost; balance-=cost; updateHUD();
+  if(cost<=0||cost>balance) { msg('Saldo insufficiente per l\'assicurazione.','lose'); declineInsurance(); return; }
+  sfxChip();
+  insBet=cost; balance-=cost; updateHUD(); memScrivi();
   document.getElementById('insurance-bar').classList.remove('show');
-  phase='player';
-  if(isBJ(playerHands[0])) { finishRound(); return; }
-  enableActions();
+  dopoAssicurazione();
 }
 function declineInsurance() {
+  if (phase !== 'insurance') return;
   document.getElementById('insurance-bar').classList.remove('show');
-  phase='player';
-  if(isBJ(playerHands[0])) { finishRound(); return; }
-  enableActions();
+  dopoAssicurazione();
 }
 
 /* ════════════════════════════════════════════════════════════════
@@ -916,26 +1075,33 @@ function enableActions() {
   btns(true,true,canD,canS);
 }
 function hit() {
-  if(phase!=='player') return;
+  if(phase!=='player' || document.getElementById('btn-hit').disabled) return;
   sfxCard(); playerHands[curHand].push(deck.pop());
   btns(false,false,false,false); renderP();
-  if(isBust(playerHands[curHand])) setTimeout(next,400);
-  else { enableActions(); document.getElementById('btn-double').disabled=true; document.getElementById('btn-split').disabled=true; }
+  if(isBust(playerHands[curHand]) || total(playerHands[curHand])===21) setTimeout(next,400);
+  else btns(true,true,false,false);
 }
-function stand() { if(phase!=='player') return; btns(false,false,false,false); next(); }
+function stand() {
+  if(phase!=='player' || document.getElementById('btn-stand').disabled) return;
+  btns(false,false,false,false); next();
+}
 function doubleDown() {
-  if(phase!=='player') return; sfxChip(); sfxCard();
-  balance-=handBets[curHand]; handBets[curHand]*=2;
-  currentBet=handBets.reduce((a,b)=>a+b,0); updateHUD();
+  if(phase!=='player' || document.getElementById('btn-double').disabled) return;
+  sfxChip(); sfxCard();
+  balance-=handBets[curHand]; handBets[curHand]*=2; handDoubled[curHand]=true;
+  currentBet=handBets.reduce((a,b)=>a+b,0); updateHUD(); memScrivi();
   playerHands[curHand].push(deck.pop()); renderP(); btns(false,false,false,false);
   setTimeout(next,400);
 }
 function splitHand() {
-  if(phase!=='player') return; sfxChip(); balance-=handBets[curHand];
+  if(phase!=='player' || document.getElementById('btn-split').disabled) return;
+  sfxChip(); balance-=handBets[curHand];
   const h=playerHands[curHand],nh=[h.pop()];
   h.push(deck.pop()); nh.push(deck.pop());
   playerHands.splice(curHand+1,0,nh); handBets.splice(curHand+1,0,handBets[curHand]);
-  currentBet=handBets.reduce((a,b)=>a+b,0); updateHUD(); sfxCard(); renderP(); enableActions();
+  handDoubled.splice(curHand+1,0,false);
+  currentBet=handBets.reduce((a,b)=>a+b,0); updateHUD(); memScrivi();
+  sfxCard(); renderP(); enableActions();
 }
 function next() {
   curHand++;
@@ -947,9 +1113,9 @@ function next() {
    DEALER
 ════════════════════════════════════════════════════════════════ */
 function dealerPlay() {
-  phase='dealer'; btns(false,false,false,false); sfxCard(); renderD(true);
+  phase='dealer'; btns(false,false,false,false); sfxCard(); renderD(true); renderP();
   if(playerHands.every(h=>isBust(h))) { finishRound(); return; }
-  dealerStep();
+  setTimeout(dealerStep, 500);
 }
 function dealerStep() {
   if(total(dealerHand)<17) { sfxCard(); dealerHand.push(deck.pop()); renderD(true); setTimeout(dealerStep,650); }
@@ -960,22 +1126,52 @@ function dealerStep() {
    SETTLE
 ════════════════════════════════════════════════════════════════ */
 function finishRound() {
-  phase='end'; renderD(true);
+  phase='end'; btns(false,false,false,false); renderD(true); renderP();
   const dT=total(dealerHand), dBJ=isBJ(dealerHand);
   let messages=[], result='lose';
-  if(insBet>0&&dBJ) balance+=insBet*2;
+  let guadagno = 0; // netto della mano (vincite - puntate)
 
+  // L'assicurazione paga 2:1: torna la posta più il doppio
+  if(insBet>0) {
+    if(dBJ) { balance+=insBet*3; guadagno+=insBet*2; messages.push('Assicurazione pagata! +€'+(insBet*2)); sblocca('assicurato'); }
+    else guadagno-=insBet;
+  }
+
+  let vinteMani = 0;
   playerHands.forEach((h,i) => {
     const bet=handBets[i], pT=total(h),
           pBJ=isBJ(h)&&playerHands.length===1,
           lbl=playerHands.length>1?'Mano '+(i+1)+': ':'';
-    if(isBust(h))          messages.push(lbl+'Sballato! -€'+bet);
-    else if(dBJ&&!pBJ)     messages.push(lbl+'Banco fa Blackjack! -€'+bet);
-    else if(pBJ&&!dBJ)     { const w=Math.floor(bet*2.5);balance+=w;result='bj';messages.push(lbl+'BLACKJACK! +€'+(w-bet)); }
-    else if(isBust(dealerHand)||pT>dT) { balance+=bet*2;if(result!=='bj')result='win';messages.push(lbl+'Hai vinto! +€'+bet); }
+    let vinta = false;
+    if(isBust(h))          { guadagno-=bet; stats.sballate++; messages.push(lbl+'Sballato! -€'+bet); }
+    else if(dBJ&&!pBJ)     { guadagno-=bet; messages.push(lbl+'Banco fa Blackjack! -€'+bet); }
+    else if(pBJ&&!dBJ)     { const w=Math.floor(bet*2.5);balance+=w;guadagno+=w-bet;result='bj';vinta=true;stats.blackjack++;messages.push(lbl+'BLACKJACK! +€'+(w-bet)); }
+    else if(isBust(dealerHand)||pT>dT) { balance+=bet*2;guadagno+=bet;if(result!=='bj')result='win';vinta=true;messages.push(lbl+'Hai vinto! +€'+bet); }
     else if(pT===dT)       { balance+=bet;if(result==='lose')result='push';messages.push(lbl+'Pareggio. €'+bet+' rimborsati.'); }
-    else                   messages.push(lbl+'Banco vince! -€'+bet);
+    else                   { guadagno-=bet; messages.push(lbl+'Banco vince! -€'+bet); }
+    if (vinta) {
+      vinteMani++;
+      if (handDoubled[i]) sblocca('raddoppio');
+      if (h.length >= 5) sblocca('cinquecarte');
+    }
   });
+
+  // statistiche: una "mano" = un giro, vinto se il netto è positivo
+  stats.mani++;
+  if (guadagno > 0)      { stats.vinte++; stats.serie++; }
+  else if (guadagno < 0) { stats.perse++; stats.serie=0; }
+  else                   { stats.pari++; }
+  stats.serieMax = Math.max(stats.serieMax, stats.serie);
+  stats.vincitaMax = Math.max(stats.vincitaMax, guadagno);
+
+  sblocca('prima');
+  if (result==='bj') sblocca('bj');
+  if (stats.serie >= 3) sblocca('tripletta');
+  if (stats.serie >= 5) sblocca('cinquina');
+  if (playerHands.length > 1 && vinteMani === playerHands.length) sblocca('split');
+  if (allInRound && guadagno > 0) sblocca('allin');
+  if (stats.mani >= 100) sblocca('veterano');
+  controllaSaldo();
 
   updateHUD();
   const cls=result==='win'||result==='bj'?'win':result==='push'?'push':'lose';
@@ -989,20 +1185,22 @@ function finishRound() {
 
   currentBet=0; updateHUD();
   if(balance<=0) {
+    stats.bancarotte++;
+    sblocca('rovina');
+    memScrivi();
     setTimeout(() => document.getElementById('overlay').classList.add('show'), 1300);
     return;
   }
-  // phase='bet' PRIMA di betArea(true) così updateChipStates vede la fase corretta
-  setTimeout(() => { phase='bet'; betArea(true); updateCashoutBtn(); }, 1050);
+  memScrivi();
+  setTimeout(() => { phase='bet'; betArea(true); }, 1050);
 }
 
 /* ════════════════════════════════════════════════════════════════
    RESET
 ════════════════════════════════════════════════════════════════ */
 function resetGame() {
-  balance=50; currentBet=0; deck=newDeck(6);
-  dealerHand=[]; playerHands=[[]]; handBets=[0]; curHand=0; insBet=0; phase='bet';
-  updateHUD();
+  balance=SALDO_INIZIALE; currentBet=0; deck=newDeck(6);
+  dealerHand=[]; playerHands=[[]]; handBets=[0]; handDoubled=[false]; curHand=0; insBet=0; phase='bet';
   ['dealer-hand','player-hands'].forEach(id => document.getElementById(id).innerHTML='');
   ['dealer-score','player-score'].forEach(id => document.getElementById(id).textContent='');
   msg(playerName ? 'Buona fortuna, '+playerName+'!' : '');
@@ -1010,18 +1208,56 @@ function resetGame() {
   document.getElementById('overlay').classList.remove('show');
   document.getElementById('insurance-bar').classList.remove('show');
   closeCashoutModal();
-  updateCashoutBtn();
+  memScrivi();
 }
 
 /* ════════════════════════════════════════════════════════════════
-   INIT
+   SCORCIATOIE DA TASTIERA
+   C carta · S stai · D raddoppia · P split · Invio distribuisci
+   R ripeti puntata · X raddoppia puntata · Esc annulla puntata
+   Assicurazione: Y sì · N no
 ════════════════════════════════════════════════════════════════ */
+document.addEventListener('keydown', e => {
+  if (e.ctrlKey || e.metaKey || e.altKey) return;
+  if (e.target.tagName === 'INPUT') return;
+  if (document.getElementById('name-modal').style.display !== 'none') return;
+  if (document.getElementById('cashout-modal').classList.contains('show')) {
+    if (e.key === 'Escape') closeCashoutModal();
+    return;
+  }
+  if (document.getElementById('stats-modal').classList.contains('show')) {
+    if (e.key === 'Escape') chiudiStats();
+    return;
+  }
+  const k = e.key.toLowerCase();
+  const azioni = {
+    player:    { c: hit, s: stand, d: doubleDown, p: splitHand },
+    insurance: { y: takeInsurance, n: declineInsurance },
+    bet:       { enter: deal, ' ': deal, r: repeatBet, x: doubleBet, escape: clearBet },
+  }[phase] || {};
+  const fn = azioni[k];
+  if (fn) { e.preventDefault(); fn(); }
+});
+
+/* ════════════════════════════════════════════════════════════════
+   INIT — riprende saldo, nome e statistiche salvati
+════════════════════════════════════════════════════════════════ */
+(function init() {
+  const m = memLeggi();
+  if (Number.isFinite(m.saldo) && m.saldo > 0) balance = Math.floor(m.saldo);
+  if (Number.isFinite(m.ultimaPuntata)) lastBet = m.ultimaPuntata;
+  if (m.stats) stats = Object.assign({}, STATS_ZERO, m.stats);
+  if (m.trofei) trofei = m.trofei;
+  if (m.nome) document.getElementById('name-input').value = m.nome;
+  if (balance !== SALDO_INIZIALE) {
+    document.getElementById('name-intro').textContent =
+      'Bentornato! Il tuo saldo di €' + balance.toLocaleString('it-IT') + ' è ancora sul tavolo.';
+  }
+})();
 deck = newDeck(6);
-updateHUD();
 betArea(true);
 setCroupier('init');
 updateChipsOffset();
-
 </script>
 </body>
 </html>
