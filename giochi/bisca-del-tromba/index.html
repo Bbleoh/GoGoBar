@@ -42,15 +42,16 @@
   .tb-right{justify-content:flex-end;}
   #title-bar{font-family:'Cinzel Decorative',serif;color:var(--gold);font-size:clamp(1rem,2.1vw,1.7rem);
     text-shadow:0 0 18px rgba(212,175,90,.6),0 2px 4px #000;letter-spacing:2px;text-align:center;white-space:nowrap;}
-  .top-btn{display:inline-flex;align-items:center;gap:6px;height:40px;padding:0 14px;border-radius:999px;
+  .top-btn{display:inline-flex;align-items:center;gap:6px;height:52px;padding:0 18px;border-radius:999px;
     background:var(--panel);border:1px solid var(--gold-dim);color:var(--gold-light);
-    font-family:var(--ui);font-weight:700;font-size:.78rem;letter-spacing:1px;cursor:pointer;
+    font-family:var(--ui);font-weight:700;font-size:1.25rem;letter-spacing:1px;cursor:pointer;
     backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);transition:background .15s,border-color .15s,opacity .15s;}
   .top-btn:hover:not(:disabled){background:rgba(212,175,90,.18);border-color:var(--gold);}
   .top-btn:disabled{opacity:.4;cursor:not-allowed;}
   .top-btn.cashout{border-color:rgba(61,220,132,.5);color:var(--win);}
   .top-btn.cashout:hover:not(:disabled){background:rgba(61,220,132,.14);}
   .tb-right .icon-btn{width:52px;height:52px;padding:0;justify-content:center;font-size:1.5rem;}
+  .top-btn .lbl{font-size:.88rem;}
   .icon-btn.off{opacity:.5;}
 
   /* PALCO: il croupier sta dietro al tavolo centrato e se ne vede solo la metà di sopra.
@@ -279,6 +280,11 @@
     #croupier-panel{display:none;}
     #croupier-avatar{display:block;}
   }
+  /* SCHERMI MEDI: le icone in alto senza scritta, così il titolo resta centrato */
+  @media (max-width:1100px){
+    .top-btn .lbl{display:none;}
+    .top-btn{width:52px;padding:0;justify-content:center;}
+  }
   /* TELEFONO */
   @media (max-width:640px){
     :root{--cw:clamp(46px,15vw,72px);}
@@ -286,8 +292,7 @@
     #title-bar{font-size:.8rem;letter-spacing:1px;white-space:normal;line-height:1.15;min-width:0;}
     #topbar{grid-template-columns:auto 1fr auto;}
     .top-btn .lbl{display:none;}
-    .top-btn{width:40px;padding:0;justify-content:center;font-size:1rem;}
-    .tb-right .icon-btn{width:46px;height:46px;font-size:1.3rem;}
+    .top-btn{width:46px;height:46px;padding:0;justify-content:center;font-size:1.3rem;}
     #stage{--ch:clamp(80px,16vh,150px);padding:0 8px 4px;}
     #table{border-radius:20px;padding:12px 8px;}
     #dock{padding:8px 10px 12px;gap:8px;}
