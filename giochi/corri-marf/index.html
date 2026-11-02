@@ -5,14 +5,17 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
   <title>Corri Marf! · GoGoBar</title>
   <meta name="description" content="Marf corre e scappa dalle femmine. Quanto lontano arrivi?">
+  <meta property="og:title" content="Corri Marf!">
+  <meta property="og:description" content="Marf corre e scappa dalle femmine. Quanto lontano arrivi?">
+  <meta property="og:image" content="copertina.jpg">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     :root {
-      --bg: #0d0d0c; --line: #2a2a26; --ivory: #f4efe2; --cream: #c9c0a9;
-      --muted: #77715f; --gold: #e4b33c; --red: #d2452f;
+      --bg: #0d0d0c; --surface: #161614; --line: #2a2a26; --ivory: #f4efe2; --cream: #c9c0a9;
+      --muted: #77715f; --gold: #e4b33c; --red: #d2452f; --pink: #ff5c8a;
       --display: 'Fredoka', sans-serif; --mono: 'DM Mono', monospace;
     }
     html, body { height: 100%; }
@@ -25,24 +28,95 @@
       width: 100%; display: flex; justify-content: space-between; align-items: center;
       padding: .7rem 16px; border-bottom: 1px solid var(--line);
     }
-    .bar a { font-family: var(--mono); font-size: .75rem; letter-spacing: .12em; text-transform: uppercase; color: var(--cream); text-decoration: none; }
-    .bar a:hover { color: var(--gold); }
+    .bar a, .bar button { font-family: var(--mono); font-size: .75rem; letter-spacing: .12em; text-transform: uppercase; color: var(--cream); text-decoration: none; background: none; border: 0; cursor: pointer; }
+    .bar a:hover, .bar button:hover { color: var(--gold); }
     .bar h1 { font-size: 1.3rem; font-weight: 700; }
     .bar h1 span { color: var(--gold); }
-    .stage { position: relative; flex: 1; width: 100%; display: flex; align-items: center; justify-content: center; padding: 12px; }
-    canvas { display: block; border-radius: 18px; border: 1px solid var(--line); background: #15131c; max-width: 100%; max-height: 100%; }
+    .stage { position: relative; flex: 1; width: 100%; display: flex; align-items: center; justify-content: center; padding: 12px; min-height: 0; }
+    .schermo { position: relative; }
+    canvas { display: block; border-radius: 18px; border: 1px solid var(--line); background: #15131c; }
     .hint { font-family: var(--mono); font-size: .72rem; color: var(--muted); padding: 0 16px 12px; text-align: center; letter-spacing: .05em; }
+
+    /* pannelli sopra il gioco (menu e fine partita) */
+    .pannello {
+      position: absolute; inset: 0; border-radius: 18px; overflow: hidden;
+      background: rgba(13,13,12,.78); backdrop-filter: blur(3px);
+      display: grid; grid-template-columns: minmax(0, .8fr) minmax(0, 1.2fr); align-items: center;
+    }
+    .pannello[hidden] { display: none; }
+    .pannello .ritratto { height: 100%; background: url(marf.jpg) center 20% / cover no-repeat; -webkit-mask-image: linear-gradient(90deg, #000 65%, transparent); mask-image: linear-gradient(90deg, #000 65%, transparent); }
+    .pannello .testo { padding: 4% 6% 4% 2%; display: flex; flex-direction: column; gap: .7em; font-size: clamp(11px, 1.7vw, 17px); max-height: 100%; overflow: auto; }
+    .pannello h2 { font-size: 2.6em; line-height: 1; color: var(--gold); }
+    .pannello .sotto { font-size: 1.15em; color: var(--ivory); }
+    .riga { display: flex; gap: .5em; flex-wrap: wrap; align-items: center; }
+    .btn {
+      font-family: var(--display); font-weight: 600; font-size: 1.05em; cursor: pointer;
+      background: var(--gold); color: #1b1530; border: 0; border-radius: 999px; padding: .5em 1.2em;
+    }
+    .btn.secondario { background: transparent; color: var(--cream); border: 1px solid var(--line); }
+    .btn:disabled { opacity: .5; cursor: default; }
+    input.nome {
+      font-family: var(--display); font-size: 1em; color: var(--ivory); background: var(--surface);
+      border: 1px solid var(--line); border-radius: 999px; padding: .45em 1em; width: 11em; -webkit-user-select: text; user-select: text;
+    }
+    input.nome:focus { outline: 2px solid var(--gold); outline-offset: 1px; }
+    .nota { font-family: var(--mono); font-size: .8em; color: var(--cream); min-height: 1.2em; }
+    .classifica { font-family: var(--mono); font-size: .85em; }
+    .classifica h3 { font-family: var(--display); font-size: 1.15em; color: var(--cream); margin-bottom: .3em; font-weight: 600; }
+    .classifica ol { list-style: none; display: grid; gap: .15em; }
+    .classifica li { display: flex; justify-content: space-between; gap: 1em; padding: .15em .6em; border-radius: 8px; background: rgba(255,255,255,.04); }
+    .classifica li.io { background: rgba(228,179,60,.18); color: var(--gold); }
+    .classifica li span:first-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    @media (max-width: 560px) {
+      .pannello { grid-template-columns: 1fr; }
+      .pannello .ritratto { display: none; }
+      .pannello .testo { padding: 4% 6%; }
+    }
   </style>
 </head>
 <body>
   <div class="bar">
     <a href="../../">← GoGoBar</a>
     <h1>Corri <span>Marf!</span></h1>
-    <a href="#" id="audio">♪ on</a>
+    <button id="audio" type="button">♪ on</button>
   </div>
-  <div class="stage"><canvas id="c" aria-label="Corri Marf, il gioco"></canvas></div>
-  <p class="hint">Salta: spazio, ↑ o tocca lo schermo (anche due volte) · Scivola: ↓ o swipe in giù</p>
+  <div class="stage">
+    <div class="schermo" id="schermo">
+      <canvas id="c" aria-label="Corri Marf, il gioco"></canvas>
 
+      <div class="pannello" id="menu">
+        <div class="ritratto"></div>
+        <div class="testo">
+          <h2>Corri Marf!</h2>
+          <p class="sotto">Le femmine lo vogliono. Lui scappa.</p>
+          <div class="riga">
+            <input class="nome" id="nomeMenu" maxlength="20" placeholder="Il tuo nome" autocomplete="nickname">
+            <button class="btn" id="gioca" type="button">Corri!</button>
+          </div>
+          <div class="classifica" id="classificaMenu"></div>
+        </div>
+      </div>
+
+      <div class="pannello" id="fine" hidden>
+        <div class="ritratto"></div>
+        <div class="testo">
+          <h2>Ti hanno preso!</h2>
+          <p class="sotto" id="risultato"></p>
+          <div class="riga">
+            <input class="nome" id="nomeFine" maxlength="20" placeholder="Il tuo nome" autocomplete="nickname">
+            <button class="btn secondario" id="salva" type="button">Salva in classifica</button>
+          </div>
+          <p class="nota" id="nota"></p>
+          <div class="riga"><button class="btn" id="riprova" type="button">Riprova</button></div>
+          <div class="classifica" id="classificaFine"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <p class="hint">Salta: spazio, ↑ o tocca lo schermo (anche due volte) · Scivola: ↓ o swipe in giù</p>
+  <audio id="musica" src="musica.mp3" loop preload="auto"></audio>
+
+<script src="classifica.js?v=1" onerror="window.CorriMarfClassifica = null"></script>
 <script>
 (function () {
   'use strict';
@@ -54,9 +128,8 @@
   var scala = 1;
 
   function adatta() {
-    var box = cv.parentElement.getBoundingClientRect();
-    var maxW = box.width - 24, maxH = box.height - 24;
-    var s = Math.min(maxW / W, maxH / H);
+    var box = cv.parentElement.parentElement.getBoundingClientRect();
+    var s = Math.min((box.width - 24) / W, (box.height - 24) / H);
     var dpr = window.devicePixelRatio || 1;
     cv.style.width = Math.floor(W * s) + 'px';
     cv.style.height = Math.floor(H * s) + 'px';
@@ -67,12 +140,26 @@
   window.addEventListener('resize', adatta);
   adatta();
 
-  /* ── Record locale ── */
-  function leggiRecord() { try { return +localStorage.getItem('corriMarf.record') || 0; } catch (e) { return 0; } }
-  function scriviRecord(v) { try { localStorage.setItem('corriMarf.record', String(v)); } catch (e) {} }
+  /* ── Salvataggi locali ── */
+  function leggi(k, def) { try { var v = localStorage.getItem('corriMarf.' + k); return v === null ? def : v; } catch (e) { return def; } }
+  function scrivi(k, v) { try { localStorage.setItem('corriMarf.' + k, String(v)); } catch (e) {} }
+  var record = +leggi('record', 0) || 0;
 
-  /* ── Suoni sintetizzati (niente file) ── */
-  var audioOn = true, actx = null;
+  /* ── Musica e suoni ── */
+  var musica = document.getElementById('musica');
+  musica.volume = 0.55;
+  var audioOn = leggi('audio', '1') === '1', actx = null;
+  var btnAudio = document.getElementById('audio');
+  function aggiornaAudio() {
+    btnAudio.textContent = audioOn ? '♪ on' : '♪ off';
+    musica.muted = !audioOn;
+  }
+  aggiornaAudio();
+  btnAudio.addEventListener('click', function () {
+    audioOn = !audioOn; scrivi('audio', audioOn ? '1' : '0'); aggiornaAudio();
+    if (audioOn && stato === 'gioco') avviaMusica();
+  });
+  function avviaMusica() { if (!audioOn) return; var p = musica.play(); if (p && p.catch) p.catch(function () {}); }
   function bip(freq, dur, tipo, vol) {
     if (!audioOn) return;
     try {
@@ -80,23 +167,73 @@
       var o = actx.createOscillator(), g = actx.createGain(), t = actx.currentTime;
       o.type = tipo || 'square'; o.frequency.setValueAtTime(freq, t);
       o.frequency.exponentialRampToValueAtTime(freq * 1.6, t + dur);
-      g.gain.setValueAtTime(vol || 0.06, t); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+      g.gain.setValueAtTime(vol || 0.05, t); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
       o.connect(g); g.connect(actx.destination); o.start(t); o.stop(t + dur);
     } catch (e) {}
   }
-  document.getElementById('audio').addEventListener('click', function (e) {
-    e.preventDefault(); audioOn = !audioOn; this.textContent = audioOn ? '♪ on' : '♪ off';
-  });
+
+  /* ── Pannelli e classifica ── */
+  var menu = document.getElementById('menu'), fine = document.getElementById('fine');
+  var nomeMenu = document.getElementById('nomeMenu'), nomeFine = document.getElementById('nomeFine');
+  var nota = document.getElementById('nota'), btnSalva = document.getElementById('salva');
+  nomeMenu.value = nomeFine.value = leggi('nome', '');
+  var API = window.CorriMarfClassifica;
+
+  function prendiNome(input) {
+    var n = input.value.trim().slice(0, 20);
+    if (n) { scrivi('nome', n); nomeMenu.value = nomeFine.value = n; }
+    return n;
+  }
+
+  function mostraClassifica(box) {
+    box.innerHTML = '';
+    var h = document.createElement('h3'); h.textContent = 'Classifica'; box.append(h);
+    if (!API || !API.attiva) { box.append(testo('p', 'Record su questo telefono: ' + record + ' pt')); return; }
+    var attesa = testo('p', 'Carico...'); box.append(attesa);
+    API.carica(10).then(function (righe) {
+      attesa.remove();
+      if (!righe.length) { box.append(testo('p', 'Ancora nessuno. Il primo posto è tuo!')); return; }
+      var io = (leggi('nome', '') || '').toLowerCase();
+      var ol = document.createElement('ol');
+      righe.forEach(function (r, i) {
+        var li = document.createElement('li');
+        if (io && r.nome.toLowerCase() === io) li.className = 'io';
+        li.append(testo('span', (i + 1) + '. ' + r.nome), testo('span', r.punti.toLocaleString('it-IT') + ' pt'));
+        ol.append(li);
+      });
+      box.append(ol);
+    });
+  }
+  function testo(tag, t) { var e = document.createElement(tag); e.textContent = t; return e; }
+
+  var salvato = false;
+  function salva() {
+    if (salvato || !g || !API || !API.attiva) return;
+    var nome = prendiNome(nomeFine);
+    if (!nome) { nota.textContent = 'Scrivi il tuo nome per entrare in classifica.'; nomeFine.focus(); return; }
+    var punti = punteggio();
+    btnSalva.disabled = true; nota.textContent = 'Salvo...';
+    API.salva(nome, punti).then(function () {
+      salvato = true; nota.textContent = 'Salvato! In classifica resta il tuo punteggio migliore.';
+      mostraClassifica(document.getElementById('classificaFine'));
+    }, function (e) {
+      btnSalva.disabled = false; nota.textContent = (e && e.message) || 'Non sono riuscito a salvare, riprova.';
+    });
+  }
+  btnSalva.addEventListener('click', salva);
+  nomeFine.addEventListener('keydown', function (e) { if (e.key === 'Enter') salva(); });
+  nomeMenu.addEventListener('keydown', function (e) { if (e.key === 'Enter') inizia(); });
+  document.getElementById('gioca').addEventListener('click', inizia);
+  document.getElementById('riprova').addEventListener('click', inizia);
 
   /* ── Stato ── */
   var FRASI = ['MARF!', 'Aspettaaa!', 'Dove scappi?', 'Ti amo Marf!', 'Un bacino!', 'Marfiiino!', 'Torna qui!'];
   var stato = 'menu'; // menu | gioco | preso
-  var g;              // partita corrente
-  var record = leggiRecord();
+  var g;
 
   function nuovaPartita() {
     g = {
-      t: 0, vel: 380, metri: 0, birre: 0,
+      t: 0, vel: 380, metri: 0, birre: 0, passi: 0,
       marf: { y: TERRA, vy: 0, salti: 0, giu: false, botta: 0 },
       distacco: 230,       // px tra la prima inseguitrice e Marf: a 0 ti prendono
       ostacoli: [], birreA: [], prossimo: 1.2, prossimaBirra: 3,
@@ -104,10 +241,38 @@
     };
   }
   nuovaPartita();
+  mostraClassifica(document.getElementById('classificaMenu'));
+
+  function inizia() {
+    if (stato === 'gioco') return;
+    if (stato === 'menu') prendiNome(nomeMenu);
+    if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
+    nuovaPartita(); stato = 'gioco'; salvato = false;
+    menu.hidden = true; fine.hidden = true;
+    musica.currentTime = 0; avviaMusica();
+  }
+
+  function preso() {
+    stato = 'preso';
+    var punti = punteggio(), nuovo = punti > record;
+    if (nuovo) { record = punti; scrivi('record', record); }
+    document.getElementById('risultato').textContent =
+      Math.floor(g.metri) + ' m · ' + g.birre + ' birre · ' + punti.toLocaleString('it-IT') + ' punti' + (nuovo ? ' · nuovo record!' : '');
+    nota.textContent = ''; btnSalva.disabled = false;
+    btnSalva.hidden = !(API && API.attiva); nomeFine.hidden = btnSalva.hidden;
+    mostraClassifica(document.getElementById('classificaFine'));
+    setTimeout(function () {
+      if (stato !== 'preso') return;
+      fine.hidden = false;
+      if (API && API.attiva && leggi('nome', '') && nuovo) salva(); // nome già noto: salva da solo il nuovo record
+    }, 700);
+    musica.pause();
+    bip(300, 0.5, 'sawtooth', 0.07); setTimeout(function () { bip(150, 0.6, 'sawtooth', 0.07); }, 200);
+  }
 
   /* ── Comandi ── */
   function salta() {
-    if (stato !== 'gioco') { inizia(); return; }
+    if (stato !== 'gioco') return;
     var m = g.marf;
     if (m.salti < 2) {
       m.vy = m.salti === 0 ? -720 : -620; m.salti++; m.giu = false;
@@ -123,16 +288,18 @@
     }
     m.giu = attivo;
   }
-  function inizia() {
-    if (stato === 'preso' && g.t < 0.6) return; // evita il riavvio per sbaglio
-    nuovaPartita(); stato = 'gioco';
-  }
 
+  function inCampo(e) { return e.target && /^(INPUT|BUTTON)$/.test(e.target.tagName); }
   window.addEventListener('keydown', function (e) {
-    if (e.repeat && (e.code === 'Space' || e.code === 'ArrowUp' || e.code === 'KeyW')) return;
-    if (e.code === 'Space' || e.code === 'ArrowUp' || e.code === 'KeyW') { e.preventDefault(); salta(); }
+    if (inCampo(e)) return;
+    var su = e.code === 'Space' || e.code === 'ArrowUp' || e.code === 'KeyW';
+    if (su) {
+      e.preventDefault();
+      if (e.repeat) return;
+      if (stato === 'gioco') salta(); else if (stato === 'menu' || !fine.hidden) inizia();
+    }
     else if (e.code === 'ArrowDown' || e.code === 'KeyS') { e.preventDefault(); giu(true); }
-    else if (e.code === 'Enter' && stato !== 'gioco') inizia();
+    else if (e.code === 'Enter' && stato !== 'gioco' && (stato === 'menu' || !fine.hidden)) inizia();
   });
   window.addEventListener('keyup', function (e) {
     if (e.code === 'ArrowDown' || e.code === 'KeyS') giu(false);
@@ -152,9 +319,12 @@
     if (tocco.giu) giu(false); else salta();
     tocco = null;
   }, { passive: false });
-  cv.addEventListener('mousedown', function () { salta(); });
+  cv.addEventListener('mousedown', salta);
 
-  document.addEventListener('visibilitychange', function () { ultimo = performance.now(); });
+  document.addEventListener('visibilitychange', function () {
+    ultimo = performance.now();
+    if (document.hidden) musica.pause(); else if (stato === 'gioco') avviaMusica();
+  });
 
   /* ── Generazione ostacoli ── */
   // basso = da saltare, alto = da scivolarci sotto
@@ -179,6 +349,7 @@
     g.vel = Math.min(380 + g.t * 9, 820) * (g.scatto > 0 ? 1.15 : 1);
     var dx = g.vel * dt;
     g.metri += dx / 40;
+    g.passi += dt * (7 + g.vel / 90);
 
     // fisica di Marf
     m.vy += 2100 * dt;
@@ -188,7 +359,7 @@
     if (g.scatto > 0) g.scatto -= dt;
     if (g.scuoti > 0) g.scuoti -= dt;
 
-    // le inseguitrici recuperano lentamente se rallenti, si allontanano se fili
+    // le inseguitrici restano indietro piano piano, molto di più durante lo scatto
     g.distacco = Math.min(g.distacco + (g.scatto > 0 ? 40 : 6) * dt, 260);
 
     // ostacoli
@@ -201,7 +372,7 @@
       if (o.x + o.w < -50) { g.ostacoli.splice(i, 1); continue; }
       if (!o.preso && m.botta <= 0 && tocca(hb, boxOstacolo(o))) {
         o.preso = true; m.botta = 1.1; g.distacco -= 85; g.scuoti = 0.25;
-        bip(110, 0.25, 'sawtooth', 0.08);
+        bip(110, 0.25, 'sawtooth', 0.07);
       }
     }
 
@@ -217,7 +388,7 @@
       if (b.x < -30) { g.birreA.splice(j, 1); continue; }
       if (tocca(hb, { x: b.x - 12, y: b.y - 22, w: 24, h: 40 })) {
         g.birreA.splice(j, 1); g.birre++; g.distacco = Math.min(g.distacco + 55, 260); g.scatto = 1.2;
-        bip(660, 0.08, 'triangle', 0.08); setTimeout(function () { bip(990, 0.1, 'triangle', 0.08); }, 70);
+        bip(660, 0.08, 'triangle', 0.07); setTimeout(function () { bip(990, 0.1, 'triangle', 0.07); }, 70);
       }
     }
 
@@ -229,13 +400,7 @@
     }
     if (g.fumetto && (g.fumetto.t -= dt) <= 0) g.fumetto = null;
 
-    // preso!
-    if (g.distacco <= 0) {
-      stato = 'preso'; g.t = 0;
-      var punti = punteggio();
-      if (punti > record) { record = punti; scriviRecord(record); g.nuovoRecord = true; }
-      bip(300, 0.5, 'sawtooth', 0.08); setTimeout(function () { bip(150, 0.6, 'sawtooth', 0.08); }, 200);
-    }
+    if (g.distacco <= 0) preso();
   }
 
   function punteggio() { return Math.floor(g.metri) + g.birre * 25; }
@@ -264,21 +429,16 @@
     g.ostacoli.forEach(ostacolo);
     inseguitrici();
     marf();
-    hud();
-    if (stato === 'menu') schermata('Corri Marf!', 'Le femmine lo vogliono. Lui scappa.', 'Tocca o premi spazio per correre');
-    if (stato === 'preso') schermata('Ti hanno preso!', punteggio() + ' punti' + (g.nuovoRecord ? ' · nuovo record!' : ''), 'Tocca o premi spazio per riprovare');
+    if (stato !== 'menu') hud();
   }
 
   function sfondo() {
     var cielo = ctx.createLinearGradient(0, 0, 0, TERRA);
     cielo.addColorStop(0, '#1b1530'); cielo.addColorStop(1, '#3a2240');
     ctx.fillStyle = cielo; ctx.fillRect(0, 0, W, TERRA);
-    // luna
     ctx.fillStyle = '#f6d77a'; ctx.beginPath(); ctx.arc(700, 90, 28, 0, Math.PI * 2); ctx.fill();
-    // palazzi lontani
     palazzi(0.15, '#2a1f38', 140, 51);
     palazzi(0.35, '#22192d', 90, 97, true);
-    // marciapiede
     ctx.fillStyle = '#2b2622'; ctx.fillRect(0, TERRA, W, H - TERRA);
     ctx.fillStyle = '#e4b33c'; ctx.fillRect(0, TERRA, W, 4);
     ctx.fillStyle = '#3a332c';
@@ -288,17 +448,15 @@
 
   function palazzi(par, colore, altezzaBase, seme, insegne) {
     var off = (scorrimento * par) % 1200;
-    ctx.fillStyle = colore;
     for (var k = 0; k < 2; k++) {
       for (var i = 0; i < 12; i++) {
-        var r = pseudo(i * seme);
-        var w = 70 + r * 60, h = altezzaBase + pseudo(i * seme + 7) * 120;
+        var w = 70 + pseudo(i * seme) * 60, h = altezzaBase + pseudo(i * seme + 7) * 120;
         var x = i * 100 - off + k * 1200;
         if (x > W || x + w < 0) continue;
         ctx.fillStyle = colore; ctx.fillRect(x, TERRA - h, w, h);
         if (insegne && pseudo(i * 13) > 0.6) {
           ctx.fillStyle = pseudo(i * 5) > 0.5 ? '#e4b33c' : '#d2452f';
-          ctx.font = '600 16px Fredoka, sans-serif';
+          ctx.font = '600 16px Fredoka, sans-serif'; ctx.textAlign = 'left';
           ctx.fillText(pseudo(i * 3) > 0.5 ? 'BAR' : 'GOGO', x + 10, TERRA - h + 26);
         }
         ctx.fillStyle = 'rgba(246,215,122,.25)';
@@ -324,8 +482,8 @@
     ctx.save();
     if (o.tipo === 'sedia') {
       ctx.fillStyle = '#b07a3c';
-      ctx.fillRect(o.x, TERRA - 30, o.w, 8);           // seduta
-      ctx.fillRect(o.x + o.w - 8, TERRA - o.h, 8, o.h);  // schienale
+      ctx.fillRect(o.x, TERRA - 30, o.w, 8);
+      ctx.fillRect(o.x + o.w - 8, TERRA - o.h, 8, o.h);
       ctx.fillRect(o.x + 2, TERRA - 22, 6, 22);
       ctx.fillRect(o.x + o.w - 14, TERRA - 22, 6, 22);
     } else if (o.tipo === 'casse') {
@@ -342,48 +500,154 @@
     ctx.restore();
   }
 
-  // Marf provvisorio: verrà sostituito con la sua faccia vera
-  function marf() {
-    var m = g.marf, x = MARF_X, y = m.y;
-    var corre = stato === 'gioco' && m.y >= TERRA;
-    var fase = g.t * (g.vel / 28);
-    if (m.botta > 0 && Math.floor(m.botta * 12) % 2 === 0) return; // lampeggia dopo una botta
-    ctx.save(); ctx.translate(x, y);
-    var basso = m.giu && m.y >= TERRA;
-    if (basso) ctx.rotate(-1.15);
-    ctx.lineCap = 'round';
-    // gambe
-    ctx.strokeStyle = '#2b3a67'; ctx.lineWidth = 10;
-    var a = corre ? Math.sin(fase) * 0.8 : (m.y < TERRA ? 0.5 : 0);
-    gamba(-4, -36, a); gamba(4, -36, -a);
-    // corpo
-    ctx.fillStyle = '#4a8fa8'; roundRect(-16, -74, 32, 42, 10); ctx.fill();
-    ctx.fillStyle = '#f4efe2'; ctx.font = '700 12px Fredoka, sans-serif'; ctx.textAlign = 'center'; ctx.fillText('M', 0, -48);
-    // braccia
-    ctx.strokeStyle = '#e8b98f'; ctx.lineWidth = 8;
-    var b = corre ? Math.sin(fase) * 0.9 : -0.6;
-    braccio(0, -68, b); braccio(0, -68, -b);
-    // testa
-    ctx.fillStyle = '#e8b98f'; ctx.beginPath(); ctx.arc(2, -92, 20, 0, Math.PI * 2); ctx.fill();
-    ctx.fillStyle = '#3b2a1c'; ctx.beginPath(); ctx.arc(0, -100, 20, Math.PI * 1.05, Math.PI * 2.05); ctx.fill();
-    // occhiali da sole e bocca terrorizzata
-    ctx.fillStyle = '#111'; roundRect(-4, -98, 26, 9, 4); ctx.fill();
-    ctx.fillStyle = '#5a1d1d'; ctx.beginPath(); ctx.ellipse(12, -80, 5, 4 + Math.abs(Math.sin(fase)) * 2, 0, 0, Math.PI * 2); ctx.fill();
-    // goccia di sudore
-    ctx.fillStyle = '#9fd3ff'; ctx.beginPath(); ctx.arc(-18, -98 + (g.t * 40 % 14), 3.5, 0, Math.PI * 2); ctx.fill();
+  /* ── Marf: ricci neri, giacca nera aperta, felpa blu-grigia, jeans, sneakers ── */
+  var C = {
+    linea: '#141419', pelle: '#f3c9a3', pelleOmbra: '#dca582', capelli: '#121216',
+    giacca: '#22242c', giaccaOmbra: '#16171d', bordo: '#a3a9b3',
+    felpa: '#5f7590', felpaOmbra: '#4b5f78', jeans: '#3c5272', jeansOmbra: '#2e4060',
+    scarpa: '#18181c', suola: '#f1efe9'
+  };
+  // osso con contorno: due tratti, prima scuro e largo, poi colorato
+  function arto(punti, spessore, colore) {
+    ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+    ctx.beginPath(); ctx.moveTo(punti[0][0], punti[0][1]);
+    for (var i = 1; i < punti.length; i++) ctx.lineTo(punti[i][0], punti[i][1]);
+    ctx.strokeStyle = C.linea; ctx.lineWidth = spessore + 4; ctx.stroke();
+    ctx.strokeStyle = colore; ctx.lineWidth = spessore; ctx.stroke();
+  }
+  function gambaMarf(hx, hy, coscia, stinco, ombra) {
+    var L1 = 22, L2 = 22;
+    var kx = hx + Math.sin(coscia) * L1, ky = hy + Math.cos(coscia) * L1;
+    var fx = kx + Math.sin(stinco) * L2, fy = ky + Math.cos(stinco) * L2;
+    arto([[hx, hy], [kx, ky], [fx, fy]], 12, ombra ? C.jeansOmbra : C.jeans);
+    // scarpa
+    ctx.save(); ctx.translate(fx, fy); ctx.rotate(stinco * 0.6);
+    ctx.fillStyle = C.linea; roundRect(-8, -6, 22, 12, 6); ctx.fill();
+    ctx.fillStyle = ombra ? '#0e0e11' : C.scarpa; roundRect(-6.5, -4.5, 19, 9, 4.5); ctx.fill();
+    ctx.fillStyle = C.suola; ctx.fillRect(-6, 2.5, 18, 3);
     ctx.restore();
+  }
+  function braccioMarf(sx, sy, spalla, gomito, ombra) {
+    var L1 = 17, L2 = 16;
+    var ex = sx + Math.sin(spalla) * L1, ey = sy + Math.cos(spalla) * L1;
+    var hx = ex + Math.sin(gomito) * L2, hy = ey + Math.cos(gomito) * L2;
+    arto([[sx, sy], [ex, ey], [hx, hy]], 11, ombra ? C.giaccaOmbra : C.giacca);
+    ctx.fillStyle = C.linea; ctx.beginPath(); ctx.arc(hx, hy, 7, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = ombra ? C.pelleOmbra : C.pelle; ctx.beginPath(); ctx.arc(hx, hy, 5, 0, Math.PI * 2); ctx.fill();
+  }
+  function riccio(x, y, r) { ctx.moveTo(x + r, y); ctx.arc(x, y, r, 0, Math.PI * 2); }
+
+  function marf() {
+    var m = g.marf;
+    if (m.botta > 0 && Math.floor(m.botta * 12) % 2 === 0) return; // lampeggia dopo una botta
+    var aTerra = m.y >= TERRA, scivola = m.giu && aTerra;
+    var corre = stato === 'gioco' && aTerra;
+    var p = stato === 'menu' ? g.t * 9 : g.passi;
+    var s = Math.sin(p), c = Math.cos(p);
+    var salto = stato === 'gioco' && !aTerra;
+    var rimbalzo = corre ? Math.abs(c) * 4 : 0;
+
+    ctx.save();
+    ctx.translate(MARF_X, m.y);
+    ctx.translate(0, -rimbalzo);
+    ctx.scale(0.92, 0.92);
+    if (scivola) { ctx.translate(-10, -14); ctx.rotate(-1.2); ctx.translate(0, 44); } // scivolata: ruota attorno all'anca, gambe avanti
+
+    var anca = -44, spalla = -78;
+    // pose
+    var cA, sA, cB, sB, bA, gA, bB, gB;
+    if (salto) { cA = 1.1; sA = -0.2; cB = -0.5; sB = -1.3; bA = -2.3; gA = -1.9; bB = 1.2; gB = 2.0; }
+    else if (scivola) { cA = 0.4; sA = 0.35; cB = 0.3; sB = 0.5; bA = 0.3; gA = 0.6; bB = 3.0; gB = 2.8; }
+    else if (corre || stato === 'menu') {
+      cA = s * 0.9; sA = cA - Math.max(0, -c) * 1.4 - 0.3;
+      cB = -s * 0.9; sB = cB - Math.max(0, c) * 1.4 - 0.3;
+      bA = -s * 1.1; gA = bA + 1.6; bB = s * 1.1; gB = bB + 1.6;
+    } else { cA = 0.15; sA = 0; cB = -0.15; sB = -0.1; bA = -0.3; gA = 0.8; bB = 0.3; gB = 1.2; }
+
+    // dietro: gamba e braccio lontani
+    gambaMarf(-2, anca, cB, sB, true);
+    braccioMarf(-4, spalla + 4, bB, gB, true);
+
+    // giacca: falda posteriore che svolazza
+    var vento = corre ? Math.sin(p * 2) * 3 : 0;
+    ctx.fillStyle = C.linea;
+    ctx.beginPath(); ctx.moveTo(-14, spalla); ctx.lineTo(-24 - vento, anca + 6); ctx.lineTo(-6, anca + 2); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = C.giacca;
+    ctx.beginPath(); ctx.moveTo(-12, spalla + 2); ctx.lineTo(-21 - vento, anca + 4); ctx.lineTo(-6, anca); ctx.closePath(); ctx.fill();
+
+    // gamba vicina
+    gambaMarf(3, anca, cA, sA, false);
+
+    // busto: felpa
+    ctx.fillStyle = C.linea; roundRect(-16, spalla - 4, 32, 42, 11); ctx.fill();
+    ctx.fillStyle = C.felpa; roundRect(-13.5, spalla - 1.5, 27, 37, 9); ctx.fill();
+    ctx.fillStyle = C.felpaOmbra; ctx.fillRect(-13.5, anca - 8, 27, 4); // tasca/bordo
+    // stampa "Brooklyn"
+    ctx.fillStyle = '#e9e6df'; ctx.fillRect(-2, spalla + 10, 11, 12);
+    ctx.fillStyle = '#4a4a50'; ctx.fillRect(0, spalla + 12, 2, 10); ctx.fillRect(5, spalla + 12, 2, 10); ctx.fillRect(-1, spalla + 13, 9, 2);
+    // lacci del cappuccio
+    ctx.strokeStyle = '#d7dbe1'; ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.moveTo(4, spalla + 2); ctx.lineTo(3, spalla + 11); ctx.moveTo(9, spalla + 2); ctx.lineTo(10, spalla + 10); ctx.stroke();
+    // giacca aperta, pannello davanti con bordo grigio
+    ctx.fillStyle = C.linea;
+    ctx.beginPath(); ctx.moveTo(-17, spalla - 3); ctx.lineTo(-2, spalla - 3); ctx.lineTo(-4, anca + 4); ctx.lineTo(-19, anca + 2); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = C.giacca;
+    ctx.beginPath(); ctx.moveTo(-15, spalla - 1); ctx.lineTo(-4, spalla - 1); ctx.lineTo(-6, anca + 2); ctx.lineTo(-17, anca); ctx.closePath(); ctx.fill();
+    ctx.strokeStyle = C.bordo; ctx.lineWidth = 1.6;
+    ctx.beginPath(); ctx.moveTo(-4.5, spalla); ctx.lineTo(-6.5, anca + 1); ctx.stroke();
+    // cappuccio dietro al collo
+    ctx.fillStyle = C.linea; ctx.beginPath(); ctx.ellipse(-6, spalla - 3, 12, 7, -0.3, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = C.felpa; ctx.beginPath(); ctx.ellipse(-6, spalla - 3, 10, 5, -0.3, 0, Math.PI * 2); ctx.fill();
+
+    // testa
+    var tx = 4, ty = spalla - 24;
+    ctx.save(); ctx.translate(tx, ty); ctx.rotate(salto ? -0.1 : (corre ? 0.08 : 0));
+    // collo
+    ctx.fillStyle = C.pelleOmbra; ctx.fillRect(-4, 12, 9, 10);
+    // faccia
+    ctx.fillStyle = C.linea; ctx.beginPath(); ctx.ellipse(0, 0, 21, 22, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = C.pelle; ctx.beginPath(); ctx.ellipse(0, 0, 19, 20, 0, 0, Math.PI * 2); ctx.fill();
+    // orecchio
+    ctx.fillStyle = C.pelleOmbra; ctx.beginPath(); ctx.ellipse(-8, 2, 4, 5.5, 0, 0, Math.PI * 2); ctx.fill();
+    // occhio grande in stile anime, sguardo determinato
+    ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.ellipse(9, -1, 5, 6.5, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#2b1d14'; ctx.beginPath(); ctx.ellipse(10, 0, 3.6, 5, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(11.2, -2, 1.4, 0, Math.PI * 2); ctx.fill();
+    // sopracciglio deciso
+    ctx.strokeStyle = C.capelli; ctx.lineWidth = 2.6; ctx.lineCap = 'round';
+    ctx.beginPath(); ctx.moveTo(4, -10); ctx.lineTo(14, -8); ctx.stroke();
+    // guancia e bocca aperta
+    ctx.fillStyle = 'rgba(236,120,110,.35)'; ctx.beginPath(); ctx.ellipse(8, 8, 4, 2.4, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#6b2420'; ctx.beginPath(); ctx.ellipse(15, 11, 3.2, 2.2 + (corre ? Math.abs(s) * 1.4 : 1), 0.2, 0, Math.PI * 2); ctx.fill();
+    // goccia di sudore
+    ctx.fillStyle = '#9fd3ff'; ctx.beginPath(); ctx.arc(-14, -4 + (g.t * 30 % 12), 2.6, 0, Math.PI * 2); ctx.fill();
+    // ricci: grappolo di cerchi con contorno
+    var mossa = corre ? Math.sin(p * 2) * 1.5 : 0;
+    var R = [[-14, -10, 8], [-8, -18, 9], [1, -21, 9], [10, -19, 8], [17, -13, 6], [-17, 0, 7], [-12, 7, 5], [-3, -12, 6], [7, -12, 5], [14, -7, 4]];
+    ctx.fillStyle = C.linea; ctx.beginPath();
+    R.forEach(function (r) { riccio(r[0] - mossa * 0.4, r[1] + (r[0] < 0 ? mossa : 0), r[2] + 2); }); ctx.fill();
+    ctx.fillStyle = C.capelli; ctx.beginPath();
+    R.forEach(function (r) { riccio(r[0] - mossa * 0.4, r[1] + (r[0] < 0 ? mossa : 0), r[2]); }); ctx.fill();
+    ctx.strokeStyle = '#3a3a46'; ctx.lineWidth = 1.2;
+    R.forEach(function (r, i) { if (i % 2) { ctx.beginPath(); ctx.arc(r[0] - mossa * 0.4, r[1], r[2] * 0.55, 3.6, 5.4); ctx.stroke(); } });
+    ctx.restore();
+
+    // braccio vicino davanti a tutto
+    braccioMarf(2, spalla + 4, bA, gA, false);
+    ctx.restore();
+
     if (g.scatto > 0) { // scie dello scatto
       ctx.strokeStyle = 'rgba(228,179,60,.6)'; ctx.lineWidth = 3;
-      for (var i = 0; i < 3; i++) { ctx.beginPath(); ctx.moveTo(x - 30 - i * 12, y - 30 - i * 20); ctx.lineTo(x - 70 - i * 12, y - 30 - i * 20); ctx.stroke(); }
+      for (var i = 0; i < 3; i++) { ctx.beginPath(); ctx.moveTo(MARF_X - 30 - i * 12, m.y - 30 - i * 20); ctx.lineTo(MARF_X - 70 - i * 12, m.y - 30 - i * 20); ctx.stroke(); }
+    }
+    if (corre && Math.floor(g.passi * 2) % 2 === 0) { // nuvoletta di polvere
+      ctx.fillStyle = 'rgba(241,239,233,.35)';
+      ctx.beginPath(); ctx.arc(MARF_X - 22, TERRA - 5, 5, 0, Math.PI * 2); ctx.arc(MARF_X - 30, TERRA - 8, 4, 0, Math.PI * 2); ctx.fill();
     }
   }
   function gamba(x, y, ang) {
     ctx.beginPath(); ctx.moveTo(x, y);
     ctx.lineTo(x + Math.sin(ang) * 36, y + Math.cos(ang) * 36); ctx.stroke();
-  }
-  function braccio(x, y, ang) {
-    ctx.beginPath(); ctx.moveTo(x, y);
-    ctx.lineTo(x + Math.sin(ang) * 28, y + Math.cos(ang) * 28); ctx.stroke();
   }
 
   // Le tre inseguitrici (provvisorie)
@@ -393,6 +657,7 @@
     { capelli: '#c0392b', vestito: '#e4b33c' }
   ];
   function inseguitrici() {
+    if (stato === 'menu') return;
     var fronte = MARF_X - 30 - Math.max(g.distacco, 0);
     var fase = g.t * 14;
     for (var i = RAGAZZE.length - 1; i >= 0; i--) {
@@ -406,13 +671,12 @@
       ctx.fillStyle = r.vestito;
       ctx.beginPath(); ctx.moveTo(-18, -30); ctx.lineTo(18, -30); ctx.lineTo(10, -70); ctx.lineTo(-10, -70); ctx.closePath(); ctx.fill();
       ctx.strokeStyle = '#e8b98f'; ctx.lineWidth = 6;
-      ctx.beginPath(); ctx.moveTo(6, -64); ctx.lineTo(30, -76 + Math.sin(fase + i) * 6); ctx.stroke(); // braccio teso verso Marf
+      ctx.beginPath(); ctx.moveTo(6, -64); ctx.lineTo(30, -76 + Math.sin(fase + i) * 6); ctx.stroke();
       ctx.fillStyle = r.capelli; ctx.beginPath(); ctx.arc(-4, -86, 21, 0, Math.PI * 2); ctx.fill();
       ctx.fillRect(-24, -88, 14, 34);
       ctx.fillStyle = '#e8b98f'; ctx.beginPath(); ctx.arc(2, -86, 16, 0, Math.PI * 2); ctx.fill();
       ctx.fillStyle = '#111'; ctx.beginPath(); ctx.arc(8, -89, 2.5, 0, Math.PI * 2); ctx.fill();
-      ctx.fillStyle = '#d2452f'; ctx.beginPath(); ctx.arc(11, -79, 3.5, 0, Math.PI * 2); ctx.fill(); // labbra a bacio
-      // cuoricino
+      ctx.fillStyle = '#d2452f'; ctx.beginPath(); ctx.arc(11, -79, 3.5, 0, Math.PI * 2); ctx.fill();
       ctx.fillStyle = '#ff5c8a'; cuore(14, -112 - Math.abs(Math.sin(fase * 0.5 + i)) * 10, 7);
       ctx.restore();
       if (g.fumetto && g.fumetto.chi === i && stato === 'gioco') fumetto(x, y - 120, g.fumetto.testo);
@@ -439,23 +703,10 @@
     ctx.fillText(Math.floor(g.metri) + ' m', 20, 40);
     ctx.font = '500 15px "DM Mono", monospace'; ctx.fillStyle = '#c9c0a9';
     ctx.fillText('🍺 ' + g.birre + '   record ' + record, 20, 64);
-    // barra del pericolo: quanto sono vicine
     var p = 1 - Math.max(g.distacco, 0) / 260;
     ctx.fillStyle = 'rgba(255,255,255,.12)'; roundRect(W - 220, 24, 196, 14, 7); ctx.fill();
     ctx.fillStyle = p > 0.7 ? '#d2452f' : '#ff5c8a'; roundRect(W - 220, 24, Math.max(196 * p, 14), 14, 7); ctx.fill();
     ctx.fillStyle = '#c9c0a9'; ctx.textAlign = 'right'; ctx.fillText('quanto sono vicine', W - 24, 60);
-    ctx.restore();
-  }
-
-  function schermata(titolo, sotto, invito) {
-    ctx.save();
-    ctx.fillStyle = 'rgba(13,13,12,.62)'; ctx.fillRect(0, 0, W, H);
-    ctx.textAlign = 'center';
-    ctx.fillStyle = '#e4b33c'; ctx.font = '700 56px Fredoka, sans-serif'; ctx.fillText(titolo, W / 2, 160);
-    ctx.fillStyle = '#f4efe2'; ctx.font = '500 24px Fredoka, sans-serif'; ctx.fillText(sotto, W / 2, 205);
-    if (Math.floor(performance.now() / 500) % 2 === 0) {
-      ctx.fillStyle = '#c9c0a9'; ctx.font = '500 16px "DM Mono", monospace'; ctx.fillText(invito, W / 2, 262);
-    }
     ctx.restore();
   }
 
