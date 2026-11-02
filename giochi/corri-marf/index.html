@@ -290,6 +290,7 @@
 
   function preso() {
     stato = 'preso';
+    avviaRagdoll();
     var punti = punteggio(), nuovo = punti > record;
     if (nuovo) { record = punti; scrivi('record', record); }
     document.getElementById('risultato').textContent =
@@ -301,7 +302,7 @@
       if (stato !== 'preso') return;
       fine.hidden = false;
       if (API && API.attiva && leggi('nome', '') && nuovo) salva(); // nome già noto: salva da solo il nuovo record
-    }, 700);
+    }, 1900);   // prima si gode il ragdoll
     musica.pause();
     bip(300, 0.5, 'sawtooth', 0.07); setTimeout(function () { bip(150, 0.6, 'sawtooth', 0.07); }, 200);
   }
@@ -438,6 +439,7 @@
       o.x -= dx + (o.t.corre || 0) * dt;
       if (o.x + o.w < -200) { g.ostacoli.splice(i, 1); continue; }
       if (!o.preso && tocca(hb, boxOstacolo(o))) colpito(o);
+      else pelo(o, hb, boxOstacolo(o));
     }
 
     // jet: avviso, poi lo sciame; il fumo resta 5 s e scorre col mondo
@@ -455,7 +457,8 @@
       j.scia = (j.scia || 0) + passo;
       for (; j.scia >= 9; j.scia -= 9) g.fumo.push({ x: j.x + jw * 0.48 + j.scia, y: j.y - 2 + (Math.random() - .5) * 4, t: 0, c: j.fumo });
       if (j.x + jw < -40) { g.jets.splice(k, 1); continue; }
-      if (!j.preso && tocca(hb, { x: j.x + 6, y: j.y - 13, w: jw - 14, h: 26 })) colpito(j);
+      var bj = { x: j.x + 6, y: j.y - 13, w: jw - 14, h: 26 };
+      if (!j.preso && tocca(hb, bj)) colpito(j); else pelo(j, hb, bj);
     }
     for (var f = g.fumo.length - 1; f >= 0; f--) {
       var pf = g.fumo[f]; pf.t += dt; pf.x -= dx;
@@ -497,6 +500,62 @@
 
     if (PROVA) { g.distacco = Math.max(g.distacco, 120); g.colpi = Math.min(g.colpi, 2); }   // modalità prova: non ti prendono mai
     if (g.colpi >= 3) preso();
+  }
+
+  // schivata al pelo: se durante il salto o la scivolata passi a 2 px o meno dalla hitbox
+  // di un ostacolo senza toccarla, guadagni una vita (al massimo 5)
+  var PELO = 2;
+  function pelo(o, hb, bx) {
+    if (o.preso || o.pelo) return;
+    var m = g.marf, schiva = m.y < TERRA || (m.giu && m.y >= TERRA);
+    if (bx.x < hb.x + hb.w && bx.x + bx.w > hb.x) {            // sovrapposti in orizzontale: misura lo spazio in verticale
+      var gap = Math.max(bx.y - (hb.y + hb.h), hb.y - (bx.y + bx.h));
+      if (schiva && gap >= 0 && gap <= PELO) o.vicino = true;
+    } else if (o.vicino && bx.x + bx.w <= hb.x) {               // superato senza toccarlo
+      o.pelo = true;
+      if (3 - g.colpi < 5) g.colpi--;
+      stelline(MARF_X, m.y - 50);
+      bip(1320, 0.08, 'triangle', 0.06); setTimeout(function () { bip(1760, 0.12, 'triangle', 0.06); }, 90);
+    }
+  }
+  var STELLA = (function () {
+    var c = document.createElement('canvas'); c.width = c.height = 32;
+    var x = c.getContext('2d'); x.translate(16, 16); x.beginPath();
+    for (var i = 0; i < 10; i++) { var r = i % 2 ? 6 : 15, a = i * Math.PI / 5 - Math.PI / 2; x.lineTo(Math.cos(a) * r, Math.sin(a) * r); }
+    x.closePath(); x.fillStyle = '#ffe27a'; x.fill(); x.lineWidth = 2; x.strokeStyle = '#fff6dc'; x.stroke();
+    return c;
+  })();
+  function stelline(x, y) {
+    if (!g.stelle) g.stelle = [];
+    for (var i = 0; i < 12; i++) {
+      var a = i / 12 * TAU, v = 90 + Math.random() * 60;
+      g.stelle.push({ x: x, y: y, vx: Math.cos(a) * v, vy: Math.sin(a) * v - 40, t: 0, vita: 0.8 + Math.random() * 0.3, giro: Math.random() * 6 });
+    }
+    g.piuUno = 1.1;
+  }
+  function aggiornaStelle(dt) {
+    if (g.piuUno > 0) g.piuUno -= dt;
+    if (!g.stelle) return;
+    for (var i = g.stelle.length - 1; i >= 0; i--) {
+      var s = g.stelle[i]; s.t += dt; s.x += s.vx * dt; s.y += s.vy * dt; s.vx *= 0.94; s.vy *= 0.94; s.giro += dt * 8;
+      if (s.t > s.vita) g.stelle.splice(i, 1);
+    }
+  }
+  function disegnaStelle() {
+    if (g.stelle) for (var i = 0; i < g.stelle.length; i++) {
+      var s = g.stelle[i], u = s.t / s.vita, r = 9 * (1 - u * 0.5);
+      ctx.save(); ctx.globalAlpha = 1 - u * u; ctx.translate(s.x, s.y); ctx.rotate(s.giro);
+      ctx.drawImage(STELLA, -r, -r, r * 2, r * 2); ctx.restore();
+    }
+    if (g.piuUno > 0) {
+      var k = 1 - g.piuUno / 1.1;
+      ctx.save(); ctx.globalAlpha = Math.min(1, g.piuUno * 2);
+      ctx.font = '700 22px Fredoka, sans-serif'; ctx.textAlign = 'left';
+      cuore(MARF_X + 30, g.marf.y - 112 - k * 30, '#ff5c8a');
+      ctx.fillStyle = '#fff6dc'; ctx.strokeStyle = 'rgba(27,21,48,.6)'; ctx.lineWidth = 4;
+      ctx.strokeText('+1', MARF_X + 44, g.marf.y - 104 - k * 30); ctx.fillText('+1', MARF_X + 44, g.marf.y - 104 - k * 30);
+      ctx.restore();
+    }
   }
 
   // un colpo: con lo scudo delle pringles non conta, al terzo ti prendono
@@ -541,6 +600,7 @@
     disegnaLinee();
     marf();
     disegnaScudo();
+    disegnaStelle();
     if (stato !== 'menu') hud();
   }
 
@@ -567,7 +627,7 @@
   ];
   var MONUMENTI = [
     { img: 'torre-telecom', alto: 400 },   // Torre Telecom di Tor Pagnotta (km 2, 6, 10…)
-    { img: 'centro-idrico', alto: 340 }    // centro idrico Acea di Vigna Murata (km 4, 8, 12…)
+    { img: 'centro-idrico', alto: 340, sposta: 0.1 }    // centro idrico Acea di Vigna Murata (km 4, 8, 12…)
   ];
   var GIUNTURA_X = W * 0.6;                // la giuntura k arriva qui sullo schermo intorno al metro k·QUARTIERE_M
   function pronta(img) { return img && img.complete && img.naturalWidth > 0; }
@@ -622,7 +682,7 @@
         var mo = k % 2 ? PICCOLI[((k - 1) / 2) % PICCOLI.length] : MONUMENTI[(k / 2 - 1) % MONUMENTI.length], mi = SF[mo.img];
         if (!pronta(mi)) continue;
         var mh = mo.alto, mw = mi.naturalWidth * mh / mi.naturalHeight;
-        var mx = k * N * qw - L - mw / 2;
+        var mx = k * N * qw - L - mw / 2 + (mo.sposta || 0) * mw;   // sposta: decentrato a destra
         if (mx + mw < 0 || mx > W) continue;
         ctx.drawImage(cache(mi, mw, mh), Math.floor(mx), fondo + (mo.giu || 28) - mh, mw, mh);
       }
@@ -1033,6 +1093,8 @@
     animaRagazze(dt);
     aggiornaPolvere(dt);
     aggiornaLinee(dt);
+    aggiornaStelle(dt);
+    if (g.rag) aggiornaRagdoll(dt);
     if (g.scuoti > 0) g.scuoti -= dt;   // qui e non in aggiorna: così si ferma anche a partita finita
   }
 
@@ -1087,9 +1149,52 @@
     a.anca += (ancaVoluta - a.anca) * (1 - Math.exp(-dt * (aTerra ? 30 : 12)));
   }
 
+  /* ── Ragdoll quando ti prendono: Marf viene sbalzato, ruota, rimbalza e gli arti vanno a peso morto.
+     Ogni giuntura ha una velocità propria, smorzata, con un po' di "gravità" che tira gli arti verso il basso. */
+  function avviaRagdoll() {
+    var a = g.anim, m = g.marf, R = PEZZI;
+    if (!R || !R.pronto || a.anca === null) return;
+    var po = {}; CHIAVI.forEach(function (k) { po[k] = (a.mostra || a.posa)[k]; });
+    var v = {}; CHIAVI.forEach(function (k) { v[k] = (Math.random() - .5) * 14; });
+    g.rag = { x: 0, y: m.y + a.anca, vx: 160 + Math.random() * 80, vy: -620 - Math.random() * 120,
+      rot: a.scivola > 0.5 ? ROT_SCIVOLA : 0, vrot: 7 + Math.random() * 4, po: po, v: v, fermo: false };
+  }
+  function aggiornaRagdoll(dt) {
+    var r = g.rag, R = PEZZI, alto = -R.gamba * R.K;              // quanto sta l'anca sopra i piedi da in piedi
+    r.vy += 2100 * dt; r.x += r.vx * dt; r.y += r.vy * dt; r.rot += r.vrot * dt;
+    // per terra: da sdraiato l'anca sta bassa, da dritto sta all'altezza delle gambe
+    var suolo = TERRA - 10 + alto * 0.8 * Math.abs(Math.cos(r.rot));
+    if (r.y > suolo) {
+      r.y = suolo;
+      if (r.vy > 120) {
+        r.vy *= -0.38; r.vx *= 0.55; r.vrot *= 0.45;
+        CHIAVI.forEach(function (k) { r.v[k] += (Math.random() - .5) * 10; });
+        polvere(MARF_X + r.x, TERRA, 6, 1.2);
+      } else {
+        r.vy = 0; r.vx *= Math.exp(-dt * 6);
+        // si adagia sul fianco più vicino
+        var piatto = Math.round((r.rot - Math.PI / 2) / Math.PI) * Math.PI + Math.PI / 2;
+        r.rot += (piatto - r.rot) * (1 - Math.exp(-dt * 8)); r.vrot *= Math.exp(-dt * 8);
+      }
+    }
+    var smorza = Math.exp(-dt * 2.5);
+    CHIAVI.forEach(function (k) {
+      if (k === 'lean') return;
+      // gli arti cadono verso il basso del mondo (angolo nel corpo = rotazione del corpo), testa e busto solo smorzati
+      var d = k === 'head' ? -r.po[k] : Math.atan2(Math.sin(r.rot - r.po[k]), Math.cos(r.rot - r.po[k]));
+      r.v[k] = (r.v[k] + d * 9 * dt) * smorza;
+      r.po[k] += r.v[k] * dt;
+    });
+  }
+
   function marfNuovo() {
     var a = g.anim, m = g.marf, R = PEZZI;
     if (a.anca === null) return;
+    if (g.rag) {
+      ctx.save(); ctx.translate(MARF_X + g.rag.x, g.rag.y); ctx.rotate(g.rag.rot);
+      personaggio(R, 0, g.rag.po); ctx.restore();
+      return;
+    }
     var po = a.mostra || a.posa;
     ctx.save();
     if (m.botta > 0) ctx.globalAlpha = Math.floor(m.botta * 12) % 2 === 0 ? 0.35 : 1;  // lampeggia dopo una botta
@@ -1133,15 +1238,16 @@
   }
   // le scie e il bagliore sono disegnati una volta sola su canvas piccoli e poi solo copiati:
   // creare gradienti nuovi per ogni scia a ogni frame faceva calare gli fps durante lo scatto
+  // scia a fuso: sottile, appuntita ai due capi, più luminosa in testa
   var SCIA = (function () {
-    var c = document.createElement('canvas'); c.width = 256; c.height = 16;
+    var c = document.createElement('canvas'); c.width = 256; c.height = 8;
     var x = c.getContext('2d');
-    var gs = x.createLinearGradient(0, 0, 256, 0);
-    gs.addColorStop(0, 'rgba(27,21,48,.45)'); gs.addColorStop(1, 'rgba(27,21,48,0)');
-    x.fillStyle = gs; x.fillRect(0, 5, 256, 8);
+    x.fillStyle = '#fff'; x.beginPath(); x.moveTo(0, 4);
+    x.quadraticCurveTo(70, 0.4, 256, 4); x.quadraticCurveTo(70, 7.6, 0, 4); x.fill();
+    x.globalCompositeOperation = 'destination-in';
     var gr = x.createLinearGradient(0, 0, 256, 0);
-    gr.addColorStop(0, '#fff'); gr.addColorStop(1, 'rgba(255,255,255,0)');
-    x.fillStyle = gr; x.fillRect(0, 5, 256, 5);
+    gr.addColorStop(0, 'rgba(0,0,0,1)'); gr.addColorStop(0.35, 'rgba(0,0,0,.8)'); gr.addColorStop(1, 'rgba(0,0,0,0)');
+    x.fillStyle = gr; x.fillRect(0, 0, 256, 8);
     return c;
   })();
   var BAGLIORE = (function () {
@@ -1160,8 +1266,8 @@
     for (var i = 0; i < g.linee.length; i++) {
       var l = g.linee[i], u = l.t / l.vita;
       ctx.globalAlpha = Math.sin(Math.PI * Math.min(1, u * 1.4)) * 0.85;
-      var h = (l.spess * (1 - u * 0.5) + 2.5) * 1.6;
-      ctx.drawImage(SCIA, l.x, l.y - h * 0.4, l.len, h);
+      var h = 2 + l.spess * 0.7 * (1 - u * 0.5);
+      ctx.drawImage(SCIA, l.x, l.y - h / 2, l.len, h);
     }
     ctx.globalAlpha = 1;
   }
@@ -1291,7 +1397,8 @@
     ctx.fillStyle = 'rgba(255,255,255,.18)'; roundRect(W - 220, 24, 196, 14, 7); ctx.fill();
     ctx.fillStyle = p > 0.7 ? '#d2452f' : '#ff5c8a'; roundRect(W - 220, 24, Math.max(196 * p, 14), 14, 7); ctx.fill();
     // vite: al terzo colpo ti prendono
-    for (var v = 0; v < 3; v++) cuore(W - 36 - v * 26, 58, 3 - g.colpi > 2 - v ? '#ff5c8a' : 'rgba(255,255,255,.22)');
+    var vite = 3 - g.colpi;
+    for (var v = 0; v < Math.max(3, vite); v++) cuore(W - 36 - v * 26, 58, v < vite ? '#ff5c8a' : 'rgba(255,255,255,.22)');
     ctx.fillStyle = '#e8e1cc'; ctx.textAlign = 'left';
     ctx.fillText(g.scudo > 0 ? 'scudo ' + Math.ceil(g.scudo) + 's' : 'vite', W - 220, 64);
     ctx.restore();
