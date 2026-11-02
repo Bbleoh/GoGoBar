@@ -548,12 +548,19 @@
      torre Telecom a 2 km, centro idrico Acea a 4 km, poi di nuovo ogni 4 km.
      Tutte le strisce sono disegnate alla stessa scala (le originali sono alte 724 px). ── */
   var SF = {};
-  ['cielo.jpg', 'colline.webp', 'palazzi.webp', 'strada.webp', 'torre-telecom.webp', 'centro-idrico.webp'].forEach(function (n) {
+  ['cielo.jpg', 'colline.webp', 'palazzi.webp', 'strada.webp', 'torre-telecom.webp', 'centro-idrico.webp', 'bar-568.webp', 'metro-laurentina.webp', 'lupa.webp', 'pizzeria-kebab.webp'].forEach(function (n) {
     var img = new Image(); img.src = 'sfondo/' + n + '?v=3'; SF[n.split('.')[0]] = img;
   });
   var SF_S = H / 724;                      // scala unica delle strisce: il cielo riempie lo schermo, niente zoom
   var STRADA_Y = H + 1 - 136 * SF_S;       // la striscia della strada (136 px) poggia sul fondo dello schermo
   var QUARTIERE_M = 1000;                  // ogni quanti metri si passa da palazzi a colline e viceversa
+  // monumenti piccoli: sulle giunture dispari (km 1, 3, 5…), a giro
+  var PICCOLI = [
+    { img: 'bar-568', alto: 128, giu: 6 },
+    { img: 'metro-laurentina', alto: 140, giu: 6 },
+    { img: 'lupa', alto: 150, giu: 6 },
+    { img: 'pizzeria-kebab', alto: 136, giu: 6 }
+  ];
   var MONUMENTI = [
     { img: 'torre-telecom', alto: 400 },   // Torre Telecom di Tor Pagnotta (km 2, 6, 10…)
     { img: 'centro-idrico', alto: 340 }    // centro idrico Acea di Vigna Murata (km 4, 8, 12…)
@@ -601,15 +608,14 @@
         var h = img.naturalHeight * SF_S;
         ctx.drawImage(cache(img, qw + 1, h), Math.floor(i * qw - L), fondo - h, qw + 1, h);
       }
-      // monumenti sulle giunture pari (k = 2, 4, 6… → km 2, 4, 6…)
-      for (var k = Math.max(2, Math.floor((L - 400) / (N * qw))); k * N * qw - L < W + 400; k++) {
-        if (k % 2) continue;
-        var mo = MONUMENTI[(k / 2 - 1) % MONUMENTI.length], mi = SF[mo.img];
+      // monumenti su ogni giuntura: i grandi sulle pari (km 2, 4…), i piccoli sulle dispari (km 1, 3…)
+      for (var k = Math.max(1, Math.floor((L - 400) / (N * qw))); k * N * qw - L < W + 400; k++) {
+        var mo = k % 2 ? PICCOLI[((k - 1) / 2) % PICCOLI.length] : MONUMENTI[(k / 2 - 1) % MONUMENTI.length], mi = SF[mo.img];
         if (!pronta(mi)) continue;
         var mh = mo.alto, mw = mi.naturalWidth * mh / mi.naturalHeight;
         var mx = k * N * qw - L - mw / 2;
         if (mx + mw < 0 || mx > W) continue;
-        ctx.drawImage(cache(mi, mw, mh), Math.floor(mx), fondo + 28 - mh, mw, mh);
+        ctx.drawImage(cache(mi, mw, mh), Math.floor(mx), fondo + (mo.giu || 28) - mh, mw, mh);
       }
     }
     // 3. strada
