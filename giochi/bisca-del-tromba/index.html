@@ -1,0 +1,1027 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Bisca del Tromba – Blackjack</title>
+
+
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=Cinzel+Decorative:wght@700&family=IM+Fell+English+SC&display=swap');
+  :root{--gold:#c9a84c;--gold-light:#f0d080;}
+  *{margin:0;padding:0;box-sizing:border-box;}
+  html,body{width:100%;height:100%;overflow:hidden;background:#000;font-family:'IM Fell English SC',serif;
+    cursor:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24'%3E%3Ccircle cx='12' cy='12' r='10' fill='none' stroke='%23c9a84c' stroke-width='2'/%3E%3Ccircle cx='12' cy='12' r='3' fill='%23c9a84c'/%3E%3C/svg%3E") 12 12,crosshair;}
+
+  /* BG */
+  #bg{position:fixed;inset:0;z-index:0;}
+  #bg img,#bg video{width:100%;height:100%;object-fit:cover;opacity:.85;filter:saturate(1.2) brightness(.65);}
+  #bg::after{content:'';position:absolute;inset:0;background:radial-gradient(ellipse at center,transparent 25%,rgba(0,0,0,.72) 100%);pointer-events:none;}
+
+  #root{position:fixed;inset:0;z-index:3;display:flex;align-items:stretch;}
+
+  /* CROUPIER */
+  #croupier-panel{width:480px;flex-shrink:0;display:flex;align-items:flex-end;justify-content:center;
+    padding-bottom:160px;pointer-events:none;z-index:4;}
+  #croupier-img{display:block;width:460px;height:auto;max-height:88vh;object-fit:contain;
+    object-position:bottom;filter:drop-shadow(0 0 36px rgba(0,0,0,1)) drop-shadow(6px 10px 22px rgba(0,0,0,.9));
+    transition:opacity .35s,transform .35s;}
+
+  /* GAME */
+  #game{flex:1;min-width:0;display:flex;flex-direction:column;align-items:center;padding:14px 20px 0;overflow:hidden;}
+  #title-bar{font-family:'Cinzel Decorative',cursive;color:var(--gold);font-size:clamp(1rem,2.2vw,1.85rem);
+    text-shadow:0 0 18px rgba(201,168,76,.85),2px 2px 4px #000;
+    letter-spacing:3px;margin-bottom:6px;text-align:center;white-space:nowrap;}
+  #hud{display:flex;gap:32px;margin-bottom:10px;}
+  .hud-box{background:rgba(0,0,0,.72);border:1px solid var(--gold);border-radius:5px;padding:5px 18px;
+    color:var(--gold-light);font-size:1.04rem;text-shadow:0 0 8px var(--gold);text-align:center;line-height:1.4;}
+  .hud-box span{font-size:2.6rem;color:#fff;display:block;font-weight:900;}
+
+  /* TABLE */
+  #table{background:rgba(10,30,10,.84);border:2px solid var(--gold);border-radius:20px;
+    box-shadow:0 0 40px rgba(201,168,76,.22),inset 0 0 40px rgba(0,0,0,.6);
+    width:min(860px,100%);padding:16px 28px 18px;display:flex;flex-direction:column;gap:11px;position:relative;}
+  #table::before{content:'♠  ♣  Bisca del Tromba  ♥  ♦';position:absolute;top:-14px;left:50%;
+    transform:translateX(-50%);background:rgba(10,30,10,1);color:var(--gold);
+    font-size:.84rem;letter-spacing:4px;padding:2px 16px;border:1px solid var(--gold);
+    border-radius:10px;white-space:nowrap;}
+  .zone-label{font-size:.8rem;letter-spacing:2px;color:var(--gold);opacity:.7;text-align:center;margin-bottom:1px;}
+  .hand-area{min-height:130px;display:flex;align-items:center;justify-content:center;gap:6px;flex-wrap:wrap;}
+  #player-hands{display:flex;gap:18px;justify-content:center;min-height:130px;}
+  .split-hand{display:flex;flex-direction:column;align-items:center;gap:6px;position:relative;}
+  .split-hand .cards-row{display:flex;gap:6px;flex-wrap:wrap;justify-content:center;}
+  .split-hand.active-hand::after{content:'▲';position:absolute;bottom:-16px;color:var(--gold);font-size:1rem;}
+
+  /* CARDS */
+  .card{width:83px;height:122px;border-radius:9px;border:1.5px solid #ccc;background:#fff;
+    display:grid;grid-template-columns:1fr 1fr;grid-template-rows:1fr 1fr;
+    box-shadow:3px 4px 14px rgba(0,0,0,.85);
+    animation:dealCard .32s cubic-bezier(.22,.61,.36,1) both;
+    user-select:none;flex-shrink:0;overflow:hidden;}
+  @keyframes dealCard{from{opacity:0;transform:translateY(-45px) rotate(-10deg) scale(.7)}to{opacity:1;transform:none}}
+  .card.red{color:#c0392b;}.card.black{color:#111;}
+  .card.back{background:repeating-linear-gradient(45deg,#7b1010,#7b1010 5px,#4a0a0a 5px,#4a0a0a 10px);border-color:#c9a84c;display:block;}
+  .card-rank{grid-column:1;grid-row:1;display:flex;align-items:flex-start;justify-content:flex-start;
+    padding:5px 0 0 5px;font-weight:900;font-size:2.2rem;line-height:1;}
+  .card-suit{grid-column:2;grid-row:2;display:flex;align-items:flex-end;justify-content:flex-end;
+    padding:0 5px 5px 0;font-size:2.6rem;line-height:1;}
+
+  .score-badge{background:rgba(0,0,0,.8);border:1px solid var(--gold);color:var(--gold-light);
+    font-size:1.9rem;padding:4px 18px;border-radius:12px;margin-top:2px;display:inline-block;font-weight:700;}
+  .divider{border:none;border-top:1px dashed rgba(201,168,76,.3);}
+  #message{text-align:center;min-height:34px;font-family:'Playfair Display',serif;
+    font-size:clamp(1rem,2.4vw,1.6rem);font-weight:900;color:var(--gold-light);
+    text-shadow:0 0 14px rgba(201,168,76,.9),2px 2px 4px #000;letter-spacing:1px;transition:color .25s;}
+  #message.win{color:#2ecc71;text-shadow:0 0 22px #2ecc71,2px 2px 4px #000;}
+  #message.lose{color:#e74c3c;text-shadow:0 0 22px #e74c3c,2px 2px 4px #000;}
+  #message.push{color:#f39c12;text-shadow:0 0 22px #f39c12,2px 2px 4px #000;}
+
+  #action-btns{display:flex;gap:12px;justify-content:center;flex-wrap:wrap;}
+  .btn{font-family:'IM Fell English SC',serif;background:linear-gradient(135deg,#2a1a00,#5a3a00);
+    border:1.5px solid var(--gold);color:var(--gold-light);padding:10px 26px;border-radius:7px;
+    font-size:1rem;letter-spacing:1px;cursor:pointer;transition:all .15s;
+    box-shadow:0 2px 8px rgba(0,0,0,.5);text-transform:uppercase;}
+  .btn:hover:not(:disabled){background:linear-gradient(135deg,#5a3a00,#c9a84c);color:#000;
+    box-shadow:0 0 16px rgba(201,168,76,.6);transform:translateY(-1px);}
+  .btn:disabled{opacity:.35;cursor:not-allowed;}
+  .btn.danger{border-color:#e74c3c;color:#e74c3c;}.btn.safe{border-color:#2ecc71;color:#2ecc71;}
+  #insurance-bar{display:none;background:rgba(180,140,0,.13);border:1px solid var(--gold);
+    border-radius:9px;padding:8px 16px;text-align:center;color:var(--gold-light);font-size:1rem;
+    gap:14px;align-items:center;justify-content:center;flex-wrap:wrap;}
+  #insurance-bar.show{display:flex;}
+
+  /* BET AREA */
+  #bet-area{position:fixed;bottom:0;left:0;right:0;z-index:10;display:flex;flex-direction:column;
+    align-items:center;padding-top:6px;padding-bottom:6px;
+    background:linear-gradient(to top,rgba(0,0,0,.95) 60%,transparent);}
+  #current-bet-display{color:var(--gold-light);font-size:1rem;margin-bottom:4px;
+    text-shadow:0 0 8px var(--gold);letter-spacing:1px;}
+  #chips-row{display:flex;gap:10px;margin-bottom:5px;}
+
+  .chip{width:72px;height:72px;border-radius:50%;display:flex;align-items:center;justify-content:center;
+    font-family:'Cinzel Decorative',cursive;font-size:.76rem;font-weight:700;cursor:pointer;
+    border:4px dashed rgba(255,255,255,.5);outline:3px solid rgba(255,255,255,.12);
+    transition:transform .15s,box-shadow .15s,opacity .15s;
+    box-shadow:0 4px 14px rgba(0,0,0,.7),inset 0 2px 4px rgba(255,255,255,.2);
+    user-select:none;text-shadow:1px 1px 2px #000;position:relative;}
+  .chip:hover:not(.chip-disabled){transform:scale(1.13) translateY(-4px);
+    box-shadow:0 8px 26px rgba(0,0,0,.85),0 0 20px rgba(201,168,76,.35);}
+  .chip:active:not(.chip-disabled){transform:scale(.95);}
+
+  /* Disabled state: grayed out, no hover */
+  .chip-disabled{opacity:.3;cursor:not-allowed;filter:grayscale(.6);}
+  /* Available chips glow slightly to signal they are usable */
+  .chip-available{box-shadow:0 4px 14px rgba(0,0,0,.7),0 0 10px rgba(201,168,76,.25),inset 0 2px 4px rgba(255,255,255,.2);}
+
+  .chip-shake{animation:shake .35s ease;}
+  @keyframes shake{0%,100%{transform:translateX(0)}20%{transform:translateX(-6px)}40%{transform:translateX(6px)}60%{transform:translateX(-4px)}80%{transform:translateX(4px)}}
+
+  .chip-1  {background:radial-gradient(circle at 35% 35%,#bdc3c7,#7f8c8d);color:#fff;}
+  .chip-5  {background:radial-gradient(circle at 35% 35%,#e74c3c,#8e1a10);color:#fff;}
+  .chip-10 {background:radial-gradient(circle at 35% 35%,#3498db,#1a4a80);color:#fff;}
+  .chip-50 {background:radial-gradient(circle at 35% 35%,#27ae60,#145a30);color:#fff;}
+  .chip-100{background:radial-gradient(circle at 35% 35%,#2c2c2c,#000);color:var(--gold);}
+  .chip-500{background:radial-gradient(circle at 35% 35%,#8e44ad,#4a1575);color:#f0d080;}
+
+  #deal-btn{font-family:'Cinzel Decorative',cursive;background:linear-gradient(135deg,#7a5000,var(--gold));
+    border:2px solid rgba(255,255,255,.5);color:#000;padding:8px 50px;border-radius:36px;
+    font-size:1.1rem;cursor:pointer;letter-spacing:2px;box-shadow:0 4px 18px rgba(201,168,76,.5);transition:all .15s;}
+  #deal-btn:hover:not(:disabled){transform:scale(1.05);box-shadow:0 6px 28px rgba(201,168,76,.85);}
+  #deal-btn:disabled{opacity:.35;cursor:not-allowed;}
+  #clear-bet-btn{font-family:'IM Fell English SC',serif;background:transparent;border:1px solid rgba(231,76,60,.5);
+    color:#e74c3c;padding:5px 16px;border-radius:4px;font-size:.88rem;cursor:pointer;margin-left:12px;transition:all .15s;}
+  #clear-bet-btn:hover{background:rgba(231,76,60,.15);}
+
+  /* TOP BARS */
+  #top-left-bar{position:fixed;top:14px;left:14px;z-index:15;display:flex;gap:8px;}
+  .top-btn{background:rgba(0,0,0,.65);border:1px solid var(--gold);color:var(--gold);
+    border-radius:8px;padding:7px 14px;font-family:'IM Fell English SC',serif;
+    font-size:.88rem;cursor:pointer;letter-spacing:1px;transition:all .15s;white-space:nowrap;}
+  .top-btn:hover:not(:disabled){background:rgba(201,168,76,.2);}
+  .top-btn.cashout{border-color:#2ecc71;color:#2ecc71;}
+  .top-btn.cashout:hover:not(:disabled){background:rgba(46,204,113,.15);}
+  .top-btn:disabled{opacity:.35;cursor:not-allowed;}
+  #top-right-bar{position:fixed;top:14px;right:14px;z-index:15;display:flex;gap:8px;}
+  .icon-btn{background:rgba(0,0,0,.65);border:1px solid var(--gold);color:var(--gold);
+    border-radius:50%;width:44px;height:44px;font-size:1.15rem;cursor:pointer;
+    display:flex;align-items:center;justify-content:center;transition:all .15s;}
+  .icon-btn:hover{background:rgba(201,168,76,.2);}
+  .icon-btn.off{border-color:#666;color:#666;}
+
+  /* LEADERBOARD PANEL */
+  #lb-panel{position:fixed;top:0;left:0;bottom:0;z-index:25;width:340px;
+    background:rgba(5,15,5,.97);border-right:2px solid var(--gold);
+    display:flex;flex-direction:column;
+    transform:translateX(-100%);transition:transform .35s cubic-bezier(.22,.61,.36,1);
+    box-shadow:6px 0 30px rgba(0,0,0,.8);}
+  #lb-panel.open{transform:translateX(0);}
+  #lb-header{padding:20px 20px 12px;border-bottom:1px solid rgba(201,168,76,.3);
+    display:flex;align-items:center;justify-content:space-between;}
+  #lb-header h2{font-family:'Cinzel Decorative',cursive;color:var(--gold);font-size:1.1rem;letter-spacing:2px;}
+  #lb-close{background:none;border:none;color:var(--gold);font-size:1.4rem;cursor:pointer;padding:0 4px;}
+  #lb-subtitle{font-size:.72rem;letter-spacing:1px;color:var(--gold-light);opacity:.6;
+    padding:6px 20px 8px;border-bottom:1px solid rgba(201,168,76,.15);}
+  #lb-table-wrap{flex:1;overflow-y:auto;padding:10px 0;}
+
+  /* Leaderboard table */
+  #lb-table{width:100%;border-collapse:collapse;}
+  #lb-table thead th{
+    color:var(--gold);font-size:.72rem;letter-spacing:2px;text-transform:uppercase;
+    padding:6px 16px;text-align:left;border-bottom:1px solid rgba(201,168,76,.3);
+    font-family:'Cinzel Decorative',cursive;font-weight:400;background:rgba(0,0,0,.3);
+  }
+  #lb-table tbody tr{transition:background .15s;}
+  #lb-table tbody tr:hover{background:rgba(201,168,76,.07);}
+  #lb-table tbody td{
+    color:var(--gold-light);font-size:.9rem;
+    padding:9px 16px;border-bottom:1px solid rgba(255,255,255,.04);
+  }
+  .lb-rank{color:var(--gold);font-weight:900;font-size:1rem;width:34px;}
+  .lb-rank.gold{color:#ffd700;}.lb-rank.silver{color:#c0c0c0;}.lb-rank.bronze{color:#cd7f32;}
+  .lb-name{max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .lb-score{text-align:right;color:#fff;font-weight:700;font-size:1rem;}
+  .lb-date{text-align:right;color:rgba(201,168,76,.5);font-size:.75rem;}
+  .lb-new{animation:lbFlash .9s ease forwards;}
+  @keyframes lbFlash{0%{background:rgba(46,204,113,.25);}100%{background:transparent;}}
+  #lb-empty{color:rgba(201,168,76,.45);text-align:center;padding:32px 16px;font-size:.9rem;font-style:italic;}
+  #lb-status{padding:6px 20px;font-size:.75rem;color:rgba(201,168,76,.5);text-align:center;}
+
+  /* MODALS */
+  .modal-overlay{position:fixed;inset:0;z-index:50;background:rgba(0,0,0,.82);
+    display:flex;align-items:center;justify-content:center;}
+  .modal-box{background:rgba(8,22,8,.99);border:2px solid var(--gold);border-radius:18px;
+    padding:40px 48px;text-align:center;color:var(--gold-light);font-family:'Playfair Display',serif;
+    max-width:420px;width:90%;box-shadow:0 0 60px rgba(201,168,76,.4);}
+  .modal-box h2{font-size:1.9rem;color:var(--gold);margin-bottom:8px;}
+  .modal-box p{font-size:1rem;margin-bottom:20px;opacity:.85;line-height:1.55;}
+  .modal-input{width:100%;padding:11px 16px;border-radius:8px;border:1.5px solid var(--gold);
+    background:rgba(0,0,0,.5);color:#fff;font-family:'IM Fell English SC',serif;
+    font-size:1.15rem;text-align:center;letter-spacing:1px;margin-bottom:8px;outline:none;display:block;}
+  .modal-input:focus{border-color:var(--gold-light);box-shadow:0 0 12px rgba(201,168,76,.4);}
+  .modal-error{color:#e74c3c;font-size:.85rem;min-height:18px;margin-bottom:12px;}
+  .modal-btns{display:flex;gap:12px;justify-content:center;}
+
+  #cashout-modal{display:none;position:fixed;inset:0;z-index:40;background:rgba(0,0,0,.8);
+    align-items:center;justify-content:center;}
+  #cashout-modal.show{display:flex;}
+
+  #overlay{display:none;position:fixed;inset:0;z-index:20;background:rgba(0,0,0,.65);align-items:center;justify-content:center;}
+  #overlay.show{display:flex;}
+  #overlay-box{background:rgba(10,25,10,.97);border:2px solid var(--gold);border-radius:18px;
+    padding:38px 50px;text-align:center;color:var(--gold-light);font-family:'Playfair Display',serif;
+    box-shadow:0 0 60px rgba(201,168,76,.4);max-width:460px;}
+  #overlay-box h2{font-size:2.2rem;color:var(--gold);margin-bottom:12px;}
+  #overlay-box p{font-size:1.1rem;margin-bottom:22px;}
+
+  @media(max-width:1000px){#croupier-panel{width:320px;}#croupier-img{width:300px;}}
+  @media(max-width:700px){#croupier-panel{width:150px;}#croupier-img{width:140px;}#lb-panel{width:100%;}}
+  @media(max-width:480px){#croupier-panel{width:0;padding:0;}#croupier-img{display:none;}}
+  @media(max-height:660px){#croupier-img{max-height:55vh;}}
+</style>
+</head>
+<body>
+
+<div id="bg"><video src="assets/sfondo.mp4" poster="assets/sfondo-poster.jpg" autoplay muted loop playsinline aria-label="bisca"></video></div>
+
+<!-- ══ NAME MODAL (startup) ══ -->
+<div class="modal-overlay" id="name-modal">
+  <div class="modal-box">
+    <h2>♠ Bisca del Tromba ♠</h2>
+    <p>Benvenuto! Inserisci il tuo nome per sederti al tavolo.<br>Verrà usato nella classifica globale al momento del cashout.</p>
+    <input class="modal-input" id="name-input" type="text" maxlength="20" placeholder="Il tuo nome..." autocomplete="off">
+    <div class="modal-error" id="name-error"></div>
+    <button class="btn safe" style="width:100%;padding:12px;" onclick="confirmName()">Entra al Tavolo</button>
+  </div>
+</div>
+
+<!-- ══ CASHOUT CONFIRM MODAL ══ -->
+<div id="cashout-modal">
+  <div class="modal-box">
+    <h2>💰 Cashout</h2>
+    <p id="cashout-msg"></p>
+    <div class="modal-error" id="cashout-error"></div>
+    <div class="modal-btns">
+      <button class="btn safe" id="cashout-confirm-btn" onclick="executeCashout()">Incassa &amp; Salva</button>
+      <button class="btn danger" onclick="closeCashoutModal()">Annulla</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ LEADERBOARD PANEL ══ -->
+<div id="lb-panel">
+  <div id="lb-header">
+    <h2>🏆 Classifica Globale</h2>
+    <button id="lb-close" onclick="toggleLeaderboard()">✕</button>
+  </div>
+  <div id="lb-subtitle">Top 10 cashout di tutti i tempi</div>
+  <div id="lb-table-wrap">
+    <table id="lb-table">
+      <thead>
+        <tr>
+          <th style="width:34px">#</th>
+          <th>Giocatore</th>
+          <th style="text-align:right">Cashout</th>
+          <th style="text-align:right">Data</th>
+        </tr>
+      </thead>
+      <tbody id="lb-body">
+        <tr><td colspan="4" id="lb-empty">Caricamento...</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div id="lb-status"></div>
+</div>
+
+<!-- ══ TOP BUTTONS ══ -->
+<div id="top-left-bar">
+  <button class="top-btn" onclick="toggleLeaderboard()">🏆 Classifica</button>
+  <button class="top-btn cashout" id="cashout-btn" onclick="openCashout()" disabled>💰 Cashout</button>
+</div>
+<div id="top-right-bar">
+  <button class="icon-btn" id="mute-btn"  onclick="toggleMute()"  title="Musica">🔊</button>
+  <button class="icon-btn" id="sfx-btn"   onclick="toggleSfx()"   title="Effetti sonori">🎵</button>
+</div>
+
+<!-- ══ MAIN LAYOUT ══ -->
+<div id="root">
+  <div id="croupier-panel">
+    <img id="croupier-img" src="assets/croupier-init.png" alt="croupier">
+  </div>
+  <div id="game">
+    <div id="title-bar">♠ La Bisca del Tromba ♠</div>
+    <div id="hud">
+      <div class="hud-box">Saldo<span id="balance-display">€50</span></div>
+      <div class="hud-box">Puntata<span id="bet-display">€0</span></div>
+    </div>
+    <div id="table">
+      <div class="zone-label">— BANCO —</div>
+      <div class="hand-area" id="dealer-hand"></div>
+      <div style="text-align:center"><span class="score-badge" id="dealer-score"></span></div>
+      <hr class="divider">
+      <div id="message"></div>
+      <div id="insurance-bar">
+        <span>Il banco mostra un Asso — Assicurazione? (metà puntata)</span>
+        <button class="btn safe" onclick="takeInsurance()">Sì</button>
+        <button class="btn danger" onclick="declineInsurance()">No</button>
+      </div>
+      <div id="action-btns">
+        <button class="btn" id="btn-hit"    onclick="hit()"        disabled>Carta</button>
+        <button class="btn" id="btn-stand"  onclick="stand()"      disabled>Stai</button>
+        <button class="btn" id="btn-double" onclick="doubleDown()" disabled>Raddoppia</button>
+        <button class="btn" id="btn-split"  onclick="splitHand()"  disabled>Split</button>
+      </div>
+      <hr class="divider">
+      <div class="zone-label">— GIOCATORE —</div>
+      <div id="player-hands"></div>
+      <div style="text-align:center"><span class="score-badge" id="player-score"></span></div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ BET AREA ══ -->
+<div id="bet-area">
+  <div id="current-bet-display">
+    Seleziona la puntata
+    <button id="clear-bet-btn" onclick="clearBet()">✕ Annulla</button>
+  </div>
+  <div id="chips-row">
+    <div class="chip chip-1"   id="chip-1"   onclick="addBet(1)">€1</div>
+    <div class="chip chip-5"   id="chip-5"   onclick="addBet(5)">€5</div>
+    <div class="chip chip-10"  id="chip-10"  onclick="addBet(10)">€10</div>
+    <div class="chip chip-50"  id="chip-50"  onclick="addBet(50)">€50</div>
+    <div class="chip chip-100" id="chip-100" onclick="addBet(100)">€100</div>
+    <div class="chip chip-500" id="chip-500" onclick="addBet(500)">€500</div>
+  </div>
+  <button id="deal-btn" onclick="deal()" disabled>DISTRIBUISCI</button>
+</div>
+
+<!-- ══ GAME OVER OVERLAY ══ -->
+<div id="overlay">
+  <div id="overlay-box">
+    <h2>💸 Senza un soldo!</h2>
+    <p>Hai finito i gettoni, <span id="overlay-name"></span>.</p>
+    <button class="btn" onclick="resetGame()">Riprova (€50)</button>
+  </div>
+</div>
+
+<audio id="audio1" preload="auto"><source src="assets/musica-1.mp3" type="audio/mpeg"></audio>
+<audio id="audio2" preload="metadata"><source src="assets/musica-2.mp3" type="audio/mpeg"></audio>
+
+
+<script>
+/* ════════════════════════════════════════════════════════════════
+   DREAMLO LEADERBOARD
+   Public  code (read) : 69da44ea8f40bc2f603f46c3
+   Private code (write): oavX4wuOqES8Hwt8_psrUwkb4arhOHDEGp9uJRvDrKCQ
+
+   API endpoints used:
+     Add score : GET dreamlo.com/lb/{PRIVATE}/add/{name}/{score}
+     Read JSON : GET dreamlo.com/lb/{PUBLIC}/json-top/10
+════════════════════════════════════════════════════════════════ */
+const DL_PUBLIC  = '69da44ea8f40bc2f603f46c3';
+const DL_PRIVATE = 'oavX4wuOqES8Hwt8_psrUwkb4arhOHDEGp9uJRvDrKCQ';
+const DL_BASE    = 'https://www.dreamlo.com/lb';
+
+/* ── JSONP helper ──
+   Dreamlo non ha header CORS → fetch() fallisce sempre da browser.
+   La soluzione ufficiale è JSONP: si inietta un <script> tag che chiama
+   un callback globale con i dati. Funziona senza CORS.
+*/
+function jsonp(url, callbackName) {
+  return new Promise((resolve, reject) => {
+    const timeoutId = setTimeout(() => {
+      delete window[callbackName];
+      reject(new Error('Timeout dreamlo'));
+    }, 8000);
+
+    window[callbackName] = (data) => {
+      clearTimeout(timeoutId);
+      delete window[callbackName];
+      resolve(data);
+    };
+
+    const script = document.createElement('script');
+    script.src = url + (url.includes('?') ? '&' : '?') + 'callback=' + callbackName;
+    script.onerror = () => {
+      clearTimeout(timeoutId);
+      delete window[callbackName];
+      reject(new Error('Errore caricamento dreamlo'));
+    };
+    document.head.appendChild(script);
+    // Rimuovi il tag script dopo l'esecuzione
+    script.onload = () => script.remove();
+  });
+}
+
+/* ── Dreamlo add via script injection (no CORS needed for write either) ──
+   Per l'aggiunta usiamo un <img> tag su http (workaround classico):
+   dreamlo accetta richieste GET pure, l'img src le esegue senza CORS.
+*/
+function dlAdd(name, score) {
+  return new Promise((resolve, reject) => {
+    const url = `${DL_BASE}/${DL_PRIVATE}/add/${encodeURIComponent(name)}/${score}`;
+    // Usiamo uno script tag vuoto — dreamlo risponde con testo ma
+    // l'importante è che la request arrivi al server.
+    const img = new Image();
+    img.onload = img.onerror = () => resolve(); // successo o fallimento → risolviamo comunque
+    img.src = url;
+    // Timeout di sicurezza
+    setTimeout(resolve, 5000);
+  });
+}
+
+/**
+ * saveScore(playerName, score)
+ * Valida e invia un cashout a dreamlo.
+ */
+async function saveScore(playerName, score) {
+  const name = String(playerName).trim();
+  if (!name)             throw new Error('Nome vuoto.');
+  if (name.length > 20)  throw new Error('Nome troppo lungo (max 20 caratteri).');
+  if (!/^[\wÀ-ÿ _\-]+$/.test(name)) throw new Error('Nome con caratteri non validi.');
+
+  const s = Math.floor(Number(score));
+  if (!Number.isFinite(s) || s < 0) throw new Error('Punteggio non valido.');
+
+  await dlAdd(name, s);
+}
+
+/**
+ * getTopScores(limit)
+ * Legge i top punteggi via JSONP (unico metodo CORS-free con dreamlo).
+ * Dreamlo JSONP endpoint: /lb/{PUBLIC}/jsonp-top/{n}
+ */
+async function getTopScores(limit = 10) {
+  const cbName = '_dl_cb_' + Date.now();
+  const url    = `${DL_BASE}/${DL_PUBLIC}/jsonp-top/${limit}`;
+  const data   = await jsonp(url, cbName);
+  // dreamlo JSONP restituisce: callback({ "dreamlo": { "leaderboard": { "entry": [...] } } })
+  const raw = data?.dreamlo?.leaderboard?.entry ?? [];
+  return (Array.isArray(raw) ? raw : [raw]).slice(0, limit);
+}
+
+function escHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function renderLeaderboard(entries) {
+  const tbody = document.getElementById('lb-body');
+  if (!entries || !entries.length) {
+    tbody.innerHTML = '<tr><td colspan="3" style="color:rgba(201,168,76,.5);text-align:center;padding:24px;">Nessun cashout ancora — sii il primo!</td></tr>';
+    return;
+  }
+  tbody.innerHTML = entries.map((r, i) => {
+    const medal = i===0?'🥇':i===1?'🥈':i===2?'🥉':(i+1)+'.';
+    const rc    = i===0?'gold':i===1?'silver':i===2?'bronze':'';
+    return `<tr>
+      <td class="lb-rank ${rc}">${medal}</td>
+      <td class="lb-name">${escHtml(r.playerName ?? r.name ?? '—')}</td>
+      <td class="lb-score">€${Number(r.score).toLocaleString('it-IT')}</td>
+    </tr>`;
+  }).join('');
+  document.getElementById('lb-status').textContent =
+    'Aggiornato: ' + new Date().toLocaleTimeString('it-IT');
+}
+
+let _lbLoaded = false;
+
+async function refreshLeaderboard() {
+  try {
+    document.getElementById('lb-status').textContent = 'Caricamento...';
+    const entries = await getTopScores(10);
+    renderLeaderboard(entries);
+    _lbLoaded = true;
+  } catch(e) {
+    document.getElementById('lb-status').textContent = 'Errore: ' + e.message;
+  }
+}
+
+function toggleLeaderboard() {
+  const panel = document.getElementById('lb-panel');
+  panel.classList.toggle('open');
+  if (panel.classList.contains('open') && !_lbLoaded) refreshLeaderboard();
+}
+
+/* ════════════════════════════════════════════════════════════════
+   PLAYER NAME
+════════════════════════════════════════════════════════════════ */
+let playerName = '';
+
+function confirmName() {
+  const input = document.getElementById('name-input');
+  const errEl = document.getElementById('name-error');
+  const val   = input.value.trim();
+  errEl.textContent = '';
+  if (!val)           { errEl.textContent = 'Inserisci un nome.'; return; }
+  if (val.length > 20){ errEl.textContent = 'Max 20 caratteri.'; return; }
+  if (!/^[\wÀ-ÿ _\-]+$/.test(val)) { errEl.textContent = 'Solo lettere, numeri, spazi e trattini.'; return; }
+  playerName = val;
+  document.getElementById('overlay-name').textContent = playerName;
+  document.getElementById('name-modal').style.display = 'none';
+  msg('Benvenuto, ' + playerName + '!');
+  updateCashoutBtn();
+  startMusic();
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('name-input').addEventListener('keydown', e => {
+    if (e.key === 'Enter') confirmName();
+  });
+  setTimeout(() => document.getElementById('name-input').focus(), 150);
+});
+
+/* ════════════════════════════════════════════════════════════════
+   CASHOUT
+════════════════════════════════════════════════════════════════ */
+function updateCashoutBtn() {
+  const btn = document.getElementById('cashout-btn');
+  btn.disabled = !playerName || phase !== 'bet' || balance <= 0;
+}
+
+function openCashout() {
+  if (!playerName || phase !== 'bet' || balance <= 0) return;
+  document.getElementById('cashout-msg').textContent =
+    `Incassa €${balance} come "${playerName}" e salva in classifica globale?`;
+  document.getElementById('cashout-error').textContent = '';
+  const btn = document.getElementById('cashout-confirm-btn');
+  btn.disabled = false;
+  btn.textContent = 'Incassa & Salva';
+  document.getElementById('cashout-modal').classList.add('show');
+}
+
+function closeCashoutModal() {
+  document.getElementById('cashout-modal').classList.remove('show');
+}
+
+async function executeCashout() {
+  const errEl = document.getElementById('cashout-error');
+  const btn   = document.getElementById('cashout-confirm-btn');
+  errEl.textContent = '';
+  btn.disabled  = true;
+  btn.textContent = 'Salvataggio...';
+  try {
+    await saveScore(playerName, balance);
+    closeCashoutModal();
+    // Ricarica classifica e mostrala
+    await refreshLeaderboard();
+    document.getElementById('lb-panel').classList.add('open');
+    _lbLoaded = true;
+    setTimeout(() => resetGame(), 600);
+  } catch(e) {
+    errEl.textContent = e.message;
+    btn.disabled = false;
+    btn.textContent = 'Incassa & Salva';
+  }
+}
+/* ════════════════════════════════════════════════════════════════
+   AUDIO — music & sfx separati, music avvia sul PRIMO click
+════════════════════════════════════════════════════════════════ */
+let actx     = null;
+let muted    = false;
+let sfxOff   = false;
+let musicOn  = false;
+let curTrk   = 1;
+
+const A1 = document.getElementById('audio1');
+const A2 = document.getElementById('audio2');
+A1.volume = A2.volume = 0.45;
+
+function getAC() {
+  if (!actx) actx = new (window.AudioContext || window.webkitAudioContext)();
+  if (actx.state === 'suspended') actx.resume();
+  return actx;
+}
+
+function playTrack(n) {
+  if (muted) return;
+  const a = n === 1 ? A1 : A2;
+  a.currentTime = 0;
+  a.play().catch(() => {});
+  curTrk = n;
+}
+A1.addEventListener('ended', () => playTrack(2));
+A2.addEventListener('ended', () => playTrack(1));
+
+/* startMusic: avvia la musica, può essere chiamata più volte in sicurezza */
+function startMusic() {
+  if (musicOn) return;
+  musicOn = true;
+  getAC();
+  playTrack(1);
+}
+
+/*
+ * Unlock AudioContext al primo evento utente QUALSIASI.
+ * Non avviamo la musica qui — lo facciamo su deal() e confirmName(),
+ * così il pulsante 🔊 non interferisce.
+ * Usiamo capture:true per intercettare prima dei handler specifici.
+ */
+function _unlockAudio() {
+  if (actx) return; // già creato
+  getAC(); // crea e riprende il context
+}
+['pointerdown','keydown','touchstart'].forEach(ev =>
+  document.addEventListener(ev, _unlockAudio, { once: true, capture: true })
+);
+
+function toggleMute() {
+  muted = !muted;
+  const btn = document.getElementById('mute-btn');
+  btn.textContent = muted ? '🔇' : '🔊';
+  btn.classList.toggle('off', muted);
+  if (muted) { A1.pause(); A2.pause(); }
+  else { startMusic(); playTrack(curTrk); }
+}
+
+function toggleSfx() {
+  sfxOff = !sfxOff;
+  const btn = document.getElementById('sfx-btn');
+  btn.textContent = sfxOff ? '🔕' : '🎵';
+  btn.classList.toggle('off', sfxOff);
+}
+
+function sfxChip() {
+  if (sfxOff) return;
+  try {
+    const c=getAC(),now=c.currentTime,o=c.createOscillator(),g=c.createGain();
+    o.connect(g);g.connect(c.destination);o.type='sine';
+    o.frequency.setValueAtTime(1600,now);o.frequency.exponentialRampToValueAtTime(700,now+.09);
+    g.gain.setValueAtTime(.2,now);g.gain.exponentialRampToValueAtTime(.001,now+.13);
+    o.start(now);o.stop(now+.14);
+    const sz=Math.floor(c.sampleRate*.04),buf=c.createBuffer(1,sz,c.sampleRate),dd=buf.getChannelData(0);
+    for(let i=0;i<sz;i++) dd[i]=(Math.random()*2-1)*(1-i/sz)*.3;
+    const ns=c.createBufferSource(),ng=c.createGain();
+    ns.buffer=buf;ng.gain.value=.09;ns.connect(ng);ng.connect(c.destination);ns.start(now);
+  } catch(e) {}
+}
+
+function sfxCard() {
+  if (sfxOff) return;
+  try {
+    const c=getAC(),now=c.currentTime,sz=Math.floor(c.sampleRate*.075),
+          buf=c.createBuffer(1,sz,c.sampleRate),dd=buf.getChannelData(0);
+    for(let i=0;i<sz;i++) dd[i]=(Math.random()*2-1)*Math.pow(1-i/sz,1.4);
+    const src=c.createBufferSource();src.buffer=buf;
+    const hp=c.createBiquadFilter();hp.type='highpass';hp.frequency.value=2200;
+    const g=c.createGain();g.gain.value=.3;
+    src.connect(hp);hp.connect(g);g.connect(c.destination);src.start(now);
+  } catch(e) {}
+}
+
+function sfxWin() {
+  if (sfxOff) return;
+  try {
+    const c=getAC();
+    [523,659,784,1047].forEach((f,i) => {
+      const o=c.createOscillator(),g=c.createGain();
+      o.connect(g);g.connect(c.destination);o.type='triangle';o.frequency.value=f;
+      const t=c.currentTime+i*.1;
+      g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(.14,t+.04);
+      g.gain.exponentialRampToValueAtTime(.001,t+.38);o.start(t);o.stop(t+.39);
+    });
+  } catch(e) {}
+}
+
+function sfxLose() {
+  if (sfxOff) return;
+  try {
+    const c=getAC();
+    [300,240,190].forEach((f,i) => {
+      const o=c.createOscillator(),g=c.createGain();
+      o.connect(g);g.connect(c.destination);o.type='sawtooth';o.frequency.value=f;
+      const t=c.currentTime+i*.13;
+      g.gain.setValueAtTime(.11,t);g.gain.exponentialRampToValueAtTime(.001,t+.3);
+      o.start(t);o.stop(t+.31);
+    });
+  } catch(e) {}
+}
+
+function sfxError() {
+  if (sfxOff) return;
+  try {
+    const c=getAC(),now=c.currentTime;
+    [220,180].forEach((f,i) => {
+      const o=c.createOscillator(),g=c.createGain();
+      o.connect(g);g.connect(c.destination);o.type='square';o.frequency.value=f;
+      const t=now+i*.12;
+      g.gain.setValueAtTime(.18,t);g.gain.exponentialRampToValueAtTime(.001,t+.18);
+      o.start(t);o.stop(t+.19);
+    });
+  } catch(e) {}
+}
+
+/* ════════════════════════════════════════════════════════════════
+   CROUPIER
+════════════════════════════════════════════════════════════════ */
+const IMGS = {
+  init:     'assets/croupier-init.png',
+  festoso:  'assets/croupier-festoso.png',
+  vincente: 'assets/croupier-vincente.png',
+  lose:     'assets/croupier-lose.png',
+};
+// precarica le immagini del croupier così il cambio è istantaneo
+Object.values(IMGS).forEach(src => { const i = new Image(); i.src = src; });
+function setCroupier(s) {
+  const img = document.getElementById('croupier-img');
+  img.style.opacity = '0'; img.style.transform = 'translateX(-22px)';
+  setTimeout(() => {
+    img.src = IMGS[s] || IMGS.init;
+    img.style.opacity = '1'; img.style.transform = 'none';
+  }, 270);
+}
+
+/* ════════════════════════════════════════════════════════════════
+   CARD BUILDER
+════════════════════════════════════════════════════════════════ */
+function buildCard(card, hidden = false) {
+  const el = document.createElement('div');
+  if (hidden) { el.className = 'card back'; return el; }
+  const isRed = card.suit === '♥' || card.suit === '♦';
+  el.className = 'card ' + (isRed ? 'red' : 'black');
+  const rk = document.createElement('div'); rk.className = 'card-rank'; rk.textContent = card.rank;
+  const st = document.createElement('div'); st.className = 'card-suit'; st.textContent = card.suit;
+  el.appendChild(rk);
+  el.appendChild(document.createElement('div')); // top-right empty
+  el.appendChild(document.createElement('div')); // bottom-left empty
+  el.appendChild(st);
+  return el;
+}
+
+/* ════════════════════════════════════════════════════════════════
+   DECK & MATH
+════════════════════════════════════════════════════════════════ */
+const SUITS  = ['♠','♥','♦','♣'];
+const RANKS  = ['A','2','3','4','5','6','7','8','9','10','J','Q','K'];
+function newDeck(n=6) {
+  const d=[];
+  for(let i=0;i<n;i++) for(const s of SUITS) for(const r of RANKS) d.push({suit:s,rank:r});
+  return shuffle(d);
+}
+function shuffle(a) { for(let i=a.length-1;i>0;i--){const j=0|Math.random()*(i+1);[a[i],a[j]]=[a[j],a[i]];} return a; }
+function cv(c) { if(['J','Q','K'].includes(c.rank))return 10; if(c.rank==='A')return 11; return parseInt(c.rank); }
+function total(h) { let t=0,a=0; for(const c of h){t+=cv(c);if(c.rank==='A')a++;} while(t>21&&a>0){t-=10;a--;} return t; }
+function isBJ(h)   { return h.length===2 && total(h)===21; }
+function isBust(h) { return total(h)>21; }
+
+/* ════════════════════════════════════════════════════════════════
+   GAME STATE
+════════════════════════════════════════════════════════════════ */
+let deck=[], balance=50, currentBet=0;
+let dealerHand=[], playerHands=[[]], curHand=0, handBets=[0], insBet=0;
+let phase = 'bet';
+
+const CHIP_VALUES = [1,5,10,50,100,500];
+
+/* ════════════════════════════════════════════════════════════════
+   UI HELPERS
+════════════════════════════════════════════════════════════════ */
+function updateHUD() {
+  document.getElementById('balance-display').textContent = '€' + balance;
+  document.getElementById('bet-display').textContent     = '€' + currentBet;
+  updateCashoutBtn();
+  updateChipStates();
+}
+
+/**
+ * Abilita/disabilita le fiches in base al saldo residuo.
+ * Le fiches disponibili ricevono un leggero glow di "invito".
+ * Chiamata ogni volta che balance o currentBet cambiano.
+ */
+function updateChipStates() {
+  const canBet = (phase === 'bet');
+  const remaining = balance - currentBet;
+  CHIP_VALUES.forEach(v => {
+    const el = document.getElementById('chip-' + v);
+    if (!el) return;
+    const affordable = canBet && remaining >= v;
+    el.classList.toggle('chip-disabled',  !affordable);
+    el.classList.toggle('chip-available',  affordable);
+  });
+}
+
+function msg(t, c='') { const e=document.getElementById('message'); e.textContent=t; e.className=c; }
+
+function renderD(all=false) {
+  const el=document.getElementById('dealer-hand'); el.innerHTML='';
+  dealerHand.forEach((c,i) => el.appendChild(buildCard(c, i===1 && !all)));
+  document.getElementById('dealer-score').textContent =
+    all ? 'Banco: '+total(dealerHand) : 'Banco: '+cv(dealerHand[0]);
+}
+
+function renderP() {
+  const ct=document.getElementById('player-hands'); ct.innerHTML='';
+  playerHands.forEach((h,i) => {
+    const div=document.createElement('div');
+    div.className='split-hand'+(i===curHand&&phase==='player'?' active-hand':'');
+    const row=document.createElement('div'); row.className='cards-row';
+    h.forEach(c => row.appendChild(buildCard(c)));
+    const b=document.createElement('div'); b.className='score-badge';
+    const t2=total(h);
+    b.textContent=(playerHands.length>1?'Mano '+(i+1)+': ':'')+t2+(t2>21?' 💀':'');
+    div.appendChild(row); div.appendChild(b); ct.appendChild(div);
+  });
+  document.getElementById('player-score').textContent='';
+}
+
+function btns(h,s,d,sp) {
+  ['btn-hit','btn-stand','btn-double','btn-split'].forEach((id,i) => {
+    document.getElementById(id).disabled = ![h,s,d,sp][i];
+  });
+}
+
+function betArea(on) {
+  document.getElementById('chips-row').style.pointerEvents = on ? 'auto' : 'none';
+  document.getElementById('chips-row').style.opacity       = on ? '1'    : '.42';
+  document.getElementById('deal-btn').disabled             = !on || currentBet===0;
+  document.getElementById('clear-bet-btn').style.display   = on ? 'inline' : 'none';
+  if (on) updateChipStates(); // ← riaccende le fiches all'apertura di ogni nuova mano
+}
+
+function updateChipsOffset() {
+  const w = document.getElementById('croupier-panel').offsetWidth;
+  ['chips-row','current-bet-display','deal-btn'].forEach(id =>
+    document.getElementById(id).style.marginLeft = w + 'px'
+  );
+}
+window.addEventListener('resize', updateChipsOffset);
+
+/* ════════════════════════════════════════════════════════════════
+   BET — con blocco se supera il saldo
+════════════════════════════════════════════════════════════════ */
+function addBet(v) {
+  if (phase !== 'bet') return;
+  const el = document.getElementById('chip-' + v);
+  // Blocca se supera il saldo
+  if (currentBet + v > balance) {
+    sfxError();
+    if (el) {
+      el.classList.add('chip-shake');
+      setTimeout(() => el.classList.remove('chip-shake'), 400);
+    }
+    msg('Saldo insufficiente per questa puntata! (disponibili: €' + (balance - currentBet) + ')', 'lose');
+    setTimeout(() => { if (phase==='bet' && !currentBet) msg(''); }, 2500);
+    return;
+  }
+  sfxChip();
+  currentBet += v;
+  updateHUD();
+  document.getElementById('deal-btn').disabled = false;
+}
+
+function clearBet() {
+  if (phase !== 'bet') return;
+  currentBet = 0;
+  updateHUD();
+  document.getElementById('deal-btn').disabled = true;
+  msg('');
+}
+
+/* ════════════════════════════════════════════════════════════════
+   DEAL
+════════════════════════════════════════════════════════════════ */
+function deal() {
+  if (currentBet <= 0) return;
+  if (currentBet > balance) { msg('Saldo insufficiente!','lose'); return; }
+  if (deck.length < 52) deck = newDeck(6);
+
+  startMusic(); // garantito: deal è sempre un click utente
+  balance -= currentBet; updateHUD();
+  betArea(false); btns(false,false,false,false);
+
+  dealerHand  = [deck.pop(), deck.pop()];
+  playerHands = [[deck.pop(), deck.pop()]];
+  handBets    = [currentBet];
+  curHand=0; insBet=0; phase='player';
+
+  [0,160,320,480].forEach(t => setTimeout(sfxCard, t));
+  renderD(false); renderP();
+  msg('Buona fortuna... o forse no.');
+  setCroupier('init');
+
+  if (dealerHand[0].rank==='A') {
+    phase='insurance';
+    document.getElementById('insurance-bar').classList.add('show');
+    return;
+  }
+  if (isBJ(playerHands[0])) { finishRound(); return; }
+  enableActions();
+}
+
+/* ════════════════════════════════════════════════════════════════
+   INSURANCE
+════════════════════════════════════════════════════════════════ */
+function takeInsurance() {
+  const cost=Math.floor(handBets[0]/2);
+  if(cost>balance) { msg('Saldo insufficiente.','lose'); declineInsurance(); return; }
+  insBet=cost; balance-=cost; updateHUD();
+  document.getElementById('insurance-bar').classList.remove('show');
+  phase='player';
+  if(isBJ(playerHands[0])) { finishRound(); return; }
+  enableActions();
+}
+function declineInsurance() {
+  document.getElementById('insurance-bar').classList.remove('show');
+  phase='player';
+  if(isBJ(playerHands[0])) { finishRound(); return; }
+  enableActions();
+}
+
+/* ════════════════════════════════════════════════════════════════
+   PLAYER ACTIONS
+════════════════════════════════════════════════════════════════ */
+function enableActions() {
+  const h=playerHands[curHand];
+  const canD=h.length===2&&balance>=handBets[curHand];
+  const canS=h.length===2&&cv(h[0])===cv(h[1])&&balance>=handBets[curHand]&&playerHands.length<4;
+  btns(true,true,canD,canS);
+}
+function hit() {
+  if(phase!=='player') return;
+  sfxCard(); playerHands[curHand].push(deck.pop());
+  btns(false,false,false,false); renderP();
+  if(isBust(playerHands[curHand])) setTimeout(next,400);
+  else { enableActions(); document.getElementById('btn-double').disabled=true; document.getElementById('btn-split').disabled=true; }
+}
+function stand() { if(phase!=='player') return; btns(false,false,false,false); next(); }
+function doubleDown() {
+  if(phase!=='player') return; sfxChip(); sfxCard();
+  balance-=handBets[curHand]; handBets[curHand]*=2;
+  currentBet=handBets.reduce((a,b)=>a+b,0); updateHUD();
+  playerHands[curHand].push(deck.pop()); renderP(); btns(false,false,false,false);
+  setTimeout(next,400);
+}
+function splitHand() {
+  if(phase!=='player') return; sfxChip(); balance-=handBets[curHand];
+  const h=playerHands[curHand],nh=[h.pop()];
+  h.push(deck.pop()); nh.push(deck.pop());
+  playerHands.splice(curHand+1,0,nh); handBets.splice(curHand+1,0,handBets[curHand]);
+  currentBet=handBets.reduce((a,b)=>a+b,0); updateHUD(); sfxCard(); renderP(); enableActions();
+}
+function next() {
+  curHand++;
+  if(curHand<playerHands.length) { renderP(); enableActions(); }
+  else dealerPlay();
+}
+
+/* ════════════════════════════════════════════════════════════════
+   DEALER
+════════════════════════════════════════════════════════════════ */
+function dealerPlay() {
+  phase='dealer'; btns(false,false,false,false); sfxCard(); renderD(true);
+  if(playerHands.every(h=>isBust(h))) { finishRound(); return; }
+  dealerStep();
+}
+function dealerStep() {
+  if(total(dealerHand)<17) { sfxCard(); dealerHand.push(deck.pop()); renderD(true); setTimeout(dealerStep,650); }
+  else finishRound();
+}
+
+/* ════════════════════════════════════════════════════════════════
+   SETTLE
+════════════════════════════════════════════════════════════════ */
+function finishRound() {
+  phase='end'; renderD(true);
+  const dT=total(dealerHand), dBJ=isBJ(dealerHand);
+  let messages=[], result='lose';
+  if(insBet>0&&dBJ) balance+=insBet*2;
+
+  playerHands.forEach((h,i) => {
+    const bet=handBets[i], pT=total(h),
+          pBJ=isBJ(h)&&playerHands.length===1,
+          lbl=playerHands.length>1?'Mano '+(i+1)+': ':'';
+    if(isBust(h))          messages.push(lbl+'Sballato! -€'+bet);
+    else if(dBJ&&!pBJ)     messages.push(lbl+'Banco fa Blackjack! -€'+bet);
+    else if(pBJ&&!dBJ)     { const w=Math.floor(bet*2.5);balance+=w;result='bj';messages.push(lbl+'BLACKJACK! +€'+(w-bet)); }
+    else if(isBust(dealerHand)||pT>dT) { balance+=bet*2;if(result!=='bj')result='win';messages.push(lbl+'Hai vinto! +€'+bet); }
+    else if(pT===dT)       { balance+=bet;if(result==='lose')result='push';messages.push(lbl+'Pareggio. €'+bet+' rimborsati.'); }
+    else                   messages.push(lbl+'Banco vince! -€'+bet);
+  });
+
+  updateHUD();
+  const cls=result==='win'||result==='bj'?'win':result==='push'?'push':'lose';
+  msg(messages.join(' | '), cls);
+  if(result==='win'||result==='bj') sfxWin(); else if(result==='lose') sfxLose();
+
+  if(result==='bj')        setCroupier('festoso');
+  else if(result==='win')  setCroupier('vincente');
+  else if(result==='lose') setCroupier('lose');
+  else                     setCroupier('init');
+
+  currentBet=0; updateHUD();
+  if(balance<=0) {
+    setTimeout(() => document.getElementById('overlay').classList.add('show'), 1300);
+    return;
+  }
+  // phase='bet' PRIMA di betArea(true) così updateChipStates vede la fase corretta
+  setTimeout(() => { phase='bet'; betArea(true); updateCashoutBtn(); }, 1050);
+}
+
+/* ════════════════════════════════════════════════════════════════
+   RESET
+════════════════════════════════════════════════════════════════ */
+function resetGame() {
+  balance=50; currentBet=0; deck=newDeck(6);
+  dealerHand=[]; playerHands=[[]]; handBets=[0]; curHand=0; insBet=0; phase='bet';
+  updateHUD();
+  ['dealer-hand','player-hands'].forEach(id => document.getElementById(id).innerHTML='');
+  ['dealer-score','player-score'].forEach(id => document.getElementById(id).textContent='');
+  msg(playerName ? 'Buona fortuna, '+playerName+'!' : '');
+  setCroupier('init'); btns(false,false,false,false); betArea(true);
+  document.getElementById('overlay').classList.remove('show');
+  document.getElementById('insurance-bar').classList.remove('show');
+  closeCashoutModal();
+  updateCashoutBtn();
+}
+
+/* ════════════════════════════════════════════════════════════════
+   INIT
+════════════════════════════════════════════════════════════════ */
+deck = newDeck(6);
+updateHUD();
+betArea(true);
+setCroupier('init');
+updateChipsOffset();
+
+</script>
+</body>
+</html>
