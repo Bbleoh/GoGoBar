@@ -8,6 +8,8 @@
        ordinata dal punteggio più alto; [] se qualcosa va storto (non lancia mai).
    window.BiscaClassifica.salva(nome, punti) → Promise<void>
        tiene il punteggio più alto per ogni nome; lancia un Error se fallisce.
+   window.BiscaClassifica.caricaGiocatore(nome) / salvaGiocatore(nome, dati) / caricaGiocatori()
+       account per nome con saldo, statistiche e trofei (vedi sotto).
 
    Servizio: Firebase Realtime Database via REST (fetch, HTTPS, CORS ok).
    Per attivarlo basta mettere qui sotto l'URL del database, ad esempio
@@ -75,5 +77,65 @@
     }).then(function () {});
   }
 
-  window.BiscaClassifica = { attiva: !!DB_URL, carica: carica, salva: salva };
+  /* ── ACCOUNT ─────────────────────────────────────────────────────
+     Il nome è l'account: stessa chiave (minuscole) = stesso giocatore.
+     bisca/giocatori/<chiave> = { nome, saldo, ultimaPuntata, aggiornato,
+                                  stats: { contatori numerici }, trofei: { id: data ISO } }
+     Le regole Firebase permettono di aggiungere trofei ma non di toglierli. */
+  var GIOCATORI = 'bisca/giocatori';
+
+  function urlGiocatore(nome) {
+    return base() + '/' + GIOCATORI + '/' + encodeURIComponent(chiaveDa(nome)) + '.json';
+  }
+
+  // Promise<oggetto | null>: null se l'account non esiste ancora; rifiuta se Firebase non risponde
+  function caricaGiocatore(nome) {
+    if (!DB_URL) return Promise.reject(new Error('Account online non attivi'));
+    return richiesta(urlGiocatore(nome)).then(function (d) {
+      return d && typeof d === 'object' ? d : null;
+    });
+  }
+
+  // Salva tutto l'account con un PATCH multi-percorso (i trofei uno per uno)
+  function salvaGiocatore(nome, dati, keepalive) {
+    if (!DB_URL) return Promise.reject(new Error('Account online non attivi'));
+    var corpo = {
+      nome: String(nome).trim().slice(0, 20),
+      saldo: Math.max(0, Math.floor(Number(dati.saldo)) || 0),
+      ultimaPuntata: Math.max(0, Math.floor(Number(dati.ultimaPuntata)) || 0),
+      aggiornato: new Date().toISOString()
+    };
+    var st = dati.stats || {};
+    Object.keys(st).forEach(function (k) {
+      if (typeof st[k] === 'number' && isFinite(st[k])) corpo['stats/' + k] = st[k];
+    });
+    var tr = dati.trofei || {};
+    Object.keys(tr).forEach(function (k) {
+      if (/^[a-z0-9_]+$/i.test(k) && typeof tr[k] === 'string') corpo['trofei/' + k] = tr[k].slice(0, 30);
+    });
+    return richiesta(urlGiocatore(nome), {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(corpo),
+      keepalive: !!keepalive
+    }).then(function () {});
+  }
+
+  // Promise<[{ nome, trofei: n, saldo, aggiornato }]> per eventuali classifiche dei trofei; [] se errore
+  function caricaGiocatori() {
+    if (!DB_URL) return Promise.resolve([]);
+    return richiesta(base() + '/' + GIOCATORI + '.json').then(function (d) {
+      if (!d || typeof d !== 'object') return [];
+      return Object.keys(d).map(function (k) {
+        var g = d[k] || {};
+        return { nome: String(g.nome || k).slice(0, 20), trofei: Object.keys(g.trofei || {}).length,
+                 saldo: Number(g.saldo) || 0, aggiornato: g.aggiornato || null };
+      }).sort(function (a, b) { return b.trofei - a.trofei; });
+    }).catch(function () { return []; });
+  }
+
+  window.BiscaClassifica = {
+    attiva: !!DB_URL, carica: carica, salva: salva,
+    caricaGiocatore: caricaGiocatore, salvaGiocatore: salvaGiocatore, caricaGiocatori: caricaGiocatori
+  };
 })();

@@ -230,6 +230,20 @@
   .trofeo{border:1px solid rgba(212,175,90,.15);border-radius:12px;padding:10px 8px;display:flex;flex-direction:column;align-items:center;gap:3px;opacity:.45;}
   .trofeo.ok{opacity:1;border-color:var(--gold);background:rgba(212,175,90,.08);}
   .trofeo-icon{font-size:1.6rem;}
+  #account-bar{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin:4px 0 14px;
+    padding:10px 12px;border-radius:12px;background:rgba(0,0,0,.3);border:1px solid rgba(212,175,90,.15);text-align:left;}
+  #account-bar b{color:#fff;}
+  #account-stato{display:block;font-size:.75rem;color:var(--win);opacity:.85;}
+  #account-stato.err{color:var(--push);}
+  .rarita-head{grid-column:1/-1;font-family:var(--ui);font-weight:700;font-size:.75rem;letter-spacing:2px;text-transform:uppercase;
+    margin-top:8px;padding-bottom:4px;border-bottom:1px solid currentColor;text-align:left;}
+  .rarita-head small{opacity:.7;margin-left:6px;}
+  .r-comune{--rc:#c9c2b0;} .r-raro{--rc:#4fa3ff;} .r-epico{--rc:#c06bff;} .r-leggendario{--rc:#ffb02e;}
+  .rarita-head{color:var(--rc);}
+  .trofeo.ok{border-color:var(--rc);background:color-mix(in srgb,var(--rc) 12%,transparent);}
+  .trofeo.ok.r-leggendario{box-shadow:0 0 16px rgba(255,176,46,.35);}
+  #toast.r-raro{border-color:#4fa3ff;} #toast.r-epico{border-color:#c06bff;}
+  #toast.r-leggendario{border-color:#ffb02e;box-shadow:0 0 40px rgba(255,176,46,.6);}
   .trofeo b{font-family:var(--ui);font-size:.78rem;color:var(--gold-light);}
   .trofeo small{font-size:.74rem;color:var(--muted);line-height:1.3;}
 
@@ -306,7 +320,7 @@
 <div class="modal-overlay" id="name-modal">
   <div class="modal-box" role="dialog" aria-labelledby="name-title">
     <h2 id="name-title">♠ La Bisca der Tromba ♠</h2>
-    <p><span id="name-intro">Benvenuto! Come ti chiami?</span><br>Il nome serve per la classifica quando fai cashout.</p>
+    <p><span id="name-intro">Benvenuto! Come ti chiami?</span><br>Il nome è il tuo account: saldo, statistiche e trofei restano salvati e li ritrovi su qualsiasi dispositivo.</p>
     <label for="name-input" class="sr-only" style="position:absolute;left:-9999px">Il tuo nome</label>
     <input class="modal-input" id="name-input" type="text" maxlength="20" placeholder="Il tuo nome" autocomplete="nickname">
     <div class="modal-error" id="name-error" role="alert"></div>
@@ -428,10 +442,13 @@
   <div class="modal-box stats-box" role="dialog" aria-labelledby="stats-title">
     <button class="close-x" onclick="chiudiStats()" aria-label="Chiudi">✕</button>
     <h2 id="stats-title">📊 Statistiche</h2>
+    <div id="account-bar">
+      <span>👤 <b id="account-nome">—</b> <small id="account-stato"></small></span>
+      <button class="bet-tool" onclick="cambiaGiocatore()">Cambia giocatore</button>
+    </div>
     <div id="stats-list"></div>
     <h3>🏆 Trofei <span id="trofei-count"></span></h3>
     <div id="trofei-grid"></div>
-    <button class="btn danger" id="stats-reset" onclick="azzeraStats()">Azzera statistiche</button>
   </div>
 </div>
 <div id="toast" role="status"></div>
@@ -450,19 +467,76 @@
 <script src="classifica.js"></script>
 <script>
 /* ════════════════════════════════════════════════════════════════
-   MEMORIA NEL BROWSER (saldo, nome, statistiche, trofei)
-   Ogni accesso è protetto: in navigazione privata può fallire.
+   ACCOUNT: il nome è l'account.
+   - Nel browser: biscaTromba.v2 = { ultimo, account: { chiave: dati } }
+   - Su Firebase: bisca/giocatori/<chiave> (vedi classifica.js), così
+     saldo, statistiche e trofei seguono il giocatore su ogni dispositivo.
+   Ogni accesso a localStorage è protetto: in navigazione privata può fallire.
 ════════════════════════════════════════════════════════════════ */
-const MEM_KEY = 'biscaTromba.v1';
-function memLeggi() {
-  try { return JSON.parse(localStorage.getItem(MEM_KEY)) || {}; } catch (e) { return {}; }
+const MEM_KEY = 'biscaTromba.v2', MEM_V1 = 'biscaTromba.v1';
+function chiaveNome(n) { return String(n || '').trim().toLowerCase(); }
+function memTutto() {
+  try { const m = JSON.parse(localStorage.getItem(MEM_KEY)); if (m && m.account) return m; } catch (e) {}
+  const out = { ultimo: '', account: {} };
+  try { // migra i dati salvati dalla versione precedente
+    const v1 = JSON.parse(localStorage.getItem(MEM_V1));
+    if (v1 && v1.nome) { out.ultimo = v1.nome; out.account[chiaveNome(v1.nome)] = Object.assign({ aggiornato: '' }, v1); }
+  } catch (e) {}
+  return out;
+}
+function datiAccount() {
+  return { nome: playerName, saldo: balance, ultimaPuntata: lastBet, stats: stats, trofei: trofei,
+           aggiornato: new Date().toISOString() };
 }
 function memScrivi() {
-  try {
-    localStorage.setItem(MEM_KEY, JSON.stringify({
-      nome: playerName, saldo: balance, ultimaPuntata: lastBet, stats: stats, trofei: trofei
-    }));
-  } catch (e) {}
+  if (!playerName) return;
+  const m = memTutto();
+  m.ultimo = playerName;
+  m.account[chiaveNome(playerName)] = datiAccount();
+  try { localStorage.setItem(MEM_KEY, JSON.stringify(m)); } catch (e) {}
+  syncRemoto();
+}
+
+let syncOnline = false, syncTimer = null;
+function syncRemoto(subito) {
+  if (!syncOnline || !window.BiscaClassifica || !BiscaClassifica.attiva || !playerName) return;
+  clearTimeout(syncTimer);
+  const invia = () => BiscaClassifica.salvaGiocatore(playerName, datiAccount(), !!subito)
+    .then(() => statoAccount('Salvato online'))
+    .catch(() => statoAccount('Non riesco a salvare online: per ora resta su questo browser', true));
+  if (subito) invia(); else syncTimer = setTimeout(invia, 1200);
+}
+window.addEventListener('pagehide', () => { if (syncTimer) syncRemoto(true); });
+
+function statoAccount(t, errore) {
+  const el = document.getElementById('account-stato');
+  if (el) { el.textContent = t; el.classList.toggle('err', !!errore); }
+}
+
+// Unisce i dati del browser con quelli online: trofei sommati, contatori al massimo,
+// saldo e serie in corso dalla copia più recente.
+const STATS_MAX = ['mani','vinte','perse','pari','blackjack','sballate','serieMax','recordSaldo','vincitaMax','cashout','cashoutMax','bancarotte'];
+function unisciAccount(loc, rem) {
+  if (!loc) return rem || null;
+  if (!rem) return loc;
+  const recente = (rem.aggiornato || '') >= (loc.aggiornato || '') ? rem : loc;
+  const out = Object.assign({}, recente);
+  out.stats = Object.assign({}, STATS_ZERO, recente.stats);
+  STATS_MAX.forEach(k => {
+    out.stats[k] = Math.max(Number((loc.stats || {})[k]) || 0, Number((rem.stats || {})[k]) || 0, STATS_ZERO[k] || 0);
+  });
+  out.trofei = Object.assign({}, loc.trofei);
+  Object.entries(rem.trofei || {}).forEach(([k, d]) => {
+    if (!out.trofei[k] || d < out.trofei[k]) out.trofei[k] = d;
+  });
+  return out;
+}
+function applicaAccount(d) {
+  d = d || {};
+  balance = Number.isFinite(d.saldo) && d.saldo > 0 ? Math.floor(d.saldo) : SALDO_INIZIALE;
+  lastBet = Number.isFinite(d.ultimaPuntata) ? d.ultimaPuntata : 0;
+  stats = Object.assign({}, STATS_ZERO, d.stats);
+  trofei = Object.assign({}, d.trofei);
 }
 
 /* ════════════════════════════════════════════════════════════════
@@ -525,21 +599,53 @@ function toggleLeaderboard() {
 let playerName = '';
 const NOME_OK = /^[\wÀ-ÿ _\-]+$/;
 
-function confirmName() {
+async function confirmName() {
   const input = document.getElementById('name-input');
   const errEl = document.getElementById('name-error');
+  const btn   = document.getElementById('name-btn');
   const val   = input.value.trim();
   errEl.textContent = '';
   if (!val)           { errEl.textContent = 'Inserisci un nome.'; return; }
   if (val.length > 20){ errEl.textContent = 'Max 20 caratteri.'; return; }
   if (!NOME_OK.test(val)) { errEl.textContent = 'Solo lettere, numeri, spazi e trattini.'; return; }
-  playerName = val;
+  if (btn.disabled) return;
+  startMusic(); // siamo dentro un clic: sblocca subito l'audio
+
+  if (playerName) { clearTimeout(syncTimer); memScrivi(); syncRemoto(true); } // salva il giocatore precedente
+  btn.disabled = true; btn.textContent = 'Apro il tuo account...';
+
+  const locale = memTutto().account[chiaveNome(val)];
+  let remoto = null, online = false;
+  if (window.BiscaClassifica && BiscaClassifica.attiva) {
+    try { remoto = await BiscaClassifica.caricaGiocatore(val); online = true; } catch (e) {}
+  }
+  btn.disabled = false; btn.textContent = 'Siediti al tavolo';
+
+  playerName = (remoto && remoto.nome) || (locale && locale.nome) || val; // tiene le maiuscole originali
+  applicaAccount(unisciAccount(locale, remoto));
+  syncOnline = online;
   document.getElementById('overlay-name').textContent = playerName;
   document.getElementById('name-modal').style.display = 'none';
-  msg(balance !== 50 ? 'Bentornato, ' + playerName + '! Il tuo saldo ti aspettava.' : 'Benvenuto, ' + playerName + '!');
+  resetTavolo();
+  if (remoto)      msg('Bentornato, ' + playerName + '! Account caricato.');
+  else if (locale) msg('Bentornato, ' + playerName + '!');
+  else if (online) msg('Benvenuto, ' + playerName + '! Account creato.');
+  else             msg('Benvenuto, ' + playerName + '! Sei offline: per ora salvo su questo browser.');
+  statoAccount(online ? (remoto ? 'Account online' : 'Account creato online') : 'Offline: salvo solo su questo browser', !online);
+  controllaSaldo();
   memScrivi();
-  updateCashoutBtn();
-  startMusic();
+  updateHUD();
+}
+
+function cambiaGiocatore() {
+  if (phase !== 'bet') return;
+  chiudiStats();
+  const input = document.getElementById('name-input');
+  input.value = '';
+  document.getElementById('name-btn').textContent = 'Siediti al tavolo';
+  document.getElementById('name-intro').textContent = 'Chi gioca adesso? Scrivi il nome del tuo account.';
+  document.getElementById('name-modal').style.display = 'flex';
+  setTimeout(() => input.focus(), 50);
 }
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -579,7 +685,10 @@ async function executeCashout() {
   try {
     await BiscaClassifica.salva(playerName, balance);
     stats.cashout++;
+    stats.cashoutMax = Math.max(stats.cashoutMax, balance);
     sblocca('incasso');
+    if (stats.cashout >= 10) sblocca('pendolare');
+    if (balance >= 1000) sblocca('banchiere');
     closeCashoutModal();
     document.getElementById('lb-panel').classList.add('open');
     await refreshLeaderboard();
@@ -798,75 +907,144 @@ const CHIP_VALUES = [1,5,10,50,100,500];
 ════════════════════════════════════════════════════════════════ */
 const STATS_ZERO = {
   mani:0, vinte:0, perse:0, pari:0, blackjack:0, sballate:0,
-  serie:0, serieMax:0, recordSaldo:SALDO_INIZIALE, vincitaMax:0, cashout:0, bancarotte:0
+  serie:0, serieMax:0, recordSaldo:SALDO_INIZIALE, vincitaMax:0, cashout:0, cashoutMax:0, bancarotte:0,
+  // serie in corso usate dai trofei
+  serieBJ:0, seriePari:0, serieBancoBJ:0, serieSballo:0, seriePerse:0, serieAllin:0, rimonta:0
 };
 let stats  = Object.assign({}, STATS_ZERO);
 let trofei = {}; // id → data ISO di sblocco
 
+const RARITA = {
+  comune:      { nome:'Comune',      ordine:0 },
+  raro:        { nome:'Raro',        ordine:1 },
+  epico:       { nome:'Epico',       ordine:2 },
+  leggendario: { nome:'Leggendario', ordine:3 },
+};
 const TROFEI = [
-  { id:'prima',      icona:'🃏', nome:'Si siede al tavolo', desc:'Gioca la prima mano' },
-  { id:'bj',         icona:'♠️', nome:'Blackjack!',          desc:'Fai il tuo primo blackjack' },
-  { id:'tripletta',  icona:'🔥', nome:'Tripletta',          desc:'Vinci 3 mani di fila' },
-  { id:'cinquina',   icona:'⚡', nome:'Inarrestabile',      desc:'Vinci 5 mani di fila' },
-  { id:'raddoppio',  icona:'✌️', nome:'Raddoppio d\'oro',   desc:'Vinci una mano raddoppiata' },
-  { id:'split',      icona:'✂️', nome:'Spaccatutto',        desc:'Vinci tutte le mani di uno split' },
-  { id:'cinquecarte',icona:'🖐️', nome:'Mano lunga',         desc:'Vinci con 5 o più carte' },
-  { id:'assicurato', icona:'🛡️', nome:'Assicurato',         desc:'Incassa un\'assicurazione' },
-  { id:'allin',      icona:'🎲', nome:'All in',             desc:'Punta tutto il saldo e vinci' },
-  { id:'cento',      icona:'💶', nome:'Centone',            desc:'Arriva a €100 di saldo' },
-  { id:'mille',      icona:'💰', nome:'Il Tromba trema',    desc:'Arriva a €1.000 di saldo' },
-  { id:'diecimila',  icona:'👑', nome:'Padrone della bisca',desc:'Arriva a €10.000 di saldo' },
-  { id:'veterano',   icona:'🎖️', nome:'Veterano',           desc:'Gioca 100 mani' },
-  { id:'incasso',    icona:'🏦', nome:'Incassatore',        desc:'Fai il primo cashout' },
-  { id:'rovina',     icona:'💸', nome:'Rovinato',           desc:'Perdi tutto il saldo' },
+  // ── comuni
+  { id:'prima',       r:'comune', icona:'🃏', nome:'Si siede al tavolo',  desc:'Gioca la prima mano' },
+  { id:'bj',          r:'comune', icona:'♠️', nome:'Blackjack!',          desc:'Fai il tuo primo blackjack' },
+  { id:'tripletta',   r:'comune', icona:'🔥', nome:'Tripletta',           desc:'Vinci 3 mani di fila' },
+  { id:'raddoppio',   r:'comune', icona:'✌️', nome:'Raddoppio d\'oro',    desc:'Vinci una mano raddoppiata' },
+  { id:'raddoppio11', r:'comune', icona:'📐', nome:'Da manuale',          desc:'Raddoppia su 11 e vinci' },
+  { id:'cento',       r:'comune', icona:'💶', nome:'Centone',             desc:'Arriva a €100 di saldo' },
+  { id:'incasso',     r:'comune', icona:'🏦', nome:'Incassatore',         desc:'Fai il primo cashout' },
+  { id:'rovina',      r:'comune', icona:'💸', nome:'Rovinato',            desc:'Perdi tutto il saldo' },
+  { id:'pareggio',    r:'comune', icona:'🤝', nome:'Patta',               desc:'Pareggia una mano col banco' },
+  { id:'bancobj',     r:'comune', icona:'😈', nome:'Il Tromba ride',      desc:'Il banco ti fa blackjack' },
+  { id:'ingordo',     r:'comune', icona:'💥', nome:'Ingordo',             desc:'Sballa con 22 esatti' },
+  { id:'spilorcio',   r:'comune', icona:'🪙', nome:'Spilorcio',           desc:'Vinci una mano puntando €1' },
+  { id:'ventuno',     r:'comune', icona:'🎯', nome:'Ventuno sudato',      desc:'Fai 21 con 3 o più carte' },
+  { id:'sedici',      r:'comune', icona:'😬', nome:'Stare sul 16',        desc:'Stai su 16 e vinci' },
+  { id:'buttati',     r:'comune', icona:'🙃', nome:'Soldi buttati',       desc:'Prendi l\'assicurazione e il banco non ha blackjack' },
+  // ── rari
+  { id:'cinquina',    r:'raro', icona:'⚡', nome:'Inarrestabile',         desc:'Vinci 5 mani di fila' },
+  { id:'split',       r:'raro', icona:'✂️', nome:'Spaccatutto',           desc:'Vinci tutte le mani di uno split' },
+  { id:'splitassi',   r:'raro', icona:'🅰️', nome:'Assi divisi',           desc:'Fai split di due Assi' },
+  { id:'cinquecarte', r:'raro', icona:'🖐️', nome:'Mano lunga',            desc:'Vinci con 5 o più carte' },
+  { id:'assicurato',  r:'raro', icona:'🛡️', nome:'Assicurato',            desc:'Incassa un\'assicurazione' },
+  { id:'allin',       r:'raro', icona:'🎲', nome:'All in',                desc:'Punta tutto il saldo e vinci' },
+  { id:'veterano',    r:'raro', icona:'🎖️', nome:'Veterano',              desc:'Gioca 100 mani' },
+  { id:'bj10',        r:'raro', icona:'🂡', nome:'Collezionista di assi', desc:'Fai 10 blackjack' },
+  { id:'bj2',         r:'raro', icona:'⚡', nome:'Doppietta',             desc:'Blackjack in 2 mani di fila' },
+  { id:'bancosballa', r:'raro', icona:'🧨', nome:'Banco in frantumi',     desc:'Il banco sballa con 5 o più carte' },
+  { id:'palloncino',  r:'raro', icona:'🎈', nome:'Palloncino',            desc:'Sballa 3 mani di fila' },
+  { id:'maledetto',   r:'raro', icona:'🌧️', nome:'Maledetto',             desc:'Perdi 10 mani di fila' },
+  { id:'lumaca',      r:'raro', icona:'🐢', nome:'Lumaca',                desc:'Vinci con 12 o meno (il banco sballa)' },
+  { id:'colpogrosso', r:'raro', icona:'💎', nome:'Colpo grosso',          desc:'Raddoppia e fai 21' },
+  { id:'balena',      r:'raro', icona:'🐋', nome:'Balena',                desc:'Punta €500 o più in una mano' },
+  { id:'pendolare',   r:'raro', icona:'💼', nome:'Pendolare',             desc:'Fai 10 cashout' },
+  { id:'affezionato', r:'raro', icona:'🩹', nome:'Cliente affezionato',   desc:'Vai in bancarotta 5 volte' },
+  { id:'nottambulo',  r:'raro', icona:'🦉', nome:'Nottambulo',            desc:'Gioca una mano tra le 3 e le 5 di notte' },
+  // ── epici
+  { id:'mille',       r:'epico', icona:'💰', nome:'Il Tromba trema',      desc:'Arriva a €1.000 di saldo' },
+  { id:'bj50',        r:'epico', icona:'🃁', nome:'Asso nella manica',    desc:'Fai 50 blackjack' },
+  { id:'specchio',    r:'epico', icona:'🪞', nome:'Specchio',             desc:'Pareggia 3 mani di fila' },
+  { id:'gattonero',   r:'epico', icona:'🐈‍⬛', nome:'Gatto nero',          desc:'Il banco fa blackjack 3 mani di fila' },
+  { id:'forchettone', r:'epico', icona:'🍴', nome:'Forchettone',          desc:'Dividi fino ad avere 4 mani' },
+  { id:'elegante',    r:'epico', icona:'🎩', nome:'Blackjack elegante',   desc:'Blackjack con Asso e Fante dello stesso seme' },
+  { id:'seicarte',    r:'epico', icona:'🖖', nome:'Mano infinita',        desc:'Vinci con 6 o più carte' },
+  { id:'cinque21',    r:'epico', icona:'✋', nome:'Cinque per ventuno',   desc:'Fai 21 con 5 carte' },
+  { id:'sfacciato',   r:'epico', icona:'🍀', nome:'Sfacciato',            desc:'Chiedi carta su 17 o più e fai 21' },
+  { id:'jackpot',     r:'epico', icona:'🎰', nome:'Jackpot',              desc:'Vinci €1.000 in una sola mano' },
+  { id:'rimonta',     r:'epico', icona:'📈', nome:'Rimonta',              desc:'Torna a €100 dopo essere sceso a €5 o meno' },
+  { id:'habitue',     r:'epico', icona:'🪑', nome:'Habitué',              desc:'Gioca 500 mani' },
+  { id:'banchiere',   r:'epico', icona:'🏛️', nome:'Banchiere',            desc:'Fai un cashout da €1.000 o più' },
+  { id:'collezione',  r:'epico', icona:'🏅', nome:'Bacheca piena',        desc:'Sblocca 25 trofei' },
+  // ── leggendari
+  { id:'diecimila',   r:'leggendario', icona:'👑', nome:'Padrone della bisca', desc:'Arriva a €10.000 di saldo' },
+  { id:'centomila',   r:'leggendario', icona:'🏰', nome:'La bisca è tua',      desc:'Arriva a €100.000 di saldo' },
+  { id:'bj3',         r:'leggendario', icona:'🌩️', nome:'Fulmine a ciel sereno', desc:'Blackjack in 3 mani di fila' },
+  { id:'infiamme',    r:'leggendario', icona:'☄️', nome:'In fiamme',           desc:'Vinci 10 mani di fila' },
+  { id:'quattro',     r:'leggendario', icona:'🔱', nome:'Quattro su quattro',  desc:'Vinci tutte e 4 le mani di uno split' },
+  { id:'settebello',  r:'leggendario', icona:'7️⃣', nome:'Tre sette',           desc:'Fai 21 con 7, 7 e 7' },
+  { id:'pokerassi',   r:'leggendario', icona:'🂱', nome:'Poker d\'assi',       desc:'Tieni 4 Assi nella stessa mano' },
+  { id:'sbancata',    r:'leggendario', icona:'🏆', nome:'Sbancata',            desc:'Vinci €10.000 in una sola mano' },
+  { id:'senzapaura',  r:'leggendario', icona:'🦁', nome:'Senza paura',         desc:'Vinci 3 all in di fila' },
+  { id:'civive',      r:'leggendario', icona:'🛋️', nome:'Ci vive qui',         desc:'Gioca 1.000 mani' },
+  { id:'leggenda',    r:'leggendario', icona:'🌟', nome:'Leggenda della bisca', desc:'Sblocca tutti gli altri trofei' },
 ];
 
 function sblocca(id) {
-  if (trofei[id]) return;
+  if (trofei[id] || !playerName) return;
   const t = TROFEI.find(x => x.id === id);
   if (!t) return;
   trofei[id] = new Date().toISOString();
-  memScrivi();
   mostraToast(t);
+  const n = Object.keys(trofei).length;
+  if (n >= 25) sblocca('collezione');
+  if (TROFEI.every(x => x.id === 'leggenda' || trofei[x.id])) sblocca('leggenda');
+  memScrivi();
 }
 
 let toastCoda = Promise.resolve();
 function mostraToast(t) {
   toastCoda = toastCoda.then(() => new Promise(res => {
     const box = document.getElementById('toast');
-    box.innerHTML = `<span class="toast-icon">${t.icona}</span><div><b>Trofeo sbloccato!</b><br>${escHtml(t.nome)}</div>`;
-    box.classList.add('show');
+    box.className = 'r-' + t.r;
+    box.innerHTML = `<span class="toast-icon">${t.icona}</span><div><b>Trofeo ${RARITA[t.r].nome.toLowerCase()}!</b><br>${escHtml(t.nome)}</div>`;
+    void box.offsetWidth; box.classList.add('show');
     sfxTrofeo();
-    setTimeout(() => { box.classList.remove('show'); setTimeout(res, 350); }, 2600);
+    setTimeout(() => { box.classList.remove('show'); setTimeout(res, 350); }, t.r === 'leggendario' ? 4200 : 2600);
   }));
 }
 
 function controllaSaldo() {
   if (balance > stats.recordSaldo) stats.recordSaldo = balance;
-  if (balance >= 100)   sblocca('cento');
-  if (balance >= 1000)  sblocca('mille');
-  if (balance >= 10000) sblocca('diecimila');
+  if (balance > 0 && balance <= 5) stats.rimonta = 1;
+  if (balance >= 100)    { sblocca('cento'); if (stats.rimonta) { sblocca('rimonta'); stats.rimonta = 0; } }
+  if (balance >= 1000)   sblocca('mille');
+  if (balance >= 10000)  sblocca('diecimila');
+  if (balance >= 100000) sblocca('centomila');
 }
 
 function apriStats() {
   const s = stats;
   const perc = s.mani ? Math.round(s.vinte / s.mani * 100) : 0;
+  const euro = v => '€' + Number(v).toLocaleString('it-IT');
   const righe = [
     ['Mani giocate', s.mani], ['Vinte', s.vinte + (s.mani ? ` (${perc}%)` : '')],
     ['Perse', s.perse], ['Pareggi', s.pari], ['Blackjack', s.blackjack], ['Sballate', s.sballate],
-    ['Serie vincente migliore', s.serieMax], ['Record di saldo', '€' + s.recordSaldo.toLocaleString('it-IT')],
-    ['Vincita più alta in una mano', '€' + s.vincitaMax.toLocaleString('it-IT')],
-    ['Cashout', s.cashout], ['Bancarotte', s.bancarotte],
+    ['Serie vincente migliore', s.serieMax], ['Record di saldo', euro(s.recordSaldo)],
+    ['Vincita più alta in una mano', euro(s.vincitaMax)], ['Cashout', s.cashout],
+    ['Cashout più alto', euro(s.cashoutMax)], ['Bancarotte', s.bancarotte],
   ];
+  document.getElementById('account-nome').textContent = playerName || '—';
   document.getElementById('stats-list').innerHTML =
     righe.map(([k,v]) => `<div class="stat-row"><span>${k}</span><b>${v}</b></div>`).join('');
   const n = TROFEI.filter(t => trofei[t.id]).length;
   document.getElementById('trofei-count').textContent = `${n} / ${TROFEI.length}`;
-  document.getElementById('trofei-grid').innerHTML = TROFEI.map(t => {
-    const ok = !!trofei[t.id];
-    return `<div class="trofeo ${ok?'ok':''}" title="${escHtml(t.desc)}">
-      <span class="trofeo-icon">${ok ? t.icona : '🔒'}</span>
-      <b>${escHtml(t.nome)}</b><small>${escHtml(t.desc)}</small></div>`;
+  document.getElementById('trofei-grid').innerHTML = Object.keys(RARITA).map(r => {
+    const lista = TROFEI.filter(t => t.r === r);
+    const presi = lista.filter(t => trofei[t.id]).length;
+    return `<div class="rarita-head r-${r}">${RARITA[r].nome} <small>${presi}/${lista.length}</small></div>` +
+      lista.map(t => {
+        const ok = !!trofei[t.id];
+        const quando = ok ? 'Sbloccato il ' + new Date(trofei[t.id]).toLocaleDateString('it-IT') : 'Ancora da sbloccare';
+        return `<div class="trofeo r-${r} ${ok?'ok':''}" title="${escHtml(quando)}">
+          <span class="trofeo-icon">${ok ? t.icona : '🔒'}</span>
+          <b>${escHtml(t.nome)}</b><small>${escHtml(t.desc)}</small></div>`;
+      }).join('');
   }).join('');
   document.getElementById('stats-modal').classList.add('show');
 }
@@ -879,7 +1057,6 @@ function azzeraStats() {
     return;
   }
   stats = Object.assign({}, STATS_ZERO, { recordSaldo: balance });
-  trofei = {};
   memScrivi();
   apriStats();
 }
@@ -1011,6 +1188,9 @@ function deal() {
 
   startMusic();
   allInRound = currentBet === balance;
+  if (currentBet >= 500) sblocca('balena');
+  const ora = new Date().getHours();
+  if (ora >= 3 && ora < 5) sblocca('nottambulo');
   lastBet = currentBet;
   balance -= currentBet;
   phase = 'deal';
@@ -1083,7 +1263,10 @@ function enableActions() {
 }
 function hit() {
   if(phase!=='player' || document.getElementById('btn-hit').disabled) return;
+  const prima = total(playerHands[curHand]);
   sfxCard(); playerHands[curHand].push(deck.pop());
+  if (prima >= 17 && total(playerHands[curHand]) === 21) sblocca('sfacciato');
+  if (playerHands[curHand].filter(c => c.rank === 'A').length >= 4) sblocca('pokerassi');
   btns(false,false,false,false); renderP();
   if(isBust(playerHands[curHand]) || total(playerHands[curHand])===21) setTimeout(next,400);
   else btns(true,true,false,false);
@@ -1104,9 +1287,11 @@ function splitHand() {
   if(phase!=='player' || document.getElementById('btn-split').disabled) return;
   sfxChip(); balance-=handBets[curHand];
   const h=playerHands[curHand],nh=[h.pop()];
+  if (nh[0].rank === 'A') sblocca('splitassi');
   h.push(deck.pop()); nh.push(deck.pop());
   playerHands.splice(curHand+1,0,nh); handBets.splice(curHand+1,0,handBets[curHand]);
   handDoubled.splice(curHand+1,0,false);
+  if (playerHands.length >= 4) sblocca('forchettone');
   currentBet=handBets.reduce((a,b)=>a+b,0); updateHUD(); memScrivi();
   sfxCard(); renderP(); enableActions();
 }
@@ -1142,7 +1327,7 @@ function finishRound() {
   // L'assicurazione paga 2:1: torna la posta più il doppio
   if(insBet>0) {
     if(dBJ) { balance+=insBet*3; guadagno+=insBet*2; messages.push('Assicurazione pagata! +€'+(insBet*2)); sblocca('assicurato'); }
-    else guadagno-=insBet;
+    else { guadagno-=insBet; sblocca('buttati'); }
   }
 
   let vinteMani = 0;
@@ -1159,10 +1344,21 @@ function finishRound() {
     else if(pT===dT)       { balance+=bet;if(result==='lose')result='push';esito='push';messages.push(lbl+'Pareggio. €'+bet+' rimborsati.'); }
     else                   { guadagno-=bet; messages.push(lbl+'Banco vince! -€'+bet); }
     handResults[i]=esito;
+    if (esito==='push') sblocca('pareggio');
+    if (pT===22) sblocca('ingordo');
+    if (pT===21 && h.length>=3) sblocca('ventuno');
+    if (pT===21 && h.length===5) sblocca('cinque21');
+    if (pT===21 && h.length===3 && h.every(c => c.rank==='7')) sblocca('settebello');
+    if (handDoubled[i] && pT===21) sblocca('colpogrosso');
+    if (pBJ && h[0].suit===h[1].suit && h.some(c => c.rank==='J')) sblocca('elegante');
     if (vinta) {
       vinteMani++;
       if (handDoubled[i]) sblocca('raddoppio');
+      if (handDoubled[i] && total(h.slice(0,2))===11) sblocca('raddoppio11');
       if (h.length >= 5) sblocca('cinquecarte');
+      if (h.length >= 6) sblocca('seicarte');
+      if (pT===16 && !handDoubled[i]) sblocca('sedici');
+      if (pT<=12) sblocca('lumaca');
     }
   });
 
@@ -1174,13 +1370,41 @@ function finishRound() {
   stats.serieMax = Math.max(stats.serieMax, stats.serie);
   stats.vincitaMax = Math.max(stats.vincitaMax, guadagno);
 
+  // serie in corso
+  const tutteSballate = playerHands.every(h => isBust(h));
+  stats.serieBJ      = result==='bj' ? stats.serieBJ+1 : 0;
+  stats.seriePari    = (guadagno===0 && handResults.every(r => r==='push')) ? stats.seriePari+1 : 0;
+  stats.serieBancoBJ = dBJ ? stats.serieBancoBJ+1 : 0;
+  stats.serieSballo  = tutteSballate ? stats.serieSballo+1 : 0;
+  stats.seriePerse   = guadagno<0 ? stats.seriePerse+1 : 0;
+  stats.serieAllin   = allInRound ? (guadagno>0 ? stats.serieAllin+1 : 0) : stats.serieAllin;
+  const puntataTot   = handBets.reduce((a,b)=>a+b,0);
+
   sblocca('prima');
   if (result==='bj') sblocca('bj');
-  if (stats.serie >= 3) sblocca('tripletta');
-  if (stats.serie >= 5) sblocca('cinquina');
+  if (dBJ) sblocca('bancobj');
+  if (stats.serie >= 3)  sblocca('tripletta');
+  if (stats.serie >= 5)  sblocca('cinquina');
+  if (stats.serie >= 10) sblocca('infiamme');
+  if (stats.blackjack >= 10) sblocca('bj10');
+  if (stats.blackjack >= 50) sblocca('bj50');
+  if (stats.serieBJ >= 2) sblocca('bj2');
+  if (stats.serieBJ >= 3) sblocca('bj3');
+  if (stats.seriePari >= 3) sblocca('specchio');
+  if (stats.serieBancoBJ >= 3) sblocca('gattonero');
+  if (stats.serieSballo >= 3) sblocca('palloncino');
+  if (stats.seriePerse >= 10) sblocca('maledetto');
+  if (stats.serieAllin >= 3) sblocca('senzapaura');
   if (playerHands.length > 1 && vinteMani === playerHands.length) sblocca('split');
+  if (playerHands.length >= 4 && vinteMani === playerHands.length) sblocca('quattro');
+  if (isBust(dealerHand) && dealerHand.length >= 5) sblocca('bancosballa');
+  if (puntataTot === 1 && guadagno > 0) sblocca('spilorcio');
   if (allInRound && guadagno > 0) sblocca('allin');
-  if (stats.mani >= 100) sblocca('veterano');
+  if (guadagno >= 1000)  sblocca('jackpot');
+  if (guadagno >= 10000) sblocca('sbancata');
+  if (stats.mani >= 100)  sblocca('veterano');
+  if (stats.mani >= 500)  sblocca('habitue');
+  if (stats.mani >= 1000) sblocca('civive');
   controllaSaldo();
 
   renderP();
@@ -1198,6 +1422,7 @@ function finishRound() {
   if(balance<=0) {
     stats.bancarotte++;
     sblocca('rovina');
+    if (stats.bancarotte >= 5) sblocca('affezionato');
     memScrivi();
     setTimeout(() => document.getElementById('overlay').classList.add('show'), 1300);
     return;
@@ -1209,16 +1434,20 @@ function finishRound() {
 /* ════════════════════════════════════════════════════════════════
    RESET
 ════════════════════════════════════════════════════════════════ */
-function resetGame() {
-  balance=SALDO_INIZIALE; currentBet=0; deck=newDeck(6);
+function resetTavolo() {
+  currentBet=0; deck=newDeck(6);
   dealerHand=[]; playerHands=[[]]; handBets=[0]; handDoubled=[false]; handResults=[]; curHand=0; insBet=0; phase='bet';
   ['dealer-hand','player-hands'].forEach(id => document.getElementById(id).innerHTML='');
   ['dealer-score','player-score'].forEach(id => document.getElementById(id).textContent='');
-  msg(playerName ? 'Buona fortuna, '+playerName+'!' : '');
   setCroupier('init'); btns(false,false,false,false); betArea(true);
   document.getElementById('overlay').classList.remove('show');
   document.getElementById('insurance-bar').classList.remove('show');
   closeCashoutModal();
+}
+function resetGame() {
+  balance=SALDO_INIZIALE;
+  resetTavolo();
+  msg(playerName ? 'Buona fortuna, '+playerName+'!' : '');
   memScrivi();
 }
 
@@ -1255,21 +1484,17 @@ document.addEventListener('keydown', e => {
    INIT — riprende saldo, nome e statistiche salvati
 ════════════════════════════════════════════════════════════════ */
 (function init() {
-  const m = memLeggi();
-  if (Number.isFinite(m.saldo) && m.saldo > 0) balance = Math.floor(m.saldo);
-  if (Number.isFinite(m.ultimaPuntata)) lastBet = m.ultimaPuntata;
-  if (m.stats) stats = Object.assign({}, STATS_ZERO, m.stats);
-  if (m.trofei) trofei = m.trofei;
-  if (m.nome) {
-    document.getElementById('name-input').value = m.nome;
-    document.getElementById('name-btn').textContent = 'Continua come ' + m.nome;
+  const m = memTutto();
+  const acc = m.ultimo ? m.account[chiaveNome(m.ultimo)] : null;
+  if (m.ultimo) {
+    document.getElementById('name-input').value = m.ultimo;
+    document.getElementById('name-btn').textContent = 'Continua come ' + m.ultimo;
     document.getElementById('name-input').addEventListener('input', () => {
       document.getElementById('name-btn').textContent = 'Siediti al tavolo';
     }, { once: true });
-  }
-  if (balance !== SALDO_INIZIALE) {
-    document.getElementById('name-intro').textContent =
-      'Bentornato! I tuoi €' + balance.toLocaleString('it-IT') + ' sono ancora sul tavolo.';
+    if (acc && acc.saldo > 0 && acc.saldo !== SALDO_INIZIALE)
+      document.getElementById('name-intro').textContent =
+        'Bentornato! I tuoi €' + Math.floor(acc.saldo).toLocaleString('it-IT') + ' sono ancora sul tavolo.';
   }
 })();
 deck = newDeck(6);
