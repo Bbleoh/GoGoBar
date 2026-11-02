@@ -1409,7 +1409,7 @@ function finishRound() {
   let vinteMani = 0;
   playerHands.forEach((h,i) => {
     const bet=handBets[i], pT=total(h),
-          pBJ=isBJ(h)&&playerHands.length===1,
+          pBJ=isBJ(h), // anche dopo uno split Asso + figura è blackjack (scelta di Leo)
           lbl=playerHands.length>1?'Mano '+(i+1)+': ':'';
     let vinta = false;
     let esito='lose';
