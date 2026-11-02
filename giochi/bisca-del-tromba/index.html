@@ -74,7 +74,7 @@
   #croupier-avatar{display:none;width:44px;height:44px;border-radius:50%;object-fit:cover;object-position:50% 8%;
     border:2px solid var(--gold);background:#111;box-shadow:0 2px 10px rgba(0,0,0,.6);}
   .hand-area{display:flex;justify-content:center;min-height:calc(var(--cw)*1.42);}
-  #player-hands{display:flex;gap:clamp(12px,3vw,32px);justify-content:center;flex-wrap:wrap;min-height:calc(var(--cw)*1.42 + 40px);}
+  #player-hands{display:flex;gap:clamp(8px,3vw,32px);justify-content:center;flex-wrap:nowrap;max-width:100%;min-height:calc(var(--cw)*1.42 + 40px);}
   .split-hand{display:flex;flex-direction:column;align-items:center;gap:8px;padding:6px;border-radius:14px;
     border:1px solid transparent;transition:border-color .2s,background .2s;}
   .split-hand.active-hand{border-color:var(--gold);background:rgba(212,175,90,.08);}
@@ -1303,11 +1303,34 @@ function renderP() {
     h.forEach(c => row.appendChild(buildCard(c)));
     const b=document.createElement('div'); b.className='score-badge'+(handResults[i]?' '+handResults[i]:'');
     const t2=total(h);
-    b.textContent=(playerHands.length>1?'Mano '+(i+1)+': ':'')+t2+(t2>21?' 💀':'');
+    const etichetta = playerHands.length>2 ? (i+1)+'ª: ' : playerHands.length>1 ? 'Mano '+(i+1)+': ' : '';
+    b.textContent=etichetta+t2+(t2>21?' 💀':'');
     div.appendChild(row); div.appendChild(b); ct.appendChild(div);
   });
   document.getElementById('player-score').textContent='';
+  adattaMani();
 }
+
+/* Dopo uno split le mani restano su una riga sola: se non ci stanno, le carte
+   si rimpiccioliscono (prima la seconda mano finiva sotto, fuori dal tavolo). */
+function adattaMani() {
+  const ct = document.getElementById('player-hands');
+  ct.style.removeProperty('--cw');
+  ct.style.flexWrap = '';
+  const carta = ct.querySelector('.card');
+  if (!carta) return;
+  let cw = carta.offsetWidth;
+  while (ct.scrollWidth > ct.clientWidth + 1 && cw > 34) {
+    cw -= 3;
+    ct.style.setProperty('--cw', cw + 'px');
+  }
+  if (ct.scrollWidth > ct.clientWidth + 1) { // ancora troppo larghe: vanno a capo e si mostra la mano in gioco
+    ct.style.flexWrap = 'wrap';
+    const attiva = ct.querySelector('.active-hand');
+    if (attiva) attiva.scrollIntoView({ block: 'nearest' });
+  }
+}
+window.addEventListener('resize', () => { if (playerHands.length > 1 || playerHands[0].length > 4) adattaMani(); });
 
 function btns(h,s,d,sp) {
   ['btn-hit','btn-stand','btn-double','btn-split'].forEach((id,i) => {
