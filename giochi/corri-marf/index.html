@@ -44,7 +44,22 @@
       display: grid; grid-template-columns: minmax(0, .8fr) minmax(0, 1.2fr); align-items: center;
     }
     .pannello[hidden] { display: none; }
-    .pannello .ritratto { height: 100%; background: url(marf.jpg) center 20% / cover no-repeat; -webkit-mask-image: linear-gradient(90deg, #000 65%, transparent); mask-image: linear-gradient(90deg, #000 65%, transparent); }
+    .pannello .ritratto { height: 92%; align-self: end; background: url(marf.webp) center bottom / contain no-repeat; filter: drop-shadow(0 10px 18px rgba(0,0,0,.5)); }
+
+    /* schermata d'avvio: Marf scontornato con il logo davanti */
+    #menu { background: radial-gradient(ellipse at 30% 60%, rgba(228,179,60,.16), transparent 60%), rgba(13,13,12,.55); grid-template-columns: minmax(0, 1.15fr) minmax(0, .85fr); }
+    .poster { position: relative; height: 100%; }
+    .poster img { position: absolute; left: 50%; bottom: -4%; height: 104%; transform: translateX(-50%); filter: drop-shadow(0 14px 24px rgba(0,0,0,.55)); animation: respiro 2.4s ease-in-out infinite; }
+    @keyframes respiro { 50% { transform: translateX(-50%) translateY(-1.5%); } }
+    .logo {
+      position: absolute; left: 50%; bottom: 7%; transform: translateX(-50%) rotate(-7deg);
+      text-align: center; line-height: .82; white-space: nowrap; pointer-events: none;
+      font-family: var(--display); font-weight: 700; font-size: clamp(30px, 7.4vw, 92px);
+    }
+    .logo span { display: block; -webkit-text-stroke: .07em #1b1530; paint-order: stroke fill; text-shadow: 0 .09em 0 #1b1530, 0 .16em .25em rgba(0,0,0,.45); }
+    .logo .uno { font-size: .58em; color: var(--ivory); transform: translateX(-.55em); }
+    .logo .due { color: var(--gold); background: linear-gradient(180deg, #f6d77a 15%, #e4b33c 55%, #c98a1c); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; }
+    .logo .due { filter: drop-shadow(0 .09em 0 #1b1530); text-shadow: none; }
     .pannello .testo { padding: 4% 6% 4% 2%; display: flex; flex-direction: column; gap: .7em; font-size: clamp(11px, 1.7vw, 17px); max-height: 100%; overflow: auto; }
     .pannello h2 { font-size: 2.6em; line-height: 1; color: var(--gold); }
     .pannello .sotto { font-size: 1.15em; color: var(--ivory); }
@@ -60,6 +75,7 @@
       border: 1px solid var(--line); border-radius: 999px; padding: .45em 1em; width: 11em; -webkit-user-select: text; user-select: text;
     }
     input.nome:focus { outline: 2px solid var(--gold); outline-offset: 1px; }
+    .gira { display: none; font-family: var(--mono); font-size: .8em; color: var(--gold); }
     .nota { font-family: var(--mono); font-size: .8em; color: var(--cream); min-height: 1.2em; }
     .classifica { font-family: var(--mono); font-size: .85em; }
     .classifica h3 { font-family: var(--display); font-size: 1.15em; color: var(--cream); margin-bottom: .3em; font-weight: 600; }
@@ -70,6 +86,13 @@
     @media (max-width: 560px) {
       .pannello { grid-template-columns: 1fr; }
       .pannello .ritratto { display: none; }
+      /* telefono in verticale: i pannelli prendono tutto lo schermo sotto la barra */
+      .pannello { position: fixed; top: 49px; left: 0; right: 0; bottom: 0; border-radius: 0; background: rgba(13,13,12,.92); }
+      #menu { grid-template-columns: 1fr; grid-template-rows: minmax(0, 1fr) auto; }
+      .poster { min-height: 0; }
+      .logo { font-size: 17vw; bottom: 4%; }
+      .pannello .testo { font-size: 15px; padding-bottom: 24px; }
+      .gira { display: block !important; }
       .pannello .testo { padding: 4% 6%; }
     }
   </style>
@@ -85,10 +108,13 @@
       <canvas id="c" aria-label="Corri Marf, il gioco"></canvas>
 
       <div class="pannello" id="menu">
-        <div class="ritratto"></div>
+        <div class="poster">
+          <img src="marf.webp" alt="Marf che corre">
+          <div class="logo" aria-hidden="true"><span class="uno">Corri</span><span class="due">Marf!!</span></div>
+        </div>
         <div class="testo">
-          <h2>Corri Marf!</h2>
           <p class="sotto">Le femmine lo vogliono. Lui scappa.</p>
+          <p class="gira">↻ Gira il telefono in orizzontale per giocare meglio</p>
           <div class="riga">
             <input class="nome" id="nomeMenu" maxlength="20" placeholder="Il tuo nome" autocomplete="nickname">
             <button class="btn" id="gioca" type="button">Corri!</button>
