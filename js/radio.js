@@ -52,6 +52,9 @@
     const audio = new Audio();
     audio.preload = 'none';
     let corrente = Math.min(Math.max(leggi().i | 0, 0), brani.length - 1);
+    let casuale = !!leggi().casuale;
+    let mazzo = [];          // ordine casuale ancora da suonare
+    const storico = [];      // brani già suonati, per tornare indietro in casuale
 
     // ── interfaccia (shadow DOM: gli stili del gioco non la toccano) ──
     const host = document.createElement('div');
@@ -98,6 +101,10 @@
   .tasti button.play { width: 52px; height: 52px; background: #e4b33c; border-color: #e4b33c; color: #1a1408; }
   .tasti svg { width: 16px; height: 16px; fill: currentColor; }
   .tasti .play svg { width: 20px; height: 20px; }
+  .tasti .spazio { width: 40px; }
+  .tasti button.shuffle { border-color: transparent; color: #77715f; }
+  .tasti button.shuffle:hover { color: #f0ead6; }
+  .tasti button.shuffle[aria-pressed="true"] { color: #e4b33c; border-color: #e4b33c; }
   ol { list-style: none; overflow-y: auto; margin: 0 -6px; scrollbar-width: thin; scrollbar-color: #3a3a33 transparent; }
   li button { width: 100%; display: grid; grid-template-columns: 1.6rem minmax(0,1fr) auto; gap: 8px; align-items: center; text-align: left;
     background: none; border: 0; color: inherit; font: inherit; padding: 7px 6px; border-radius: 9px; cursor: pointer; }
@@ -119,9 +126,11 @@
   <div><p class="titolo"></p><p class="artisti"></p></div>
   <div class="barra"><span class="ora">0:00</span><input type="range" min="0" max="1000" value="0" aria-label="Posizione"><span class="tot">0:00</span></div>
   <div class="tasti">
+    <button class="shuffle" aria-label="Ordine casuale" aria-pressed="false" title="Ordine casuale"><svg viewBox="0 0 24 24"><path d="M17 4l4 4-4 4V9h-2.6l-2.5 3 2.5 3H17v-3l4 4-4 4v-3h-3.4L10 14.6 6.4 19H3v-2h2.4l3.3-4L5.4 9H3V7h3.4L10 11.4 13.6 7H17z"/></svg></button>
     <button class="prev" aria-label="Precedente"><svg viewBox="0 0 24 24"><path d="M6 5h2v14H6zM20 5v14L9 12z"/></svg></button>
     <button class="play" aria-label="Play"><svg viewBox="0 0 24 24"><path d="M7 4v16l13-8z"/></svg></button>
     <button class="next" aria-label="Successivo"><svg viewBox="0 0 24 24"><path d="M16 5h2v14h-2zM4 5l11 7-11 7z"/></svg></button>
+    <span class="spazio" aria-hidden="true"></span>
   </div>
   <ol></ol>
   <a class="tutto" target="_blank" rel="noopener">Apri la pagina Musica ↗</a>
@@ -179,6 +188,7 @@
     // ── riproduzione ──
     function carica(i, suona) {
       corrente = (i + brani.length) % brani.length;
+      mazzo = mazzo.filter(x => x !== corrente);
       const b = brani[corrente];
       if (audio.dataset.i !== String(corrente)) {
         audio.src = src(b); audio.dataset.i = corrente;
@@ -188,7 +198,7 @@
         $('.ora').textContent = '0:00';
         barra.value = 0; barra.style.setProperty('--p', '0%');
         lista.querySelectorAll('li[data-i]').forEach(li => li.classList.toggle('attivo', +li.dataset.i === corrente));
-        scrivi({ i: corrente });
+        scrivi({ i: corrente, casuale });
         if ('mediaSession' in navigator) {
           navigator.mediaSession.metadata = new MediaMetadata({
             title: b.titolo, artist: b.artisti || 'Collettivo M.I.A.O.', album: b.album || 'GoGoBar',
@@ -208,11 +218,33 @@
       silenziaGioco(on);
     }
     $('.play').onclick = () => { if (audio.paused) carica(corrente, true); else audio.pause(); };
-    $('.next').onclick = () => carica(corrente + 1, true);
-    $('.prev').onclick = () => { if (audio.currentTime > 3) audio.currentTime = 0; else carica(corrente - 1, true); };
+    // ── ordine casuale: pesca da un mazzo mescolato, così non ripete finché non li ha suonati tutti ──
+    function mescola() {
+      mazzo = brani.map((_, i) => i).filter(i => i !== corrente);
+      for (let k = mazzo.length - 1; k > 0; k--) { const j = Math.floor(Math.random() * (k + 1)); [mazzo[k], mazzo[j]] = [mazzo[j], mazzo[k]]; }
+    }
+    function avanti() {
+      if (!casuale || brani.length < 2) return carica(corrente + 1, true);
+      if (!mazzo.length) mescola();
+      storico.push(corrente);
+      carica(mazzo.shift(), true);
+    }
+    function indietro() {
+      if (audio.currentTime > 3) { audio.currentTime = 0; return; }
+      if (casuale && storico.length) return carica(storico.pop(), true);
+      carica(corrente - 1, true);
+    }
+    function segnaCasuale() {
+      $('.shuffle').setAttribute('aria-pressed', String(casuale));
+      scrivi({ i: corrente, casuale });
+    }
+    $('.shuffle').onclick = () => { casuale = !casuale; mazzo = []; storico.length = 0; segnaCasuale(); };
+    segnaCasuale();
+    $('.next').onclick = avanti;
+    $('.prev').onclick = indietro;
     audio.addEventListener('play', aggiornaStato);
     audio.addEventListener('pause', aggiornaStato);
-    audio.addEventListener('ended', () => carica(corrente + 1, true));
+    audio.addEventListener('ended', avanti);
     audio.addEventListener('loadedmetadata', () => { $('.tot').textContent = mmss(audio.duration); });
     let trascino = false;
     audio.addEventListener('timeupdate', () => {
@@ -233,7 +265,7 @@
       navigator.mediaSession.setActionHandler('play', () => carica(corrente, true));
       navigator.mediaSession.setActionHandler('pause', () => audio.pause());
       navigator.mediaSession.setActionHandler('previoustrack', () => $('.prev').click());
-      navigator.mediaSession.setActionHandler('nexttrack', () => carica(corrente + 1, true));
+      navigator.mediaSession.setActionHandler('nexttrack', avanti);
     }
 
     // ── la musica del gioco tace mentre suona la radio ──
