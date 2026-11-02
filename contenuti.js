@@ -14,6 +14,7 @@
  *    link         → dove porta la card, es. 'giochi/mio-gioco/'
  *                   (se manca, la card è "in arrivo" e non si clicca)
  *    tag          → lista di parole, es. ['Follia', 'Wow']
+ *    immagine     → (facoltativa) copertina della card, es. 'giochi/mio-gioco/copertina.jpg'
  *    inEvidenza   → true per metterla anche in cima, tra i "Malanni fatti"
  *    inArrivo     → true per mostrarla sbiadita con "in arrivo"
  *    youtube      → (solo video) il codice del video YouTube, es. 'UoCs9tTNp_0'.
@@ -36,6 +37,7 @@ const CONTENUTI = {
       titolo: 'La bisca del Tromba',
       descrizione: 'Godi popolo',
       link: 'giochi/bisca-del-tromba/',
+      immagine: 'giochi/bisca-del-tromba/assets/sfondo-poster.jpg',
       tag: ['Bighelloni', 'Dipendenza', 'Salute'],
       inEvidenza: true,
     },
