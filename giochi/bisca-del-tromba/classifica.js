@@ -16,7 +16,7 @@
 (function () {
   'use strict';
 
-  var DB_URL = ''; // ← URL del Realtime Database (vuoto = classifica spenta)
+  var DB_URL = 'https://gogobar-ed267-default-rtdb.europe-west1.firebasedatabase.app'; // vuoto = classifica spenta
   var PERCORSO = 'bisca/classifica';
   var TIMEOUT_MS = 8000;
 
