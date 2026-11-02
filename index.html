@@ -202,10 +202,19 @@
       scrollbar-width: thin; scrollbar-color: var(--line) transparent;
     }
     .rail > * { scroll-snap-align: start; }
-    .playlist-head { display: flex; align-items: baseline; gap: .7rem; margin: 1.6rem 0 .8rem; }
-    .playlist-head:first-child { margin-top: 0; }
-    .playlist-head h3 { font-family: var(--display); font-weight: 600; font-size: 1.25rem; color: var(--gold-2); }
-    .playlist-head span { font-family: var(--mono); font-size: .68rem; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+    /* copertine delle playlist: effetto "pila" di video */
+    .playlists { grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); padding-top: 10px; }
+    .playlist-card { overflow: visible; }
+    .playlist-card::before, .playlist-card::after {
+      content: ''; position: absolute; left: 8%; right: 8%; height: 10px; z-index: -1;
+      background: #26261f; border: 1px solid #3a3a33; border-bottom: 0; border-radius: 12px 12px 0 0;
+    }
+    .playlist-card::before { top: -6px; }
+    .playlist-card::after { top: -11px; left: 14%; right: 14%; opacity: .6; }
+    .playlist-card .card-media { border-radius: var(--radius) var(--radius) 0 0; }
+    .playlist-card h3 { font-size: 1.4rem; }
+    .playlist-card p { font-size: .82rem; color: var(--muted); }
+    .playlists { isolation: isolate; }
     .rail .card h3 { font-size: 1.05rem; }
     .rail .card-body { padding: .85rem 1rem 1rem; }
 
@@ -296,7 +305,7 @@
     <h2>Video <small data-count="video"></small></h2>
     <a href="video/">Vedi tutti →</a>
   </div>
-  <div id="playlists"></div>
+  <div class="grid playlists" id="playlists"></div>
 </section>
 
 <!-- GIOCHI -->
@@ -318,7 +327,7 @@
 
 <noscript><p style="padding:2rem;font-family:monospace">Per vedere i contenuti serve JavaScript attivo.</p></noscript>
 
-<script src="contenuti.js?v=3"></script>
+<script src="contenuti.js?v=4"></script>
 <!-- classifica della Bisca: se il file non c'è ancora, il riquadro mostra "in arrivo" -->
 <script src="giochi/bisca-del-tromba/classifica.js?v=3" onerror="window.BiscaClassifica = null"></script>
 <script>
@@ -344,7 +353,17 @@
     return e;
   }
   const pubblicato = i => i.link && !i.inArrivo;
-  const thumb = id => 'https://i.ytimg.com/vi/' + id + '/hqdefault.jpg';
+  // miniature YouTube: prova la qualità più alta e scende se non esiste
+  // (YouTube risponde con un'immagine grigia 120x90 quando una misura manca)
+  const QUALITA = ['maxresdefault', 'sddefault', 'hqdefault'];
+  function miniatura(img, id) {
+    let k = 0;
+    const prova = () => { img.src = 'https://i.ytimg.com/vi/' + id + '/' + QUALITA[k] + '.jpg'; };
+    const avanti = () => { if (++k < QUALITA.length) prova(); };
+    img.addEventListener('load', () => { if (img.naturalWidth <= 120) avanti(); });
+    img.addEventListener('error', avanti);
+    prova();
+  }
 
   // i video YouTube portano alla pagina Video, già sul video giusto
   // tutti i video in una lista sola, qualunque sia il formato di contenuti.js
@@ -359,10 +378,10 @@
     const box = el(ok ? 'a' : 'div', 'card' + (ok ? '' : ' soon'));
     if (ok) box.href = item.link; else box.setAttribute('aria-disabled', 'true');
 
-    const img = item.immagine || (item.youtube && thumb(item.youtube));
-    if (img) {
+    if (item.immagine || item.youtube) {
       const m = el('div', 'card-media');
-      const i = el('img'); i.src = img; i.alt = ''; i.loading = 'lazy';
+      const i = el('img'); i.alt = ''; i.loading = 'lazy';
+      if (item.immagine) i.src = item.immagine; else miniatura(i, item.youtube);
       m.append(i); box.append(m);
       if (ok && item.youtube) box.append(el('span', 'play', '▶'));
     }
@@ -396,20 +415,23 @@
     if (!lista.length) { contenitore.append(el('p', 'empty-note', VUOTO[nome])); return; }
     lista.forEach(i => contenitore.append(card(i)));
   }
-  // video: una riga che scorre per ogni playlist
+  // video: una copertina per playlist, con la miniatura dell'ultimo video uscito
   document.querySelector('[data-count="video"]').textContent = video.filter(pubblicato).length || '';
   const pl = document.getElementById('playlists');
   if (!video.length) pl.append(el('p', 'empty-note', VUOTO.video));
   const nomiPlaylist = [...new Set(TUTTI.map(v => v.playlist || 'Video'))];
   nomiPlaylist.forEach(function (nome) {
-    const p = { playlist: nome };
-    const lista = TUTTI.filter(v => (v.playlist || 'Video') === nome);
+    const lista = TUTTI.filter(v => (v.playlist || 'Video') === nome && pubblicato(v));
     if (!lista.length) return;
-    const head = el('div', 'playlist-head');
-    head.append(el('h3', null, p.playlist), el('span', null, lista.length + (lista.length === 1 ? ' video' : ' video')));
-    const rail = el('div', 'rail');
-    lista.forEach(v => rail.append(card(v)));
-    pl.append(head, rail);
+    const ultimo = lista[lista.length - 1];
+    const box = card({
+      titolo: nome,
+      descrizione: 'Ultimo: ' + ultimo.titolo,
+      youtube: ultimo.youtube,
+      link: 'video/#' + ultimo.youtube,
+    }, lista.length === 1 ? '1 video' : lista.length + ' video');
+    box.classList.add('playlist-card');
+    pl.append(box);
   });
   riempi('giochi', giochi, document.getElementById('grid-giochi'));
   riempi('musica', musica, document.getElementById('grid-musica'));
