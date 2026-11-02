@@ -576,19 +576,23 @@
     ctx.save();
     ctx.translate(MARF_X, m.y);
     ctx.translate(0, -rimbalzo);
-    ctx.scale(0.92, 0.92);
-    if (scivola) { ctx.translate(-10, -14); ctx.rotate(-1.2); ctx.translate(0, 44); } // scivolata: ruota attorno all'anca, gambe avanti
+    if (!PEZZI.pronto) ctx.scale(0.92, 0.92);
+    var anca = PEZZI.pronto ? -GAMBA_TOT * K : -44, spalla = -78;
+    if (scivola) { ctx.translate(-10, PEZZI.pronto ? -22 : -14); ctx.rotate(-1.2); ctx.translate(0, -anca); } // scivolata: ruota attorno all'anca, gambe avanti
 
-    var anca = -44, spalla = -78;
     // pose
     var cA, sA, cB, sB, bA, gA, bB, gB;
     if (salto) { cA = 1.1; sA = -0.2; cB = -0.5; sB = -1.3; bA = -2.3; gA = -1.9; bB = 1.2; gB = 2.0; }
     else if (scivola) { cA = 0.4; sA = 0.35; cB = 0.3; sB = 0.5; bA = 0.3; gA = 0.6; bB = 3.0; gB = 2.8; }
     else if (corre || stato === 'menu') {
-      cA = s * 0.9; sA = cA - Math.max(0, -c) * 1.4 - 0.3;
-      cB = -s * 0.9; sB = cB - Math.max(0, c) * 1.4 - 0.3;
-      bA = -s * 1.1; gA = bA + 1.6; bB = s * 1.1; gB = bB + 1.6;
+      var amp = PEZZI.pronto ? 0.68 : 0.9, ampB = PEZZI.pronto ? 0.85 : 1.1; // proporzioni vere: passo più corto
+      cA = s * amp; sA = cA - Math.max(0, -c) * 1.4 - 0.3;
+      cB = -s * amp; sB = cB - Math.max(0, c) * 1.4 - 0.3;
+      bA = -s * ampB; gA = bA + 1.6; bB = s * ampB; gB = bB + 1.6;
     } else { cA = 0.15; sA = 0; cB = -0.15; sB = -0.1; bA = -0.3; gA = 0.8; bB = 0.3; gB = 1.2; }
+
+    if (PEZZI.pronto) marfPezzi(anca, cA, sA, cB, sB, bA, gA, bB, gB, corre, salto, scivola, p);
+    else {
 
     // dietro: gamba e braccio lontani
     gambaMarf(-2, anca, cB, sB, true);
@@ -660,6 +664,7 @@
 
     // braccio vicino davanti a tutto
     braccioMarf(2, spalla + 4, bA, gA, false);
+    }
     ctx.restore();
 
     if (g.scatto > 0) { // scie dello scatto
@@ -671,6 +676,71 @@
       ctx.beginPath(); ctx.arc(MARF_X - 22, TERRA - 5, 5, 0, Math.PI * 2); ctx.arc(MARF_X - 30, TERRA - 8, 4, 0, Math.PI * 2); ctx.fill();
     }
   }
+  /* ── Marf a pezzi: i disegni di Leo (marf-pezzi.webp) montati su uno scheletro ──
+     Coordinate in pixel del foglio originale (girato verso destra), K le porta nel mondo. */
+  var PEZZI = { img: new Image(), pronto: false };
+  PEZZI.img.onload = function () { PEZZI.pronto = true; };
+  PEZZI.img.src = 'marf-pezzi.webp';
+  var K = 0.066, ATL_S = 0.25;
+  var ATLANTE = {
+    testa: [0, 0, 91, 94], busto: [93, 0, 90, 162],
+    braccio: [185, 0, 39, 85], braccioDietro: [226, 0, 39, 85],
+    avambraccio: [267, 0, 35, 113], avambraccioDietro: [304, 0, 35, 113],
+    coscia: [341, 0, 45, 108], cosciaDietro: [388, 0, 45, 108],
+    gamba: [435, 0, 63, 116], gambaDietro: [500, 0, 63, 116]
+  };
+  // perni (in px del pezzo) e lunghezze delle ossa
+  var COSCIA = { px: 90, py: 50, L: 350 }, STINCO = { px: 72, py: 25 };
+  var OMERO = { px: 78, py: 50, L: 255 }, AVAMB = { px: 70, py: 32 };
+  var GAMBA_TOT = 350 + 464 - 25;                  // dall'anca alla suola
+  var SPALLA = [-30, -365], BUSTO = [-159, -522];  // rispetto all'anca
+  var TESTA = { x: -127, y: -822, collo: [187, 370], scala: 1.15 };
+
+  function pezzo(nome, px, py, ang, scalaExtra) {
+    var r = ATLANTE[nome], k = K * (scalaExtra || 1);
+    ctx.save(); ctx.rotate(-ang);
+    ctx.drawImage(PEZZI.img, r[0], r[1], r[2], r[3], -px * k, -py * k, r[2] / ATL_S * k, r[3] / ATL_S * k);
+    ctx.restore();
+  }
+  function gambaPezzi(dietro, coscia, stinco, anca) {
+    var suf = dietro ? 'Dietro' : '';
+    ctx.save(); ctx.translate(dietro ? -4 : 3, anca);
+    ctx.save();
+    ctx.translate(Math.sin(coscia) * COSCIA.L * K, Math.cos(coscia) * COSCIA.L * K);
+    pezzo('gamba' + suf, STINCO.px, STINCO.py, stinco);
+    ctx.restore();
+    pezzo('coscia' + suf, COSCIA.px, COSCIA.py, coscia);
+    ctx.restore();
+  }
+  function braccioPezzi(dietro, omero, avamb) {
+    var suf = dietro ? 'Dietro' : '';
+    ctx.save(); ctx.translate((SPALLA[0] + (dietro ? -14 : 0)) * K, SPALLA[1] * K);
+    ctx.save();
+    ctx.translate(Math.sin(omero) * OMERO.L * K, Math.cos(omero) * OMERO.L * K);
+    pezzo('avambraccio' + suf, AVAMB.px, AVAMB.py, avamb);
+    ctx.restore();
+    pezzo('braccio' + suf, OMERO.px, OMERO.py, omero);
+    ctx.restore();
+  }
+  function marfPezzi(anca, cA, sA, cB, sB, bA, gA, bB, gB, corre, salto, scivola, p) {
+    var piega = corre ? 0.12 : (salto ? 0.06 : 0);   // in corsa si sporge in avanti
+    ctx.save(); ctx.translate(0, anca); ctx.rotate(-piega);
+    braccioPezzi(true, bB, gB);   // braccio lontano, dietro a tutto
+    ctx.restore();
+    gambaPezzi(true, cB, sB, anca);
+    gambaPezzi(false, cA, sA, anca);
+    ctx.save(); ctx.translate(0, anca); ctx.rotate(-piega);
+    // testa (dietro al busto, così il cappuccio copre il collo), un po' più grande e che dondola
+    ctx.save();
+    ctx.translate((TESTA.x + TESTA.collo[0]) * K, (TESTA.y + TESTA.collo[1]) * K);
+    pezzo('testa', TESTA.collo[0], TESTA.collo[1], corre ? Math.sin(p * 2) * 0.05 : 0, TESTA.scala);
+    ctx.restore();
+    ctx.drawImage(PEZZI.img, ATLANTE.busto[0], 0, ATLANTE.busto[2], ATLANTE.busto[3],
+      BUSTO[0] * K, BUSTO[1] * K, ATLANTE.busto[2] / ATL_S * K, ATLANTE.busto[3] / ATL_S * K);
+    braccioPezzi(false, bA, gA);
+    ctx.restore();
+  }
+
   function gamba(x, y, ang) {
     ctx.beginPath(); ctx.moveTo(x, y);
     ctx.lineTo(x + Math.sin(ang) * 36, y + Math.cos(ang) * 36); ctx.stroke();
