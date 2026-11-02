@@ -290,7 +290,7 @@
     var punti = punteggio(), nuovo = punti > record;
     if (nuovo) { record = punti; scrivi('record', record); }
     document.getElementById('risultato').textContent =
-      Math.floor(g.metri) + ' m · ' + g.birre + ' birre · ' + punti.toLocaleString('it-IT') + ' punti' + (nuovo ? ' · nuovo record!' : '');
+      Math.floor(g.metri) + ' m · ' + g.birre + ' canne · ' + punti.toLocaleString('it-IT') + ' punti' + (nuovo ? ' · nuovo record!' : '');
     nota.textContent = ''; btnSalva.disabled = false;
     btnSalva.hidden = !(API && API.attiva); nomeFine.hidden = btnSalva.hidden;
     mostraClassifica(document.getElementById('classificaFine'));
@@ -397,7 +397,6 @@
     }
     if (m.botta > 0) m.botta -= dt;
     if (g.scatto > 0) g.scatto -= dt;
-    if (g.scuoti > 0) g.scuoti -= dt;
 
     // le inseguitrici restano indietro piano piano, molto di più durante lo scatto
     g.distacco = Math.min(g.distacco + (g.scatto > 0 ? 40 : 6) * dt, 260);
@@ -487,11 +486,23 @@
   var STRADA_Y = H + 1 - 136 * SF_S;       // la striscia della strada (136 px) poggia sul fondo dello schermo
   var QUARTIERE_M = 1000;                  // ogni quanti metri si passa da palazzi a colline e viceversa
   var MONUMENTI = [
-    { img: 'torre-telecom', alto: 300 },   // Torre Telecom di Tor Pagnotta (km 2, 6, 10…)
-    { img: 'centro-idrico', alto: 245 }    // centro idrico Acea di Vigna Murata (km 4, 8, 12…)
+    { img: 'torre-telecom', alto: 400 },   // Torre Telecom di Tor Pagnotta (km 2, 6, 10…)
+    { img: 'centro-idrico', alto: 340 }    // centro idrico Acea di Vigna Murata (km 4, 8, 12…)
   ];
   var GIUNTURA_X = W * 0.6;                // la giuntura k arriva qui sullo schermo intorno al metro k·QUARTIERE_M
   function pronta(img) { return img && img.complete && img.naturalWidth > 0; }
+  // copia dell'immagine già ridimensionata alla misura in cui va disegnata (in pixel veri dello schermo):
+  // ridurre ogni frame immagini grandi come le torri o le strisce era la parte più pesante del disegno
+  function cache(img, w, h) {
+    var cw = Math.max(1, Math.ceil(w * scala)), ch = Math.max(1, Math.ceil(h * scala));
+    var c = img._cache || (img._cache = {}), k = cw + 'x' + ch;
+    if (!c[k]) {
+      var cv = document.createElement('canvas'); cv.width = cw; cv.height = ch;
+      var x = cv.getContext('2d'); x.imageSmoothingQuality = 'high'; x.drawImage(img, 0, 0, cw, ch);
+      c = img._cache = {}; c[k] = cv;               // tiene solo l'ultima misura
+    }
+    return c[k];
+  }
   // ripete una striscia: par = velocità rispetto alla strada
   function striscia(par, larg, disegna) {
     var L = scorrimento * par, i0 = Math.floor(L / larg);
@@ -501,7 +512,8 @@
     // 1. cielo
     if (pronta(SF.cielo)) {
       var cw = Math.ceil(SF.cielo.naturalWidth * SF_S);
-      striscia(0.03, cw, function (i, x) { ctx.drawImage(SF.cielo, x, 0, cw + 1, H); });
+      var cc = cache(SF.cielo, cw + 1, H);
+      striscia(0.03, cw, function (i, x) { ctx.drawImage(cc, x, 0, cw + 1, H); });
     } else {
       var cielo = ctx.createLinearGradient(0, 0, 0, STRADA_Y);
       cielo.addColorStop(0, '#4a86d8'); cielo.addColorStop(1, '#f3dfb4');
@@ -518,7 +530,7 @@
         var img = Math.floor(i / N) % 2 ? SF.colline : SF.palazzi;
         if (i < 0) img = SF.palazzi;
         var h = img.naturalHeight * SF_S;
-        ctx.drawImage(img, Math.floor(i * qw - L), fondo - h, qw + 1, h);
+        ctx.drawImage(cache(img, qw + 1, h), Math.floor(i * qw - L), fondo - h, qw + 1, h);
       }
       // monumenti sulle giunture pari (k = 2, 4, 6… → km 2, 4, 6…)
       for (var k = Math.max(2, Math.floor((L - 400) / (N * qw))); k * N * qw - L < W + 400; k++) {
@@ -528,13 +540,14 @@
         var mh = mo.alto, mw = mi.naturalWidth * mh / mi.naturalHeight;
         var mx = k * N * qw - L - mw / 2;
         if (mx + mw < 0 || mx > W) continue;
-        ctx.drawImage(mi, Math.floor(mx), fondo + 2 - mh, mw, mh);
+        ctx.drawImage(cache(mi, mw, mh), Math.floor(mx), fondo + 28 - mh, mw, mh);
       }
     }
     // 3. strada
     if (pronta(SF.strada)) {
       var sw = Math.round(SF.strada.naturalWidth * SF_S), sh = SF.strada.naturalHeight * SF_S;
-      striscia(1, sw, function (i, x) { ctx.drawImage(SF.strada, x, STRADA_Y, sw + 1, sh); });
+      var cs = cache(SF.strada, sw + 1, sh);
+      striscia(1, sw, function (i, x) { ctx.drawImage(cs, x, STRADA_Y, sw + 1, sh); });
     } else {
       ctx.fillStyle = '#4a4550'; ctx.fillRect(0, STRADA_Y, W, H - STRADA_Y);
     }
@@ -552,7 +565,7 @@
     if (pronta(OGG.canna)) {
       var cw = 46, ch = cw * OGG.canna.naturalHeight / OGG.canna.naturalWidth;
       ctx.rotate(Math.sin(g.t * 3 + b.x * 0.01) * 0.12);
-      ctx.drawImage(OGG.canna, -cw / 2, -ch / 2, cw, ch);
+      ctx.drawImage(cache(OGG.canna, cw, ch), -cw / 2, -ch / 2, cw, ch);
       ctx.restore(); return;
     }
     ctx.fillStyle = '#e4b33c'; ctx.fillRect(-9, -12, 18, 26);
@@ -565,7 +578,7 @@
     ctx.save();
     if (o.tipo === 'sedia' && pronta(OGG['ragazza-accovacciata'])) {
       var ri = OGG['ragazza-accovacciata'], rh = o.h + 6, rw = rh * ri.naturalWidth / ri.naturalHeight;
-      ctx.drawImage(ri, o.x + o.w / 2 - rw / 2, TERRA + 2 - rh, rw, rh);
+      ctx.drawImage(cache(ri, rw, rh), o.x + o.w / 2 - rw / 2, TERRA + 2 - rh, rw, rh);
     } else if (o.tipo === 'sedia') {
       ctx.fillStyle = '#b07a3c';
       ctx.fillRect(o.x, TERRA - 30, o.w, 8);
@@ -865,7 +878,7 @@
   var P_ATTERRA= { cA: .7, sA: -.55, fA: 0, cB: -.15, sB: -1.4, fB: -.2, bA: .55, gA: 1.4, bB: -.45, gB: .5, lean: .42, head: -.2 };
   // scivolata: il corpo ruota all'indietro di ROT_SCIVOLA, quindi questi angoli sono "nel corpo"
   var ROT_SCIVOLA = -1.25;
-  var P_SCIVOLA= { cA: .37, sA: .4, fA: .6, cB: .85, sB: -.35, fB: .3, bA: -2.8, gA: -1.4, bB: .7, gB: 2.35, lean: 0, head: -.8 };
+  var P_SCIVOLA= { cA: .37, sA: .4, fA: .6, cB: .85, sB: -.35, fB: .3, bA: -2.6, gA: -.15, bB: .55, gB: 3.1, lean: 0, head: -.8 };
   var P_FERMO  = { cA: .08, sA: .02, fA: 0, cB: -.08, sB: -.12, fB: 0, bA: -.15, gA: .35, bB: .15, gB: .6, lean: .03, head: 0 };
 
   function nuovaAnim() {
@@ -902,6 +915,7 @@
     animaRagazze(dt);
     aggiornaPolvere(dt);
     aggiornaLinee(dt);
+    if (g.scuoti > 0) g.scuoti -= dt;   // qui e non in aggiorna: così si ferma anche a partita finita
   }
 
   function animaMarf(dt) {
@@ -999,32 +1013,39 @@
       if (l.t >= l.vita || l.x + l.len < -20) g.linee.splice(i, 1);
     }
   }
+  // le scie e il bagliore sono disegnati una volta sola su canvas piccoli e poi solo copiati:
+  // creare gradienti nuovi per ogni scia a ogni frame faceva calare gli fps durante lo scatto
+  var SCIA = (function () {
+    var c = document.createElement('canvas'); c.width = 256; c.height = 16;
+    var x = c.getContext('2d');
+    var gs = x.createLinearGradient(0, 0, 256, 0);
+    gs.addColorStop(0, 'rgba(27,21,48,.45)'); gs.addColorStop(1, 'rgba(27,21,48,0)');
+    x.fillStyle = gs; x.fillRect(0, 5, 256, 8);
+    var gr = x.createLinearGradient(0, 0, 256, 0);
+    gr.addColorStop(0, '#fff'); gr.addColorStop(1, 'rgba(255,255,255,0)');
+    x.fillStyle = gr; x.fillRect(0, 5, 256, 5);
+    return c;
+  })();
+  var BAGLIORE = (function () {
+    var c = document.createElement('canvas'); c.width = c.height = 160;
+    var x = c.getContext('2d'), r = x.createRadialGradient(80, 80, 5, 80, 80, 80);
+    r.addColorStop(0, 'rgba(246,215,122,1)'); r.addColorStop(1, 'rgba(246,215,122,0)');
+    x.fillStyle = r; x.fillRect(0, 0, 160, 160);
+    return c;
+  })();
   function disegnaLinee() {
-    if (!g.linee || !g.linee.length) return;
-    ctx.save(); ctx.lineCap = 'round';
-    g.linee.forEach(function (l) {
-      var u = l.t / l.vita, a = Math.sin(Math.PI * Math.min(1, u * 1.4)) * 0.85;
-      var w = l.spess * (1 - u * 0.5);
-      // ombra blu scura sotto, così si vedono anche sul cielo chiaro
-      var gs = ctx.createLinearGradient(l.x, 0, l.x + l.len, 0);
-      gs.addColorStop(0, 'rgba(27,21,48,' + (a * 0.45).toFixed(3) + ')');
-      gs.addColorStop(1, 'rgba(27,21,48,0)');
-      ctx.strokeStyle = gs; ctx.lineWidth = w + 2.5;
-      ctx.beginPath(); ctx.moveTo(l.x, l.y + 1); ctx.lineTo(l.x + l.len, l.y + 1); ctx.stroke();
-      var gr = ctx.createLinearGradient(l.x, 0, l.x + l.len, 0);
-      gr.addColorStop(0, 'rgba(255,255,255,' + a.toFixed(3) + ')');
-      gr.addColorStop(1, 'rgba(255,255,255,0)');
-      ctx.strokeStyle = gr; ctx.lineWidth = w;
-      ctx.beginPath(); ctx.moveTo(l.x, l.y); ctx.lineTo(l.x + l.len, l.y); ctx.stroke();
-    });
-    // bagliore dorato attorno a Marf mentre lo scatto dura
-    if (g.scatto > 0 && stato === 'gioco') {
-      var r = ctx.createRadialGradient(MARF_X, g.marf.y - 55, 5, MARF_X, g.marf.y - 55, 80);
-      r.addColorStop(0, 'rgba(246,215,122,' + (0.28 * Math.min(1, g.scatto * 2)).toFixed(3) + ')');
-      r.addColorStop(1, 'rgba(246,215,122,0)');
-      ctx.fillStyle = r; ctx.fillRect(MARF_X - 90, g.marf.y - 140, 180, 160);
+    if (!g.linee) return;
+    if (g.scatto > 0 && stato === 'gioco') {   // bagliore dorato attorno a Marf mentre lo scatto dura
+      ctx.globalAlpha = 0.28 * Math.min(1, g.scatto * 2);
+      ctx.drawImage(BAGLIORE, MARF_X - 80, g.marf.y - 135, 160, 160);
     }
-    ctx.restore();
+    for (var i = 0; i < g.linee.length; i++) {
+      var l = g.linee[i], u = l.t / l.vita;
+      ctx.globalAlpha = Math.sin(Math.PI * Math.min(1, u * 1.4)) * 0.85;
+      var h = (l.spess * (1 - u * 0.5) + 2.5) * 1.6;
+      ctx.drawImage(SCIA, l.x, l.y - h * 0.4, l.len, h);
+    }
+    ctx.globalAlpha = 1;
   }
 
   // ragazze: stessa corsa, un po' più saltellante, col braccio che cerca di afferrare Marf
@@ -1136,12 +1157,13 @@
 
   function hud() {
     ctx.save(); ctx.textAlign = 'left';
-    ctx.fillStyle = 'rgba(27,21,48,.55)'; roundRect(10, 12, 190, 62, 14); ctx.fill();
+    ctx.fillStyle = 'rgba(27,21,48,.55)'; roundRect(10, 12, 236, 62, 14); ctx.fill();
     roundRect(W - 232, 12, 222, 62, 14); ctx.fill();
     ctx.fillStyle = '#f4efe2'; ctx.font = '700 28px Fredoka, sans-serif';
     ctx.fillText(Math.floor(g.metri) + ' m', 20, 40);
     ctx.font = '500 15px "DM Mono", monospace'; ctx.fillStyle = '#e8e1cc';
-    ctx.fillText('🍺 ' + g.birre + '   record ' + record, 20, 64);
+    if (pronta(OGG.canna)) ctx.drawImage(cache(OGG.canna, 26, 20), 18, 49, 26, 20);
+    ctx.fillText(g.birre + (g.birre === 1 ? ' canna' : ' canne') + ' · record ' + record, 50, 64);
     var p = 1 - Math.max(g.distacco, 0) / 260;
     ctx.fillStyle = 'rgba(255,255,255,.18)'; roundRect(W - 220, 24, 196, 14, 7); ctx.fill();
     ctx.fillStyle = p > 0.7 ? '#d2452f' : '#ff5c8a'; roundRect(W - 220, 24, Math.max(196 * p, 14), 14, 7); ctx.fill();
