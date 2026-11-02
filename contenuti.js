@@ -87,18 +87,25 @@ const CONTENUTI = {
     },
   ],
 
-  // Brani: il file MP3 va nella cartella musica/brani/.
-  // Per aggiungerne uno, copia una riga e cambia i testi.
+  // La musica è divisa in album, nell'ordine in cui appaiono sul sito.
+  // Il file MP3 va nella cartella musica/brani/.
+  // Per aggiungere un brano, copia una riga e cambia i testi.
+  // Per un album nuovo, copia un blocco { album: ..., brani: [...] }.
   // (Se hai un WAV, mandalo in chat: lo converto io in MP3.)
   musica: [
-    { titolo: 'FIORE',             artisti: 'CiciLeo feat. C-Rischio (LilCriver & Fiskiabad)',  file: 'fiore.mp3',             durata: '3:17' },
-    { titolo: 'FUOCO E FARFALLE',  artisti: 'feat. C-Rischio, Celeperù, MarkyMarko, CiciLeo',   prod: 'StepLeo', file: 'fuoco-e-farfalle.mp3',  durata: '2:42' },
-    { titolo: 'PAURA DELLE TETTE', artisti: 'Fiskiabad, LilCriver feat. CiciLeo, MarkyMarko',   prod: 'StepLeo', file: 'paura-delle-tette.mp3', durata: '6:03' },
-    { titolo: 'REGINA CRIVI',      artisti: 'feat. C-Rischio, Malevolent Marf, VickyDicky',     prod: 'StepLeo', file: 'regina-crivi.mp3',      durata: '2:33' },
-    { titolo: 'SECCO SLE',         artisti: 'feat. Lil Criver, Fiskiabad, CiciLeo',             prod: 'StepLeo', file: 'secco-sle.mp3',         durata: '2:40' },
-    { titolo: 'SQUALO',            artisti: 'C-Rischio feat. Cele-Kun',                         prod: 'StepLeo', file: 'squalo.mp3',            durata: '2:14' },
-    { titolo: 'BENTORNATO MARCO',  artisti: 'Collettivo M.I.A.O.',                              file: 'bentornato-marco.mp3',  durata: '5:45' },
-    { titolo: 'CIAO PALLE',        artisti: 'MarkyMarco feat. C-Rischio, Chil(l)yCele, CiciLeo', file: 'ciao-palle.mp3',        durata: '4:45' },
+    {
+      album: 'OG Tracks',
+      brani: [
+        { titolo: 'FIORE',             artisti: 'CiciLeo feat. C-Rischio (LilCriver & Fiskiabad)',  file: 'fiore.mp3',             durata: '3:17' },
+        { titolo: 'FUOCO E FARFALLE',  artisti: 'feat. C-Rischio, Celeperù, MarkyMarko, CiciLeo',   prod: 'StepLeo', file: 'fuoco-e-farfalle.mp3',  durata: '2:42' },
+        { titolo: 'PAURA DELLE TETTE', artisti: 'Fiskiabad, LilCriver feat. CiciLeo, MarkyMarko',   prod: 'StepLeo', file: 'paura-delle-tette.mp3', durata: '6:03' },
+        { titolo: 'REGINA CRIVI',      artisti: 'feat. C-Rischio, Malevolent Marf, VickyDicky',     prod: 'StepLeo', file: 'regina-crivi.mp3',      durata: '2:33' },
+        { titolo: 'SECCO SLE',         artisti: 'feat. Lil Criver, Fiskiabad, CiciLeo',             prod: 'StepLeo', file: 'secco-sle.mp3',         durata: '2:40' },
+        { titolo: 'SQUALO',            artisti: 'C-Rischio feat. Cele-Kun',                         prod: 'StepLeo', file: 'squalo.mp3',            durata: '2:14' },
+        { titolo: 'BENTORNATO MARCO',  artisti: 'Collettivo M.I.A.O.',                              file: 'bentornato-marco.mp3',  durata: '5:45' },
+        { titolo: 'CIAO PALLE',        artisti: 'MarkyMarco feat. C-Rischio, Chil(l)yCele, CiciLeo', file: 'ciao-palle.mp3',        durata: '4:45' },
+      ],
+    },
   ],
 
 };
@@ -109,4 +116,12 @@ const CONTENUTI = {
  */
 const TUTTI_I_VIDEO = CONTENUTI.video.flatMap(p =>
   (p.video || []).map(v => Object.assign({ playlist: p.playlist }, v))
+);
+
+/*
+ * Lista piatta di tutti i brani, con il nome dell'album su ognuno.
+ * La usano la homepage e la pagina Musica: qui non serve toccare niente.
+ */
+const TUTTI_I_BRANI = CONTENUTI.musica.flatMap(a =>
+  (a.brani || []).map(b => Object.assign({ album: a.album }, b))
 );

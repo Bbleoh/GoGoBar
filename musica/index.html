@@ -84,6 +84,7 @@
     .list { max-width: 1200px; margin: 0 auto; padding: 2.5rem var(--pad) 4rem; }
     .list h2 { font-family: var(--display); font-weight: 700; font-size: 1.8rem; margin-bottom: 1rem; }
     .list h2 small { font-family: var(--mono); font-weight: 400; font-size: .8rem; color: var(--muted); margin-left: .5rem; }
+    .list ol + h2 { margin-top: 2.5rem; }
     ol { list-style: none; display: flex; flex-direction: column; gap: 2px; }
     .track {
       display: grid; grid-template-columns: 2.4rem minmax(0, 1fr) auto; align-items: center; gap: 1rem;
@@ -147,21 +148,23 @@
   </div>
 </section>
 
-<section class="list">
-  <h2>Brani <small id="conteggio"></small></h2>
-  <ol id="scaletta"></ol>
-</section>
+<section class="list" id="scaletta"></section>
 
 <audio id="audio" preload="metadata"></audio>
 
-<script src="../contenuti.js?v=5"></script>
+<script src="../contenuti.js?v=6"></script>
 <script>
 /*
  * Player musicale: legge i brani da contenuti.js (sezione musica).
  * Ogni brano ha il suo link: musica/#nome-del-file (senza .mp3).
  */
 (function () {
-  const brani = ((typeof CONTENUTI !== 'undefined' && CONTENUTI.musica) || []).filter(b => b.file);
+  // tutti i brani in una lista sola, con il nome dell'album su ognuno
+  // (funziona anche se il browser ha ancora in cache un contenuti.js vecchio)
+  const TUTTI = (typeof TUTTI_I_BRANI !== 'undefined') ? TUTTI_I_BRANI
+    : ((typeof CONTENUTI !== 'undefined' && CONTENUTI.musica) || []).flatMap(a =>
+        a.brani ? a.brani.map(b => Object.assign({ album: a.album }, b)) : [a]);
+  const brani = TUTTI.filter(b => b.file);
   const $ = id => document.getElementById(id);
   const audio = $('audio');
 
@@ -176,14 +179,30 @@
   const ICONA_PLAY  = '<path d="M7 4v16l13-8z"/>';
   const ICONA_PAUSA = '<path d="M6 4h4v16H6zM14 4h4v16h-4z"/>';
 
-  // ── scaletta ──
-  $('conteggio').textContent = brani.length;
+  // posizione di ogni brano dentro il suo album (es. 2 di 8)
+  const pos = brani.map(b => {
+    const stesso = brani.filter(x => x.album === b.album);
+    return { n: stesso.indexOf(b) + 1, tot: stesso.length };
+  });
+
+  // ── scaletta, divisa per album ──
+  let ol = null, ultimo;
   brani.forEach(function (b, i) {
+    if (!ol || b.album !== ultimo) {
+      ultimo = b.album;
+      const h = document.createElement('h2');
+      h.textContent = b.album || 'Brani';
+      const c = document.createElement('small');
+      c.textContent = brani.filter(x => x.album === b.album).length + ' brani';
+      h.append(c);
+      ol = document.createElement('ol');
+      $('scaletta').append(h, ol);
+    }
     const li = document.createElement('li');
     const btn = document.createElement('button');
     btn.className = 'track'; btn.dataset.i = i;
     const n = document.createElement('span'); n.className = 'n';
-    const num = document.createElement('span'); num.className = 'num'; num.textContent = i + 1;
+    const num = document.createElement('span'); num.className = 'num'; num.textContent = pos[i].n;
     const eq = document.createElement('span'); eq.className = 'eq'; eq.innerHTML = '<i></i><i></i><i></i>';
     n.append(num, eq);
     const mid = document.createElement('span');
@@ -193,7 +212,7 @@
     const d = document.createElement('span'); d.className = 'd'; d.textContent = b.durata || '';
     btn.append(n, mid, d);
     li.append(btn);
-    $('scaletta').append(li);
+    ol.append(li);
   });
 
   // ── stato ──
@@ -210,7 +229,7 @@
       $('titolo').textContent = b.titolo;
       $('artisti').textContent = b.artisti || '';
       $('prod').textContent = b.prod ? 'prod. ' + b.prod : '';
-      $('kicker').textContent = 'Brano ' + (i + 1) + ' di ' + brani.length;
+      $('kicker').textContent = (b.album ? b.album + ' · ' : '') + pos[i].n + ' di ' + pos[i].tot;
       $('tot').textContent = b.durata || '0:00';
       $('ora').textContent = '0:00';
       aggiornaBarra(0);
@@ -219,7 +238,7 @@
       history.replaceState(null, '', '#' + slug(b));
       if ('mediaSession' in navigator) {
         navigator.mediaSession.metadata = new MediaMetadata({
-          title: b.titolo, artist: b.artisti || 'Collettivo M.I.A.O.', album: 'GoGoBar',
+          title: b.titolo, artist: b.artisti || 'Collettivo M.I.A.O.', album: b.album || 'GoGoBar',
           artwork: [{ src: new URL('../img/maneki-neko.webp', location.href).href, sizes: '689x900', type: 'image/webp' }]
         });
       }
