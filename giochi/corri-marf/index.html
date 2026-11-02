@@ -97,6 +97,29 @@
     .classifica li:first-child { border-left-color: var(--gold); }
     .classifica li.io { background: rgba(228,179,60,.14); color: var(--gold); border-left-color: var(--gold); }
     .classifica li span:first-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .chi { font-family: var(--mono); font-size: .8em; color: var(--cream); letter-spacing: .06em; }
+    .chi b { color: var(--gold); font-family: var(--display); font-size: 1.25em; font-style: italic; letter-spacing: .02em; }
+    .giocatori { display: flex; flex-wrap: wrap; gap: 5px; max-height: 6.2em; overflow: auto; }
+    .giocatore-chip {
+      font-family: var(--display); font-weight: 600; font-size: .85em; cursor: pointer; color: var(--ivory);
+      background: var(--surface); border: 0; box-shadow: inset 0 0 0 1px var(--line); padding: .3em .9em;
+      clip-path: polygon(6px 0, 100% 0, calc(100% - 6px) 100%, 0 100%); display: inline-flex; gap: .45em; align-items: baseline;
+    }
+    .giocatore-chip small { font-family: var(--mono); font-weight: 400; font-size: .8em; color: var(--muted); }
+    .giocatore-chip:hover, .giocatore-chip:focus-visible { box-shadow: inset 0 0 0 1px var(--gold); outline: 0; }
+    .giocatore-chip.attuale { background: rgba(228,179,60,.18); box-shadow: inset 0 0 0 1px var(--gold); color: var(--gold); }
+    .nota:empty { display: none; }
+    .fs-btn {
+      position: absolute; right: 10px; bottom: 10px; z-index: 5; width: 38px; height: 38px; cursor: pointer;
+      font-size: 20px; line-height: 1; color: var(--ivory); background: rgba(10,10,14,.62); border: 0;
+      box-shadow: inset 0 0 0 1px rgba(255,255,255,.16);
+      clip-path: polygon(8px 0, 100% 0, 100% calc(100% - 8px), calc(100% - 8px) 100%, 0 100%, 0 8px);
+    }
+    .fs-btn:hover { color: var(--gold); }
+    /* schermo intero: niente barra, il gioco prende tutto */
+    body.fs .bar, body.fs .hint { display: none; }
+    body.fs .stage { padding: 0; }
+    body.fs canvas { border: 0; clip-path: none; }
     @media (max-width: 560px) {
       .pannello { grid-template-columns: 1fr; }
       .pannello .ritratto { display: none; }
@@ -108,7 +131,17 @@
       .pannello .testo { font-size: 15px; padding-bottom: 24px; }
       .gira { display: block !important; }
       .pannello .testo { padding: 4% 6%; }
+      .fs-btn { position: fixed; z-index: 30; right: 12px; bottom: 12px; }
     }
+    /* telefono in verticale a schermo intero: giro il gioco di 90° così è orizzontale da solo */
+    body.ruota .stage { position: fixed; top: 0; left: 0; transform-origin: 0 0; transform: translateX(100vw) rotate(90deg); }
+    body.ruota .pannello { position: absolute; inset: 0; top: 0; clip-path: none; grid-template-columns: minmax(0, .8fr) minmax(0, 1.2fr); background: linear-gradient(100deg, rgba(9,9,11,.35) 30%, rgba(9,9,11,.9) 62%); }
+    body.ruota #menu { grid-template-columns: minmax(0, 1.15fr) minmax(0, .85fr); grid-template-rows: none; }
+    body.ruota .pannello .ritratto { display: block; }
+    body.ruota .logo { font-size: 15vw; bottom: 7%; }
+    body.ruota .pannello .testo { font-size: 12px; padding: 3% 4% 3% 1%; }
+    body.ruota .gira { display: none !important; }
+    body.ruota .fs-btn { position: absolute; right: 10px; bottom: 10px; }
   </style>
 </head>
 <body>
@@ -128,11 +161,14 @@
         </div>
         <div class="testo">
           <p class="sotto">Le femmine lo vogliono. Lui scappa.</p>
-          <p class="gira">↻ Gira il telefono in orizzontale per giocare meglio</p>
+          <p class="gira">Tocca ⛶ in basso a destra per giocare a schermo intero, in orizzontale</p>
+          <p class="chi" id="chiCorre"></p>
+          <div class="giocatori" id="giocatori" hidden></div>
           <div class="riga">
-            <input class="nome" id="nomeMenu" maxlength="20" placeholder="Il tuo nome" autocomplete="nickname">
+            <input class="nome" id="nomeMenu" maxlength="20" placeholder="Nuovo nome" autocomplete="nickname">
             <button class="btn" id="gioca" type="button">Corri!</button>
           </div>
+          <p class="nota" id="notaMenu"></p>
           <div class="classifica" id="classificaMenu"></div>
         </div>
       </div>
@@ -142,15 +178,16 @@
         <div class="testo">
           <h2>Ti hanno preso!</h2>
           <p class="sotto" id="risultato"></p>
-          <div class="riga">
-            <input class="nome" id="nomeFine" maxlength="20" placeholder="Il tuo nome" autocomplete="nickname">
-            <button class="btn secondario" id="salva" type="button">Salva in classifica</button>
-          </div>
           <p class="nota" id="nota"></p>
-          <div class="riga"><button class="btn" id="riprova" type="button">Riprova</button></div>
+          <div class="riga">
+            <button class="btn" id="riprova" type="button">Riprova</button>
+            <button class="btn secondario" id="salva" type="button" hidden>Riprova a salvare</button>
+            <button class="btn secondario" id="cambia" type="button">Cambia giocatore</button>
+          </div>
           <div class="classifica" id="classificaFine"></div>
         </div>
       </div>
+      <button class="fs-btn" id="schermoIntero" type="button" aria-label="Schermo intero" title="Schermo intero">⛶</button>
     </div>
   </div>
   <p class="hint">Salta: spazio, ↑ o tocca lo schermo (anche due volte) · Scivola: ↓ o swipe in giù</p>
@@ -167,9 +204,14 @@
   var ctx = cv.getContext('2d');
   var scala = 1;
 
+  var stage = cv.parentElement.parentElement;
   function adatta() {
-    var box = cv.parentElement.parentElement.getBoundingClientRect();
-    var s = Math.min((box.width - 24) / W, (box.height - 24) / H);
+    var ruota = document.body.classList.contains('fs') && innerHeight > innerWidth;
+    document.body.classList.toggle('ruota', ruota);
+    stage.style.width = ruota ? innerHeight + 'px' : '';
+    stage.style.height = ruota ? innerWidth + 'px' : '';
+    var pad = document.body.classList.contains('fs') ? 0 : 24;
+    var s = Math.min((stage.clientWidth - pad) / W, (stage.clientHeight - pad) / H);
     var dpr = window.devicePixelRatio || 1;
     cv.style.width = Math.floor(W * s) + 'px';
     cv.style.height = Math.floor(H * s) + 'px';
@@ -183,7 +225,19 @@
   /* ── Salvataggi locali ── */
   function leggi(k, def) { try { var v = localStorage.getItem('corriMarf.' + k); return v === null ? def : v; } catch (e) { return def; } }
   function scrivi(k, v) { try { localStorage.setItem('corriMarf.' + k, String(v)); } catch (e) {} }
-  var record = +leggi('record', 0) || 0;
+  /* ── Giocatori: il nome è l'account (come nella Bisca) ──
+     corriMarf.giocatori = { chiave: { nome, record } } su questo browser; online i record stanno in classifica */
+  var NOME_OK = /^[\wÀ-ÿ _\-]+$/;
+  function chiaveNome(n) { return String(n || '').trim().toLowerCase(); }
+  function giocatori() { try { var x = JSON.parse(leggi('giocatori', '{}')); return x && typeof x === 'object' ? x : {}; } catch (e) { return {}; } }
+  function salvaGiocatori(x) { scrivi('giocatori', JSON.stringify(x)); }
+  var giocatore = leggi('nome', '');
+  (function () {                       // migra il vecchio record unico sul nome salvato
+    var vecchio = +leggi('record', 0) || 0, tutti = giocatori();
+    if (giocatore && !tutti[chiaveNome(giocatore)]) { tutti[chiaveNome(giocatore)] = { nome: giocatore, record: vecchio }; salvaGiocatori(tutti); }
+  })();
+  function recordDi(nome) { var a = giocatori()[chiaveNome(nome)]; return a ? +a.record || 0 : 0; }
+  var record = giocatore ? recordDi(giocatore) : 0;
 
   /* ── Musica e suoni ── */
   var musica = document.getElementById('musica');
@@ -216,17 +270,52 @@
   if (document.fonts && document.fonts.load) ['italic 700 32px "Chakra Petch"', '600 13px "Chakra Petch"', '500 13px "DM Mono"']
     .forEach(function (f) { document.fonts.load(f).catch(function () {}); });
 
-  /* ── Pannelli e classifica ── */
+  /* ── Pannelli, giocatori e classifica ── */
   var menu = document.getElementById('menu'), fine = document.getElementById('fine');
-  var nomeMenu = document.getElementById('nomeMenu'), nomeFine = document.getElementById('nomeFine');
+  var nomeMenu = document.getElementById('nomeMenu'), notaMenu = document.getElementById('notaMenu');
   var nota = document.getElementById('nota'), btnSalva = document.getElementById('salva');
-  nomeMenu.value = nomeFine.value = leggi('nome', '');
   var API = window.CorriMarfClassifica;
+  var online = {};                     // chiave → { nome, punti } dalla classifica
 
-  function prendiNome(input) {
-    var n = input.value.trim().slice(0, 20);
-    if (n) { scrivi('nome', n); nomeMenu.value = nomeFine.value = n; }
-    return n;
+  function scegli(nome, punti) {
+    var tutti = giocatori(), k = chiaveNome(nome), a = tutti[k] || { nome: nome, record: 0 };
+    if (online[k]) { a.nome = online[k].nome; a.record = Math.max(+a.record || 0, online[k].punti); }
+    if (punti) a.record = Math.max(+a.record || 0, punti);
+    tutti[k] = a; salvaGiocatori(tutti);
+    giocatore = a.nome; record = +a.record || 0; scrivi('nome', giocatore);
+    aggiornaChi();
+  }
+  function aggiornaChi() {
+    var chi = document.getElementById('chiCorre');
+    chi.textContent = '';
+    if (giocatore) { chi.append('Corre '); chi.append(testo('b', giocatore)); chi.append(' · record ' + record.toLocaleString('it-IT') + ' pt'); }
+    else chi.textContent = 'Chi corre? Scegli il tuo nome o scrivine uno nuovo.';
+    document.getElementById('cambia').hidden = false;
+    disegnaGiocatori();
+  }
+  function disegnaGiocatori() {
+    var box = document.getElementById('giocatori'), tutti = {}, loc = giocatori();
+    Object.keys(loc).forEach(function (k) { tutti[k] = { nome: loc[k].nome || k, punti: +loc[k].record || 0 }; });
+    Object.keys(online).forEach(function (k) { var t = tutti[k]; tutti[k] = { nome: online[k].nome, punti: Math.max(online[k].punti, t ? t.punti : 0) }; });
+    var arr = Object.keys(tutti).map(function (k) { return tutti[k]; }).filter(function (x) { return NOME_OK.test(x.nome); })
+      .sort(function (a, b) { return b.punti - a.punti || a.nome.localeCompare(b.nome); });
+    box.textContent = ''; box.hidden = !arr.length;
+    arr.forEach(function (x) {
+      var b = document.createElement('button');
+      b.type = 'button'; b.title = 'Corri come ' + x.nome;
+      b.className = 'giocatore-chip' + (chiaveNome(x.nome) === chiaveNome(giocatore) ? ' attuale' : '');
+      b.append(x.nome, testo('small', x.punti.toLocaleString('it-IT')));
+      b.addEventListener('click', function () { nomeMenu.value = ''; scegli(x.nome); inizia(); });
+      box.append(b);
+    });
+  }
+  function caricaOnline() {
+    if (!API || !API.attiva) return;
+    API.carica(200).then(function (righe) {
+      online = {};
+      righe.forEach(function (r) { online[chiaveNome(r.nome)] = r; });
+      if (giocatore) scegli(giocatore); else disegnaGiocatori();
+    });
   }
 
   function mostraClassifica(box) {
@@ -237,11 +326,11 @@
     API.carica(10).then(function (righe) {
       attesa.remove();
       if (!righe.length) { box.append(testo('p', 'Ancora nessuno. Il primo posto è tuo!')); return; }
-      var io = (leggi('nome', '') || '').toLowerCase();
+      var io = chiaveNome(giocatore);
       var ol = document.createElement('ol');
-      righe.forEach(function (r, i) {
+      righe.forEach(function (r) {
         var li = document.createElement('li');
-        if (io && r.nome.toLowerCase() === io) li.className = 'io';
+        if (io && chiaveNome(r.nome) === io) li.className = 'io';
         li.append(testo('span', r.nome), testo('span', r.punti.toLocaleString('it-IT') + ' pt'));
         ol.append(li);
       });
@@ -250,25 +339,80 @@
   }
   function testo(tag, t) { var e = document.createElement(tag); e.textContent = t; return e; }
 
-  var salvato = false;
+  // a fine partita salva da solo sul nome di chi corre (in classifica resta il migliore)
+  var daSalvare = 0;
   function salva() {
-    if (salvato || !g || !API || !API.attiva) return;
-    var nome = prendiNome(nomeFine);
-    if (!nome) { nota.textContent = 'Scrivi il tuo nome per entrare in classifica.'; nomeFine.focus(); return; }
-    var punti = punteggio();
-    btnSalva.disabled = true; nota.textContent = 'Salvo...';
-    API.salva(nome, punti).then(function () {
-      salvato = true; nota.textContent = 'Salvato! In classifica resta il tuo punteggio migliore.';
+    if (!API || !API.attiva || !giocatore || !daSalvare) return;
+    btnSalva.hidden = true; nota.textContent = 'Salvo in classifica...';
+    var punti = daSalvare;
+    API.salva(giocatore, punti).then(function () {
+      daSalvare = 0;
+      nota.textContent = 'Salvato in classifica come ' + giocatore + '.';
+      var k = chiaveNome(giocatore);
+      if (!online[k] || online[k].punti < punti) online[k] = { nome: giocatore, punti: punti };
       mostraClassifica(document.getElementById('classificaFine'));
     }, function (e) {
-      btnSalva.disabled = false; nota.textContent = (e && e.message) || 'Non sono riuscito a salvare, riprova.';
+      btnSalva.hidden = false; nota.textContent = (e && e.message) || 'Non sono riuscito a salvare.';
     });
   }
+  function provaAvvio() {
+    var n = nomeMenu.value.trim();
+    notaMenu.textContent = '';
+    if (n) {
+      if (n.length > 20) { notaMenu.textContent = 'Max 20 caratteri.'; return; }
+      if (!NOME_OK.test(n)) { notaMenu.textContent = 'Solo lettere, numeri, spazi e trattini.'; return; }
+      nomeMenu.value = ''; scegli(n);
+    }
+    if (!giocatore) { notaMenu.textContent = 'Scrivi il tuo nome per correre.'; nomeMenu.focus(); return; }
+    inizia();
+  }
+  function cambiaGiocatore() {
+    stato = 'menu'; fine.hidden = true; menu.hidden = false;
+    nomeMenu.value = ''; notaMenu.textContent = '';
+    aggiornaChi(); caricaOnline();
+  }
   btnSalva.addEventListener('click', salva);
-  nomeFine.addEventListener('keydown', function (e) { if (e.key === 'Enter') salva(); });
-  nomeMenu.addEventListener('keydown', function (e) { if (e.key === 'Enter') inizia(); });
-  document.getElementById('gioca').addEventListener('click', inizia);
+  nomeMenu.addEventListener('keydown', function (e) { if (e.key === 'Enter') provaAvvio(); });
+  document.getElementById('gioca').addEventListener('click', provaAvvio);
   document.getElementById('riprova').addEventListener('click', inizia);
+  document.getElementById('cambia').addEventListener('click', cambiaGiocatore);
+  aggiornaChi(); caricaOnline();
+
+  /* ── Schermo intero: su telefono prova anche a bloccare l'orizzontale; se non si può (iPhone), gira il gioco via CSS ── */
+  var btnFs = document.getElementById('schermoIntero');
+  function fsAttivo() { return document.fullscreenElement || document.webkitFullscreenElement; }
+  function entraFs() {
+    document.body.classList.add('fs');
+    var el = document.documentElement, req = el.requestFullscreen || el.webkitRequestFullscreen;
+    if (req) {
+      try {
+        var pr = req.call(el, { navigationUI: 'hide' });
+        if (pr && pr.then) pr.then(function () {
+          if (screen.orientation && screen.orientation.lock) screen.orientation.lock('landscape').catch(function () {});
+          setTimeout(adatta, 250);
+        }, function () {});
+      } catch (e) {}
+    }
+    adatta(); setTimeout(adatta, 400);
+  }
+  function esciFs() {
+    document.body.classList.remove('fs');
+    if (screen.orientation && screen.orientation.unlock) try { screen.orientation.unlock(); } catch (e) {}
+    if (fsAttivo()) (document.exitFullscreen || document.webkitExitFullscreen).call(document);
+    adatta(); setTimeout(adatta, 400);
+  }
+  btnFs.addEventListener('click', function () {
+    if (document.body.classList.contains('fs')) esciFs(); else entraFs();
+    btnFs.blur();
+  });
+  ['fullscreenchange', 'webkitfullscreenchange'].forEach(function (ev) {
+    document.addEventListener(ev, function () {
+      if (!fsAttivo() && document.body.classList.contains('fs') && (document.documentElement.requestFullscreen || document.documentElement.webkitRequestFullscreen)) {
+        document.body.classList.remove('fs');   // uscito con Esc o col tasto indietro
+      }
+      adatta(); setTimeout(adatta, 300);
+    });
+  });
 
   // aprendo la pagina con #prova le ragazze non ti prendono mai (utile per provare le animazioni)
   var PROVA = location.hash === '#prova';
@@ -299,9 +443,9 @@
 
   function inizia() {
     if (stato === 'gioco') return;
-    if (stato === 'menu') prendiNome(nomeMenu);
+    if (!giocatore) { menu.hidden = false; fine.hidden = true; stato = 'menu'; nomeMenu.focus(); return; }
     if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
-    nuovaPartita(); stato = 'gioco'; salvato = false;
+    nuovaPartita(); stato = 'gioco';
     menu.hidden = true; fine.hidden = true;
     musica.currentTime = 0; avviaMusica();
   }
@@ -310,16 +454,16 @@
     stato = 'preso';
     avviaRagdoll();
     var punti = punteggio(), nuovo = punti > record;
-    if (nuovo) { record = punti; scrivi('record', record); }
+    if (nuovo) { record = punti; scegli(giocatore, punti); }
     document.getElementById('risultato').textContent =
       Math.floor(g.metri) + ' m · ' + g.birre + ' canne · ' + punti.toLocaleString('it-IT') + ' punti' + (nuovo ? ' · nuovo record!' : '');
-    nota.textContent = ''; btnSalva.disabled = false;
-    btnSalva.hidden = !(API && API.attiva); nomeFine.hidden = btnSalva.hidden;
+    nota.textContent = API && API.attiva ? '' : 'Corre ' + giocatore + ' · classifica online non attiva, salvo su questo telefono.';
+    btnSalva.hidden = true; daSalvare = PROVA ? 0 : punti;
     mostraClassifica(document.getElementById('classificaFine'));
     setTimeout(function () {
       if (stato !== 'preso') return;
       fine.hidden = false;
-      if (API && API.attiva && leggi('nome', '') && nuovo) salva(); // nome già noto: salva da solo il nuovo record
+      salva();
     }, 1900);   // prima si gode il ragdoll
     musica.pause();
     bip(300, 0.5, 'sawtooth', 0.07); setTimeout(function () { bip(150, 0.6, 'sawtooth', 0.07); }, 200);
@@ -369,7 +513,8 @@
   }, { passive: false });
   cv.addEventListener('touchmove', function (e) {
     e.preventDefault(); if (!tocco) return; var p = e.changedTouches[0];
-    if (!tocco.giu && p.clientY - tocco.y > 30) { tocco.giu = true; giu(true); }
+    var verso = document.body.classList.contains('ruota') ? tocco.x - p.clientX : p.clientY - tocco.y;   // gioco girato: "giù" va verso sinistra
+    if (!tocco.giu && verso > 30) { tocco.giu = true; giu(true); }
   }, { passive: false });
   cv.addEventListener('touchend', function (e) {
     e.preventDefault(); if (!tocco) return;
@@ -402,8 +547,7 @@
     else if (r < 0.25) tipo = 'ragazza';
     else if (r < 0.42) tipo = 'durex';
     else if (r < 0.56) tipo = 'transenna';
-    else if (r < 0.70) tipo = Math.random() < 0.5 ? 'juve' : 'lazio';
-    else if (r < 0.79) tipo = 'carabiniere';
+    else if (r < 0.79) { var q = Math.random(); tipo = q < 0.16 ? 'carabiniere' : q < 0.58 ? 'juve' : 'lazio'; }   // il carabiniere è una variante rara
     else tipo = 'pesce';
     var t = TIPI[tipo], o = { tipo: tipo, t: t, x: W + 40, w: t.w, h: t.h, quante: 1 };
     if (tipo === 'durex') { o.quante = 1 + (Math.random() < 0.4 + lvl * 0.3 ? 1 : 0) + (Math.random() < lvl * 0.45 ? 1 : 0); o.h = t.h * o.quante; }
@@ -456,8 +600,11 @@
       var o = g.ostacoli[i];
       o.x -= dx + (o.t.corre || 0) * dt;
       if (o.x + o.w < -200) { g.ostacoli.splice(i, 1); continue; }
-      if (!o.preso && tocca(hb, boxOstacolo(o))) colpito(o);
-      else pelo(o, hb, boxOstacolo(o));
+      if (o.cade !== undefined) o.cade = Math.min(o.cade + dt / 0.35, 1);
+      if (!o.preso && tocca(hb, boxOstacolo(o))) {
+        if (o.tipo === 'carabiniere' && m.giu && m.y >= TERRA) sgambetto(o);
+        else colpito(o);
+      }
     }
 
     // jet: avviso, poi lo sciame; il fumo resta 5 s e scorre col mondo
@@ -476,7 +623,7 @@
       for (; j.scia >= 9; j.scia -= 9) g.fumo.push({ x: j.x + jw * 0.48 + j.scia, y: j.y - 2 + (Math.random() - .5) * 4, t: 0, c: j.fumo });
       if (j.x + jw < -40) { g.jets.splice(k, 1); continue; }
       var bj = { x: j.x + 6, y: j.y - 13, w: jw - 14, h: 26 };
-      if (!j.preso && tocca(hb, bj)) colpito(j); else pelo(j, hb, bj);
+      if (!j.preso && tocca(hb, bj)) colpito(j);
     }
     for (var f = g.fumo.length - 1; f >= 0; f--) {
       var pf = g.fumo[f]; pf.t += dt; pf.x -= dx;
@@ -520,21 +667,12 @@
     if (g.colpi >= 3) preso();
   }
 
-  // schivata al pelo: se durante il salto o la scivolata passi a 2 px o meno dalla hitbox
-  // di un ostacolo senza toccarla, guadagni una vita (al massimo 5)
-  var PELO = 8;
-  function pelo(o, hb, bx) {
-    if (o.preso || o.pelo) return;
-    var m = g.marf, schiva = m.y < TERRA || (m.giu && m.y >= TERRA);
-    if (bx.x < hb.x + hb.w && bx.x + bx.w > hb.x) {            // sovrapposti in orizzontale: misura lo spazio in verticale
-      var gap = Math.max(bx.y - (hb.y + hb.h), hb.y - (bx.y + bx.h));
-      if (schiva && gap >= 0 && gap <= PELO) o.vicino = true;
-    } else if (o.vicino && bx.x + bx.w <= hb.x) {               // superato senza toccarlo
-      o.pelo = true;
-      if (3 - g.colpi < 5) g.colpi--;
-      stelline(MARF_X, m.y - 50);
-      bip(1320, 0.08, 'triangle', 0.06); setTimeout(function () { bip(1760, 0.12, 'triangle', 0.06); }, 90);
-    }
+  // scivolata sulle caviglie del carabiniere: cade all'indietro e Marf guadagna una vita (al massimo 5)
+  function sgambetto(o) {
+    o.preso = true; o.cade = 0;
+    if (3 - g.colpi < 5) g.colpi--;
+    stelline(MARF_X, g.marf.y - 40);
+    bip(1320, 0.08, 'triangle', 0.06); setTimeout(function () { bip(1760, 0.12, 'triangle', 0.06); }, 90);
   }
   var STELLA = (function () {
     var c = document.createElement('canvas'); c.width = c.height = 32;
@@ -580,7 +718,11 @@
   function colpito(o) {
     var m = g.marf;
     o.preso = true;
-    if (g.scudo > 0) { bip(1200, 0.08, 'triangle', 0.05); return; }
+    if (g.scudo > 0) {                                  // lo scudo para il colpo e si rompe
+      g.scudo = 0; m.botta = 0.7; scoppiaScudo();
+      bip(1200, 0.08, 'triangle', 0.06); setTimeout(function () { bip(600, 0.18, 'sawtooth', 0.04); }, 60);
+      return;
+    }
     if (m.botta > 0) return;
     g.colpi++; m.botta = 1.1; g.scuoti = 0.25;
     g.distacco = Math.max(g.distacco - 85, 25);
@@ -755,6 +897,10 @@
       for (var i = 0; i < o.quante; i++) ok = disegnaOgg('durex', cx + (i % 2 ? 3 : -2), TERRA + 1 - i * t.h, t.dh) && ok;
     } else if (t.aria) {
       ok = disegnaOgg(t.img, cx - 8, TERRA - t.aria + t.dh / 2 + Math.sin(g.t * 4 + o.x * 0.01) * 3, t.dh);
+    } else if (o.cade !== undefined) {
+      var c = o.cade, a = c * c * 1.5;               // cade all'indietro, lontano da Marf
+      ctx.save(); ctx.translate(cx, TERRA + 2); ctx.rotate(a);
+      ok = disegnaOgg(t.img, 0, 0, t.dh); ctx.restore();
     } else ok = disegnaOgg(t.img, cx, TERRA + 2, t.dh);
     if (!ok) { var bx = boxOstacolo(o); ctx.fillStyle = '#6b4a2b'; ctx.fillRect(bx.x, bx.y, bx.w, bx.h); }
   }
@@ -781,7 +927,13 @@
     r.addColorStop(0, 'rgba(140,230,255,0)'); r.addColorStop(0.8, 'rgba(140,230,255,.35)'); r.addColorStop(0.95, 'rgba(220,250,255,.9)'); r.addColorStop(1, 'rgba(220,250,255,0)');
     x.fillStyle = r; x.fillRect(0, 0, 128, 128); return cv;
   })();
-  function disegnaScudo() {          // bolla delle pringles: lampeggia quando sta per finire
+  function scoppiaScudo() { g.scoppio = g.t; }
+  function disegnaScudo() {          // bolla delle pringles: lampeggia quando sta per finire, scoppia al primo colpo
+    var u = g.scoppio !== undefined ? (g.t - g.scoppio) / 0.3 : 2;
+    if (u < 1) {
+      var ys = g.marf.y - (g.marf.giu && g.marf.y >= TERRA ? 24 : 50), rs = 64 * (1 + u * 0.8);
+      ctx.globalAlpha = 1 - u; ctx.drawImage(BOLLA, MARF_X - rs, ys - rs, rs * 2, rs * 2); ctx.globalAlpha = 1;
+    }
     if (!g.scudo || g.scudo <= 0 || stato !== 'gioco') return;
     if (g.scudo < 1.5 && Math.floor(g.scudo * 8) % 2) return;
     var y = g.marf.y - (g.marf.giu && g.marf.y >= TERRA ? 24 : 50), r = 64 + Math.sin(g.t * 6) * 3;
