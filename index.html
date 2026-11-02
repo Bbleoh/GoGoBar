@@ -102,7 +102,7 @@
     .btn-ghost:hover { background: rgba(228,179,60,.1); }
 
     /* mascotte */
-    .mascot { position: relative; justify-self: center; width: min(100%, 380px); aspect-ratio: 1; }
+    .mascot { position: relative; justify-self: center; width: min(100%, 400px); aspect-ratio: 1; margin-bottom: 1rem; }
     .mascot .sun {
       position: absolute; inset: 6%;
       border-radius: 50%;
@@ -113,11 +113,23 @@
       border: 6px solid #0d0d0c;
       box-shadow: 0 0 0 3px var(--gold);
     }
-    .mascot svg { position: absolute; inset: 0; width: 100%; height: 100%; }
-    .paw { transform-origin: 236px 228px; animation: wave 1.6s ease-in-out infinite; }
-    @keyframes wave { 0%,100% { transform: rotate(-6deg); } 50% { transform: rotate(10deg); } }
+    .mascot .float {
+      position: absolute; inset: 0;
+      animation: bob 3.2s ease-in-out infinite;
+    }
+    .mascot .neko {
+      position: absolute; left: 50%; bottom: 23%;
+      width: 58%; height: auto; transform: translateX(-50%);
+      filter: drop-shadow(0 6px 10px rgba(0,0,0,.35));
+    }
+    .mascot .cloud {
+      position: absolute; left: 50%; bottom: -4%;
+      width: 104%; height: auto; transform: translateX(-50%);
+      filter: drop-shadow(0 10px 14px rgba(0,0,0,.45));
+    }
+    @keyframes bob { 0%,100% { transform: translateY(0) rotate(-1deg); } 50% { transform: translateY(-12px) rotate(1deg); } }
     @keyframes spin { to { transform: rotate(360deg); } }
-    @media (prefers-reduced-motion: reduce) { .paw, .mascot .sun, .ticker { animation: none !important; } }
+    @media (prefers-reduced-motion: reduce) { .mascot .float, .mascot .sun, .ticker { animation: none !important; } }
 
     /* ── TICKER ── */
     .ticker-band { overflow: hidden; padding: .8rem 0; }
@@ -255,58 +267,13 @@
     </div>
   </div>
 
-  <!-- mascotte: maneki neko che saluta -->
+  <!-- mascotte: maneki neko sulla nuvoletta -->
   <div class="mascot" aria-hidden="true">
     <div class="sun"></div>
-    <svg viewBox="0 0 300 300" xmlns="http://www.w3.org/2000/svg">
-      <g stroke="#0d0d0c" stroke-width="5" stroke-linejoin="round" stroke-linecap="round">
-        <!-- corpo -->
-        <ellipse cx="150" cy="222" rx="78" ry="66" fill="#f8f3e6"/>
-        <!-- macchia -->
-        <path d="M96 196 q20 -18 40 -6 q-6 22 -34 26 z" fill="#e8962f" stroke-width="0"/>
-        <!-- zampe davanti -->
-        <ellipse cx="122" cy="282" rx="22" ry="12" fill="#f8f3e6"/>
-        <ellipse cx="178" cy="282" rx="22" ry="12" fill="#f8f3e6"/>
-        <!-- moneta koban -->
-        <ellipse cx="110" cy="236" rx="25" ry="33" fill="#e4b33c"/>
-        <ellipse cx="110" cy="236" rx="16" ry="23" fill="none" stroke="#a87418" stroke-width="3"/>
-        <text x="110" y="244" text-anchor="middle" font-family="Fredoka, sans-serif" font-weight="700" font-size="20" fill="#5a3c06" stroke="none">GO</text>
-        <!-- zampa che tiene la moneta -->
-        <ellipse cx="128" cy="258" rx="18" ry="14" fill="#f8f3e6"/>
-        <!-- orecchie -->
-        <path d="M78 98 L86 30 L132 66 Z" fill="#f8f3e6"/>
-        <path d="M222 98 L214 30 L168 66 Z" fill="#f8f3e6"/>
-        <path d="M90 82 L94 48 L118 68 Z" fill="#f2a7a0" stroke-width="0"/>
-        <path d="M210 82 L206 48 L182 68 Z" fill="#f2a7a0" stroke-width="0"/>
-        <!-- testa -->
-        <ellipse cx="150" cy="118" rx="84" ry="66" fill="#f8f3e6"/>
-        <path d="M188 64 q22 4 32 26 q-24 -2 -38 -18 z" fill="#e8962f" stroke-width="0"/>
-        <!-- occhi felici -->
-        <path d="M104 116 q13 -15 26 0" fill="none"/>
-        <path d="M170 116 q13 -15 26 0" fill="none"/>
-        <!-- guance -->
-        <ellipse cx="102" cy="138" rx="12" ry="7" fill="#f2a7a0" stroke-width="0" opacity=".8"/>
-        <ellipse cx="198" cy="138" rx="12" ry="7" fill="#f2a7a0" stroke-width="0" opacity=".8"/>
-        <!-- naso e bocca -->
-        <path d="M144 132 h12 l-6 7 z" fill="#e0675a" stroke-width="3"/>
-        <path d="M138 144 q6 8 12 0 q6 8 12 0" fill="none" stroke-width="3.5"/>
-        <!-- baffi -->
-        <path d="M78 128 l-28 -6 M78 138 l-30 2 M222 128 l28 -6 M222 138 l30 2" fill="none" stroke-width="3"/>
-        <!-- collare e campanella -->
-        <path d="M84 168 q66 34 132 0 l2 14 q-68 38 -136 0 z" fill="#d2452f"/>
-        <circle cx="150" cy="196" r="13" fill="#e4b33c"/>
-        <path d="M140 194 h20" fill="none" stroke-width="3"/>
-        <circle cx="150" cy="202" r="2.5" fill="#0d0d0c" stroke-width="0"/>
-        <!-- zampa alzata che saluta -->
-        <g class="paw">
-          <rect x="212" y="104" width="48" height="128" rx="24" fill="#f8f3e6"/>
-          <ellipse cx="236" cy="128" rx="9" ry="8" fill="#f2a7a0" stroke-width="0"/>
-          <circle cx="223" cy="114" r="4.5" fill="#f2a7a0" stroke-width="0"/>
-          <circle cx="236" cy="110" r="4.5" fill="#f2a7a0" stroke-width="0"/>
-          <circle cx="249" cy="114" r="4.5" fill="#f2a7a0" stroke-width="0"/>
-        </g>
-      </g>
-    </svg>
+    <div class="float">
+      <img class="neko" src="img/maneki-neko.webp" alt="" width="689" height="900">
+      <img class="cloud" src="img/nuvola.svg" alt="" width="520" height="220">
+    </div>
   </div>
 </header>
 

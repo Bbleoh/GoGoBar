@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 520 220">
+  <!-- nuvoletta cartoon: contorno = cerchi con tratto spesso, poi gli stessi cerchi pieni sopra per nascondere i tratti interni -->
+  <defs>
+    <g id="puff">
+      <circle cx="120" cy="118" r="60"/>
+      <circle cx="176" cy="84"  r="56"/>
+      <circle cx="240" cy="64"  r="58"/>
+      <circle cx="306" cy="66"  r="56"/>
+      <circle cx="364" cy="90"  r="56"/>
+      <circle cx="418" cy="124" r="50"/>
+      <circle cx="466" cy="156" r="36"/>
+      <circle cx="58"  cy="154" r="38"/>
+      <rect x="60" y="92" width="400" height="98" rx="40"/>
+    </g>
+    <clipPath id="clip"><use href="#puff"/></clipPath>
+  </defs>
+  <!-- contorno -->
+  <use href="#puff" fill="#0d0d0c" stroke="#0d0d0c" stroke-width="14" stroke-linejoin="round"/>
+  <!-- corpo bianco -->
+  <use href="#puff" fill="#ffffff"/>
+  <!-- ombra azzurrina sotto, tagliata dentro la nuvola -->
+  <g clip-path="url(#clip)">
+    <ellipse cx="260" cy="214" rx="240" ry="60" fill="#d8e6f3"/>
+    <ellipse cx="150" cy="178" rx="70" ry="22" fill="#d8e6f3"/>
+    <ellipse cx="350" cy="182" rx="80" ry="22" fill="#d8e6f3"/>
+  </g>
+  <!-- riccioli -->
+  <g fill="none" stroke="#9fb9d3" stroke-width="7" stroke-linecap="round">
+    <path d="M96 150 q-18 -26 6 -38 q22 -8 26 12 q2 14 -12 14"/>
+    <path d="M430 152 q20 -24 -4 -38 q-22 -8 -28 12 q-2 14 12 14"/>
+  </g>
+  <!-- riflessi -->
+  <g fill="#ffffff" stroke="none">
+    
+  </g>
+  <g fill="none" stroke="#e9f1f8" stroke-width="6" stroke-linecap="round">
+    <path d="M140 76 q16 -18 36 -20"/>
+    <path d="M222 30 q20 -12 42 -6"/>
+  </g>
+</svg>
