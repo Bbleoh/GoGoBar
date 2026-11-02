@@ -235,6 +235,9 @@
     .brano-durata { font-family: var(--mono); font-size: .75rem; color: var(--muted); }
     .brano-play { width: 2.2rem; height: 2.2rem; border-radius: 50%; display: grid; place-items: center; font-size: .75rem; background: var(--raised); color: var(--gold); transition: background .2s, color .2s; }
     .brano:hover .brano-play { background: var(--gold); color: #1a1408; }
+    .album-label { grid-column: 1 / -1; font-family: var(--display); font-weight: 600; font-size: 1.2rem; color: #f6d77a; margin: .6rem 0 .3rem; display: flex; align-items: center; gap: 1rem; }
+    .album-label:first-child { margin-top: 0; }
+    .album-label::after { content: ''; flex: 1; height: 1px; background: var(--line); }
     @media (max-width: 420px) { .brani { grid-template-columns: 1fr; } }
 
     .empty-note {
@@ -347,7 +350,7 @@
 
 <noscript><p style="padding:2rem;font-family:monospace">Per vedere i contenuti serve JavaScript attivo.</p></noscript>
 
-<script src="contenuti.js?v=5"></script>
+<script src="contenuti.js?v=6"></script>
 <!-- classifica della Bisca: se il file non c'è ancora, il riquadro mostra "in arrivo" -->
 <script src="giochi/bisca-del-tromba/classifica.js?v=3" onerror="window.BiscaClassifica = null"></script>
 <script>
@@ -423,7 +426,9 @@
   // ── sezioni ──
   const video  = TUTTI;
   const giochi = CONTENUTI.giochi || [];
-  const musica = CONTENUTI.musica || [];
+  const musica = (typeof TUTTI_I_BRANI !== 'undefined') ? TUTTI_I_BRANI
+    : ((typeof CONTENUTI !== 'undefined' && CONTENUTI.musica) || []).flatMap(a =>
+        a.brani ? a.brani.map(b => Object.assign({ album: a.album }, b)) : [a]);
   const VUOTO = {
     video:  'I video stanno arrivando. Preparate i popcorn.',
     giochi: 'Nessun gioco ancora... ma arriveranno.',
@@ -459,7 +464,13 @@
   const brani = musica.filter(b => b.file);
   document.querySelector('[data-count="musica"]').textContent = brani.length || '';
   if (!brani.length) gm.append(el('p', 'empty-note', VUOTO.musica));
-  brani.forEach(function (b, i) {
+  let ultimoAlbum, n = 0;
+  brani.forEach(function (b) {
+    if (b.album !== ultimoAlbum) {
+      ultimoAlbum = b.album; n = 0;
+      gm.append(el('p', 'album-label', b.album || 'Brani'));
+    }
+    const i = n++;
     const a = el('a', 'brano');
     a.href = 'musica/#' + b.file.replace(/\.[^.]+$/, '');
     const testo = el('span', 'brano-testo');
@@ -479,7 +490,7 @@
   function classifica() {
     const box = el('div', 'card board');
     box.append(el('span', 'card-kicker', 'Classifica · Bisca del Tromba'));
-    box.append(el('h3', null, '🏆 I più ricchi del bar'));
+    box.append(el('h3', null, '🏆 I più lerci di GoGoBar'));
     const corpo = el('div'); corpo.append(el('p', 'vuoto', 'Carico la classifica...'));
     box.append(corpo);
     const gioca = el('a', 'btn btn-ghost', 'Siediti al tavolo'); gioca.href = BISCA;
