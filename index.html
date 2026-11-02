@@ -418,6 +418,9 @@
     @media (max-width: 560px) {
       .projects-grid { grid-template-columns: 1fr; }
     }
+    /* card di progetti non ancora pubblicati */
+    .soon { cursor: default; opacity: .45; }
+    .soon .card-arrow, .soon .card-index { display: none; }
   </style>
 </head>
 <body>
@@ -469,29 +472,29 @@
   <p class="section-label">Malanni fatti</p>
   <div class="featured-grid">
 
-    <a href="progetto-meteo/" class="card-featured">
+    <div class="card-featured soon" aria-disabled="true">
       <p class="card-number">01 — ASSURDO!</p>
       <h2>Corri Marf!</h2>
       <p class="card-desc">Allora, è un gioco stra mega divertente perché c'è Marf che corre e scappa dalle femmine.</p>
       <span class="card-tag tag-yellow">Follia · Divertimento · Wow</span>
       <span class="card-arrow">↗</span>
-    </a>
+    </div>
 
     <div class="card-stack">
-      <a href="BlackjackTromba/index.html" class="card-small">
+      <a href="giochi/bisca-del-tromba/" class="card-small">
         <p class="card-number">02</p>
         <h2>La bisca del Tromba</h2>
         <p class="card-desc">Godi popolo</p>
         <span class="card-tag tag-red">Bighelloni · Dipendenza · Salute</span>
         <span class="card-arrow">↗</span>
       </a>
-      <a href="progetto-foto/" class="card-small">
+      <div class="card-small soon" aria-disabled="true">
         <p class="card-number">03</p>
         <h2>Coming soon...</h2>
         <p class="card-desc">Altre grandi cose...</p>
         <span class="card-tag tag-blue">...</span>
         <span class="card-arrow">↗</span>
-      </a>
+      </div>
     </div>
 
   </div>
@@ -502,7 +505,7 @@
   <p class="section-label">Tutti i progetti</p>
   <div class="projects-grid">
 
-    <a href="progetto-blog/" class="card-project">
+    <div class="card-project soon" aria-disabled="true">
       <p class="card-number">04</p>
       <h3>Blog Personale</h3>
       <p class="card-desc">CMS statico con Markdown, feed RSS e ricerca full-text lato client.</p>
@@ -510,9 +513,9 @@
         <span class="card-tag tag-yellow">Blog</span>
         <span class="card-index">↗</span>
       </div>
-    </a>
+    </div>
 
-    <a href="progetto-quiz/" class="card-project accent-red">
+    <div class="card-project accent-red soon" aria-disabled="true">
       <p class="card-number">05</p>
       <h3>App Quiz</h3>
       <p class="card-desc">Quiz interattivo con timer, punteggi, classifiche e modalità sfida.</p>
@@ -520,9 +523,9 @@
         <span class="card-tag tag-red">Gioco · JS</span>
         <span class="card-index">↗</span>
       </div>
-    </a>
+    </div>
 
-    <a href="progetto-dati/" class="card-project accent-blue">
+    <div class="card-project accent-blue soon" aria-disabled="true">
       <p class="card-number">06</p>
       <h3>Visualizzatore Dati</h3>
       <p class="card-desc">Dashboard con grafici D3.js che analizza dataset CSV caricati dall'utente.</p>
@@ -530,9 +533,9 @@
         <span class="card-tag tag-blue">D3.js · Data</span>
         <span class="card-index">↗</span>
       </div>
-    </a>
+    </div>
 
-    <a href="progetto-converter/" class="card-project">
+    <div class="card-project soon" aria-disabled="true">
       <p class="card-number">07</p>
       <h3>Convertitore Unità</h3>
       <p class="card-desc">Strumento di conversione rapida: valute, misure, temperature e molto altro.</p>
@@ -540,9 +543,9 @@
         <span class="card-tag tag-neutral">Utility · PWA</span>
         <span class="card-index">↗</span>
       </div>
-    </a>
+    </div>
 
-    <a href="progetto-generatore/" class="card-project accent-red">
+    <div class="card-project accent-red soon" aria-disabled="true">
       <p class="card-number">08</p>
       <h3>Tool Generatore</h3>
       <p class="card-desc">Generatore di palette colori, gradienti e snippet CSS pronto all'uso.</p>
@@ -550,9 +553,9 @@
         <span class="card-tag tag-red">Design · CSS</span>
         <span class="card-index">↗</span>
       </div>
-    </a>
+    </div>
 
-    <a href="progetto-clock/" class="card-project accent-blue">
+    <div class="card-project accent-blue soon" aria-disabled="true">
       <p class="card-number">09</p>
       <h3>World Clock</h3>
       <p class="card-desc">Orologio mondiale con fusi orari multipli, modalità buio e allarmi personalizzabili.</p>
@@ -560,7 +563,7 @@
         <span class="card-tag tag-blue">Time · JS</span>
         <span class="card-index">↗</span>
       </div>
-    </a>
+    </div>
 
   </div>
 </section>
