@@ -475,7 +475,7 @@
         <span>Il banco ha un Asso: vuoi l'assicurazione? <small style="opacity:.7">(costa metà puntata, paga 2:1 se fa blackjack)</small></span>
         <div class="dock-row">
           <button class="btn danger" onclick="declineInsurance()">No<kbd>N</kbd></button>
-          <button class="btn safe" onclick="takeInsurance()">Sì<kbd>Y</kbd></button>
+          <button class="btn safe" id="ins-yes" onclick="takeInsurance()">Sì<kbd>Y</kbd></button>
         </div>
       </div>
       <div id="action-btns" class="dock-row">
@@ -1430,6 +1430,10 @@ function deal() {
 
   if (dealerHand[0].rank==='A') {
     phase='insurance';
+    // in all in (o col saldo sotto metà puntata) l'assicurazione non si può pagare: il Sì resta spento
+    const puoi = Math.floor(handBets[0]/2) > 0 && Math.floor(handBets[0]/2) <= balance;
+    document.getElementById('ins-yes').disabled = !puoi;
+    document.getElementById('ins-yes').title = puoi ? '' : 'Non hai saldo per l\'assicurazione';
     document.getElementById('insurance-bar').classList.add('show');
     return;
   }
@@ -1457,7 +1461,7 @@ function dopoAssicurazione() {
    INSURANCE
 ════════════════════════════════════════════════════════════════ */
 function takeInsurance() {
-  if (phase !== 'insurance') return;
+  if (phase !== 'insurance' || document.getElementById('ins-yes').disabled) return;
   const cost=Math.floor(handBets[0]/2);
   if(cost<=0||cost>balance) { msg('Saldo insufficiente per l\'assicurazione.','lose'); declineInsurance(); return; }
   sfxChip();
