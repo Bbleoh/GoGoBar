@@ -148,7 +148,7 @@
   'use strict';
 
   /* ── Mondo logico: 960 × 420, scalato per stare nello schermo ── */
-  var W = 960, H = 420, TERRA = 350;
+  var W = 960, H = 420, TERRA = 369;   // TERRA = dove poggiano i piedi, sul marciapiede
   var cv = document.getElementById('c');
   var ctx = cv.getContext('2d');
   var scala = 1;
@@ -262,6 +262,7 @@
   var g;
 
   function nuovaPartita() {
+    scorrimento = 0;
     g = {
       t: 0, vel: 380, metri: 0, birre: 0, passi: 0,
       marf: { y: TERRA, vy: 0, salti: 0, giu: false, botta: 0 },
@@ -384,6 +385,7 @@
     g.vel = Math.min(380 + g.t * 9, 820) * (g.scatto > 0 ? 1.15 : 1);
     var dx = g.vel * dt;
     g.metri += dx / 40;
+    scorrimento += dx;
     g.passi += dt * (7 + g.vel / 90);
 
     // fisica di Marf
@@ -461,29 +463,76 @@
   function disegna() {
     ctx.setTransform(scala, 0, 0, scala, 0, 0);
     if (g.scuoti > 0) ctx.translate((Math.random() - .5) * 8, (Math.random() - .5) * 6);
-    if (stato === 'gioco') scorrimento += g.vel / 60;
 
     sfondo();
     g.birreA.forEach(birra);
     g.ostacoli.forEach(ostacolo);
     disegnaPolvere();
     inseguitrici();
+    disegnaLinee();
     marf();
     if (stato !== 'menu') hud();
   }
 
+  /* ── Sfondo a strati (i disegni di Leo), dal più lontano:
+     1 cielo · 2 monumenti (uno ogni 2 km) · 3 palazzi e colline che si alternano · 4 strada.
+     Le strisce sono alte 724 px e si ripetono in orizzontale. ── */
+  var SF = {};
+  ['cielo.jpg', 'colline.webp', 'palazzi.webp', 'strada.webp', 'torre-telecom.webp', 'centro-idrico.webp'].forEach(function (n) {
+    var img = new Image(); img.src = 'sfondo/' + n + '?v=1'; SF[n.split('.')[0]] = img;
+  });
+  var SF_S = H / 724;                      // scala delle strisce
+  var STRADA_Y = 604 * SF_S;               // dove inizia la strada (riga 604 della striscia)
+  var QUARTIERE_M = 1000;                  // ogni quanti metri si passa da palazzi a colline e viceversa
+  var MONUMENTO_M = 2000;                  // ogni quanti metri compare un monumento
+  var MONUMENTI = [
+    { img: 'torre-telecom', alto: 300 },   // Torre Telecom di Tor Pagnotta
+    { img: 'centro-idrico', alto: 255 }    // centro idrico Acea di Vigna Murata
+  ];
+  function pronta(img) { return img && img.complete && img.naturalWidth > 0; }
+  // ripete una striscia: par = velocità rispetto alla strada, tipo(i) può scegliere l'immagine della i-esima ripetizione
+  function striscia(par, larg, disegna) {
+    var L = scorrimento * par, i0 = Math.floor(L / larg);
+    for (var i = i0; i * larg - L < W; i++) disegna(i, Math.floor(i * larg - L));
+  }
   function sfondo() {
-    var cielo = ctx.createLinearGradient(0, 0, 0, TERRA);
-    cielo.addColorStop(0, '#1b1530'); cielo.addColorStop(1, '#3a2240');
-    ctx.fillStyle = cielo; ctx.fillRect(0, 0, W, TERRA);
-    ctx.fillStyle = '#f6d77a'; ctx.beginPath(); ctx.arc(700, 90, 28, 0, Math.PI * 2); ctx.fill();
-    palazzi(0.15, '#2a1f38', 140, 51);
-    palazzi(0.35, '#22192d', 90, 97, true);
-    ctx.fillStyle = '#2b2622'; ctx.fillRect(0, TERRA, W, H - TERRA);
-    ctx.fillStyle = '#e4b33c'; ctx.fillRect(0, TERRA, W, 4);
-    ctx.fillStyle = '#3a332c';
-    var off = scorrimento % 80;
-    for (var x = -off; x < W; x += 80) ctx.fillRect(x, TERRA + 30, 40, 6);
+    // 1. cielo
+    if (pronta(SF.cielo)) {
+      var cw = Math.ceil(SF.cielo.naturalWidth * SF_S);
+      striscia(0.03, cw, function (i, x) { ctx.drawImage(SF.cielo, x, 0, cw + 1, H); });
+    } else {
+      var cielo = ctx.createLinearGradient(0, 0, 0, STRADA_Y);
+      cielo.addColorStop(0, '#4a86d8'); cielo.addColorStop(1, '#a9c4e0');
+      ctx.fillStyle = cielo; ctx.fillRect(0, 0, W, H);
+    }
+    // 2. monumenti: il numero k compare intorno al km 2k (il primo si vede subito)
+    var parM = 0.12, passo = MONUMENTO_M * 40 * parM, Lm = scorrimento * parM;
+    for (var k = Math.max(0, Math.floor((Lm - W) / passo)); k <= Math.floor((Lm + W) / passo) + 1; k++) {
+      var mo = MONUMENTI[k % MONUMENTI.length], img = SF[mo.img];
+      if (!pronta(img)) continue;
+      var mh = mo.alto, mw = img.naturalWidth * mh / img.naturalHeight;
+      var mx = k * passo + W * 0.72 - Lm;
+      if (mx + mw < 0 || mx > W) continue;
+      ctx.drawImage(img, Math.floor(mx), STRADA_Y + 6 - mh, mw, mh);
+    }
+    // 3. palazzi o colline, a tratti di QUARTIERE_M metri
+    var parQ = 0.32, sq = SF_S * 1.5;
+    if (pronta(SF.palazzi) && pronta(SF.colline)) {
+      var qw = Math.ceil(SF.palazzi.naturalWidth * sq);
+      striscia(parQ, qw, function (i, x) {
+        var metri = Math.max(0, (i * qw - W) / parQ / 40);
+        var img = Math.floor(metri / QUARTIERE_M) % 2 ? SF.colline : SF.palazzi;
+        var h = img.naturalHeight * sq;
+        ctx.drawImage(img, x, STRADA_Y + 3 - h, qw + 1, h);
+      });
+    }
+    // 4. strada
+    if (pronta(SF.strada)) {
+      var sw = Math.ceil(SF.strada.naturalWidth * SF_S), sh = SF.strada.naturalHeight * SF_S;
+      striscia(1, sw, function (i, x) { ctx.drawImage(SF.strada, x, STRADA_Y, sw + 1, sh); });
+    } else {
+      ctx.fillStyle = '#4a4550'; ctx.fillRect(0, STRADA_Y, W, H - STRADA_Y);
+    }
   }
 
   function palazzi(par, colore, altezzaBase, seme, insegne) {
@@ -855,6 +904,7 @@
     animaMarf(dt);
     animaRagazze(dt);
     aggiornaPolvere(dt);
+    aggiornaLinee(dt);
   }
 
   function animaMarf(dt) {
@@ -924,10 +974,60 @@
     }
     personaggio(R, a.anca, po);
     ctx.restore();
-    if (g.scatto > 0) { // scie dello scatto
-      ctx.strokeStyle = 'rgba(228,179,60,.6)'; ctx.lineWidth = 3;
-      for (var i = 0; i < 3; i++) { ctx.beginPath(); ctx.moveTo(MARF_X - 30 - i * 12, m.y - 30 - i * 20); ctx.lineTo(MARF_X - 70 - i * 12, m.y - 30 - i * 20); ctx.stroke(); }
+  }
+
+  /* ── Linee di velocità dello scatto (dopo una birra): tratti bianchi stile manga
+     che partono dal corpo di Marf e volano indietro assottigliandosi ── */
+  function aggiornaLinee(dt) {
+    if (!g.linee) g.linee = [];
+    var m = g.marf;
+    if (stato === 'gioco' && g.scatto > 0) {
+      var quante = dt * 70 * Math.min(1, g.scatto * 2);
+      while (quante > 0) {
+        if (Math.random() < quante) {
+          var vicino = Math.random() < 0.55; // metà attorno a Marf, metà su tutto lo schermo
+          g.linee.push({
+            x: vicino ? MARF_X + 20 + Math.random() * 60 : W + Math.random() * 80,
+            y: vicino ? m.y - 6 - Math.random() * 96 : 80 + Math.random() * (TERRA - 70),
+            len: vicino ? 60 + Math.random() * 110 : 160 + Math.random() * 260,
+            v: 1300 + Math.random() * 900,
+            spess: 1.5 + Math.random() * 2.5, vita: vicino ? 0.25 + Math.random() * 0.15 : 0.5 + Math.random() * 0.3, t: 0
+          });
+        }
+        quante -= 1;
+      }
     }
+    for (var i = g.linee.length - 1; i >= 0; i--) {
+      var l = g.linee[i]; l.t += dt; l.x -= l.v * dt;
+      if (l.t >= l.vita || l.x + l.len < -20) g.linee.splice(i, 1);
+    }
+  }
+  function disegnaLinee() {
+    if (!g.linee || !g.linee.length) return;
+    ctx.save(); ctx.lineCap = 'round';
+    g.linee.forEach(function (l) {
+      var u = l.t / l.vita, a = Math.sin(Math.PI * Math.min(1, u * 1.4)) * 0.85;
+      var w = l.spess * (1 - u * 0.5);
+      // ombra blu scura sotto, così si vedono anche sul cielo chiaro
+      var gs = ctx.createLinearGradient(l.x, 0, l.x + l.len, 0);
+      gs.addColorStop(0, 'rgba(27,21,48,' + (a * 0.45).toFixed(3) + ')');
+      gs.addColorStop(1, 'rgba(27,21,48,0)');
+      ctx.strokeStyle = gs; ctx.lineWidth = w + 2.5;
+      ctx.beginPath(); ctx.moveTo(l.x, l.y + 1); ctx.lineTo(l.x + l.len, l.y + 1); ctx.stroke();
+      var gr = ctx.createLinearGradient(l.x, 0, l.x + l.len, 0);
+      gr.addColorStop(0, 'rgba(255,255,255,' + a.toFixed(3) + ')');
+      gr.addColorStop(1, 'rgba(255,255,255,0)');
+      ctx.strokeStyle = gr; ctx.lineWidth = w;
+      ctx.beginPath(); ctx.moveTo(l.x, l.y); ctx.lineTo(l.x + l.len, l.y); ctx.stroke();
+    });
+    // bagliore dorato attorno a Marf mentre lo scatto dura
+    if (g.scatto > 0 && stato === 'gioco') {
+      var r = ctx.createRadialGradient(MARF_X, g.marf.y - 55, 5, MARF_X, g.marf.y - 55, 80);
+      r.addColorStop(0, 'rgba(246,215,122,' + (0.28 * Math.min(1, g.scatto * 2)).toFixed(3) + ')');
+      r.addColorStop(1, 'rgba(246,215,122,0)');
+      ctx.fillStyle = r; ctx.fillRect(MARF_X - 90, g.marf.y - 140, 180, 160);
+    }
+    ctx.restore();
   }
 
   // ragazze: stessa corsa, un po' più saltellante, col braccio che cerca di afferrare Marf
@@ -1039,14 +1139,16 @@
 
   function hud() {
     ctx.save(); ctx.textAlign = 'left';
+    ctx.fillStyle = 'rgba(27,21,48,.55)'; roundRect(10, 12, 190, 62, 14); ctx.fill();
+    roundRect(W - 232, 12, 222, 62, 14); ctx.fill();
     ctx.fillStyle = '#f4efe2'; ctx.font = '700 28px Fredoka, sans-serif';
     ctx.fillText(Math.floor(g.metri) + ' m', 20, 40);
-    ctx.font = '500 15px "DM Mono", monospace'; ctx.fillStyle = '#c9c0a9';
+    ctx.font = '500 15px "DM Mono", monospace'; ctx.fillStyle = '#e8e1cc';
     ctx.fillText('🍺 ' + g.birre + '   record ' + record, 20, 64);
     var p = 1 - Math.max(g.distacco, 0) / 260;
-    ctx.fillStyle = 'rgba(255,255,255,.12)'; roundRect(W - 220, 24, 196, 14, 7); ctx.fill();
+    ctx.fillStyle = 'rgba(255,255,255,.18)'; roundRect(W - 220, 24, 196, 14, 7); ctx.fill();
     ctx.fillStyle = p > 0.7 ? '#d2452f' : '#ff5c8a'; roundRect(W - 220, 24, Math.max(196 * p, 14), 14, 7); ctx.fill();
-    ctx.fillStyle = '#c9c0a9'; ctx.textAlign = 'right'; ctx.fillText('quanto sono vicine', W - 24, 60);
+    ctx.fillStyle = '#e8e1cc'; ctx.textAlign = 'right'; ctx.fillText('quanto sono vicine', W - 24, 60);
     ctx.restore();
   }
 
