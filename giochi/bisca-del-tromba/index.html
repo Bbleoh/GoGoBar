@@ -4,11 +4,12 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <meta name="theme-color" content="#050d07">
-<title>La Bisca der Tromba – Blackjack</title>
+<title>La Bisca der Tromba</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700;900&family=Cinzel+Decorative:wght@700&family=Playfair+Display:wght@600;800;900&display=swap" rel="stylesheet">
 
+<link rel="stylesheet" href="roulette.css">
 <style>
   :root{
     --gold:#d4af5a; --gold-light:#f3dc9a; --gold-dim:rgba(212,175,90,.35);
@@ -48,6 +49,7 @@
     backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);transition:background .15s,border-color .15s,opacity .15s;}
   .top-btn:hover:not(:disabled){background:rgba(212,175,90,.18);border-color:var(--gold);}
   .top-btn:disabled{opacity:.4;cursor:not-allowed;}
+  .top-btn.radio-on{border-color:var(--gold);background:rgba(212,175,90,.18);}
   .top-btn.cashout{border-color:rgba(61,220,132,.5);color:var(--win);}
   .top-btn.cashout:hover:not(:disabled){background:rgba(61,220,132,.14);}
   .tb-right .icon-btn{width:52px;height:52px;padding:0;justify-content:center;font-size:1.5rem;}
@@ -73,7 +75,7 @@
   #croupier-avatar{display:none;width:44px;height:44px;border-radius:50%;object-fit:cover;object-position:50% 8%;
     border:2px solid var(--gold);background:#111;box-shadow:0 2px 10px rgba(0,0,0,.6);}
   .hand-area{display:flex;justify-content:center;min-height:calc(var(--cw)*1.42);}
-  #player-hands{display:flex;gap:clamp(12px,3vw,32px);justify-content:center;flex-wrap:wrap;min-height:calc(var(--cw)*1.42 + 40px);}
+  #player-hands{display:flex;gap:clamp(8px,3vw,32px);justify-content:center;flex-wrap:nowrap;max-width:100%;min-height:calc(var(--cw)*1.42 + 40px);}
   .split-hand{display:flex;flex-direction:column;align-items:center;gap:8px;padding:6px;border-radius:14px;
     border:1px solid transparent;transition:border-color .2s,background .2s;}
   .split-hand.active-hand{border-color:var(--gold);background:rgba(212,175,90,.08);}
@@ -250,6 +252,7 @@
   .rarita-head{grid-column:1/-1;font-family:var(--ui);font-weight:700;font-size:.75rem;letter-spacing:2px;text-transform:uppercase;
     margin-top:8px;padding-bottom:4px;border-bottom:1px solid currentColor;text-align:left;}
   .rarita-head small{opacity:.7;margin-left:6px;}
+  .rarita-head.stat-sub{color:var(--gold);margin-top:2px;}
   .r-comune{--rc:#c9c2b0;} .r-raro{--rc:#4fa3ff;} .r-epico{--rc:#c06bff;} .r-leggendario{--rc:#ffb02e;}
   .rarita-head{color:var(--rc);}
   .trofeo.ok{border-color:var(--rc);background:color-mix(in srgb,var(--rc) 12%,transparent);}
@@ -289,8 +292,8 @@
   @media (max-width:640px){
     :root{--cw:clamp(46px,15vw,72px);}
     #topbar{padding:10px 10px 2px;gap:6px;}
-    #title-bar{font-size:.8rem;letter-spacing:1px;white-space:normal;line-height:1.15;min-width:0;}
-    #topbar{grid-template-columns:auto 1fr auto;}
+    #title-bar{display:none;}
+    #topbar{display:flex;justify-content:space-between;}
     .top-btn .lbl{display:none;}
     .top-btn{width:46px;height:46px;padding:0;justify-content:center;font-size:1.3rem;}
     #stage{--ch:clamp(80px,16vh,150px);padding:0 8px 4px;}
@@ -303,6 +306,10 @@
     #bet-tools{width:100%;max-width:380px;}
     #bet-tools .bet-tool{padding:0 10px;letter-spacing:.5px;white-space:nowrap;flex:1 1 auto;}
     .btn kbd,#keys-hint{display:none;}
+  }
+  @media (max-width:380px){
+    .top-btn{width:42px;height:42px;font-size:1.15rem;}
+    .tb-left,.tb-right{gap:5px;}
   }
   /* ORIZZONTALE BASSO (telefono girato) */
   @media (max-height:480px){
@@ -330,7 +337,7 @@
   @media (prefers-reduced-motion:reduce){ *{animation:none !important;transition:none !important;} }
 </style>
 </head>
-<body data-mode="bet">
+<body data-mode="bet" data-gioco="lobby">
 
 <div id="bg"><video src="assets/sfondo.mp4" poster="assets/sfondo-poster.jpg" autoplay muted loop playsinline aria-hidden="true"></video></div>
 
@@ -389,10 +396,35 @@
     </div>
     <h1 id="title-bar">La Bisca der Tromba</h1>
     <div class="tb-right">
+      <button class="top-btn icon-btn" data-gogobar-radio title="Radio GoGoBar: i brani della sezione Musica" aria-label="Radio GoGoBar">📻</button>
+      <button class="top-btn" id="tavoli-btn" onclick="vaiA('lobby')" disabled title="Torna alla lobby e cambia tavolo">🎲<span class="lbl">Tavoli</span></button>
       <button class="top-btn icon-btn" id="mute-btn" onclick="toggleMute()" title="Musica" aria-label="Musica">🔊</button>
       <button class="top-btn icon-btn" id="sfx-btn" onclick="toggleSfx()" title="Effetti sonori" aria-label="Effetti sonori">🎵</button>
     </div>
   </header>
+
+  <!-- ══ LOBBY: si sceglie il tavolo ══ -->
+  <section id="lobby" aria-label="Lobby">
+    <div id="lobby-msg" aria-live="polite"></div>
+    <h2 class="lobby-title">Scegli il tavolo</h2>
+    <div class="lobby-saldo">Saldo<b id="lobby-saldo">€50</b></div>
+    <div id="tavoli">
+      <button class="tavolo" onclick="vaiA('blackjack')">
+        <div class="tavolo-img"><img src="assets/croupier-init.png" alt=""></div>
+        <div class="tavolo-testo"><b>Blackjack</b><small>Batti il Tromba a 21. Il blackjack paga 3 a 2.</small></div>
+        <kbd>B</kbd>
+      </button>
+      <button class="tavolo" onclick="vaiA('roulette')">
+        <div class="tavolo-img ru"><div class="mini-ruota"></div></div>
+        <div class="tavolo-testo"><b>Roulette</b><small>Europea, un solo zero. Il numero pieno paga 35 a 1.</small></div>
+        <kbd>R</kbd>
+      </button>
+      <div class="tavolo presto" aria-hidden="true">
+        <div class="tavolo-img"><span>🎰</span></div>
+        <div class="tavolo-testo"><b>Prossimamente</b><small>Il Tromba sta preparando altri tavoli...</small></div>
+      </div>
+    </div>
+  </section>
 
   <!-- ══ PALCO ══ -->
   <main id="stage">
@@ -445,7 +477,7 @@
         <span>Il banco ha un Asso: vuoi l'assicurazione? <small style="opacity:.7">(costa metà puntata, paga 2:1 se fa blackjack)</small></span>
         <div class="dock-row">
           <button class="btn danger" onclick="declineInsurance()">No<kbd>N</kbd></button>
-          <button class="btn safe" onclick="takeInsurance()">Sì<kbd>Y</kbd></button>
+          <button class="btn safe" id="ins-yes" onclick="takeInsurance()">Sì<kbd>Y</kbd></button>
         </div>
       </div>
       <div id="action-btns" class="dock-row">
@@ -458,6 +490,41 @@
     </div>
     <div id="keys-hint">Tasti: 1-6 fiches · 7 all in · R ripeti · X ×2 · Esc annulla · Invio distribuisci</div>
   </footer>
+
+  <!-- ══ ROULETTE (logica in roulette.js) ══ -->
+  <section id="roulette" aria-label="Roulette">
+    <div id="r-main">
+      <div id="r-wheel-wrap"><canvas id="r-wheel" aria-label="Ruota della roulette"></canvas><div id="r-esito" aria-live="polite"></div></div>
+      <div id="r-side">
+        <div id="r-head"><img id="r-croupier" src="assets/croupier-init.png" alt="Il Tromba"><div id="r-msg" aria-live="polite"></div></div>
+        <div id="r-storia" aria-label="Ultimi numeri usciti"></div>
+        <div id="r-board" role="group" aria-label="Tavolo delle puntate"></div>
+        <div id="r-pagamenti">Pieno 35:1 · Dozzina e colonna 2:1 · Rosso/nero, pari/dispari, 1-18/19-36 1:1 · Clic destro toglie una fiche</div>
+      </div>
+    </div>
+    <footer id="r-dock">
+      <div class="r-hud">
+        <div class="hud-pill"><small>Saldo</small><span id="r-saldo">€50</span></div>
+        <div class="hud-pill"><small>Puntata</small><span id="r-puntata">€0</span></div>
+      </div>
+      <div id="r-chips" role="group" aria-label="Scegli la fiche">
+        <button class="chip chip-1"   id="r-chip-1"   onclick="rScegliFiche(1)"   aria-label="Fiche da 1 euro" title="Tasto 1">1</button>
+        <button class="chip chip-5"   id="r-chip-5"   onclick="rScegliFiche(5)"   aria-label="Fiche da 5 euro" title="Tasto 2">5</button>
+        <button class="chip chip-10"  id="r-chip-10"  onclick="rScegliFiche(10)"  aria-label="Fiche da 10 euro" title="Tasto 3">10</button>
+        <button class="chip chip-50"  id="r-chip-50"  onclick="rScegliFiche(50)"  aria-label="Fiche da 50 euro" title="Tasto 4">50</button>
+        <button class="chip chip-100" id="r-chip-100" onclick="rScegliFiche(100)" aria-label="Fiche da 100 euro" title="Tasto 5">100</button>
+        <button class="chip chip-500" id="r-chip-500" onclick="rScegliFiche(500)" aria-label="Fiche da 500 euro" title="Tasto 6">500</button>
+      </div>
+      <div id="r-tools" class="dock-row">
+        <button class="bet-tool danger" id="r-clear" onclick="rAnnulla()" title="Tasto Esc">✕ Annulla</button>
+        <button class="bet-tool" id="r-undo" onclick="rAnnullaUltima()" title="Tasto Z">↶ Togli</button>
+        <button class="bet-tool" id="r-repeat" onclick="rRipeti()" title="Tasto R">↺ Ripeti</button>
+        <button class="bet-tool" id="r-double" onclick="rRaddoppia()" title="Tasto X">×2</button>
+        <button class="btn primary" id="r-spin" onclick="rGira()" disabled title="Invio">Gira<kbd>Invio</kbd></button>
+      </div>
+      <div id="r-keys">Tasti: 1-6 fiche · clic sul tavolo per puntare · Z togli · R ripeti · X ×2 · Esc annulla · Invio gira</div>
+    </footer>
+  </section>
 </div>
 
 <!-- ══ UTENTE: STATISTICHE & TROFEI ══ -->
@@ -490,6 +557,34 @@
 
 <script src="classifica.js"></script>
 <script>
+/* Tavolo in uso: 'lobby' | 'blackjack' | 'roulette' (la roulette è in roulette.js) */
+let gioco = 'lobby';
+function rouletteOccupata() { return typeof rGirando !== 'undefined' && rGirando; }
+function tavoloLibero() { return phase === 'bet' && !rouletteOccupata(); }
+function aggiornaTavoliBtn() {
+  const b = document.getElementById('tavoli-btn');
+  if (b) b.disabled = gioco === 'lobby' || !playerName || !tavoloLibero();
+}
+function vaiA(dove) {
+  if (!playerName || !tavoloLibero()) return;
+  if (dove !== 'blackjack' && currentBet) { currentBet = 0; msg(''); } // le fiche non giocate tornano nel saldo
+  if (gioco === 'roulette' && dove !== 'roulette' && typeof rAnnulla === 'function') rAnnulla();
+  gioco = dove;
+  document.body.dataset.gioco = dove;
+  if (dove === 'lobby') {
+    document.getElementById('lobby-saldo').textContent = '€' + balance.toLocaleString('it-IT');
+  } else if (dove === 'roulette') {
+    rEntra();
+  } else {
+    if (!document.getElementById('message').textContent) msg('Buona fortuna, ' + playerName + '!');
+  }
+  updateHUD();
+}
+function lobbyMsg(t) {
+  document.getElementById('lobby-msg').textContent = t;
+  document.getElementById('lobby-saldo').textContent = '€' + balance.toLocaleString('it-IT');
+}
+
 /* ════════════════════════════════════════════════════════════════
    ACCOUNT: il nome è l'account.
    - Nel browser: biscaTromba.v2 = { ultimo, account: { chiave: dati } }
@@ -539,7 +634,8 @@ function statoAccount(t, errore) {
 
 // Unisce i dati del browser con quelli online: trofei sommati, contatori al massimo,
 // saldo e serie in corso dalla copia più recente.
-const STATS_MAX = ['mani','vinte','perse','pari','blackjack','sballate','serieMax','recordSaldo','vincitaMax','cashout','cashoutMax','bancarotte'];
+const STATS_MAX = ['mani','vinte','perse','pari','blackjack','sballate','serieMax','recordSaldo','vincitaMax','cashout','cashoutMax','bancarotte',
+                   'rGiri','rVinti','rPieni','rVincitaMax'];
 function unisciAccount(loc, rem) {
   if (!loc) return rem || null;
   if (!rem) return loc;
@@ -651,10 +747,12 @@ async function confirmName() {
   document.getElementById('overlay-name').textContent = playerName;
   document.getElementById('name-modal').style.display = 'none';
   resetTavolo();
-  if (remoto)      msg('Bentornato, ' + playerName + '! Account caricato.');
-  else if (locale) msg('Bentornato, ' + playerName + '!');
-  else if (online) msg('Benvenuto, ' + playerName + '! Account creato.');
-  else             msg('Benvenuto, ' + playerName + '! Sei offline: per ora salvo su questo browser.');
+  msg('');
+  gioco = 'lobby'; document.body.dataset.gioco = 'lobby';
+  if (remoto)      lobbyMsg('Bentornato, ' + playerName + '! Account caricato.');
+  else if (locale) lobbyMsg('Bentornato, ' + playerName + '!');
+  else if (online) lobbyMsg('Benvenuto, ' + playerName + '! Account creato.');
+  else             lobbyMsg('Benvenuto, ' + playerName + '! Sei offline: per ora salvo su questo browser.');
   statoAccount(online ? (remoto ? 'Account online' : 'Account creato online') : 'Offline: salvo solo su questo browser', !online);
   controllaSaldo();
   memScrivi();
@@ -705,7 +803,7 @@ async function mostraGiocatori() {
 }
 
 function cambiaGiocatore() {
-  if (phase !== 'bet') return;
+  if (!tavoloLibero()) return;
   chiudiStats();
   const input = document.getElementById('name-input');
   input.value = '';
@@ -726,11 +824,12 @@ document.addEventListener('DOMContentLoaded', () => {
    CASHOUT
 ════════════════════════════════════════════════════════════════ */
 function updateCashoutBtn() {
-  document.getElementById('cashout-btn').disabled = !playerName || phase !== 'bet' || balance <= 0;
+  document.getElementById('cashout-btn').disabled = !playerName || !tavoloLibero() || balance <= 0;
+  aggiornaTavoliBtn();
 }
 
 function openCashout() {
-  if (!playerName || phase !== 'bet' || balance <= 0) return;
+  if (!playerName || !tavoloLibero() || balance <= 0) return;
   document.getElementById('cashout-msg').textContent =
     `Incassa €${balance} come "${playerName}" e salva in classifica globale? Poi si riparte da €50.`;
   document.getElementById('cashout-error').textContent = '';
@@ -926,6 +1025,7 @@ function setCroupier(s) {
     img.src = IMGS[s] || IMGS.init;
     img.style.opacity = '1'; img.style.transform = 'none';
     document.getElementById('croupier-avatar').src = img.src;
+    document.getElementById('r-croupier').src = img.src;
   }, 270);
 }
 
@@ -977,7 +1077,9 @@ const STATS_ZERO = {
   mani:0, vinte:0, perse:0, pari:0, blackjack:0, sballate:0,
   serie:0, serieMax:0, recordSaldo:SALDO_INIZIALE, vincitaMax:0, cashout:0, cashoutMax:0, bancarotte:0,
   // serie in corso usate dai trofei
-  serieBJ:0, seriePari:0, serieBancoBJ:0, serieSballo:0, seriePerse:0, serieAllin:0, rimonta:0
+  serieBJ:0, seriePari:0, serieBancoBJ:0, serieSballo:0, seriePerse:0, serieAllin:0, rimonta:0,
+  // roulette
+  rGiri:0, rVinti:0, rPieni:0, rVincitaMax:0, rSerieRosso:0, rUltimoPieno:0
 };
 let stats  = Object.assign({}, STATS_ZERO);
 let trofei = {}; // id → data ISO di sblocco
@@ -1050,6 +1152,18 @@ const TROFEI = [
   { id:'sbancata',    r:'leggendario', icona:'🏆', nome:'Sbancata',            desc:'Vinci €10.000 in una sola mano' },
   { id:'senzapaura',  r:'leggendario', icona:'🦁', nome:'Senza paura',         desc:'Vinci 3 all in di fila' },
   { id:'civive',      r:'leggendario', icona:'🛋️', nome:'Ci vive qui',         desc:'Gioca 1.000 mani' },
+  // ── roulette
+  { id:'r_primo',     r:'comune', icona:'🎡', nome:'Faites vos jeux',       desc:'Gira la roulette per la prima volta' },
+  { id:'r_pieno',     r:'comune', icona:'🎯', nome:'Numero secco',          desc:'Vinci puntando su un numero pieno' },
+  { id:'r_zeroperso', r:'comune', icona:'🥶', nome:'Lo zero fa male',       desc:'Esce lo 0 e ti porta via le puntate esterne' },
+  { id:'r_zero',      r:'raro', icona:'🟢', nome:'Zero spaccato',          desc:'Vinci puntando sullo 0' },
+  { id:'r_tappeto',   r:'raro', icona:'🧺', nome:'A tappeto',              desc:'Punta su 10 o più numeri pieni e prendine uno' },
+  { id:'r_giri100',   r:'raro', icona:'🌀', nome:'Mal di ruota',           desc:'Gira la roulette 100 volte' },
+  { id:'r_tutto',     r:'epico', icona:'🛡️', nome:'Copro tutto',          desc:'Copri tutti i 37 numeri in un solo giro' },
+  { id:'r_rossofisso',r:'epico', icona:'🌹', nome:'Rosso fisso',          desc:'Esce il rosso 7 volte di fila' },
+  { id:'r_pieno100',  r:'epico', icona:'💣', nome:'Pieno da paura',       desc:'Prendi un numero pieno con €100 o più sopra' },
+  { id:'r_sbanca',    r:'leggendario', icona:'🎆', nome:'Sbanca la ruota', desc:'Vinci €5.000 in un solo giro' },
+  { id:'r_bis',       r:'leggendario', icona:'🔮', nome:'Il bis',          desc:'Prendi lo stesso numero pieno due giri di fila' },
   { id:'leggenda',    r:'leggendario', icona:'🌟', nome:'Leggenda della bisca', desc:'Sblocca tutti gli altri trofei' },
 ];
 
@@ -1097,9 +1211,15 @@ function apriStats() {
     ['Vincita più alta in una mano', euro(s.vincitaMax)], ['Cashout', s.cashout],
     ['Cashout più alto', euro(s.cashoutMax)], ['Bancarotte', s.bancarotte],
   ];
+  const rouletteRighe = [
+    ['Giri di roulette', s.rGiri], ['Giri vinti', s.rVinti + (s.rGiri ? ` (${Math.round(s.rVinti / s.rGiri * 100)}%)` : '')],
+    ['Numeri pieni presi', s.rPieni], ['Vincita più alta in un giro', euro(s.rVincitaMax)],
+  ];
   document.getElementById('account-nome').textContent = playerName || '—';
+  const riga = ([k,v]) => `<div class="stat-row"><span>${k}</span><b>${v}</b></div>`;
   document.getElementById('stats-list').innerHTML =
-    righe.map(([k,v]) => `<div class="stat-row"><span>${k}</span><b>${v}</b></div>`).join('');
+    '<div class="rarita-head stat-sub">🃏 Blackjack e saldo</div>' + righe.map(riga).join('') +
+    '<div class="rarita-head stat-sub">🎡 Roulette</div>' + rouletteRighe.map(riga).join('');
   const n = TROFEI.filter(t => trofei[t.id]).length;
   document.getElementById('trofei-count').textContent = `${n} / ${TROFEI.length}`;
   document.getElementById('trofei-grid').innerHTML = Object.keys(RARITA).map(r => {
@@ -1138,6 +1258,8 @@ function updateHUD() {
   updateCashoutBtn();
   updateChipStates();
   updateBetTools();
+  if (gioco === 'roulette' && typeof rAggiorna === 'function') rAggiorna();
+  if (gioco === 'lobby') document.getElementById('lobby-saldo').textContent = '€' + balance.toLocaleString('it-IT');
 }
 
 function updateChipStates() {
@@ -1183,11 +1305,34 @@ function renderP() {
     h.forEach(c => row.appendChild(buildCard(c)));
     const b=document.createElement('div'); b.className='score-badge'+(handResults[i]?' '+handResults[i]:'');
     const t2=total(h);
-    b.textContent=(playerHands.length>1?'Mano '+(i+1)+': ':'')+t2+(t2>21?' 💀':'');
+    const etichetta = playerHands.length>2 ? (i+1)+'ª: ' : playerHands.length>1 ? 'Mano '+(i+1)+': ' : '';
+    b.textContent=etichetta+t2+(t2>21?' 💀':'');
     div.appendChild(row); div.appendChild(b); ct.appendChild(div);
   });
   document.getElementById('player-score').textContent='';
+  adattaMani();
 }
+
+/* Dopo uno split le mani restano su una riga sola: se non ci stanno, le carte
+   si rimpiccioliscono (prima la seconda mano finiva sotto, fuori dal tavolo). */
+function adattaMani() {
+  const ct = document.getElementById('player-hands');
+  ct.style.removeProperty('--cw');
+  ct.style.flexWrap = '';
+  const carta = ct.querySelector('.card');
+  if (!carta) return;
+  let cw = carta.offsetWidth;
+  while (ct.scrollWidth > ct.clientWidth + 1 && cw > 34) {
+    cw -= 3;
+    ct.style.setProperty('--cw', cw + 'px');
+  }
+  if (ct.scrollWidth > ct.clientWidth + 1) { // ancora troppo larghe: vanno a capo e si mostra la mano in gioco
+    ct.style.flexWrap = 'wrap';
+    const attiva = ct.querySelector('.active-hand');
+    if (attiva) attiva.scrollIntoView({ block: 'nearest' });
+  }
+}
+window.addEventListener('resize', () => { if (playerHands.length > 1 || playerHands[0].length > 4) adattaMani(); });
 
 function btns(h,s,d,sp) {
   ['btn-hit','btn-stand','btn-double','btn-split'].forEach((id,i) => {
@@ -1287,6 +1432,10 @@ function deal() {
 
   if (dealerHand[0].rank==='A') {
     phase='insurance';
+    // in all in (o col saldo sotto metà puntata) l'assicurazione non si può pagare: il Sì resta spento
+    const puoi = Math.floor(handBets[0]/2) > 0 && Math.floor(handBets[0]/2) <= balance;
+    document.getElementById('ins-yes').disabled = !puoi;
+    document.getElementById('ins-yes').title = puoi ? '' : 'Non hai saldo per l\'assicurazione';
     document.getElementById('insurance-bar').classList.add('show');
     return;
   }
@@ -1314,7 +1463,7 @@ function dopoAssicurazione() {
    INSURANCE
 ════════════════════════════════════════════════════════════════ */
 function takeInsurance() {
-  if (phase !== 'insurance') return;
+  if (phase !== 'insurance' || document.getElementById('ins-yes').disabled) return;
   const cost=Math.floor(handBets[0]/2);
   if(cost<=0||cost>balance) { msg('Saldo insufficiente per l\'assicurazione.','lose'); declineInsurance(); return; }
   sfxChip();
@@ -1495,14 +1644,7 @@ function finishRound() {
   else                     setCroupier('init');
 
   currentBet=0; updateHUD();
-  if(balance<=0) {
-    stats.bancarotte++;
-    sblocca('rovina');
-    if (stats.bancarotte >= 5) sblocca('affezionato');
-    memScrivi();
-    setTimeout(() => document.getElementById('overlay').classList.add('show'), 1300);
-    return;
-  }
+  if(balance<=0) { bancarotta(); return; }
   memScrivi();
   setTimeout(() => { phase='bet'; betArea(true); }, 1050);
 }
@@ -1510,6 +1652,13 @@ function finishRound() {
 /* ════════════════════════════════════════════════════════════════
    RESET
 ════════════════════════════════════════════════════════════════ */
+function bancarotta() {
+  stats.bancarotte++;
+  sblocca('rovina');
+  if (stats.bancarotte >= 5) sblocca('affezionato');
+  memScrivi();
+  setTimeout(() => document.getElementById('overlay').classList.add('show'), 1300);
+}
 function resetTavolo() {
   currentBet=0; deck=newDeck(6);
   dealerHand=[]; playerHands=[[]]; handBets=[0]; handDoubled=[false]; handResults=[]; curHand=0; insBet=0; phase='bet';
@@ -1519,11 +1668,14 @@ function resetTavolo() {
   document.getElementById('overlay').classList.remove('show');
   document.getElementById('insurance-bar').classList.remove('show');
   closeCashoutModal();
+  if (typeof rReset === 'function') rReset();
 }
 function resetGame() {
   balance=SALDO_INIZIALE;
   resetTavolo();
   msg(playerName ? 'Buona fortuna, '+playerName+'!' : '');
+  if (gioco === 'roulette') rMsg('Si riparte da €' + SALDO_INIZIALE + '. Buona fortuna, ' + playerName + '!');
+  if (gioco === 'lobby') lobbyMsg('Si riparte da €' + SALDO_INIZIALE + '. Buona fortuna, ' + playerName + '!');
   memScrivi();
 }
 
@@ -1546,6 +1698,13 @@ document.addEventListener('keydown', e => {
     return;
   }
   if (e.key === 'Escape' && document.getElementById('lb-panel').classList.contains('open')) { toggleLeaderboard(); return; }
+  if (document.getElementById('overlay').classList.contains('show')) return;
+  if (gioco === 'lobby') {
+    const t = { b: 'blackjack', r: 'roulette' }[e.key.toLowerCase()];
+    if (t) { e.preventDefault(); vaiA(t); }
+    return;
+  }
+  if (gioco === 'roulette') { rTasti(e); return; }
   const k = e.key.toLowerCase();
   const azioni = {
     player:    { c: hit, s: stand, d: doubleDown, p: splitHand },
@@ -1579,5 +1738,7 @@ deck = newDeck(6);
 betArea(true);
 setCroupier('init');
 </script>
+<script src="../../js/radio.js?v=11"></script>
+<script src="roulette.js"></script>
 </body>
 </html>
