@@ -15,7 +15,7 @@
  *                   (se manca, la card è "in arrivo" e non si clicca)
  *    tag          → lista di parole, es. ['Follia', 'Wow']
  *    immagine     → (facoltativa) copertina della card, es. 'giochi/mio-gioco/copertina.jpg'
- *    inEvidenza   → true per metterla anche in cima, tra i "Malanni fatti"
+ *    inEvidenza   → true per metterla anche in cima, nella sezione "In evidenza"
  *    inArrivo     → true per mostrarla sbiadita con "in arrivo"
  *    youtube      → (solo video) il codice del video YouTube, es. 'UoCs9tTNp_0'.
  *                   Il link alla pagina Video e la copertina li fa il sito da solo.
@@ -43,20 +43,47 @@ const CONTENUTI = {
     },
   ],
 
-  // Per i video di YouTube basta il titolo e il codice del video:
+  // I video sono divisi in playlist, nell'ordine in cui appaiono sul sito.
+  // Per ogni video di YouTube basta il titolo e il codice del video:
   // è la parte dopo youtu.be/ (o dopo watch?v=) nel link, senza "?si=..."
+  // Per aggiungere una playlist, copia un blocco { playlist: ..., video: [...] }.
   video: [
-    { titolo: 'MEMOZZI 2', youtube: 'UoCs9tTNp_0' },
-    { titolo: 'MANICALDE 2', youtube: 'NNLHrwpfqOE' },
-    { titolo: 'MANICALDE', youtube: 'zp_h59vQX-0' },
-    { titolo: 'LA FIRMA', youtube: 'kz5BbTh3A2c' },
-    { titolo: 'KAST1', youtube: '5yH6RUK1ITs' },
-    { titolo: 'DOMANDE', youtube: 't4p3hHORiVU' },
-    { titolo: 'CHI', youtube: 'J8jtWhEEIVs' },
-    { titolo: 'BOOM BOOM CRASH', youtube: 'HT-TgkoFppo' },
-    { titolo: 'AMICI E MARE (MEMOZZI 3)', youtube: 'xsMzE0SXMLE' },
-    { titolo: 'MANICALDE 4', youtube: '1VXW5Fs9TMM' },
-    { titolo: 'MANICALDE 3', youtube: 'nGXCsvPd3Cc' },
+    {
+      playlist: 'Manicalde',
+      video: [
+        { titolo: 'MANICALDE',   youtube: 'zp_h59vQX-0' },
+        { titolo: 'MANICALDE 2', youtube: 'NNLHrwpfqOE' },
+        { titolo: 'MANICALDE 3', youtube: 'nGXCsvPd3Cc' },
+        { titolo: 'MANICALDE 4', youtube: '1VXW5Fs9TMM', inEvidenza: true },
+      ],
+    },
+    {
+      playlist: 'Memozzi',
+      video: [
+        { titolo: 'MEMOZZI 2',                youtube: 'UoCs9tTNp_0' },
+        { titolo: 'AMICI E MARE (MEMOZZI 3)', youtube: 'xsMzE0SXMLE' },
+      ],
+    },
+    {
+      playlist: 'Kasti',
+      video: [
+        { titolo: 'KAST1', youtube: '5yH6RUK1ITs' },
+      ],
+    },
+    {
+      playlist: 'Sketch',
+      video: [
+        { titolo: 'LA FIRMA', youtube: 'kz5BbTh3A2c' },
+        { titolo: 'CHI',      youtube: 'J8jtWhEEIVs' },
+        { titolo: 'DOMANDE',  youtube: 't4p3hHORiVU' },
+      ],
+    },
+    {
+      playlist: "D'autore",
+      video: [
+        { titolo: 'BOOM BOOM CRASH', youtube: 'HT-TgkoFppo' },
+      ],
+    },
   ],
 
   musica: [
@@ -65,3 +92,11 @@ const CONTENUTI = {
   ],
 
 };
+
+/*
+ * Lista piatta di tutti i video, con il nome della playlist su ognuno.
+ * La usano la homepage e la pagina Video: qui non serve toccare niente.
+ */
+const TUTTI_I_VIDEO = CONTENUTI.video.flatMap(p =>
+  (p.video || []).map(v => Object.assign({ playlist: p.playlist }, v))
+);
