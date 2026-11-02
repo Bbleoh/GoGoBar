@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <meta name="theme-color" content="#050d07">
-<title>Bisca del Tromba – Blackjack</title>
+<title>La Bisca der Tromba – Blackjack</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700;900&family=Cinzel+Decorative:wght@700&family=Playfair+Display:wght@600;800;900&display=swap" rel="stylesheet">
@@ -17,7 +17,7 @@
     --panel:rgba(6,14,9,.78); --panel-solid:#08150c;
     --win:#3ddc84; --lose:#ff5b4f; --push:#f5b13d;
     --radius:16px;
-    --cw:clamp(50px, min(12vw, 11vh), 104px); /* larghezza carta */
+    --cw:clamp(50px, min(12vw, 10vh), 104px); /* larghezza carta */
     --ui:'Cinzel',serif; --text:'Playfair Display',serif;
   }
   *{margin:0;padding:0;box-sizing:border-box;}
@@ -53,15 +53,16 @@
   .icon-btn{width:40px;padding:0;justify-content:center;font-size:1.05rem;}
   .icon-btn.off{opacity:.5;}
 
-  /* PALCO: croupier + tavolo */
-  #stage{flex:1;min-height:0;display:flex;align-items:stretch;gap:12px;padding:6px 16px;}
-  #croupier-panel{flex:0 0 clamp(240px,27vw,420px);display:flex;align-items:flex-end;justify-content:center;
-    pointer-events:none;min-height:0;}
-  #croupier-img{display:block;max-width:100%;max-height:100%;object-fit:contain;object-position:bottom;
-    filter:drop-shadow(0 0 30px rgba(0,0,0,.95));transition:opacity .3s,transform .3s;}
+  /* PALCO: il croupier sta dietro al tavolo centrato e se ne vede solo la metà di sopra.
+     --ch è l'altezza visibile; l'immagine è alta il doppio e la parte sotto finisce dietro al tavolo. */
+  #stage{--ch:clamp(80px,18vh,230px);flex:1;min-height:0;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:0 16px 6px;}
+  #croupier-panel{flex:0 0 var(--ch);height:var(--ch);width:100%;display:flex;justify-content:center;align-items:flex-start;
+    position:relative;z-index:1;pointer-events:none;}
+  #croupier-img{display:block;height:calc(var(--ch)*2);width:auto;
+    filter:drop-shadow(0 0 24px rgba(0,0,0,.9));transition:opacity .3s,transform .3s;}
 
-  #table{flex:1;min-width:0;min-height:0;position:relative;display:flex;flex-direction:column;justify-content:space-between;
-    gap:8px;padding:16px clamp(12px,2.5vw,32px);border-radius:28px;overflow:auto;
+  #table{flex:0 1 auto;width:min(980px,100%);min-width:0;min-height:0;position:relative;z-index:2;display:flex;flex-direction:column;justify-content:space-between;
+    gap:clamp(6px,2vh,28px);padding:16px clamp(12px,2.5vw,32px) 20px;border-radius:28px;overflow:auto;
     background:radial-gradient(ellipse at 50% 45%,#1c5a35 0%,var(--felt) 45%,var(--felt-dark) 100%);
     border:2px solid var(--gold-dim);
     box-shadow:0 20px 60px rgba(0,0,0,.6),inset 0 0 0 6px rgba(0,0,0,.25),inset 0 0 0 7px rgba(212,175,90,.25),inset 0 0 60px rgba(0,0,0,.55);}
@@ -120,8 +121,9 @@
 
   .dock-row{display:flex;gap:10px;justify-content:center;align-items:center;flex-wrap:wrap;}
   #dock-play,#dock-bet{display:flex;flex-direction:column;align-items:center;gap:10px;width:100%;}
-  body[data-mode="bet"] #dock-play{display:none;}
-  body:not([data-mode="bet"]) #dock-bet{display:none;}
+  /* il dock mostra le fiches mentre punti e i pulsanti di gioco durante la mano */
+  #dock-modes{width:100%;}
+  body[data-mode="bet"] #dock-play,body:not([data-mode="bet"]) #dock-bet{display:none;}
 
   .btn{font-family:var(--ui);font-weight:700;letter-spacing:1px;text-transform:uppercase;font-size:.92rem;
     min-height:46px;padding:0 24px;border-radius:12px;cursor:pointer;border:1px solid var(--gold);
@@ -238,8 +240,17 @@
   #toast b{font-family:var(--ui);color:var(--gold);}
   .toast-icon{font-size:1.8rem;}
 
-  /* SCHERMI MEDI: croupier come avatar accanto al banco */
-  @media (max-width:1000px), (max-height:620px){
+  /* SCHERMI LARGHI: fiches e pulsanti su una riga sola, così il dock resta basso */
+  @media (min-width:1200px){
+    #dock-bet{flex-direction:row;gap:22px;}
+    #dock{flex-direction:row;justify-content:center;gap:22px;flex-wrap:wrap;}
+    #dock-modes{width:auto;}
+    #hud{flex-direction:column;gap:6px;}
+    #keys-hint{flex-basis:100%;}
+  }
+  /* SCHERMI BASSI: niente spazio sopra il tavolo, il croupier diventa un avatar accanto al banco */
+  @media (max-height:700px){
+    :root{--cw:clamp(44px, min(12vw, 8.5vh), 80px);}
     #croupier-panel{display:none;}
     #croupier-avatar{display:block;}
   }
@@ -251,7 +262,7 @@
     #topbar{grid-template-columns:auto 1fr auto;}
     .top-btn .lbl{display:none;}
     .top-btn{width:40px;padding:0;justify-content:center;font-size:1rem;}
-    #stage{padding:4px 8px;}
+    #stage{--ch:clamp(80px,16vh,150px);padding:0 8px 4px;}
     #table{border-radius:20px;padding:12px 8px;}
     #dock{padding:8px 10px 12px;gap:8px;}
     .btn{padding:0 14px;font-size:.82rem;}
@@ -270,6 +281,7 @@
     #dock{flex-direction:row;flex-wrap:wrap;justify-content:center;align-items:center;padding:4px 10px 6px;gap:8px;}
     #hud{flex-direction:column;gap:4px;}
     .hud-pill{padding:3px 12px;}
+    #dock-modes{width:auto;}
     #dock-bet{flex-direction:row;width:auto;gap:8px;}
     #dock-play{width:auto;}
     #chips-row{flex-wrap:nowrap;}
@@ -279,9 +291,9 @@
     #keys-hint,.btn kbd{display:none;}
     #table{padding:6px 12px;gap:2px;}
     #croupier-avatar{width:30px;height:30px;}
-    #table .seat:last-child .seat-head{display:none;}
     #message{min-height:1.6em;padding:0 12px;}
   }
+  @media (max-height:860px){ #keys-hint{display:none;} }
   @media (hover:none){ .btn kbd,#keys-hint{display:none;} }
   @media (prefers-reduced-motion:reduce){ *{animation:none !important;transition:none !important;} }
 </style>
@@ -293,7 +305,7 @@
 <!-- ══ NOME (all'avvio) ══ -->
 <div class="modal-overlay" id="name-modal">
   <div class="modal-box" role="dialog" aria-labelledby="name-title">
-    <h2 id="name-title">♠ Bisca del Tromba ♠</h2>
+    <h2 id="name-title">♠ La Bisca der Tromba ♠</h2>
     <p><span id="name-intro">Benvenuto! Come ti chiami?</span><br>Il nome serve per la classifica quando fai cashout.</p>
     <label for="name-input" class="sr-only" style="position:absolute;left:-9999px">Il tuo nome</label>
     <input class="modal-input" id="name-input" type="text" maxlength="20" placeholder="Il tuo nome" autocomplete="nickname">
@@ -339,7 +351,7 @@
       <button class="top-btn" onclick="apriStats()" title="Statistiche e trofei">📊<span class="lbl">Statistiche</span></button>
       <button class="top-btn cashout" id="cashout-btn" onclick="openCashout()" disabled title="Incassa il saldo e salvalo in classifica (tra una mano e l'altra)">💰<span class="lbl">Cashout</span></button>
     </div>
-    <h1 id="title-bar">La Bisca del Tromba</h1>
+    <h1 id="title-bar">La Bisca der Tromba</h1>
     <div class="tb-right">
       <button class="top-btn icon-btn" id="mute-btn" onclick="toggleMute()" title="Musica" aria-label="Musica">🔊</button>
       <button class="top-btn icon-btn" id="sfx-btn" onclick="toggleSfx()" title="Effetti sonori" aria-label="Effetti sonori">🎵</button>
@@ -361,7 +373,7 @@
       <div id="message" aria-live="polite"></div>
       <div class="seat">
         <div id="player-hands"></div>
-        <div class="seat-head"><span class="zone-label">Tu</span><span class="score-badge" id="player-score"></span></div>
+        <span class="score-badge" id="player-score" hidden></span>
       </div>
     </section>
   </main>
@@ -373,6 +385,7 @@
       <div class="hud-pill"><small>Puntata</small><span id="bet-display">€0</span></div>
     </div>
 
+    <div id="dock-modes">
     <div id="dock-bet">
       <div id="chips-row">
         <button class="chip chip-1"   id="chip-1"   onclick="addBet(1)"   aria-label="Punta 1 euro">1</button>
@@ -405,6 +418,7 @@
         <button class="btn" id="btn-split"  onclick="splitHand()"  disabled>Split<kbd>P</kbd></button>
       </div>
     </div>
+    </div>
     <div id="keys-hint">Tasti: R ripeti · X ×2 · Esc annulla · Invio distribuisci</div>
   </footer>
 </div>
@@ -431,8 +445,7 @@
   </div>
 </div>
 
-<audio id="audio1" preload="auto"><source src="assets/musica-1.mp3" type="audio/mpeg"></audio>
-<audio id="audio2" preload="metadata"><source src="assets/musica-2.mp3" type="audio/mpeg"></audio>
+<audio id="musica" preload="auto"></audio>
 
 <script src="classifica.js"></script>
 <script>
@@ -587,9 +600,11 @@ let sfxOff   = false;
 let musicOn  = false;
 let curTrk   = 1;
 
-const A1 = document.getElementById('audio1');
-const A2 = document.getElementById('audio2');
-A1.volume = A2.volume = 0.45;
+/* Un solo elemento <audio> che alterna i brani: su iPhone/Safari un secondo
+   elemento non "sbloccato" da un tocco resterebbe muto alla fine del primo brano. */
+const BRANI = ['assets/musica-1.mp3', 'assets/musica-2.mp3'];
+const AUD = document.getElementById('musica');
+AUD.volume = 0.45;
 
 function getAC() {
   if (!actx) actx = new (window.AudioContext || window.webkitAudioContext)();
@@ -598,14 +613,11 @@ function getAC() {
 }
 
 function playTrack(n) {
-  if (muted) return;
-  const a = n === 1 ? A1 : A2;
-  a.currentTime = 0;
-  a.play().catch(() => {});
   curTrk = n;
+  AUD.src = BRANI[n - 1];
+  if (!muted) AUD.play().catch(() => {});
 }
-A1.addEventListener('ended', () => playTrack(2));
-A2.addEventListener('ended', () => playTrack(1));
+AUD.addEventListener('ended', () => playTrack(curTrk === 1 ? 2 : 1));
 
 function startMusic() {
   if (musicOn) return;
@@ -624,8 +636,9 @@ function toggleMute() {
   const btn = document.getElementById('mute-btn');
   btn.textContent = muted ? '🔇' : '🔊';
   btn.classList.toggle('off', muted);
-  if (muted) { A1.pause(); A2.pause(); }
-  else { startMusic(); playTrack(curTrk); }
+  if (muted) AUD.pause();
+  else if (!musicOn) startMusic();
+  else AUD.play().catch(() => {}); // riprende da dove si era fermata
 }
 
 function toggleSfx() {
@@ -731,7 +744,7 @@ const IMGS = {
 Object.values(IMGS).forEach(src => { const i = new Image(); i.src = src; });
 function setCroupier(s) {
   const img = document.getElementById('croupier-img');
-  img.style.opacity = '0'; img.style.transform = 'translateX(-22px)';
+  img.style.opacity = '0'; img.style.transform = 'translateY(14px)';
   setTimeout(() => {
     img.src = IMGS[s] || IMGS.init;
     img.style.opacity = '1'; img.style.transform = 'none';

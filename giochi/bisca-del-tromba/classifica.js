@@ -1,5 +1,5 @@
 /* ════════════════════════════════════════════════════════════════
-   CLASSIFICA DELLA BISCA DEL TROMBA
+   CLASSIFICA DE LA BISCA DER TROMBA
    Script classico (niente module): definisce window.BiscaClassifica.
    Lo usano sia il gioco sia la homepage del sito.
 
