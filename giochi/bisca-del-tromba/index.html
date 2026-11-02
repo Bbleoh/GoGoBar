@@ -48,6 +48,7 @@
     backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);transition:background .15s,border-color .15s,opacity .15s;}
   .top-btn:hover:not(:disabled){background:rgba(212,175,90,.18);border-color:var(--gold);}
   .top-btn:disabled{opacity:.4;cursor:not-allowed;}
+  .top-btn.radio-on{border-color:var(--gold);background:rgba(212,175,90,.18);}
   .top-btn.cashout{border-color:rgba(61,220,132,.5);color:var(--win);}
   .top-btn.cashout:hover:not(:disabled){background:rgba(61,220,132,.14);}
   .tb-right .icon-btn{width:52px;height:52px;padding:0;justify-content:center;font-size:1.5rem;}
@@ -389,6 +390,7 @@
     </div>
     <h1 id="title-bar">La Bisca der Tromba</h1>
     <div class="tb-right">
+      <button class="top-btn icon-btn" data-gogobar-radio title="Radio GoGoBar: i brani della sezione Musica" aria-label="Radio GoGoBar">📻</button>
       <button class="top-btn icon-btn" id="mute-btn" onclick="toggleMute()" title="Musica" aria-label="Musica">🔊</button>
       <button class="top-btn icon-btn" id="sfx-btn" onclick="toggleSfx()" title="Effetti sonori" aria-label="Effetti sonori">🎵</button>
     </div>
@@ -1579,5 +1581,6 @@ deck = newDeck(6);
 betArea(true);
 setCroupier('init');
 </script>
+<script src="../../js/radio.js?v=11"></script>
 </body>
 </html>
