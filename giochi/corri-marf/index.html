@@ -1,0 +1,481 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
+  <title>Corri Marf! · GoGoBar</title>
+  <meta name="description" content="Marf corre e scappa dalle femmine. Quanto lontano arrivi?">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #0d0d0c; --line: #2a2a26; --ivory: #f4efe2; --cream: #c9c0a9;
+      --muted: #77715f; --gold: #e4b33c; --red: #d2452f;
+      --display: 'Fredoka', sans-serif; --mono: 'DM Mono', monospace;
+    }
+    html, body { height: 100%; }
+    body {
+      background: var(--bg); color: var(--ivory); font-family: var(--display);
+      display: flex; flex-direction: column; align-items: center;
+      overflow: hidden; touch-action: manipulation; -webkit-user-select: none; user-select: none;
+    }
+    .bar {
+      width: 100%; display: flex; justify-content: space-between; align-items: center;
+      padding: .7rem 16px; border-bottom: 1px solid var(--line);
+    }
+    .bar a { font-family: var(--mono); font-size: .75rem; letter-spacing: .12em; text-transform: uppercase; color: var(--cream); text-decoration: none; }
+    .bar a:hover { color: var(--gold); }
+    .bar h1 { font-size: 1.3rem; font-weight: 700; }
+    .bar h1 span { color: var(--gold); }
+    .stage { position: relative; flex: 1; width: 100%; display: flex; align-items: center; justify-content: center; padding: 12px; }
+    canvas { display: block; border-radius: 18px; border: 1px solid var(--line); background: #15131c; max-width: 100%; max-height: 100%; }
+    .hint { font-family: var(--mono); font-size: .72rem; color: var(--muted); padding: 0 16px 12px; text-align: center; letter-spacing: .05em; }
+  </style>
+</head>
+<body>
+  <div class="bar">
+    <a href="../../">← GoGoBar</a>
+    <h1>Corri <span>Marf!</span></h1>
+    <a href="#" id="audio">♪ on</a>
+  </div>
+  <div class="stage"><canvas id="c" aria-label="Corri Marf, il gioco"></canvas></div>
+  <p class="hint">Salta: spazio, ↑ o tocca lo schermo (anche due volte) · Scivola: ↓ o swipe in giù</p>
+
+<script>
+(function () {
+  'use strict';
+
+  /* ── Mondo logico: 960 × 420, scalato per stare nello schermo ── */
+  var W = 960, H = 420, TERRA = 350;
+  var cv = document.getElementById('c');
+  var ctx = cv.getContext('2d');
+  var scala = 1;
+
+  function adatta() {
+    var box = cv.parentElement.getBoundingClientRect();
+    var maxW = box.width - 24, maxH = box.height - 24;
+    var s = Math.min(maxW / W, maxH / H);
+    var dpr = window.devicePixelRatio || 1;
+    cv.style.width = Math.floor(W * s) + 'px';
+    cv.style.height = Math.floor(H * s) + 'px';
+    cv.width = Math.floor(W * s * dpr);
+    cv.height = Math.floor(H * s * dpr);
+    scala = s * dpr;
+  }
+  window.addEventListener('resize', adatta);
+  adatta();
+
+  /* ── Record locale ── */
+  function leggiRecord() { try { return +localStorage.getItem('corriMarf.record') || 0; } catch (e) { return 0; } }
+  function scriviRecord(v) { try { localStorage.setItem('corriMarf.record', String(v)); } catch (e) {} }
+
+  /* ── Suoni sintetizzati (niente file) ── */
+  var audioOn = true, actx = null;
+  function bip(freq, dur, tipo, vol) {
+    if (!audioOn) return;
+    try {
+      actx = actx || new (window.AudioContext || window.webkitAudioContext)();
+      var o = actx.createOscillator(), g = actx.createGain(), t = actx.currentTime;
+      o.type = tipo || 'square'; o.frequency.setValueAtTime(freq, t);
+      o.frequency.exponentialRampToValueAtTime(freq * 1.6, t + dur);
+      g.gain.setValueAtTime(vol || 0.06, t); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+      o.connect(g); g.connect(actx.destination); o.start(t); o.stop(t + dur);
+    } catch (e) {}
+  }
+  document.getElementById('audio').addEventListener('click', function (e) {
+    e.preventDefault(); audioOn = !audioOn; this.textContent = audioOn ? '♪ on' : '♪ off';
+  });
+
+  /* ── Stato ── */
+  var FRASI = ['MARF!', 'Aspettaaa!', 'Dove scappi?', 'Ti amo Marf!', 'Un bacino!', 'Marfiiino!', 'Torna qui!'];
+  var stato = 'menu'; // menu | gioco | preso
+  var g;              // partita corrente
+  var record = leggiRecord();
+
+  function nuovaPartita() {
+    g = {
+      t: 0, vel: 380, metri: 0, birre: 0,
+      marf: { y: TERRA, vy: 0, salti: 0, giu: false, botta: 0 },
+      distacco: 230,       // px tra la prima inseguitrice e Marf: a 0 ti prendono
+      ostacoli: [], birreA: [], prossimo: 1.2, prossimaBirra: 3,
+      fumetto: null, prossimoFumetto: 1.5, scatto: 0, scuoti: 0
+    };
+  }
+  nuovaPartita();
+
+  /* ── Comandi ── */
+  function salta() {
+    if (stato !== 'gioco') { inizia(); return; }
+    var m = g.marf;
+    if (m.salti < 2) {
+      m.vy = m.salti === 0 ? -720 : -620; m.salti++; m.giu = false;
+      bip(m.salti === 1 ? 420 : 560, 0.12);
+    }
+  }
+  function giu(attivo) {
+    if (stato !== 'gioco') return;
+    var m = g.marf;
+    if (attivo) {
+      if (m.y < TERRA) m.vy = Math.max(m.vy, 900); // a terra in fretta
+      if (!m.giu) bip(200, 0.1, 'sawtooth', 0.04);
+    }
+    m.giu = attivo;
+  }
+  function inizia() {
+    if (stato === 'preso' && g.t < 0.6) return; // evita il riavvio per sbaglio
+    nuovaPartita(); stato = 'gioco';
+  }
+
+  window.addEventListener('keydown', function (e) {
+    if (e.repeat && (e.code === 'Space' || e.code === 'ArrowUp' || e.code === 'KeyW')) return;
+    if (e.code === 'Space' || e.code === 'ArrowUp' || e.code === 'KeyW') { e.preventDefault(); salta(); }
+    else if (e.code === 'ArrowDown' || e.code === 'KeyS') { e.preventDefault(); giu(true); }
+    else if (e.code === 'Enter' && stato !== 'gioco') inizia();
+  });
+  window.addEventListener('keyup', function (e) {
+    if (e.code === 'ArrowDown' || e.code === 'KeyS') giu(false);
+  });
+
+  var tocco = null;
+  cv.addEventListener('touchstart', function (e) {
+    e.preventDefault(); var p = e.changedTouches[0];
+    tocco = { x: p.clientX, y: p.clientY, giu: false };
+  }, { passive: false });
+  cv.addEventListener('touchmove', function (e) {
+    e.preventDefault(); if (!tocco) return; var p = e.changedTouches[0];
+    if (!tocco.giu && p.clientY - tocco.y > 30) { tocco.giu = true; giu(true); }
+  }, { passive: false });
+  cv.addEventListener('touchend', function (e) {
+    e.preventDefault(); if (!tocco) return;
+    if (tocco.giu) giu(false); else salta();
+    tocco = null;
+  }, { passive: false });
+  cv.addEventListener('mousedown', function () { salta(); });
+
+  document.addEventListener('visibilitychange', function () { ultimo = performance.now(); });
+
+  /* ── Generazione ostacoli ── */
+  // basso = da saltare, alto = da scivolarci sotto
+  function generaOstacolo() {
+    var r = Math.random(), lvl = Math.min(g.metri / 1500, 1);
+    var o;
+    if (r < 0.45) o = { tipo: 'sedia', w: 46, h: 58 };
+    else if (r < 0.7) o = { tipo: 'casse', w: 70, h: 70 + (Math.random() < lvl * 0.6 ? 34 : 0) };
+    else o = { tipo: 'insegna', w: 120, h: 30, alto: true };
+    o.x = W + 40;
+    g.ostacoli.push(o);
+    var base = 1.25 - lvl * 0.45;
+    g.prossimo = base + Math.random() * 0.9;
+  }
+
+  /* ── Aggiornamento ── */
+  function aggiorna(dt) {
+    g.t += dt;
+    if (stato !== 'gioco') return;
+    var m = g.marf;
+
+    g.vel = Math.min(380 + g.t * 9, 820) * (g.scatto > 0 ? 1.15 : 1);
+    var dx = g.vel * dt;
+    g.metri += dx / 40;
+
+    // fisica di Marf
+    m.vy += 2100 * dt;
+    m.y += m.vy * dt;
+    if (m.y >= TERRA) { m.y = TERRA; m.vy = 0; m.salti = 0; }
+    if (m.botta > 0) m.botta -= dt;
+    if (g.scatto > 0) g.scatto -= dt;
+    if (g.scuoti > 0) g.scuoti -= dt;
+
+    // le inseguitrici recuperano lentamente se rallenti, si allontanano se fili
+    g.distacco = Math.min(g.distacco + (g.scatto > 0 ? 40 : 6) * dt, 260);
+
+    // ostacoli
+    g.prossimo -= dt;
+    if (g.prossimo <= 0) generaOstacolo();
+    var hb = hitboxMarf();
+    for (var i = g.ostacoli.length - 1; i >= 0; i--) {
+      var o = g.ostacoli[i];
+      o.x -= dx;
+      if (o.x + o.w < -50) { g.ostacoli.splice(i, 1); continue; }
+      if (!o.preso && m.botta <= 0 && tocca(hb, boxOstacolo(o))) {
+        o.preso = true; m.botta = 1.1; g.distacco -= 85; g.scuoti = 0.25;
+        bip(110, 0.25, 'sawtooth', 0.08);
+      }
+    }
+
+    // birre
+    g.prossimaBirra -= dt;
+    if (g.prossimaBirra <= 0) {
+      g.birreA.push({ x: W + 30, y: TERRA - 40 - Math.random() * 150 });
+      g.prossimaBirra = 2.5 + Math.random() * 3.5;
+    }
+    for (var j = g.birreA.length - 1; j >= 0; j--) {
+      var b = g.birreA[j];
+      b.x -= dx;
+      if (b.x < -30) { g.birreA.splice(j, 1); continue; }
+      if (tocca(hb, { x: b.x - 12, y: b.y - 22, w: 24, h: 40 })) {
+        g.birreA.splice(j, 1); g.birre++; g.distacco = Math.min(g.distacco + 55, 260); g.scatto = 1.2;
+        bip(660, 0.08, 'triangle', 0.08); setTimeout(function () { bip(990, 0.1, 'triangle', 0.08); }, 70);
+      }
+    }
+
+    // fumetti delle inseguitrici
+    g.prossimoFumetto -= dt;
+    if (g.prossimoFumetto <= 0) {
+      g.fumetto = { testo: FRASI[Math.floor(Math.random() * FRASI.length)], chi: Math.floor(Math.random() * 3), t: 1.6 };
+      g.prossimoFumetto = 2.5 + Math.random() * 3;
+    }
+    if (g.fumetto && (g.fumetto.t -= dt) <= 0) g.fumetto = null;
+
+    // preso!
+    if (g.distacco <= 0) {
+      stato = 'preso'; g.t = 0;
+      var punti = punteggio();
+      if (punti > record) { record = punti; scriviRecord(record); g.nuovoRecord = true; }
+      bip(300, 0.5, 'sawtooth', 0.08); setTimeout(function () { bip(150, 0.6, 'sawtooth', 0.08); }, 200);
+    }
+  }
+
+  function punteggio() { return Math.floor(g.metri) + g.birre * 25; }
+
+  var MARF_X = 300;
+  function hitboxMarf() {
+    var m = g.marf;
+    var h = m.giu && m.y >= TERRA ? 42 : 86;
+    return { x: MARF_X - 18, y: m.y - h, w: 36, h: h };
+  }
+  function boxOstacolo(o) {
+    if (o.alto) return { x: o.x, y: TERRA - 118, w: o.w, h: o.h + 20 };
+    return { x: o.x + 4, y: TERRA - o.h, w: o.w - 8, h: o.h };
+  }
+  function tocca(a, b) { return a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y; }
+
+  /* ── Disegno ── */
+  var scorrimento = 0;
+  function disegna() {
+    ctx.setTransform(scala, 0, 0, scala, 0, 0);
+    if (g.scuoti > 0) ctx.translate((Math.random() - .5) * 8, (Math.random() - .5) * 6);
+    if (stato === 'gioco') scorrimento += g.vel / 60;
+
+    sfondo();
+    g.birreA.forEach(birra);
+    g.ostacoli.forEach(ostacolo);
+    inseguitrici();
+    marf();
+    hud();
+    if (stato === 'menu') schermata('Corri Marf!', 'Le femmine lo vogliono. Lui scappa.', 'Tocca o premi spazio per correre');
+    if (stato === 'preso') schermata('Ti hanno preso!', punteggio() + ' punti' + (g.nuovoRecord ? ' · nuovo record!' : ''), 'Tocca o premi spazio per riprovare');
+  }
+
+  function sfondo() {
+    var cielo = ctx.createLinearGradient(0, 0, 0, TERRA);
+    cielo.addColorStop(0, '#1b1530'); cielo.addColorStop(1, '#3a2240');
+    ctx.fillStyle = cielo; ctx.fillRect(0, 0, W, TERRA);
+    // luna
+    ctx.fillStyle = '#f6d77a'; ctx.beginPath(); ctx.arc(700, 90, 28, 0, Math.PI * 2); ctx.fill();
+    // palazzi lontani
+    palazzi(0.15, '#2a1f38', 140, 51);
+    palazzi(0.35, '#22192d', 90, 97, true);
+    // marciapiede
+    ctx.fillStyle = '#2b2622'; ctx.fillRect(0, TERRA, W, H - TERRA);
+    ctx.fillStyle = '#e4b33c'; ctx.fillRect(0, TERRA, W, 4);
+    ctx.fillStyle = '#3a332c';
+    var off = scorrimento % 80;
+    for (var x = -off; x < W; x += 80) ctx.fillRect(x, TERRA + 30, 40, 6);
+  }
+
+  function palazzi(par, colore, altezzaBase, seme, insegne) {
+    var off = (scorrimento * par) % 1200;
+    ctx.fillStyle = colore;
+    for (var k = 0; k < 2; k++) {
+      for (var i = 0; i < 12; i++) {
+        var r = pseudo(i * seme);
+        var w = 70 + r * 60, h = altezzaBase + pseudo(i * seme + 7) * 120;
+        var x = i * 100 - off + k * 1200;
+        if (x > W || x + w < 0) continue;
+        ctx.fillStyle = colore; ctx.fillRect(x, TERRA - h, w, h);
+        if (insegne && pseudo(i * 13) > 0.6) {
+          ctx.fillStyle = pseudo(i * 5) > 0.5 ? '#e4b33c' : '#d2452f';
+          ctx.font = '600 16px Fredoka, sans-serif';
+          ctx.fillText(pseudo(i * 3) > 0.5 ? 'BAR' : 'GOGO', x + 10, TERRA - h + 26);
+        }
+        ctx.fillStyle = 'rgba(246,215,122,.25)';
+        for (var fy = TERRA - h + 40; fy < TERRA - 20; fy += 28)
+          for (var fx = x + 10; fx < x + w - 14; fx += 22)
+            if (pseudo(fx * 0.7 + fy) > 0.55) ctx.fillRect(fx, fy, 9, 12);
+      }
+    }
+  }
+  function pseudo(n) { var s = Math.sin(n * 12.9898) * 43758.5453; return s - Math.floor(s); }
+
+  function birra(b) {
+    var y = b.y + Math.sin(g.t * 5 + b.x * 0.02) * 4;
+    ctx.save(); ctx.translate(b.x, y);
+    ctx.fillStyle = 'rgba(228,179,60,.25)'; ctx.beginPath(); ctx.arc(0, 0, 22, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#e4b33c'; ctx.fillRect(-9, -12, 18, 26);
+    ctx.fillStyle = '#fff6dc'; ctx.fillRect(-10, -18, 20, 8);
+    ctx.strokeStyle = '#e4b33c'; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(11, 0, 6, -Math.PI / 2, Math.PI / 2); ctx.stroke();
+    ctx.restore();
+  }
+
+  function ostacolo(o) {
+    ctx.save();
+    if (o.tipo === 'sedia') {
+      ctx.fillStyle = '#b07a3c';
+      ctx.fillRect(o.x, TERRA - 30, o.w, 8);           // seduta
+      ctx.fillRect(o.x + o.w - 8, TERRA - o.h, 8, o.h);  // schienale
+      ctx.fillRect(o.x + 2, TERRA - 22, 6, 22);
+      ctx.fillRect(o.x + o.w - 14, TERRA - 22, 6, 22);
+    } else if (o.tipo === 'casse') {
+      for (var y = TERRA - o.h; y < TERRA; y += 35) {
+        ctx.fillStyle = '#6b4a2b'; ctx.fillRect(o.x, y, o.w, 33);
+        ctx.fillStyle = '#e4b33c'; for (var b = 0; b < 4; b++) ctx.fillRect(o.x + 8 + b * 15, y + 6, 8, 20);
+      }
+    } else { // insegna appesa: si passa sotto scivolando
+      ctx.fillStyle = '#555'; ctx.fillRect(o.x + 10, 0, 4, TERRA - 118); ctx.fillRect(o.x + o.w - 14, 0, 4, TERRA - 118);
+      ctx.fillStyle = '#d2452f'; roundRect(o.x, TERRA - 118, o.w, o.h + 20, 8); ctx.fill();
+      ctx.fillStyle = '#fff6dc'; ctx.font = '700 22px Fredoka, sans-serif'; ctx.textAlign = 'center';
+      ctx.fillText('GOGOBAR', o.x + o.w / 2, TERRA - 89);
+    }
+    ctx.restore();
+  }
+
+  // Marf provvisorio: verrà sostituito con la sua faccia vera
+  function marf() {
+    var m = g.marf, x = MARF_X, y = m.y;
+    var corre = stato === 'gioco' && m.y >= TERRA;
+    var fase = g.t * (g.vel / 28);
+    if (m.botta > 0 && Math.floor(m.botta * 12) % 2 === 0) return; // lampeggia dopo una botta
+    ctx.save(); ctx.translate(x, y);
+    var basso = m.giu && m.y >= TERRA;
+    if (basso) ctx.rotate(-1.15);
+    ctx.lineCap = 'round';
+    // gambe
+    ctx.strokeStyle = '#2b3a67'; ctx.lineWidth = 10;
+    var a = corre ? Math.sin(fase) * 0.8 : (m.y < TERRA ? 0.5 : 0);
+    gamba(-4, -36, a); gamba(4, -36, -a);
+    // corpo
+    ctx.fillStyle = '#4a8fa8'; roundRect(-16, -74, 32, 42, 10); ctx.fill();
+    ctx.fillStyle = '#f4efe2'; ctx.font = '700 12px Fredoka, sans-serif'; ctx.textAlign = 'center'; ctx.fillText('M', 0, -48);
+    // braccia
+    ctx.strokeStyle = '#e8b98f'; ctx.lineWidth = 8;
+    var b = corre ? Math.sin(fase) * 0.9 : -0.6;
+    braccio(0, -68, b); braccio(0, -68, -b);
+    // testa
+    ctx.fillStyle = '#e8b98f'; ctx.beginPath(); ctx.arc(2, -92, 20, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#3b2a1c'; ctx.beginPath(); ctx.arc(0, -100, 20, Math.PI * 1.05, Math.PI * 2.05); ctx.fill();
+    // occhiali da sole e bocca terrorizzata
+    ctx.fillStyle = '#111'; roundRect(-4, -98, 26, 9, 4); ctx.fill();
+    ctx.fillStyle = '#5a1d1d'; ctx.beginPath(); ctx.ellipse(12, -80, 5, 4 + Math.abs(Math.sin(fase)) * 2, 0, 0, Math.PI * 2); ctx.fill();
+    // goccia di sudore
+    ctx.fillStyle = '#9fd3ff'; ctx.beginPath(); ctx.arc(-18, -98 + (g.t * 40 % 14), 3.5, 0, Math.PI * 2); ctx.fill();
+    ctx.restore();
+    if (g.scatto > 0) { // scie dello scatto
+      ctx.strokeStyle = 'rgba(228,179,60,.6)'; ctx.lineWidth = 3;
+      for (var i = 0; i < 3; i++) { ctx.beginPath(); ctx.moveTo(x - 30 - i * 12, y - 30 - i * 20); ctx.lineTo(x - 70 - i * 12, y - 30 - i * 20); ctx.stroke(); }
+    }
+  }
+  function gamba(x, y, ang) {
+    ctx.beginPath(); ctx.moveTo(x, y);
+    ctx.lineTo(x + Math.sin(ang) * 36, y + Math.cos(ang) * 36); ctx.stroke();
+  }
+  function braccio(x, y, ang) {
+    ctx.beginPath(); ctx.moveTo(x, y);
+    ctx.lineTo(x + Math.sin(ang) * 28, y + Math.cos(ang) * 28); ctx.stroke();
+  }
+
+  // Le tre inseguitrici (provvisorie)
+  var RAGAZZE = [
+    { capelli: '#f2c94c', vestito: '#e05d8c' },
+    { capelli: '#3b2a1c', vestito: '#9b5de5' },
+    { capelli: '#c0392b', vestito: '#e4b33c' }
+  ];
+  function inseguitrici() {
+    var fronte = MARF_X - 30 - Math.max(g.distacco, 0);
+    var fase = g.t * 14;
+    for (var i = RAGAZZE.length - 1; i >= 0; i--) {
+      var r = RAGAZZE[i];
+      var x = fronte - i * 46, y = TERRA - Math.abs(Math.sin(fase + i)) * 6;
+      if (x < -60) continue;
+      ctx.save(); ctx.translate(x, y); ctx.lineCap = 'round';
+      ctx.strokeStyle = '#e8b98f'; ctx.lineWidth = 7;
+      var a = Math.sin(fase + i * 1.3) * 0.8;
+      gamba(-3, -30, a); gamba(3, -30, -a);
+      ctx.fillStyle = r.vestito;
+      ctx.beginPath(); ctx.moveTo(-18, -30); ctx.lineTo(18, -30); ctx.lineTo(10, -70); ctx.lineTo(-10, -70); ctx.closePath(); ctx.fill();
+      ctx.strokeStyle = '#e8b98f'; ctx.lineWidth = 6;
+      ctx.beginPath(); ctx.moveTo(6, -64); ctx.lineTo(30, -76 + Math.sin(fase + i) * 6); ctx.stroke(); // braccio teso verso Marf
+      ctx.fillStyle = r.capelli; ctx.beginPath(); ctx.arc(-4, -86, 21, 0, Math.PI * 2); ctx.fill();
+      ctx.fillRect(-24, -88, 14, 34);
+      ctx.fillStyle = '#e8b98f'; ctx.beginPath(); ctx.arc(2, -86, 16, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#111'; ctx.beginPath(); ctx.arc(8, -89, 2.5, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#d2452f'; ctx.beginPath(); ctx.arc(11, -79, 3.5, 0, Math.PI * 2); ctx.fill(); // labbra a bacio
+      // cuoricino
+      ctx.fillStyle = '#ff5c8a'; cuore(14, -112 - Math.abs(Math.sin(fase * 0.5 + i)) * 10, 7);
+      ctx.restore();
+      if (g.fumetto && g.fumetto.chi === i && stato === 'gioco') fumetto(x, y - 120, g.fumetto.testo);
+    }
+  }
+  function cuore(x, y, s) {
+    ctx.beginPath(); ctx.moveTo(x, y + s * 0.9);
+    ctx.bezierCurveTo(x - s * 1.6, y - s * 0.2, x - s * 0.6, y - s * 1.4, x, y - s * 0.4);
+    ctx.bezierCurveTo(x + s * 0.6, y - s * 1.4, x + s * 1.6, y - s * 0.2, x, y + s * 0.9);
+    ctx.fill();
+  }
+  function fumetto(x, y, testo) {
+    ctx.font = '600 16px Fredoka, sans-serif';
+    var w = ctx.measureText(testo).width + 20;
+    var bx = Math.max(8, x - w / 2);
+    ctx.fillStyle = '#fff6dc'; roundRect(bx, y - 30, w, 28, 12); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(x - 4, y - 3); ctx.lineTo(x + 8, y - 3); ctx.lineTo(x, y + 8); ctx.fill();
+    ctx.fillStyle = '#1b1530'; ctx.textAlign = 'left'; ctx.fillText(testo, bx + 10, y - 10);
+  }
+
+  function hud() {
+    ctx.save(); ctx.textAlign = 'left';
+    ctx.fillStyle = '#f4efe2'; ctx.font = '700 28px Fredoka, sans-serif';
+    ctx.fillText(Math.floor(g.metri) + ' m', 20, 40);
+    ctx.font = '500 15px "DM Mono", monospace'; ctx.fillStyle = '#c9c0a9';
+    ctx.fillText('🍺 ' + g.birre + '   record ' + record, 20, 64);
+    // barra del pericolo: quanto sono vicine
+    var p = 1 - Math.max(g.distacco, 0) / 260;
+    ctx.fillStyle = 'rgba(255,255,255,.12)'; roundRect(W - 220, 24, 196, 14, 7); ctx.fill();
+    ctx.fillStyle = p > 0.7 ? '#d2452f' : '#ff5c8a'; roundRect(W - 220, 24, Math.max(196 * p, 14), 14, 7); ctx.fill();
+    ctx.fillStyle = '#c9c0a9'; ctx.textAlign = 'right'; ctx.fillText('quanto sono vicine', W - 24, 60);
+    ctx.restore();
+  }
+
+  function schermata(titolo, sotto, invito) {
+    ctx.save();
+    ctx.fillStyle = 'rgba(13,13,12,.62)'; ctx.fillRect(0, 0, W, H);
+    ctx.textAlign = 'center';
+    ctx.fillStyle = '#e4b33c'; ctx.font = '700 56px Fredoka, sans-serif'; ctx.fillText(titolo, W / 2, 160);
+    ctx.fillStyle = '#f4efe2'; ctx.font = '500 24px Fredoka, sans-serif'; ctx.fillText(sotto, W / 2, 205);
+    if (Math.floor(performance.now() / 500) % 2 === 0) {
+      ctx.fillStyle = '#c9c0a9'; ctx.font = '500 16px "DM Mono", monospace'; ctx.fillText(invito, W / 2, 262);
+    }
+    ctx.restore();
+  }
+
+  function roundRect(x, y, w, h, r) {
+    ctx.beginPath();
+    ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r);
+    ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath();
+  }
+
+  /* ── Ciclo ── */
+  var ultimo = performance.now();
+  function ciclo(ora) {
+    var dt = Math.min((ora - ultimo) / 1000, 1 / 20);
+    ultimo = ora;
+    aggiorna(dt);
+    disegna();
+    requestAnimationFrame(ciclo);
+  }
+  requestAnimationFrame(ciclo);
+})();
+</script>
+</body>
+</html>

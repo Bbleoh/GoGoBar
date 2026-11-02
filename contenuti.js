@@ -31,8 +31,8 @@ const CONTENUTI = {
       titolo: 'Corri Marf!',
       descrizione: "Allora, è un gioco stra mega divertente perché c'è Marf che corre e scappa dalle femmine.",
       tag: ['Follia', 'Divertimento', 'Wow'],
+      link: 'giochi/corri-marf/',
       inEvidenza: true,
-      inArrivo: true,
     },
     {
       titolo: 'La Bisca der Tromba',
