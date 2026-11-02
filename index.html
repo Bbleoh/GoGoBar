@@ -403,7 +403,7 @@
     header        { animation: fadeUp .6s ease both; }
     .ticker-wrap  { animation: fadeUp .6s .1s ease both; }
     .featured-section { animation: fadeUp .6s .2s ease both; }
-    .projects-section { animation: fadeUp .6s .35s ease both; }
+    .projects-section, .section-nav { animation: fadeUp .6s .35s ease both; }
 
     /* ── RESPONSIVE ── */
     @media (max-width: 900px) {
@@ -419,8 +419,55 @@
       .projects-grid { grid-template-columns: 1fr; }
     }
     /* card di progetti non ancora pubblicati */
-    .soon { cursor: default; opacity: .45; }
+    .soon { cursor: default; opacity: .55; }
+    .soon:hover { background: var(--surface); }
+    .soon::after, .soon::before { display: none; }
     .soon .card-arrow, .soon .card-index { display: none; }
+
+    /* ── NAV SEZIONI ── */
+    .section-nav {
+      position: sticky; top: 0; z-index: 10;
+      display: flex; gap: 2px;
+      background: var(--bg);
+      border-bottom: 1px solid var(--line);
+      padding: 0 4rem;
+    }
+    .section-nav a {
+      font-family: var(--mono);
+      font-size: .72rem;
+      letter-spacing: .18em;
+      text-transform: uppercase;
+      color: var(--cream);
+      text-decoration: none;
+      padding: 1rem 1.4rem;
+      border-bottom: 2px solid transparent;
+      transition: color .2s, border-color .2s;
+    }
+    .section-nav a span { color: var(--muted); margin-left: .3rem; }
+    .section-nav a.nav-red:hover    { color: var(--accent2); border-color: var(--accent2); }
+    .section-nav a.nav-yellow:hover { color: var(--accent1); border-color: var(--accent1); }
+    .section-nav a.nav-blue:hover   { color: var(--accent3); border-color: var(--accent3); }
+
+    .projects-section { border-bottom: 1px solid var(--line); scroll-margin-top: 3.2rem; }
+    .projects-section + .projects-section { padding-top: 3rem; }
+    .card-project.accent-yellow:hover::after { background: var(--accent1); }
+    .featured-grid.solo { grid-template-columns: 1fr; }
+
+    .empty-note {
+      grid-column: 1 / -1;
+      font-family: var(--mono);
+      font-size: .75rem;
+      letter-spacing: .06em;
+      color: var(--muted);
+      padding: 2.5rem 2rem;
+      border: 1px dashed var(--line);
+    }
+    .noscript { padding: 2rem 4rem; font-family: var(--mono); color: var(--muted); }
+
+    @media (max-width: 900px) {
+      .section-nav { padding: 0 1rem; }
+      .section-nav a { padding: .9rem .8rem; letter-spacing: .1em; }
+    }
   </style>
 </head>
 <body>
@@ -467,106 +514,36 @@
   </div>
 </div>
 
-<!-- FEATURED -->
-<section class="featured-section">
+<!-- NAV SEZIONI -->
+<nav class="section-nav" aria-label="Sezioni">
+  <a href="#giochi" class="nav-red">Giochi <span data-count="giochi"></span></a>
+  <a href="#video" class="nav-yellow">Video <span data-count="video"></span></a>
+  <a href="#musica" class="nav-blue">Musica <span data-count="musica"></span></a>
+</nav>
+
+<!-- IN EVIDENZA: riempita da contenuti.js -->
+<section class="featured-section" id="in-evidenza">
   <p class="section-label">Malanni fatti</p>
-  <div class="featured-grid">
-
-    <div class="card-featured soon" aria-disabled="true">
-      <p class="card-number">01 — ASSURDO!</p>
-      <h2>Corri Marf!</h2>
-      <p class="card-desc">Allora, è un gioco stra mega divertente perché c'è Marf che corre e scappa dalle femmine.</p>
-      <span class="card-tag tag-yellow">Follia · Divertimento · Wow</span>
-      <span class="card-arrow">↗</span>
-    </div>
-
-    <div class="card-stack">
-      <a href="giochi/bisca-del-tromba/" class="card-small">
-        <p class="card-number">02</p>
-        <h2>La bisca del Tromba</h2>
-        <p class="card-desc">Godi popolo</p>
-        <span class="card-tag tag-red">Bighelloni · Dipendenza · Salute</span>
-        <span class="card-arrow">↗</span>
-      </a>
-      <div class="card-small soon" aria-disabled="true">
-        <p class="card-number">03</p>
-        <h2>Coming soon...</h2>
-        <p class="card-desc">Altre grandi cose...</p>
-        <span class="card-tag tag-blue">...</span>
-        <span class="card-arrow">↗</span>
-      </div>
-    </div>
-
-  </div>
+  <div class="featured-grid"></div>
 </section>
 
-<!-- ALTRI PROGETTI -->
-<section class="projects-section">
-  <p class="section-label">Tutti i progetti</p>
-  <div class="projects-grid">
-
-    <div class="card-project soon" aria-disabled="true">
-      <p class="card-number">04</p>
-      <h3>Blog Personale</h3>
-      <p class="card-desc">CMS statico con Markdown, feed RSS e ricerca full-text lato client.</p>
-      <div class="card-meta">
-        <span class="card-tag tag-yellow">Blog</span>
-        <span class="card-index">↗</span>
-      </div>
-    </div>
-
-    <div class="card-project accent-red soon" aria-disabled="true">
-      <p class="card-number">05</p>
-      <h3>App Quiz</h3>
-      <p class="card-desc">Quiz interattivo con timer, punteggi, classifiche e modalità sfida.</p>
-      <div class="card-meta">
-        <span class="card-tag tag-red">Gioco · JS</span>
-        <span class="card-index">↗</span>
-      </div>
-    </div>
-
-    <div class="card-project accent-blue soon" aria-disabled="true">
-      <p class="card-number">06</p>
-      <h3>Visualizzatore Dati</h3>
-      <p class="card-desc">Dashboard con grafici D3.js che analizza dataset CSV caricati dall'utente.</p>
-      <div class="card-meta">
-        <span class="card-tag tag-blue">D3.js · Data</span>
-        <span class="card-index">↗</span>
-      </div>
-    </div>
-
-    <div class="card-project soon" aria-disabled="true">
-      <p class="card-number">07</p>
-      <h3>Convertitore Unità</h3>
-      <p class="card-desc">Strumento di conversione rapida: valute, misure, temperature e molto altro.</p>
-      <div class="card-meta">
-        <span class="card-tag tag-neutral">Utility · PWA</span>
-        <span class="card-index">↗</span>
-      </div>
-    </div>
-
-    <div class="card-project accent-red soon" aria-disabled="true">
-      <p class="card-number">08</p>
-      <h3>Tool Generatore</h3>
-      <p class="card-desc">Generatore di palette colori, gradienti e snippet CSS pronto all'uso.</p>
-      <div class="card-meta">
-        <span class="card-tag tag-red">Design · CSS</span>
-        <span class="card-index">↗</span>
-      </div>
-    </div>
-
-    <div class="card-project accent-blue soon" aria-disabled="true">
-      <p class="card-number">09</p>
-      <h3>World Clock</h3>
-      <p class="card-desc">Orologio mondiale con fusi orari multipli, modalità buio e allarmi personalizzabili.</p>
-      <div class="card-meta">
-        <span class="card-tag tag-blue">Time · JS</span>
-        <span class="card-index">↗</span>
-      </div>
-    </div>
-
-  </div>
+<!-- SEZIONI: riempite da contenuti.js -->
+<section class="projects-section" id="giochi" data-sezione="giochi" data-colore="red">
+  <p class="section-label">Giochi</p>
+  <div class="projects-grid"></div>
 </section>
+
+<section class="projects-section" id="video" data-sezione="video" data-colore="yellow">
+  <p class="section-label">Video</p>
+  <div class="projects-grid"></div>
+</section>
+
+<section class="projects-section" id="musica" data-sezione="musica" data-colore="blue">
+  <p class="section-label">Musica</p>
+  <div class="projects-grid"></div>
+</section>
+
+<noscript><p class="noscript">Per vedere i contenuti serve JavaScript attivo.</p></noscript>
 
 <!-- FOOTER -->
 <footer>
@@ -578,5 +555,103 @@
   </div>
 </footer>
 
+<script src="contenuti.js"></script>
+<script>
+/*
+ * Costruisce le card a partire da CONTENUTI (vedi contenuti.js).
+ * Qui non serve toccare niente per aggiungere contenuti.
+ */
+(function () {
+  const COLORI = { giochi: 'red', video: 'yellow', musica: 'blue' };
+  const VUOTO  = {
+    giochi: 'Nessun gioco ancora... ma arriveranno.',
+    video:  'I video stanno arrivando. Preparate i popcorn.',
+    musica: 'Silenzio, per ora. Presto rumori forti.',
+  };
+
+  function el(tag, cls, text) {
+    const e = document.createElement(tag);
+    if (cls) e.className = cls;
+    if (text != null) e.textContent = text;
+    return e;
+  }
+
+  function tagEl(item, colore) {
+    const parti = (item.tag || []).slice();
+    if (item.inArrivo || !item.link) parti.unshift('In arrivo');
+    return parti.length ? el('span', 'card-tag tag-' + colore, parti.join(' · ')) : null;
+  }
+
+  // contenitore: <a> se cliccabile, <div> se in arrivo
+  function guscio(item, cls) {
+    const cliccabile = item.link && !item.inArrivo;
+    const box = el(cliccabile ? 'a' : 'div', cls + (cliccabile ? '' : ' soon'));
+    if (cliccabile) box.href = item.link;
+    else box.setAttribute('aria-disabled', 'true');
+    return box;
+  }
+
+  function cardProgetto(item, numero, colore) {
+    const box = guscio(item, 'card-project accent-' + colore);
+    box.append(el('p', 'card-number', String(numero).padStart(2, '0')));
+    box.append(el('h3', null, item.titolo));
+    if (item.descrizione) box.append(el('p', 'card-desc', item.descrizione));
+    const meta = el('div', 'card-meta');
+    const t = tagEl(item, colore);
+    meta.append(t || el('span'));
+    meta.append(el('span', 'card-index', '↗'));
+    box.append(meta);
+    return box;
+  }
+
+  function cardEvidenza(item, numero, colore, grande) {
+    const box = guscio(item, grande ? 'card-featured' : 'card-small');
+    box.append(el('p', 'card-number', String(numero).padStart(2, '0') + (grande ? ' — ASSURDO!' : '')));
+    box.append(el('h2', null, item.titolo));
+    if (item.descrizione) box.append(el('p', 'card-desc', item.descrizione));
+    const t = tagEl(item, colore);
+    if (t) box.append(t);
+    box.append(el('span', 'card-arrow', '↗'));
+    return box;
+  }
+
+  // sezioni
+  let numero = 0;
+  const evidenza = [];
+  Object.keys(COLORI).forEach(function (nome) {
+    const lista  = CONTENUTI[nome] || [];
+    const colore = COLORI[nome];
+    const griglia = document.querySelector('#' + nome + ' .projects-grid');
+    const pubblicati = lista.filter(i => i.link && !i.inArrivo).length;
+    document.querySelector('[data-count="' + nome + '"]').textContent = pubblicati;
+
+    if (!lista.length) {
+      griglia.append(el('p', 'empty-note', VUOTO[nome]));
+      return;
+    }
+    lista.forEach(function (item) {
+      numero++;
+      griglia.append(cardProgetto(item, numero, colore));
+      if (item.inEvidenza) evidenza.push({ item: item, numero: numero, colore: colore });
+    });
+  });
+
+  // in evidenza: la prima grande, le altre impilate a destra
+  const fGrid = document.querySelector('#in-evidenza .featured-grid');
+  if (!evidenza.length) {
+    document.getElementById('in-evidenza').hidden = true;
+  } else {
+    const [primo, ...resto] = evidenza;
+    fGrid.append(cardEvidenza(primo.item, primo.numero, primo.colore, true));
+    if (resto.length) {
+      const stack = el('div', 'card-stack');
+      resto.slice(0, 3).forEach(r => stack.append(cardEvidenza(r.item, r.numero, r.colore, false)));
+      fGrid.append(stack);
+    } else {
+      fGrid.classList.add('solo');
+    }
+  }
+})();
+</script>
 </body>
 </html>
