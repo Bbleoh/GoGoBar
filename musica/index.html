@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Musica · GoGoBar</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=DM+Mono:wght@400;500&family=DM+Sans:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #0d0d0c; --surface: #161614; --raised: #1d1d1a; --line: #2a2a26;
+      --ivory: #f4efe2; --cream: #c9c0a9; --muted: #77715f;
+      --gold: #e4b33c; --gold-2: #f6d77a;
+      --display: 'Fredoka', 'DM Sans', sans-serif; --mono: 'DM Mono', monospace; --sans: 'DM Sans', sans-serif;
+      --pad: clamp(1rem, 4vw, 4rem);
+    }
+    body { background: var(--bg); color: var(--ivory); font-family: var(--sans); min-height: 100vh; }
+    button { font: inherit; color: inherit; background: none; border: 0; cursor: pointer; }
+
+    /* barra in alto */
+    .top { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: 1rem var(--pad); border-bottom: 1px solid var(--line); }
+    .top a { color: var(--cream); text-decoration: none; font-family: var(--mono); font-size: .72rem; letter-spacing: .14em; text-transform: uppercase; }
+    .top a:hover { color: var(--gold); }
+    .top a.logo { font-family: var(--display); font-size: 2rem; line-height: 1; letter-spacing: 0; text-transform: none; color: var(--ivory); font-weight: 700; }
+    .logo em { color: var(--gold); font-style: normal; }
+
+    /* ── PLAYER ── */
+    .player {
+      display: grid; grid-template-columns: auto 1fr; align-items: center; gap: clamp(1.5rem, 4vw, 3.5rem);
+      padding: clamp(2rem, 5vw, 3.5rem) var(--pad); border-bottom: 1px solid var(--line);
+      max-width: 1200px; margin: 0 auto;
+    }
+
+    /* vinile che gira */
+    .disc {
+      position: relative; width: clamp(180px, 26vw, 300px); aspect-ratio: 1; border-radius: 50%;
+      background:
+        radial-gradient(circle at 50% 50%, transparent 0 31%, rgba(255,255,255,.04) 31.5% 32%, transparent 32.5%),
+        repeating-radial-gradient(circle at 50% 50%, #111 0 2px, #191917 2px 4px);
+      box-shadow: 0 0 0 6px #0d0d0c, 0 0 0 8px var(--gold), 0 20px 40px rgba(0,0,0,.6);
+      animation: gira 3.2s linear infinite; animation-play-state: paused;
+    }
+    .disc::after { /* riflesso */
+      content: ''; position: absolute; inset: 0; border-radius: 50%;
+      background: conic-gradient(from 30deg, transparent 0 10%, rgba(255,255,255,.07) 15%, transparent 22% 60%, rgba(255,255,255,.05) 65%, transparent 72%);
+    }
+    .disc .label {
+      position: absolute; inset: 31%; border-radius: 50%;
+      background: var(--gold); display: grid; place-items: center; overflow: hidden;
+      box-shadow: inset 0 0 0 3px #b98a22;
+    }
+    .disc .label img { width: 78%; height: auto; margin-top: 12%; }
+    .disc .label::after { content: ''; position: absolute; width: 8%; aspect-ratio: 1; border-radius: 50%; background: var(--bg); }
+    .playing .disc { animation-play-state: running; }
+    @keyframes gira { to { transform: rotate(360deg); } }
+    @media (prefers-reduced-motion: reduce) { .disc { animation: none; } .eq i { animation: none !important; } }
+
+    .info { min-width: 0; }
+    .kicker { font-family: var(--mono); font-size: .7rem; letter-spacing: .16em; text-transform: uppercase; color: var(--gold); }
+    .info h1 { font-family: var(--display); font-weight: 700; font-size: clamp(2rem, 5vw, 3.6rem); line-height: 1; margin: .5rem 0 .6rem; overflow-wrap: anywhere; }
+    .artisti { color: var(--cream); font-size: 1.05rem; line-height: 1.45; }
+    .prod { margin-top: .25rem; font-family: var(--mono); font-size: .75rem; color: var(--muted); letter-spacing: .06em; }
+
+    .seek { margin-top: 1.6rem; display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: .8rem; font-family: var(--mono); font-size: .75rem; color: var(--cream); }
+    input[type=range] { -webkit-appearance: none; appearance: none; width: 100%; height: 6px; border-radius: 999px; background: var(--line); outline-offset: 4px; cursor: pointer;
+      background-image: linear-gradient(var(--gold), var(--gold)); background-size: var(--p, 0%) 100%; background-repeat: no-repeat; }
+    input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 16px; height: 16px; border-radius: 50%; background: var(--gold-2); border: 3px solid var(--bg); }
+    input[type=range]::-moz-range-thumb { width: 12px; height: 12px; border-radius: 50%; background: var(--gold-2); border: 3px solid var(--bg); }
+
+    .controls { margin-top: 1.4rem; display: flex; align-items: center; gap: .8rem; flex-wrap: wrap; }
+    .ctrl { width: 3rem; height: 3rem; border-radius: 50%; display: grid; place-items: center; border: 1px solid var(--line); transition: border-color .2s, color .2s, transform .15s; }
+    .ctrl:hover { border-color: var(--gold); color: var(--gold-2); }
+    .ctrl svg { width: 1.1rem; height: 1.1rem; fill: currentColor; }
+    .ctrl.play { width: 4rem; height: 4rem; background: var(--gold); color: #1a1408; border-color: var(--gold); }
+    .ctrl.play:hover { background: var(--gold-2); color: #1a1408; transform: scale(1.05); }
+    .ctrl.play svg { width: 1.5rem; height: 1.5rem; }
+    .ctrl.on { color: var(--gold); border-color: var(--gold); }
+    .vol { display: flex; align-items: center; gap: .5rem; margin-left: auto; color: var(--muted); }
+    .vol input { width: 110px; }
+
+    /* ── SCALETTA ── */
+    .list { max-width: 1200px; margin: 0 auto; padding: 2.5rem var(--pad) 4rem; }
+    .list h2 { font-family: var(--display); font-weight: 700; font-size: 1.8rem; margin-bottom: 1rem; }
+    .list h2 small { font-family: var(--mono); font-weight: 400; font-size: .8rem; color: var(--muted); margin-left: .5rem; }
+    ol { list-style: none; display: flex; flex-direction: column; gap: 2px; }
+    .track {
+      display: grid; grid-template-columns: 2.4rem minmax(0, 1fr) auto; align-items: center; gap: 1rem;
+      width: 100%; text-align: left; padding: .85rem 1rem; border-radius: 12px; transition: background .2s;
+    }
+    .track:hover { background: var(--surface); }
+    .track .n { font-family: var(--mono); font-size: .8rem; color: var(--muted); text-align: center; }
+    .track .t { font-family: var(--display); font-weight: 600; font-size: 1.1rem; }
+    .track .a { display: block; font-size: .85rem; color: var(--cream); margin-top: .15rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .track .d { font-family: var(--mono); font-size: .8rem; color: var(--muted); }
+    .track.attivo { background: var(--raised); }
+    .track.attivo .t { color: var(--gold-2); }
+    .track .eq { display: none; height: 14px; align-items: flex-end; justify-content: center; gap: 2px; }
+    .track.attivo .eq { display: flex; }
+    .track.attivo .num { display: none; }
+    .eq i { width: 3px; background: var(--gold); border-radius: 2px; height: 30%; animation: eq .9s ease-in-out infinite; animation-play-state: paused; }
+    .eq i:nth-child(2) { animation-delay: -.3s; } .eq i:nth-child(3) { animation-delay: -.6s; }
+    .playing .eq i { animation-play-state: running; }
+    @keyframes eq { 0%,100% { height: 25%; } 50% { height: 100%; } }
+
+    .empty { font-family: var(--mono); color: var(--muted); padding: 3rem var(--pad); }
+
+    @media (max-width: 760px) {
+      .player { grid-template-columns: 1fr; justify-items: center; text-align: center; }
+      .info { width: 100%; }
+      .controls { justify-content: center; }
+      .vol { margin-left: 0; width: 100%; justify-content: center; }
+      .track { grid-template-columns: 2rem minmax(0, 1fr) auto; gap: .7rem; padding: .75rem .6rem; }
+      .top a.logo { font-size: 1.55rem; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="top">
+  <a href="../" class="logo">Go<em>Go</em>Bar</a>
+  <a href="../#musica">← Torna al bar</a>
+</div>
+
+<section class="player" id="player">
+  <div class="disc" aria-hidden="true"><div class="label"><img src="../img/maneki-neko.webp" alt=""></div></div>
+  <div class="info">
+    <p class="kicker" id="kicker">Musica</p>
+    <h1 id="titolo">—</h1>
+    <p class="artisti" id="artisti"></p>
+    <p class="prod" id="prod"></p>
+
+    <div class="seek">
+      <span id="ora">0:00</span>
+      <input type="range" id="barra" min="0" max="1000" value="0" aria-label="Posizione nel brano">
+      <span id="tot">0:00</span>
+    </div>
+
+    <div class="controls">
+      <button class="ctrl" id="prev" aria-label="Brano precedente"><svg viewBox="0 0 24 24"><path d="M6 5h2v14H6zM20 5v14L9 12z"/></svg></button>
+      <button class="ctrl play" id="play" aria-label="Play"><svg viewBox="0 0 24 24" id="icona"><path d="M7 4v16l13-8z"/></svg></button>
+      <button class="ctrl" id="next" aria-label="Brano successivo"><svg viewBox="0 0 24 24"><path d="M16 5h2v14h-2zM4 5l11 7-11 7z"/></svg></button>
+      <button class="ctrl" id="shuffle" aria-label="Ordine casuale" aria-pressed="false"><svg viewBox="0 0 24 24"><path d="M17 4l4 4-4 4V9h-2.6l-2.5 3 2.5 3H17v-3l4 4-4 4v-3h-3.4L10 14.6 6.4 19H3v-2h2.4l3.3-4L5.4 9H3V7h3.4L10 11.4 13.6 7H17z"/></svg></button>
+      <label class="vol"><svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M4 9v6h4l5 4V5L8 9zm12.5 3a4.5 4.5 0 0 0-2.5-4v8a4.5 4.5 0 0 0 2.5-4z"/></svg><input type="range" id="volume" min="0" max="100" value="90" aria-label="Volume"></label>
+    </div>
+  </div>
+</section>
+
+<section class="list">
+  <h2>Brani <small id="conteggio"></small></h2>
+  <ol id="scaletta"></ol>
+</section>
+
+<audio id="audio" preload="metadata"></audio>
+
+<script src="../contenuti.js?v=5"></script>
+<script>
+/*
+ * Player musicale: legge i brani da contenuti.js (sezione musica).
+ * Ogni brano ha il suo link: musica/#nome-del-file (senza .mp3).
+ */
+(function () {
+  const brani = ((typeof CONTENUTI !== 'undefined' && CONTENUTI.musica) || []).filter(b => b.file);
+  const $ = id => document.getElementById(id);
+  const audio = $('audio');
+
+  if (!brani.length) {
+    $('player').outerHTML = '<p class="empty">Silenzio, per ora. Presto rumori forti.</p>';
+    return;
+  }
+
+  const slug = b => b.file.replace(/\.[^.]+$/, '');
+  const src  = b => /^(https?:)?\/\//.test(b.file) ? b.file : 'brani/' + b.file;
+  const mmss = s => isFinite(s) ? Math.floor(s / 60) + ':' + String(Math.floor(s % 60)).padStart(2, '0') : '0:00';
+  const ICONA_PLAY  = '<path d="M7 4v16l13-8z"/>';
+  const ICONA_PAUSA = '<path d="M6 4h4v16H6zM14 4h4v16h-4z"/>';
+
+  // ── scaletta ──
+  $('conteggio').textContent = brani.length;
+  brani.forEach(function (b, i) {
+    const li = document.createElement('li');
+    const btn = document.createElement('button');
+    btn.className = 'track'; btn.dataset.i = i;
+    const n = document.createElement('span'); n.className = 'n';
+    const num = document.createElement('span'); num.className = 'num'; num.textContent = i + 1;
+    const eq = document.createElement('span'); eq.className = 'eq'; eq.innerHTML = '<i></i><i></i><i></i>';
+    n.append(num, eq);
+    const mid = document.createElement('span');
+    const t = document.createElement('span'); t.className = 't'; t.textContent = b.titolo;
+    const a = document.createElement('span'); a.className = 'a'; a.textContent = b.artisti || '';
+    mid.append(t, a);
+    const d = document.createElement('span'); d.className = 'd'; d.textContent = b.durata || '';
+    btn.append(n, mid, d);
+    li.append(btn);
+    $('scaletta').append(li);
+  });
+
+  // ── stato ──
+  let corrente = -1;
+  let casuale = false;
+  let trascinando = false;
+
+  function carica(i, suona) {
+    i = (i + brani.length) % brani.length;
+    const b = brani[i];
+    if (i !== corrente) {
+      corrente = i;
+      audio.src = src(b);
+      $('titolo').textContent = b.titolo;
+      $('artisti').textContent = b.artisti || '';
+      $('prod').textContent = b.prod ? 'prod. ' + b.prod : '';
+      $('kicker').textContent = 'Brano ' + (i + 1) + ' di ' + brani.length;
+      $('tot').textContent = b.durata || '0:00';
+      $('ora').textContent = '0:00';
+      aggiornaBarra(0);
+      document.title = b.titolo + ' · GoGoBar';
+      document.querySelectorAll('.track').forEach(el => el.classList.toggle('attivo', +el.dataset.i === i));
+      history.replaceState(null, '', '#' + slug(b));
+      if ('mediaSession' in navigator) {
+        navigator.mediaSession.metadata = new MediaMetadata({
+          title: b.titolo, artist: b.artisti || 'Collettivo M.I.A.O.', album: 'GoGoBar',
+          artwork: [{ src: new URL('../img/maneki-neko.webp', location.href).href, sizes: '689x900', type: 'image/webp' }]
+        });
+      }
+    }
+    if (suona) audio.play().catch(() => {});
+  }
+
+  function prossimo(dir) {
+    if (casuale && brani.length > 1) {
+      let j; do { j = Math.floor(Math.random() * brani.length); } while (j === corrente);
+      carica(j, true);
+    } else carica(corrente + dir, true);
+  }
+
+  function aggiornaBarra(frazione) {
+    $('barra').value = Math.round(frazione * 1000);
+    $('barra').style.setProperty('--p', (frazione * 100) + '%');
+  }
+
+  // ── eventi audio ──
+  audio.addEventListener('play',  () => { document.body.classList.add('playing');    $('icona').innerHTML = ICONA_PAUSA; $('play').setAttribute('aria-label', 'Pausa'); });
+  audio.addEventListener('pause', () => { document.body.classList.remove('playing'); $('icona').innerHTML = ICONA_PLAY;  $('play').setAttribute('aria-label', 'Play'); });
+  audio.addEventListener('loadedmetadata', () => { $('tot').textContent = mmss(audio.duration); });
+  audio.addEventListener('timeupdate', () => {
+    if (trascinando || !audio.duration) return;
+    $('ora').textContent = mmss(audio.currentTime);
+    aggiornaBarra(audio.currentTime / audio.duration);
+  });
+  audio.addEventListener('ended', () => prossimo(1));
+
+  // ── comandi ──
+  $('play').onclick = () => { if (corrente < 0) carica(0); audio.paused ? audio.play().catch(() => {}) : audio.pause(); };
+  $('next').onclick = () => prossimo(1);
+  $('prev').onclick = () => { if (audio.currentTime > 3) audio.currentTime = 0; else prossimo(-1); };
+  $('shuffle').onclick = function () {
+    casuale = !casuale;
+    this.classList.toggle('on', casuale);
+    this.setAttribute('aria-pressed', casuale);
+  };
+  $('scaletta').addEventListener('click', e => {
+    const t = e.target.closest('.track'); if (!t) return;
+    const i = +t.dataset.i;
+    if (i === corrente) { audio.paused ? audio.play().catch(() => {}) : audio.pause(); }
+    else carica(i, true);
+  });
+  $('barra').addEventListener('input', function () {
+    trascinando = true;
+    const f = this.value / 1000;
+    aggiornaBarra(f);
+    if (audio.duration) $('ora').textContent = mmss(f * audio.duration);
+  });
+  $('barra').addEventListener('change', function () {
+    if (audio.duration) audio.currentTime = (this.value / 1000) * audio.duration;
+    trascinando = false;
+  });
+  $('volume').addEventListener('input', function () {
+    audio.volume = this.value / 100;
+    this.style.setProperty('--p', this.value + '%');
+  });
+  audio.volume = .9; $('volume').style.setProperty('--p', '90%');
+
+  // spazio = play/pausa (se non stai scrivendo in un campo)
+  document.addEventListener('keydown', e => {
+    if (e.code === 'Space' && !/INPUT|TEXTAREA|BUTTON/.test(document.activeElement.tagName)) {
+      e.preventDefault(); $('play').click();
+    }
+  });
+
+  // comandi dal telefono / tastiera multimediale
+  if ('mediaSession' in navigator) {
+    navigator.mediaSession.setActionHandler('play', () => audio.play());
+    navigator.mediaSession.setActionHandler('pause', () => audio.pause());
+    navigator.mediaSession.setActionHandler('previoustrack', () => $('prev').click());
+    navigator.mediaSession.setActionHandler('nexttrack', () => prossimo(1));
+  }
+
+  // apertura da un link con #brano
+  const iniziale = brani.findIndex(b => slug(b) === location.hash.slice(1));
+  carica(iniziale >= 0 ? iniziale : 0, false);
+})();
+</script>
+</body>
+</html>

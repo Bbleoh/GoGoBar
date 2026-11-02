@@ -17,6 +17,7 @@
  *    immagine     → (facoltativa) copertina della card, es. 'giochi/mio-gioco/copertina.jpg'
  *    inEvidenza   → true per metterla anche in cima, nella sezione "In evidenza"
  *    inArrivo     → true per mostrarla sbiadita con "in arrivo"
+ *    artisti, prod, file, durata → (solo musica) vedi la sezione musica qui sotto
  *    youtube      → (solo video) il codice del video YouTube, es. 'UoCs9tTNp_0'.
  *                   Il link alla pagina Video e la copertina li fa il sito da solo.
  *
@@ -86,9 +87,18 @@ const CONTENUTI = {
     },
   ],
 
+  // Brani: il file MP3 va nella cartella musica/brani/.
+  // Per aggiungerne uno, copia una riga e cambia i testi.
+  // (Se hai un WAV, mandalo in chat: lo converto io in MP3.)
   musica: [
-    // esempio:
-    // { titolo: 'Grida scimmiesche vol. 1', descrizione: 'Il primo album', link: 'musica/', tag: ['Album'] },
+    { titolo: 'FIORE',             artisti: 'CiciLeo feat. C-Rischio (LilCriver & Fiskiabad)',  file: 'fiore.mp3',             durata: '3:17' },
+    { titolo: 'FUOCO E FARFALLE',  artisti: 'feat. C-Rischio, Celeperù, MarkyMarko, CiciLeo',   prod: 'StepLeo', file: 'fuoco-e-farfalle.mp3',  durata: '2:42' },
+    { titolo: 'PAURA DELLE TETTE', artisti: 'Fiskiabad, LilCriver feat. CiciLeo, MarkyMarko',   prod: 'StepLeo', file: 'paura-delle-tette.mp3', durata: '6:03' },
+    { titolo: 'REGINA CRIVI',      artisti: 'feat. C-Rischio, Malevolent Marf, VickyDicky',     prod: 'StepLeo', file: 'regina-crivi.mp3',      durata: '2:33' },
+    { titolo: 'SECCO SLE',         artisti: 'feat. Lil Criver, Fiskiabad, CiciLeo',             prod: 'StepLeo', file: 'secco-sle.mp3',         durata: '2:40' },
+    { titolo: 'SQUALO',            artisti: 'C-Rischio feat. Cele-Kun',                         prod: 'StepLeo', file: 'squalo.mp3',            durata: '2:14' },
+    { titolo: 'BENTORNATO MARCO',  artisti: 'Collettivo M.I.A.O.',                              file: 'bentornato-marco.mp3',  durata: '5:45' },
+    { titolo: 'CIAO PALLE',        artisti: 'MarkyMarco feat. C-Rischio, Chil(l)yCele, CiciLeo', file: 'ciao-palle.mp3',        durata: '4:45' },
   ],
 
 };
