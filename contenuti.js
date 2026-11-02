@@ -35,7 +35,7 @@ const CONTENUTI = {
       inArrivo: true,
     },
     {
-      titolo: 'La bisca del Tromba',
+      titolo: 'La Bisca der Tromba',
       descrizione: 'Godi popolo',
       link: 'giochi/bisca-del-tromba/',
       immagine: 'giochi/bisca-del-tromba/assets/sfondo-poster.jpg',
