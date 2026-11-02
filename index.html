@@ -462,6 +462,19 @@
       padding: 2.5rem 2rem;
       border: 1px dashed var(--line);
     }
+    /* copertine dei video */
+    .card-thumb {
+      display: block;
+      width: calc(100% + 4rem);
+      margin: -2rem -2rem 1.5rem;
+      aspect-ratio: 16 / 9;
+      object-fit: cover;
+      filter: saturate(.85) brightness(.85);
+      transition: filter .3s;
+    }
+    .card-project:hover .card-thumb { filter: none; }
+    .card-project.has-thumb { min-height: 0; }
+
     .noscript { padding: 2rem 4rem; font-family: var(--mono); color: var(--muted); }
 
     @media (max-width: 900px) {
@@ -582,6 +595,9 @@
     return parti.length ? el('span', 'card-tag tag-' + colore, parti.join(' · ')) : null;
   }
 
+  // i video YouTube portano alla pagina Video, già sul video giusto
+  CONTENUTI.video.forEach(v => { if (v.youtube && !v.link) v.link = 'video/#' + v.youtube; });
+
   // contenitore: <a> se cliccabile, <div> se in arrivo
   function guscio(item, cls) {
     const cliccabile = item.link && !item.inArrivo;
@@ -593,6 +609,13 @@
 
   function cardProgetto(item, numero, colore) {
     const box = guscio(item, 'card-project accent-' + colore);
+    if (item.youtube) {
+      const img = el('img', 'card-thumb');
+      img.src = 'https://i.ytimg.com/vi/' + item.youtube + '/hqdefault.jpg';
+      img.alt = ''; img.loading = 'lazy';
+      box.append(img);
+      box.classList.add('has-thumb');
+    }
     box.append(el('p', 'card-number', String(numero).padStart(2, '0')));
     box.append(el('h3', null, item.titolo));
     if (item.descrizione) box.append(el('p', 'card-desc', item.descrizione));

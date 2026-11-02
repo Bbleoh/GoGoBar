@@ -16,6 +16,8 @@
  *    tag          → lista di parole, es. ['Follia', 'Wow']
  *    inEvidenza   → true per metterla anche in cima, tra i "Malanni fatti"
  *    inArrivo     → true per mostrarla sbiadita con "in arrivo"
+ *    youtube      → (solo video) il codice del video YouTube, es. 'UoCs9tTNp_0'.
+ *                   Il link alla pagina Video e la copertina li fa il sito da solo.
  *
  *  L'ordine nella lista è l'ordine sul sito.
  */
@@ -39,9 +41,20 @@ const CONTENUTI = {
     },
   ],
 
+  // Per i video di YouTube basta il titolo e il codice del video:
+  // è la parte dopo youtu.be/ (o dopo watch?v=) nel link, senza "?si=..."
   video: [
-    // esempio:
-    // { titolo: 'Il grande disastro', descrizione: 'Estate 2025', link: 'video/grande-disastro/', tag: ['Vacanze'] },
+    { titolo: 'MEMOZZI 2', youtube: 'UoCs9tTNp_0' },
+    { titolo: 'MANICALDE 2', youtube: 'NNLHrwpfqOE' },
+    { titolo: 'MANICALDE', youtube: 'zp_h59vQX-0' },
+    { titolo: 'LA FIRMA', youtube: 'kz5BbTh3A2c' },
+    { titolo: 'KAST1', youtube: '5yH6RUK1ITs' },
+    { titolo: 'DOMANDE', youtube: 't4p3hHORiVU' },
+    { titolo: 'CHI', youtube: 'J8jtWhEEIVs' },
+    { titolo: 'BOOM BOOM CRASH', youtube: 'HT-TgkoFppo' },
+    { titolo: 'AMICI E MARE (MEMOZZI 3)', youtube: 'xsMzE0SXMLE' },
+    { titolo: 'MANICALDE 4', youtube: '1VXW5Fs9TMM' },
+    { titolo: 'MANICALDE 3', youtube: 'nGXCsvPd3Cc' },
   ],
 
   musica: [
