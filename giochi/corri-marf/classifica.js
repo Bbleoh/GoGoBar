@@ -6,6 +6,7 @@
    window.CorriMarfClassifica.attiva          → true se il servizio è configurato
    window.CorriMarfClassifica.carica(limite)  → Promise<[{ nome, punti, data }]>
        ordinata dal punteggio più alto; [] se qualcosa va storto (non lancia mai).
+   window.CorriMarfClassifica.letta → true se l'ultima carica() ha avuto risposta dal database
    window.CorriMarfClassifica.salva(nome, punti) → Promise<void>
        tiene il punteggio più alto per ogni nome; lancia un Error se fallisce.
 
@@ -46,6 +47,7 @@
     limite = limite || 10;
     if (!DB_URL) return Promise.resolve([]);
     return richiesta(base() + '/' + PERCORSO + '.json').then(function (dati) {
+      api.letta = true;                      // il database ha risposto: i suoi record sono quelli veri
       if (!dati || typeof dati !== 'object') return [];
       return Object.keys(dati).map(function (k) {
         var r = dati[k] || {};
@@ -75,5 +77,7 @@
     }).then(function () {});
   }
 
-  window.CorriMarfClassifica = { attiva: !!DB_URL, carica: carica, salva: salva };
+  // letta: true dopo che carica() ha avuto una risposta dal database (anche vuota)
+  var api = { attiva: !!DB_URL, letta: false, carica: carica, salva: salva };
+  window.CorriMarfClassifica = api;
 })();
