@@ -426,6 +426,7 @@
     'Al terzo colpo ti prendono. Con i carabinieri arrivi fino a 5 vite.',
     'Occhio all\'Aygo: ti viene incontro più veloce degli altri e toglie due vite.',
     'Se senti l\'allarme e vedi i punti esclamativi, arrivano i jet: scivola, ti tolgono due vite!',
+    'Ogni 2 km c\'è un palazzo: entra nel corridoio, se è in alto serve un doppio salto perfetto.',
     'Il tuo nome è il tuo profilo: il record si salva da solo in classifica.',
     'Tocca ⛶ per lo schermo intero. Sul telefono il gioco si mette in orizzontale.'
   ];
@@ -476,7 +477,7 @@
   var PROVA = location.hash === '#prova';
   if (PROVA) window.corriMarfProva = { salta: function () { salta(); }, giu: function (v) { giu(v); }, stato: function () { return g; }, vai: function (m) { scorrimento = m * 40; g.metri = m; },
     metti: function (tipo, x, quante) { var o = { tipo: tipo, t: TIPI[tipo], x: x, w: TIPI[tipo].w, h: TIPI[tipo].h * (quante || 1), quante: quante || 1 }; g.ostacoli.push(o); return o; },
-    jet: function () { g.prossimoJet = 0; } };
+    jet: function () { g.prossimoJet = 0; }, palazzo: function (v) { g.ostacoli.length = 0; g.prossimoPalazzo = g.metri; g.variante = v; }, pal: function () { return palazzo; } };
 
   /* ── Stato ── */
   var FRASI = ['MARF!', 'Aspettaaa!', 'Dove scappi?', 'Ti amo Marf!', 'Un bacino!', 'Marfiiino!', 'Torna qui!'];
@@ -484,16 +485,16 @@
   var g;
 
   function nuovaPartita() {
-    scorrimento = 0;
+    scorrimento = 0; palazzo = null;
     g = {
       t: 0, vel: 380, metri: 0, birre: 0, passi: 0,
-      marf: { y: TERRA, vy: 0, salti: 0, giu: false, botta: 0 },
+      marf: { y: TERRA, vy: 0, salti: 0, giu: false, botta: 0, aTerra: true },
       distacco: 230,       // px tra la prima inseguitrice e Marf (solo scena: ti prendono al terzo colpo)
       ostacoli: [], birreA: [], prossimo: 1.2, prossimaBirra: 3,
       fumetto: null, prossimoFumetto: 1.5, scatto: 0, scuoti: 0,
       anim: nuovaAnim(), ragazze: [0, 1, 2].map(function (i) { return { fase: i * 0.37, posa: null }; }),
       fx: [], colpi: 0, scudo: 0,
-      jets: [], fumo: [], jetAvviso: 0, prossimoJet: 700 + Math.random() * 500
+      jets: [], fumo: [], jetAvviso: 0, prossimoJet: 700 + Math.random() * 500, prossimoPalazzo: PALAZZO_OGNI
     };
   }
   nuovaPartita();
@@ -532,10 +533,11 @@
   function salta() {
     if (stato !== 'gioco') return;
     var m = g.marf;
+    if (m.corridoio) return;                        // nel corridoio il soffitto è basso: niente salti
     if (m.salti < 2) {
       m.vy = m.salti === 0 ? -720 : -620; m.salti++; m.giu = false;
       bip(m.salti === 1 ? 420 : 560, 0.12);
-      if (m.salti === 1) polvere(MARF_X - 4, TERRA, 5, 1);
+      if (m.salti === 1) polvere(MARF_X - 4, m.y, 5, 1);
       else g.anim.giro = 1;                       // secondo salto: capriola
     }
   }
@@ -543,7 +545,7 @@
     if (stato !== 'gioco') return;
     var m = g.marf;
     if (attivo) {
-      if (m.y < TERRA) m.vy = Math.max(m.vy, 900); // a terra in fretta
+      if (!m.aTerra) m.vy = Math.max(m.vy, 900); // a terra in fretta
       if (!m.giu) bip(200, 0.1, 'sawtooth', 0.04);
     }
     m.giu = attivo;
@@ -603,7 +605,7 @@
   // canne e pringles non stanno mai sopra un ostacolo: niente oggetti a meno di 90 px in orizzontale
   var DIST_OGG = 90;
   function postoOccupato(x) {
-    if (g.jetAvviso > 0 || g.jets.length) return true;
+    if (g.jetAvviso > 0 || g.jets.length || zonaPalazzo()) return true;
     for (var i = 0; i < g.ostacoli.length; i++) {
       var o = g.ostacoli[i];
       if (o.volo !== undefined) continue;
@@ -658,10 +660,13 @@
     // fisica di Marf
     m.vy += 2100 * dt;
     m.y += m.vy * dt;
-    if (m.y >= TERRA) {
+    var suolo = palazzo && palazzo.dentro ? palazzo.pav : TERRA;   // dentro il corridoio il pavimento è quello del palazzo
+    m.aTerra = m.y >= suolo;
+    if (m.aTerra) {
       if (m.vy > 250) atterraggio(m.vy);
-      m.y = TERRA; m.vy = 0; m.salti = 0;
+      m.y = suolo; m.vy = 0; m.salti = 0;
     }
+    aggiornaPalazzo(dx);
     if (m.botta > 0) m.botta -= dt;
     if (g.scatto > 0) g.scatto -= dt;
     if (g.scudo > 0) g.scudo -= dt;
@@ -671,7 +676,7 @@
 
     // ostacoli
     g.prossimo -= dt;
-    if (g.prossimo <= 0 && g.jetAvviso <= 0 && !g.jets.length) generaOstacolo();
+    if (g.prossimo <= 0 && g.jetAvviso <= 0 && !g.jets.length && !zonaPalazzo()) generaOstacolo();
     var hb = hitboxMarf();
     for (var i = g.ostacoli.length - 1; i >= 0; i--) {
       var o = g.ostacoli[i];
@@ -679,13 +684,13 @@
       if (o.x + o.w < -200 && !(o.volo < VOLO_T + 0.5)) { g.ostacoli.splice(i, 1); continue; }
       if (o.volo !== undefined) aggiornaVolo(o, dt);
       if (!o.preso && tocca(hb, boxOstacolo(o))) {
-        if (o.tipo === 'carabiniere' && m.giu && m.y >= TERRA) sgambetto(o);
+        if (o.tipo === 'carabiniere' && m.giu && m.aTerra) sgambetto(o);
         else colpito(o);
       }
     }
 
     // jet: avviso, poi lo sciame; il fumo resta 5 s e scorre col mondo
-    if (g.metri > g.prossimoJet && g.jetAvviso <= 0 && !g.jets.length) {
+    if (g.metri > g.prossimoJet && g.jetAvviso <= 0 && !g.jets.length && !zonaPalazzo() && g.metri < g.prossimoPalazzo - 120) {
       g.jetAvviso = 1.4; g.prossimoJet = g.metri + 900 + Math.random() * 900;
       g.prossimo = Math.max(g.prossimo, 3.2);
       bip(880, 0.15, 'square', 0.05); setTimeout(function () { bip(880, 0.15, 'square', 0.05); }, 250);
@@ -836,7 +841,7 @@
   var MARF_X = 300;
   function hitboxMarf() {
     var m = g.marf;
-    var h = m.giu && m.y >= TERRA ? 42 : 86;
+    var h = (m.giu || m.corridoio) && m.aTerra ? 42 : 86;
     return { x: MARF_X - 18, y: m.y - h, w: 36, h: h };
   }
   function boxOstacolo(o) {
@@ -853,6 +858,7 @@
 
     sfondo();
     disegnaFumo();
+    disegnaCorridoio();
     g.birreA.forEach(birra);
     g.ostacoli.forEach(ostacolo);
     g.jets.forEach(disegnaJet);
@@ -862,8 +868,81 @@
     disegnaLinee();
     marf();
     disegnaScudo();
+    disegnaFacciata();
     disegnaStelle();
     if (stato !== 'menu') hud();
+  }
+
+
+  /* ── Palazzo col corridoio: ogni PALAZZO_OGNI metri. Il palazzo poggia sempre a terra,
+     il corridoio può stare in alto (ufficio), a metà (casa) o in basso (cantine).
+     Per alto e mezzo si salta; quando arrivi alla quota giusta Marf entra da solo e scivola fino in fondo.
+     La facciata è tagliata all'altezza dei piani; le strisce laterali hanno i balconi allineati ai piani. ── */
+  var PALAZZO_OGNI = 2000;
+  var PAL = {}; ['corr-alto', 'corr-mezzo', 'corr-basso', 'bordo', 'facciata'].forEach(function (n) { var i = new Image(); i.src = 'palazzo/' + n + '.webp?v=1'; PAL[n] = i; });
+  var PAL_S = 0.4, PIANI = { alto: 162, mezzo: 324, basso: 649 }, FACC_H = 649, CORR_H = 206, BORDO_W = 96, CORR_W = 1460;
+  var PAV = 0.95, SOFF = 0.05;            // pavimento e soffitto del corridoio, in frazione della sua altezza
+  var palazzo = null;
+  function nuovoPalazzo(v) {
+    var cut = PIANI[v], ch = CORR_H * PAL_S, sotto = (FACC_H - cut) * PAL_S;
+    var bottom = TERRA + 2, top = bottom - sotto - ch;    // top del corridoio
+    var bw = BORDO_W * PAL_S, cw = CORR_W * PAL_S;
+    palazzo = { v: v, x: W + 40, bw: bw, cw: cw, w: bw * 2 + cw, cut: cut, ch: ch, top: top, bottom: bottom,
+                pav: top + ch * PAV, soff: top + ch * SOFF, alto: top - cut * PAL_S, dentro: false, preso: false };
+    // qualche canna lungo il corridoio, come premio
+    for (var i = 0; i < 3; i++) g.birreA.push({ x: palazzo.x + bw + cw * (0.3 + i * 0.22), y: palazzo.pav - 20, pringles: false, palazzo: true });
+  }
+  function zonaPalazzo() { return !!palazzo || g.metri > g.prossimoPalazzo - 60; }
+  function aggiornaPalazzo(dx) {
+    var m = g.marf;
+    if (!palazzo && g.metri >= g.prossimoPalazzo) {
+      var vv = ['alto', 'mezzo', 'basso'];
+      nuovoPalazzo(g.variante || vv[Math.floor(Math.random() * 3)]); g.variante = null;
+      g.prossimoPalazzo += PALAZZO_OGNI;
+    }
+    if (!palazzo) { m.corridoio = false; return; }
+    var p = palazzo;
+    p.x -= dx;
+    var hb = { x: MARF_X - 18, w: 36 };
+    var dentroX = hb.x + hb.w > p.x + 4 && hb.x < p.x + p.w - 4;
+    if (dentroX && !p.dentro && !p.preso) {
+      // arrivato alla facciata: entra se i piedi sono fra pavimento e soffitto del corridoio (un filo di tolleranza)
+      if (m.y <= p.pav + 10 && m.y >= p.soff + 6) {
+        p.dentro = true; m.y = Math.min(m.y, p.pav); if (m.vy < 0) m.vy = 0;
+      } else {
+        p.preso = true; colpito({ tipo: 'palazzo' });
+      }
+    }
+    if (p.dentro && hb.x >= p.x + p.w - 4) p.dentro = false;   // uscito: si torna a correre (e se è in alto si cade)
+    m.corridoio = p.dentro;
+    if (p.x + p.w < -60) { palazzo = null; m.corridoio = false; }
+  }
+  function disegnaCorridoio() {
+    if (!palazzo || !pronta(PAL.facciata)) return;
+    var p = palazzo, c = PAL['corr-' + p.v];
+    if (pronta(c)) ctx.drawImage(c, p.x + p.bw, p.top, p.cw, p.ch);
+  }
+  function pezzoFacciata(x0, w, sy, sh, dy) {          // la facciata si ripete in orizzontale
+    var f = PAL.facciata, tw = f.naturalWidth * PAL_S;
+    for (var x = 0; x < w; x += tw) {
+      var ww = Math.min(tw, w - x);
+      ctx.drawImage(f, 0, sy, ww / PAL_S, sh, x0 + x, dy, ww, sh * PAL_S);
+    }
+  }
+  function disegnaFacciata() {
+    if (!palazzo || !pronta(PAL.facciata) || !pronta(PAL.bordo)) return;
+    var p = palazzo, f = PAL.facciata, b = PAL.bordo, fh = f.naturalHeight, cut = p.cut;
+    var x0 = p.x + p.bw;
+    pezzoFacciata(x0, p.cw, 0, cut, p.alto);
+    if (cut < fh) pezzoFacciata(x0, p.cw, cut, fh - cut, p.top + p.ch);
+    [p.x, x0 + p.cw].forEach(function (bx, i) {
+      ctx.save();
+      if (!i) { ctx.translate(bx + p.bw, 0); ctx.scale(-1, 1); bx = 0; }   // a sinistra specchiata: i balconi girano l'angolo
+      var bh = b.naturalHeight, bc = Math.min(cut, bh);
+      ctx.drawImage(b, 0, 0, b.naturalWidth, bc, bx, p.alto, p.bw, bc * PAL_S);
+      if (cut < bh) ctx.drawImage(b, 0, cut, b.naturalWidth, bh - cut, bx, p.top + p.ch, p.bw, (bh - cut) * PAL_S);
+      ctx.restore();
+    });
   }
 
   /* ── Sfondo a strati (i disegni di Leo), dal più lontano:
@@ -1030,12 +1109,12 @@
   function disegnaScudo() {          // bolla delle pringles: lampeggia quando sta per finire, scoppia al primo colpo
     var u = g.scoppio !== undefined ? (g.t - g.scoppio) / 0.3 : 2;
     if (u < 1) {
-      var ys = g.marf.y - (g.marf.giu && g.marf.y >= TERRA ? 24 : 50), rs = 64 * (1 + u * 0.8);
+      var ys = g.marf.y - ((g.marf.giu || g.marf.corridoio) && g.marf.aTerra ? 24 : 50), rs = 64 * (1 + u * 0.8);
       ctx.globalAlpha = 1 - u; ctx.drawImage(BOLLA, MARF_X - rs, ys - rs, rs * 2, rs * 2); ctx.globalAlpha = 1;
     }
     if (!g.scudo || g.scudo <= 0 || stato !== 'gioco') return;
     if (g.scudo < 1.5 && Math.floor(g.scudo * 8) % 2) return;
-    var y = g.marf.y - (g.marf.giu && g.marf.y >= TERRA ? 24 : 50), r = 64 + Math.sin(g.t * 6) * 3;
+    var y = g.marf.y - ((g.marf.giu || g.marf.corridoio) && g.marf.aTerra ? 24 : 50), r = 64 + Math.sin(g.t * 6) * 3;
     ctx.drawImage(BOLLA, MARF_X - r, y - r, r * 2, r * 2);
   }
   function disegnaJet(j) { disegnaOgg('jet', j.x + JET_DH * 1.36, j.y + JET_DH / 2, JET_DH); }
@@ -1087,7 +1166,7 @@
     var m = g.marf;
     if (PEZZI.pronto) { marfNuovo(); return; }
     if (m.botta > 0 && Math.floor(m.botta * 12) % 2 === 0) return; // lampeggia dopo una botta
-    var aTerra = m.y >= TERRA, scivola = m.giu && aTerra;
+    var aTerra = m.aTerra !== false, scivola = (m.giu || m.corridoio) && aTerra;
     var corre = stato === 'gioco' && aTerra;
     var p = stato === 'menu' ? g.t * 9 : g.passi;
     var s = Math.sin(p), c = Math.cos(p);
@@ -1353,7 +1432,7 @@
     var a = g.anim;
     a.atterra = Math.min(1, 0.45 + vy / 1600);
     a.ripresa = 0; a.giro = 0;
-    polvere(MARF_X, TERRA, 7 + Math.floor(vy / 200), 1.4);
+    polvere(MARF_X, g.marf.y, 7 + Math.floor(vy / 200), 1.4);
   }
 
   function animaTutto(dt) {
@@ -1371,7 +1450,7 @@
     var a = g.anim, m = g.marf, R = PEZZI;
     if (!R || !R.pronto) return;
     if (!a.posa) a.posa = posaCorsa(a.fase, 1, {});
-    var inGioco = stato === 'gioco', aTerra = m.y >= TERRA;
+    var inGioco = stato === 'gioco', aTerra = stato !== 'gioco' || m.aTerra;
     var vel = inGioco ? g.vel : 380;
     var target;
     a.ripresa = Math.min(1, a.ripresa + dt * 3.2);
@@ -1397,17 +1476,17 @@
       }
       verso(a.posa, target, dt, 10 + 32 * a.ripresa);
       // polvere a ogni appoggio
-      if (inGioco && a.scivola < .2 && Math.floor(fasePrima * 2) !== Math.floor(a.fase * 2)) polvere(MARF_X + 6, TERRA, 2, .5);
+      if (inGioco && a.scivola < .2 && Math.floor(fasePrima * 2) !== Math.floor(a.fase * 2)) polvere(MARF_X + 6, m.y, 2, .5);
     }
     a.atterra = Math.max(0, a.atterra - dt * 5.5);
     if (a.giro > 0) a.giro = Math.max(0, a.giro - dt * 1.9);
 
     // scivolata: il corpo si stende piano piano e si rialza piano piano
-    var vuoleScivolare = inGioco && m.giu && aTerra;
+    var vuoleScivolare = inGioco && (m.giu || m.corridoio) && aTerra;
     a.scivola += ((vuoleScivolare ? 1 : 0) - a.scivola) * (1 - Math.exp(-dt * (vuoleScivolare ? 16 : 10)));
     if (a.scivola > 0.02) {
       mescola(a.posa, P_SCIVOLA, liscia(a.scivola), a.mostra || (a.mostra = {}));
-      if (vuoleScivolare && Math.random() < dt * 30) polvere(MARF_X + 34, TERRA, 1, .9);
+      if (vuoleScivolare && Math.random() < dt * 30) polvere(MARF_X + 34, m.y, 1, .9);
     } else a.mostra = null;
 
     // anca: a terra la decide il piede d'appoggio, in aria resta all'altezza da in piedi
