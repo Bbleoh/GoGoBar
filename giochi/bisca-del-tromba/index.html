@@ -532,9 +532,16 @@
         <button class="bet-tool" id="r-undo" onclick="rAnnullaUltima()" title="Tasto Z">↶ Togli</button>
         <button class="bet-tool" id="r-repeat" onclick="rRipeti()" title="Tasto R">↺ Ripeti</button>
         <button class="bet-tool" id="r-double" onclick="rRaddoppia()" title="Tasto X">×2</button>
+        <div class="r-auto-wrap">
+          <button class="bet-tool auto" id="r-auto" onclick="rAutoMenu()" disabled>⟳ Auto</button>
+          <div id="r-auto-menu" hidden role="menu" aria-label="Quanti giri automatici">
+            <small>Giri automatici con l'ultima puntata</small>
+            <div><button class="bet-tool" onclick="rAutoAvvia(5)">5</button><button class="bet-tool" onclick="rAutoAvvia(10)">10</button><button class="bet-tool" onclick="rAutoAvvia(20)">20</button><button class="bet-tool" onclick="rAutoAvvia(50)">50</button></div>
+          </div>
+        </div>
         <button class="btn primary" id="r-spin" onclick="rGira()" disabled title="Invio">Gira<kbd>Invio</kbd></button>
       </div>
-      <div id="r-keys">Tasti: 1-6 fiche · P pieno · C cavallo · Q quartina · Z togli · R ripeti · X ×2 · Esc annulla · Invio gira</div>
+      <div id="r-keys">Tasti: 1-6 fiche · P pieno · C cavallo · Q quartina · A autobet · Z togli · R ripeti · X ×2 · Esc annulla · Invio gira</div>
     </footer>
   </section>
 </div>
@@ -571,7 +578,7 @@
 <script>
 /* Tavolo in uso: 'lobby' | 'blackjack' | 'roulette' (la roulette è in roulette.js) */
 let gioco = 'lobby';
-function rouletteOccupata() { return typeof rGirando !== 'undefined' && rGirando; }
+function rouletteOccupata() { return typeof rGirando !== 'undefined' && (rGirando || rAutoOn); }
 function tavoloLibero() { return phase === 'bet' && !rouletteOccupata(); }
 function aggiornaTavoliBtn() {
   const b = document.getElementById('tavoli-btn');

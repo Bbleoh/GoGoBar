@@ -176,3 +176,21 @@ button.tavolo:hover,button.tavolo:focus-visible{transform:translateY(-6px);borde
 @media (hover:none){ .r-hot{pointer-events:none;} }
 @media (max-width:640px){ #r-modi .bet-tool{flex:1 1 0;min-height:34px;padding:0 6px;font-size:.72rem;letter-spacing:.5px;} }
 @media (max-height:480px){ #r-modi .bet-tool{min-height:28px;} }
+
+/* autobet */
+.r-auto-wrap{position:relative;display:flex;}
+.bet-tool.auto.attivo{border-color:var(--lose);color:#fff;background:rgba(255,91,79,.25);}
+.bet-tool.auto small{font-size:.8em;opacity:.8;margin-left:4px;}
+#r-auto-menu{position:absolute;bottom:calc(100% + 10px);left:50%;transform:translateX(-50%);z-index:30;width:max-content;max-width:90vw;
+  display:flex;flex-direction:column;align-items:center;gap:8px;padding:12px 14px;border-radius:16px;
+  background:var(--panel-solid);border:1px solid var(--gold);box-shadow:0 12px 30px rgba(0,0,0,.7);animation:modalIn .18s ease;}
+#r-auto-menu[hidden]{display:none;}
+#r-auto-menu small{font-family:var(--ui);font-size:.66rem;letter-spacing:1.5px;color:var(--gold);text-transform:uppercase;}
+#r-auto-menu div{display:flex;gap:6px;}
+#r-auto-menu .bet-tool{min-width:52px;}
+@media (max-width:640px){ .r-auto-wrap{flex:1 1 auto;} .r-auto-wrap .bet-tool{flex:1 1 auto;} #r-auto-menu{left:auto;right:0;transform:none;} }
+@media (max-width:640px){
+  #r-tools{gap:5px;}
+  #r-tools .bet-tool{font-size:.7rem;padding:0 5px;letter-spacing:0;}
+  .r-auto-wrap{flex:1 1 auto;}
+}

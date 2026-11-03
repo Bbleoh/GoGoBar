@@ -54,7 +54,9 @@ let rGirando = false;
 let rStoria = [];         // ultimi numeri usciti
 let rUltimo = null;
 let rModo = 'pieno';      // 'pieno' | 'cavallo' | 'quartina': cosa fa un tocco su un numero
-let rPrimo = null;        // primo numero scelto per cavallo o quartina
+let rPrimo = null;
+let rAutoOn = false;      // autobet in corso
+let rAuto = 0;            // giri automatici ancora da fare        // primo numero scelto per cavallo o quartina
 
 function rTotale(p) { return Object.values(p || rPuntate).reduce((a, b) => a + b, 0); }
 function rEuro(v) { return '€' + Number(v).toLocaleString('it-IT'); }
@@ -187,7 +189,7 @@ function rAggiorna() {
   const tot = rTotale();
   document.getElementById('r-saldo').textContent = rEuro(balance);
   document.getElementById('r-puntata').textContent = rEuro(tot);
-  const libero = !rGirando;
+  const libero = !rGirando && !rAutoOn;
   CHIP_VALUES.forEach(v => {
     const el = document.getElementById('r-chip-' + v);
     el.classList.toggle('scelta', v === rFiche);
@@ -199,6 +201,11 @@ function rAggiorna() {
   document.getElementById('r-repeat').disabled = !libero || !rUltime || tot > 0 || rTotale(rUltime) > balance;
   document.getElementById('r-double').disabled = !libero || !tot || tot * 2 > balance;
   document.getElementById('r-spin').disabled = !libero || !tot;
+  const auto = document.getElementById('r-auto');
+  auto.disabled = !rAutoOn && (!libero || !(tot > 0 || (rUltime && rTotale(rUltime) <= balance)));
+  auto.classList.toggle('attivo', rAutoOn);
+  auto.innerHTML = rAutoOn ? '■ Stop <small>' + rAuto + '</small>' : '⟳ Auto';
+  auto.title = rAutoOn ? 'Ferma i giri automatici (Esc)' : 'Giri automatici con l\'ultima puntata (tasto A)';
   document.getElementById('r-board').classList.toggle('bloccato', !libero);
   rDisegnaPuntate();
   updateCashoutBtn();
@@ -406,7 +413,7 @@ function rGira() {
   document.getElementById('balance-display').textContent = rEuro(balance);
 
   const n = rCasuale(), idx = R_ORDINE.indexOf(n);
-  const DURATA = 6200, ATTERRA = .78;
+  const DURATA = rAutoOn ? 4200 : 6200, ATTERRA = .78; // in autobet la ruota gira un po' più veloce
   const w0 = rRuota.angolo, W = Math.PI * 2 * (2.2 + Math.random() * .6);
   const ease = x => 1 - Math.pow(1 - x, 3);
   const ruotaA = x => w0 + W * ease(x);
@@ -500,9 +507,56 @@ function rRisultato(n) {
   rAggiorna();
   document.getElementById('balance-display').textContent = rEuro(balance);
 
-  if (balance <= 0) { bancarotta(); return; }
+  if (balance <= 0) { rAutoStop(); bancarotta(); return; }
   memScrivi();
+  if (rAutoOn) {
+    if (rAuto > 0) setTimeout(rAutoGiro, 1500);
+    else rAutoStop();
+  }
 }
+
+/* ── AUTOBET: ripete l'ultima puntata per 5, 10, 20 o 50 giri ─── */
+function rAutoMenu() {
+  if (rAutoOn) { rAutoStop('Autobet fermato.'); return; }
+  const menu = document.getElementById('r-auto-menu');
+  if (document.getElementById('r-auto').disabled) return;
+  menu.hidden = !menu.hidden;
+}
+function rAutoAvvia(giri) {
+  document.getElementById('r-auto-menu').hidden = true;
+  if (rGirando || rAutoOn) return;
+  if (!rTotale()) {
+    if (!rUltime) { rMsg('Punta qualcosa prima di avviare l\'autobet.', 'lose'); return; }
+    rPuntate = Object.assign({}, rUltime);
+  }
+  if (rTotale() > balance) { sfxError(); rMsg('Saldo insufficiente per l\'autobet.', 'lose'); return; }
+  rUltime = Object.assign({}, rPuntate); // la puntata da ripetere è quella sul tavolo adesso
+  rAutoOn = true;
+  rAuto = giri;
+  rAutoGiro();
+}
+function rAutoGiro() {
+  if (!rAutoOn || rGirando) return;
+  if (!rTotale()) {
+    if (!rUltime || rTotale(rUltime) > balance) { rAutoStop('Autobet fermato: saldo insufficiente per ripetere la puntata.'); return; }
+    rPuntate = Object.assign({}, rUltime);
+  }
+  rStoriaPuntate = [];
+  rAuto--;
+  rGira();
+}
+function rAutoStop(testo) {
+  if (!rAutoOn) return;
+  rAutoOn = false;
+  rAuto = 0;
+  if (!rGirando) { rPuntate = {}; rStoriaPuntate = []; }
+  if (testo) rMsg(testo, 'push');
+  rAggiorna();
+}
+document.addEventListener('pointerdown', e => {
+  const menu = document.getElementById('r-auto-menu');
+  if (menu && !menu.hidden && !e.target.closest('.r-auto-wrap')) menu.hidden = true;
+});
 
 function rTogliEsito() {
   document.getElementById('r-esito').className = '';
@@ -528,6 +582,7 @@ function rEntra() {
   if (!document.getElementById('r-msg').textContent) rMsg('Scegli una fiche e clicca sul tavolo per puntare.');
 }
 function rReset() {
+  rAutoOn = false; rAuto = 0;
   rPuntate = {}; rStoriaPuntate = []; rUltime = null;
   if (document.getElementById('r-board').childElementCount) { rTogliEsito(); rAggiorna(); }
 }
@@ -540,6 +595,14 @@ window.addEventListener('resize', () => {
 // tasti: 1-6 fiche · Invio/Spazio gira · Esc annulla · Backspace/Z togli l'ultima · R ripeti · X ×2
 function rTasti(e) {
   const k = e.key.toLowerCase();
+  const menu = document.getElementById('r-auto-menu');
+  if (rAutoOn) { if (k === 'escape' || k === 'a') { e.preventDefault(); rAutoStop('Autobet fermato.'); } return; }
+  if (!menu.hidden) {
+    const giri = { '1': 5, '2': 10, '3': 20, '4': 50 }[k];
+    if (giri) { e.preventDefault(); rAutoAvvia(giri); return; }
+    if (k === 'escape' || k === 'a') { e.preventDefault(); menu.hidden = true; return; }
+  }
+  if (k === 'a') { e.preventDefault(); rAutoMenu(); return; }
   if (/^[1-6]$/.test(e.key)) { e.preventDefault(); rScegliFiche(CHIP_VALUES[+e.key - 1]); return; }
   const modi = { p: 'pieno', c: 'cavallo', q: 'quartina' };
   if (modi[k]) { e.preventDefault(); rScegliModo(modi[k]); return; }
