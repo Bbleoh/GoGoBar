@@ -6,7 +6,7 @@
  *  Suona i brani della sezione Musica (contenuti.js) dentro un gioco.
  *  Per aggiungerla a una pagina basta una riga prima di </body>:
  *
- *      <script src="../../js/radio.js?v=11"></script>
+ *      <script src="../../js/radio.js?v=12"></script>
  *
  *  Il pulsante:
  *   - se nella pagina c'è un elemento con  data-gogobar-radio

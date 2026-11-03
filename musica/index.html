@@ -52,6 +52,7 @@
       box-shadow: inset 0 0 0 3px #b98a22;
     }
     .disc .label img { width: 78%; height: auto; margin-top: 12%; }
+    .disc .label.foto img { width: 100%; height: 100%; margin: 0; object-fit: cover; }
     .disc .label::after { content: ''; position: absolute; width: 8%; aspect-ratio: 1; border-radius: 50%; background: var(--bg); }
     .playing .disc { animation-play-state: running; }
     @keyframes gira { to { transform: rotate(360deg); } }
@@ -80,7 +81,24 @@
     .vol { display: flex; align-items: center; gap: .5rem; margin-left: auto; color: var(--muted); }
     .vol input { width: 110px; }
 
+    /* ── ALBUM: una copertina per album ── */
+    .shelf { max-width: 1200px; margin: 0 auto; padding: 2.5rem var(--pad) 0; }
+    .shelf h2 { font-family: var(--display); font-weight: 700; font-size: 1.8rem; margin-bottom: 1rem; }
+    .shelf-row { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 1rem; }
+    .album { text-align: left; display: flex; flex-direction: column; gap: .55rem; }
+    .album .gg-cover { border-radius: 14px; border: 1px solid var(--line); transition: transform .25s, border-color .25s, box-shadow .25s; }
+    .album:hover .gg-cover { transform: translateY(-4px); border-color: var(--gold); box-shadow: 0 14px 30px rgba(0,0,0,.5); }
+    .album.attivo .gg-cover { border-color: var(--gold); box-shadow: 0 0 0 2px var(--gold); }
+    .album .nome { font-family: var(--display); font-weight: 600; font-size: 1.15rem; line-height: 1.1; }
+    .album.attivo .nome { color: var(--gold-2); }
+    .album .quanti { font-family: var(--mono); font-size: .72rem; color: var(--muted); }
+
     /* ── SCALETTA ── */
+    .album-head { display: flex; align-items: center; gap: 1rem; margin-bottom: 1rem; scroll-margin-top: 1rem; }
+    .album-head .gg-cover { width: 64px; flex: none; border-radius: 8px; }
+    .album-head .gg-cover .gg-nota, .album-head .gg-cover .gg-neko { display: none; }
+    .list .album-head h2 { margin-bottom: 0; }
+    .list ol + .album-head { margin-top: 2.5rem; }
     .list { max-width: 1200px; margin: 0 auto; padding: 2.5rem var(--pad) 4rem; }
     .list h2 { font-family: var(--display); font-weight: 700; font-size: 1.8rem; margin-bottom: 1rem; }
     .list h2 small { font-family: var(--mono); font-weight: 400; font-size: .8rem; color: var(--muted); margin-left: .5rem; }
@@ -125,7 +143,7 @@
 </div>
 
 <section class="player" id="player">
-  <div class="disc" aria-hidden="true"><div class="label"><img src="../img/maneki-neko.webp" alt=""></div></div>
+  <div class="disc" aria-hidden="true"><div class="label" id="etichetta"><img id="etichetta-img" src="../img/maneki-neko.webp" alt=""></div></div>
   <div class="info">
     <p class="kicker" id="kicker">Musica</p>
     <h1 id="titolo">—</h1>
@@ -148,11 +166,17 @@
   </div>
 </section>
 
+<section class="shelf" id="album" aria-label="Album">
+  <h2>Album</h2>
+  <div class="shelf-row" id="scaffale"></div>
+</section>
+
 <section class="list" id="scaletta"></section>
 
 <audio id="audio" preload="metadata"></audio>
 
-<script src="../contenuti.js?v=11"></script>
+<script src="../contenuti.js?v=12"></script>
+<script src="../js/copertina.js?v=1"></script>
 <script>
 /*
  * Player musicale: legge i brani da contenuti.js (sezione musica).
@@ -163,7 +187,7 @@
   // (funziona anche se il browser ha ancora in cache un contenuti.js vecchio)
   const TUTTI = (typeof TUTTI_I_BRANI !== 'undefined') ? TUTTI_I_BRANI
     : ((typeof CONTENUTI !== 'undefined' && CONTENUTI.musica) || []).flatMap(a =>
-        a.brani ? a.brani.map(b => Object.assign({ album: a.album }, b)) : [a]);
+        a.brani ? a.brani.map(b => Object.assign({ album: a.album, copertina: a.copertina || '' }, b)) : [a]);
   const brani = TUTTI.filter(b => b.file);
   const $ = id => document.getElementById(id);
   const audio = $('audio');
@@ -185,18 +209,43 @@
     return { n: stesso.indexOf(b) + 1, tot: stesso.length };
   });
 
+  const slugAlbum = n => String(n || 'brani').toLowerCase().normalize('NFD').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+
+  // ── scaffale: una copertina per album, click = suona l'album dall'inizio ──
+  const album = [...new Set(brani.map(b => b.album))];
+  if (album.length < 2 && !brani.some(b => b.copertina)) $('album').remove();
+  else album.forEach(function (nome) {
+    const lista = brani.filter(b => b.album === nome);
+    const btn = document.createElement('button');
+    btn.className = 'album'; btn.dataset.album = nome || '';
+    btn.setAttribute('aria-label', 'Ascolta l\'album ' + (nome || 'Brani'));
+    const t = document.createElement('span'); t.className = 'nome'; t.textContent = nome || 'Brani';
+    const q = document.createElement('span'); q.className = 'quanti'; q.textContent = lista.length === 1 ? '1 brano' : lista.length + ' brani';
+    if (window.GoGoCopertina) btn.append(GoGoCopertina({ album: nome || 'Brani', copertina: lista[0].copertina }, '../'));
+    btn.append(t, q);
+    btn.onclick = function () {
+      carica(brani.indexOf(lista[0]), true);
+      $('player').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    };
+    $('scaffale').append(btn);
+  });
+
   // ── scaletta, divisa per album ──
   let ol = null, ultimo;
   brani.forEach(function (b, i) {
     if (!ol || b.album !== ultimo) {
       ultimo = b.album;
+      const testa = document.createElement('div');
+      testa.className = 'album-head'; testa.id = 'album-' + slugAlbum(b.album);
       const h = document.createElement('h2');
       h.textContent = b.album || 'Brani';
       const c = document.createElement('small');
       c.textContent = brani.filter(x => x.album === b.album).length + ' brani';
       h.append(c);
+      if (window.GoGoCopertina) testa.append(GoGoCopertina({ album: b.album || 'Brani', copertina: b.copertina }, '../'));
+      testa.append(h);
       ol = document.createElement('ol');
-      $('scaletta').append(h, ol);
+      $('scaletta').append(testa, ol);
     }
     const li = document.createElement('li');
     const btn = document.createElement('button');
@@ -235,11 +284,17 @@
       aggiornaBarra(0);
       document.title = b.titolo + ' · GoGoBar';
       document.querySelectorAll('.track').forEach(el => el.classList.toggle('attivo', +el.dataset.i === i));
+      document.querySelectorAll('.album').forEach(el => el.classList.toggle('attivo', el.dataset.album === (b.album || '')));
+      // al centro del vinile: la copertina dell'album, se c'è, altrimenti il gatto
+      $('etichetta').classList.toggle('foto', !!b.copertina);
+      $('etichetta-img').src = b.copertina ? (/^(https?:)?\/\//.test(b.copertina) ? b.copertina : '../' + b.copertina) : '../img/maneki-neko.webp';
       history.replaceState(null, '', '#' + slug(b));
       if ('mediaSession' in navigator) {
         navigator.mediaSession.metadata = new MediaMetadata({
           title: b.titolo, artist: b.artisti || 'Collettivo M.I.A.O.', album: b.album || 'GoGoBar',
-          artwork: [{ src: new URL('../img/maneki-neko.webp', location.href).href, sizes: '689x900', type: 'image/webp' }]
+          artwork: b.copertina
+            ? [{ src: new URL(/^(https?:)?\/\//.test(b.copertina) ? b.copertina : '../' + b.copertina, location.href).href }]
+            : [{ src: new URL('../img/maneki-neko.webp', location.href).href, sizes: '689x900', type: 'image/webp' }]
         });
       }
     }

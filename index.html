@@ -244,6 +244,14 @@
     .playlist-card h3 { font-size: 1.4rem; }
     .playlist-card p { font-size: .82rem; color: var(--muted); }
     .playlists { isolation: isolate; }
+    /* copertine degli album: quadrate, con un disco che spunta al passaggio */
+    .album-card { position: relative; }
+    .album-card .card-media { aspect-ratio: 1; background: #111; }
+    .album-card .card-media .gg-cover { transition: transform .4s; }
+    a.album-card:hover .card-media .gg-cover { transform: scale(1.04); }
+    .album-card h3 { font-size: 1.4rem; }
+    .album-card p { font-size: .8rem; color: var(--cream); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+    .album-durata { font-family: var(--mono); font-size: .7rem; color: var(--muted); margin-top: auto; }
     .rail .card h3 { font-size: 1.05rem; }
     .rail .card-body { padding: .85rem 1rem 1rem; }
 
@@ -376,7 +384,7 @@
     <h2>Musica <small data-count="musica"></small></h2>
     <a href="musica/">Ascolta tutto →</a>
   </div>
-  <div class="brani" id="grid-musica"></div>
+  <div class="grid playlists album-grid" id="grid-musica"></div>
 </section>
 
 <footer>
@@ -386,7 +394,8 @@
 
 <noscript><p style="padding:2rem;font-family:monospace">Per vedere i contenuti serve JavaScript attivo.</p></noscript>
 
-<script src="contenuti.js?v=11"></script>
+<script src="contenuti.js?v=12"></script>
+<script src="js/copertina.js?v=1"></script>
 <!-- account GoGoBar senza password (👤 nel menu in alto) -->
 <script src="js/account.js?v=1"></script>
 <script src="js/account-ui.js?v=1"></script>
@@ -468,7 +477,7 @@
   const giochi = CONTENUTI.giochi || [];
   const musica = (typeof TUTTI_I_BRANI !== 'undefined') ? TUTTI_I_BRANI
     : ((typeof CONTENUTI !== 'undefined' && CONTENUTI.musica) || []).flatMap(a =>
-        a.brani ? a.brani.map(b => Object.assign({ album: a.album }, b)) : [a]);
+        a.brani ? a.brani.map(b => Object.assign({ album: a.album, copertina: a.copertina || '' }, b)) : [a]);
   const VUOTO = {
     video:  'I video stanno arrivando. Preparate i popcorn.',
     giochi: 'Nessun gioco ancora... ma arriveranno.',
@@ -499,24 +508,28 @@
     pl.append(box);
   });
   riempi('giochi', giochi, document.getElementById('grid-giochi'));
-  // musica: scaletta compatta, ogni brano apre il player su quel brano
+  // musica: una copertina per album, apre il player sul primo brano dell'album
   const gm = document.getElementById('grid-musica');
   const brani = musica.filter(b => b.file);
   document.querySelector('[data-count="musica"]').textContent = brani.length || '';
   if (!brani.length) gm.append(el('p', 'empty-note', VUOTO.musica));
-  let ultimoAlbum, n = 0;
-  brani.forEach(function (b) {
-    if (b.album !== ultimoAlbum) {
-      ultimoAlbum = b.album; n = 0;
-      gm.append(el('p', 'album-label', b.album || 'Brani'));
-    }
-    const i = n++;
-    const a = el('a', 'brano');
-    a.href = 'musica/#' + b.file.replace(/\.[^.]+$/, '');
-    const testo = el('span', 'brano-testo');
-    testo.append(el('span', 'brano-titolo', b.titolo), el('span', 'brano-artisti', b.artisti || ''));
-    a.append(el('span', 'brano-n', String(i + 1).padStart(2, '0')), testo, el('span', 'brano-durata', b.durata || ''), el('span', 'brano-play', '▶'));
-    gm.append(a);
+  const secondi = d => { const [m, s] = String(d || '').split(':').map(Number); return (m * 60 + s) || 0; };
+  const nomiAlbum = [...new Set(brani.map(b => b.album || 'Brani'))];
+  nomiAlbum.forEach(function (nome) {
+    const lista = brani.filter(b => (b.album || 'Brani') === nome);
+    const tot = lista.reduce((t, b) => t + secondi(b.durata), 0);
+    const box = el('a', 'card album-card');
+    box.href = 'musica/#' + lista[0].file.replace(/\.[^.]+$/, '');
+    const m = el('div', 'card-media');
+    if (window.GoGoCopertina) m.append(GoGoCopertina({ album: nome, copertina: lista[0].copertina }, ''));
+    box.append(m, el('span', 'play', '▶'));
+    const body = el('div', 'card-body');
+    body.append(el('span', 'card-kicker', lista.length === 1 ? '1 brano' : lista.length + ' brani'));
+    body.append(el('h3', null, nome));
+    body.append(el('p', null, lista.map(b => b.titolo.replace(/\s*\(re-edit 2026\)/i, '')).join(' · ')));
+    if (tot) body.append(el('span', 'album-durata', Math.floor(tot / 60) + ' min'));
+    box.append(body);
+    gm.append(box);
   });
 
   // ── in evidenza: ultimo video + gioco in evidenza + classifica ──

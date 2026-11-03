@@ -91,11 +91,14 @@ const CONTENUTI = {
   // La musica è divisa in album, nell'ordine in cui appaiono sul sito.
   // Il file MP3 va nella cartella musica/brani/.
   // Per aggiungere un brano, copia una riga e cambia i testi.
-  // Per un album nuovo, copia un blocco { album: ..., brani: [...] }.
+  // Per un album nuovo, copia un blocco { album: ..., copertina: ..., brani: [...] }.
+  // copertina: immagine quadrata in img/copertine/ (es. 'img/copertine/og-tracks.jpg').
+  // Se la lasci vuota ('') il sito disegna una copertina provvisoria col nome dell'album.
   // (Se hai un WAV, mandalo in chat: lo converto io in MP3.)
   musica: [
     {
       album: 'OG Tracks',
+      copertina: '',
       brani: [
         { titolo: 'FIORE',             artisti: 'CiciLeo feat. C-Rischio (LilCriver & Fiskiabad)',  file: 'fiore.mp3',             durata: '3:17' },
         { titolo: 'FUOCO E FARFALLE',  artisti: 'feat. C-Rischio, Celeperù, MarkyMarko, CiciLeo',   prod: 'StepLeo', file: 'fuoco-e-farfalle.mp3',  durata: '2:42' },
@@ -105,6 +108,16 @@ const CONTENUTI = {
         { titolo: 'SQUALO',            artisti: 'C-Rischio feat. Cele-Kun',                         prod: 'StepLeo', file: 'squalo.mp3',            durata: '2:14' },
         { titolo: 'BENTORNATO MARCO',  artisti: 'Collettivo M.I.A.O.',                              file: 'bentornato-marco.mp3',  durata: '5:45' },
         { titolo: 'CIAO PALLE',        artisti: 'MarkyMarco feat. C-Rischio, Chil(l)yCele, CiciLeo', file: 'ciao-palle.mp3',        durata: '4:45' },
+      ],
+    },
+    {
+      album: 'Re-edit 2026',
+      copertina: '',
+      brani: [
+        { titolo: 'FIORE (re-edit 2026)',            artisti: 'C-Rischio, CiciLeo',                              file: 'fiore-re-edit-2026.mp3',            durata: '3:43' },
+        { titolo: 'FUOCO E FARFALLE (re-edit 2026)', artisti: 'feat. C-Rischio, Celeperù, MarkyMarko, CiciLeo', prod: 'StepLeo', file: 'fuoco-e-farfalle-re-edit-2026.mp3', durata: '2:46' },
+        { titolo: 'REGINA CRIVI (re-edit 2026)',     artisti: 'feat. C-Rischio, Malevolent Marf, VickyDicky',   prod: 'StepLeo', file: 'regina-crivi-re-edit-2026.mp3',     durata: '2:54' },
+        { titolo: 'SECCO SLE (re-edit 2026)',        artisti: 'feat. Lil Criver, Fiskiabad, CiciLeo',           prod: 'StepLeo', file: 'secco-sle-re-edit-2026.mp3',        durata: '2:53' },
       ],
     },
   ],
@@ -124,5 +137,5 @@ const TUTTI_I_VIDEO = CONTENUTI.video.flatMap(p =>
  * La usano la homepage e la pagina Musica: qui non serve toccare niente.
  */
 const TUTTI_I_BRANI = CONTENUTI.musica.flatMap(a =>
-  (a.brani || []).map(b => Object.assign({ album: a.album }, b))
+  (a.brani || []).map(b => Object.assign({ album: a.album, copertina: a.copertina || '' }, b))
 );
