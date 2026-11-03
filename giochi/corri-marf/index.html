@@ -662,6 +662,7 @@
     m.y += m.vy * dt;
     var suolo = palazzo && palazzo.dentro ? palazzo.pav : TERRA;   // dentro il corridoio il pavimento è quello del palazzo
     m.aTerra = m.y >= suolo;
+    if (m.y > suolo && m.vy < 0) m.aTerra = false;               // sta risalendo dalle cantine
     if (m.aTerra) {
       if (m.vy > 250) atterraggio(m.vy);
       m.y = suolo; m.vy = 0; m.salti = 0;
@@ -880,12 +881,12 @@
      La facciata è tagliata all'altezza dei piani; le strisce laterali hanno i balconi allineati ai piani. ── */
   var PALAZZO_OGNI = 2000;
   var PAL = {}; ['corr-alto', 'corr-mezzo', 'corr-basso', 'bordo', 'facciata'].forEach(function (n) { var i = new Image(); i.src = 'palazzo/' + n + '.webp?v=1'; PAL[n] = i; });
-  var PAL_S = 0.4, PIANI = { alto: 162, mezzo: 324, basso: 649 }, FACC_H = 649, CORR_H = 206, BORDO_W = 96, CORR_W = 1460;
+  var PAL_S = 0.5, PIANI = { alto: 162, mezzo: 324, basso: 649 }, FACC_H = 649, CORR_H = 206, BORDO_W = 96, CORR_W = 1460;
   var PAV = 0.95, SOFF = 0.05;            // pavimento e soffitto del corridoio, in frazione della sua altezza
   var palazzo = null;
   function nuovoPalazzo(v) {
     var cut = PIANI[v], ch = CORR_H * PAL_S, sotto = (FACC_H - cut) * PAL_S;
-    var bottom = TERRA + 2, top = bottom - sotto - ch;    // top del corridoio
+    var bottom = H + 2, top = bottom - sotto - ch;        // in primo piano: poggia sul bordo dello schermo, davanti alla strada
     var bw = BORDO_W * PAL_S, cw = CORR_W * PAL_S;
     palazzo = { v: v, x: W + 40, bw: bw, cw: cw, w: bw * 2 + cw, cut: cut, ch: ch, top: top, bottom: bottom,
                 pav: top + ch * PAV, soff: top + ch * SOFF, alto: top - cut * PAL_S, dentro: false, preso: false };
@@ -913,7 +914,10 @@
         p.preso = true; colpito({ tipo: 'palazzo' });
       }
     }
-    if (p.dentro && hb.x >= p.x + p.w - 4) p.dentro = false;   // uscito: si torna a correre (e se è in alto si cade)
+    if (p.dentro && hb.x >= p.x + p.w - 4) {                  // uscito: si torna a correre (se è in alto si cade)
+      p.dentro = false;
+      if (m.y > TERRA) m.vy = -Math.sqrt(2 * 2100 * (m.y - TERRA + 14));   // dalle cantine risale in strada con un saltello
+    }
     m.corridoio = p.dentro;
     if (p.x + p.w < -60) { palazzo = null; m.corridoio = false; }
   }
