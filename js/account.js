@@ -32,6 +32,8 @@
      GoGoAccount.esci()                → Promise<stato> (scollega questo dispositivo)
      GoGoAccount.token()               → Promise<string|null>, solo se c'è un account
      GoGoAccount.chiave(nome)          → chiave usata in nomi/ e nelle classifiche
+     GoGoAccount.nomeLibero(nome)      → Promise<boolean>: false se il nome è di un altro account
+     GoGoAccount.nomePreso(nome)       → messaggio da mostrare in quel caso
      GoGoAccount.suCambio(fn)          → chiama fn(stato) a ogni cambio (anche da altre schede)
    Ogni errore è un Error con un messaggio in italiano da mostrare così com'è.
 ════════════════════════════════════════════════════════════════ */
@@ -314,6 +316,19 @@
     });
   }
 
+  // Promise<boolean>: true se il nome è libero o è di questo account; false se è di un altro account.
+  // Se Firebase non risponde dice true: tanto le regole impediscono comunque di salvarci sopra.
+  function nomeLibero(nome) {
+    var k = chiave(nome);
+    if (!API_KEY || !k) return Promise.resolve(true);
+    return http(DB_URL + '/nomi/' + encodeURIComponent(k) + '.json' + (DB_QUERY ? '?' + DB_QUERY : '')).then(function (id) {
+      return !id || !!(mem.account && mem.account.id === id);
+    }, function () { return true; });
+  }
+  function nomePreso(nome) {
+    return 'Il nome ' + String(nome).trim() + ' è già di un altro giocatore. Scegline un altro, oppure, se è tuo, entra con il tuo account dalla home (👤).';
+  }
+
   function token() {
     if (!API_KEY || !mem.account) return Promise.resolve(null);
     return sessione().then(function (m) { return m.token; }, function () { return null; });
@@ -323,7 +338,7 @@
 
   window.GoGoAccount = {
     attivo: !!API_KEY, pronto: pronto, stato: stato, crea: crea, codice: codice, usaCodice: usaCodice,
-    dispositivi: dispositivi, togli: togli, esci: esci, token: token, chiave: chiave, controlla: controlla,
+    dispositivi: dispositivi, togli: togli, esci: esci, token: token, chiave: chiave, nomeLibero: nomeLibero, nomePreso: nomePreso, controlla: controlla,
     suCambio: function (fn) { if (typeof fn === 'function') ascoltatori.push(fn); }
   };
 })();

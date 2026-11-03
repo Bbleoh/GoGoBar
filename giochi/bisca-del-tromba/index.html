@@ -574,7 +574,7 @@
 
 <audio id="musica" preload="auto"></audio>
 
-<script src="../../js/account.js?v=2"></script>
+<script src="../../js/account.js?v=3"></script>
 <script src="classifica.js?v=7"></script>
 <script>
 /* Tavolo in uso: 'lobby' | 'blackjack' | 'roulette' (la roulette è in roulette.js) */
@@ -751,6 +751,13 @@ async function confirmName() {
   if (!NOME_OK.test(val)) { errEl.textContent = 'Solo lettere, numeri, spazi e trattini.'; return; }
   if (btn.disabled) return;
   startMusic(); // siamo dentro un clic: sblocca subito l'audio
+  // niente omonimi: un nome preso da un account GoGoBar lo usa solo quell'account
+  if (window.GoGoAccount && GoGoAccount.attivo) {
+    btn.disabled = true;
+    const libero = await GoGoAccount.nomeLibero(val);
+    btn.disabled = false;
+    if (!libero) { errEl.textContent = GoGoAccount.nomePreso(val); return; }
+  }
 
   if (playerName) { clearTimeout(syncTimer); memScrivi(); syncRemoto(true); } // salva il giocatore precedente
   btn.disabled = true; btn.textContent = 'Apro il tuo account...';

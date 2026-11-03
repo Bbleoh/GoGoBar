@@ -239,7 +239,7 @@
   <audio id="musicaMorte" data-musica src="musica-morte.mp3" loop preload="none"></audio>
   <audio id="musicaBoss" data-musica src="musica-boss.mp3" loop preload="none"></audio>
 
-<script src="../../js/account.js?v=2"></script>
+<script src="../../js/account.js?v=3"></script>
 <script src="classifica.js?v=3" onerror="window.CorriMarfClassifica = null"></script>
 <script>
 (function () {
@@ -418,7 +418,10 @@
       b.type = 'button'; b.title = 'Corri come ' + x.nome;
       b.className = 'giocatore-chip' + (chiaveNome(x.nome) === chiaveNome(giocatore) ? ' attuale' : '');
       b.append(x.nome, testo('small', x.punti.toLocaleString('it-IT')));
-      b.addEventListener('click', function () { nomeMenu.value = ''; scegli(x.nome); inizia(); });
+      b.addEventListener('click', function () {
+        nomeMenu.value = ''; notaMenu.textContent = '';
+        nomeConsentito(x.nome).then(function (ok) { if (ok) { scegli(x.nome); inizia(); } });
+      });
       box.append(b);
     });
   }
@@ -474,10 +477,27 @@
     if (n) {
       if (n.length > 20) { notaMenu.textContent = 'Max 20 caratteri.'; return; }
       if (!NOME_OK.test(n)) { notaMenu.textContent = 'Solo lettere, numeri, spazi e trattini.'; return; }
-      nomeMenu.value = ''; scegli(n);
     }
-    if (!giocatore) { notaMenu.textContent = 'Scrivi il tuo nome per correre.'; nomeMenu.focus(); return; }
-    inizia();
+    if (!n && !giocatore) { notaMenu.textContent = 'Scrivi il tuo nome per correre.'; nomeMenu.focus(); return; }
+    nomeConsentito(n || giocatore).then(function (ok) {
+      if (!ok) return;
+      if (n) { nomeMenu.value = ''; scegli(n); }
+      inizia();
+    });
+  }
+  // niente omonimi: un nome preso da un account GoGoBar lo usa solo quell'account
+  var controllo = false;
+  function nomeConsentito(n) {
+    if (!ACC || nomeAccount() || controllo) return Promise.resolve(!controllo);
+    controllo = true;
+    return ACC.nomeLibero(n).then(function (ok) {
+      controllo = false;
+      if (!ok) {
+        notaMenu.textContent = ACC.nomePreso(n);
+        if (chiaveNome(n) === chiaveNome(giocatore)) { giocatore = ''; record = 0; scrivi('nome', ''); aggiornaChi(); }
+      }
+      return ok;
+    });
   }
   function cambiaGiocatore() {
     stato = 'menu'; fine.hidden = true; menu.hidden = false; suona('lobby');
@@ -495,6 +515,7 @@
     var seguiAccount = function () {
       var n = nomeAccount();
       if (n && chiaveNome(n) !== chiaveNome(giocatore)) scegli(n); else aggiornaChi();
+      if (!n && giocatore) nomeConsentito(giocatore);   // il nome salvato qui è diventato di un altro account?
     };
     ACC.pronto.then(seguiAccount); ACC.suCambio(seguiAccount);
   }
