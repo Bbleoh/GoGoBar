@@ -424,8 +424,8 @@
     'Le Pringles ti mettono lo scudo: para un colpo, poi scoppia.',
     'Scivola sulle caviglie del carabiniere: vola via in cielo e tu guadagni una vita.',
     'Al terzo colpo ti prendono. Con i carabinieri arrivi fino a 5 vite.',
-    'Occhio all\'Aygo: ti viene incontro più veloce degli altri.',
-    'Se senti l\'allarme e vedi i punti esclamativi, arrivano i jet: scivola!',
+    'Occhio all\'Aygo: ti viene incontro più veloce degli altri e toglie due vite.',
+    'Se senti l\'allarme e vedi i punti esclamativi, arrivano i jet: scivola, ti tolgono due vite!',
     'Il tuo nome è il tuo profilo: il record si salva da solo in classifica.',
     'Tocca ⛶ per lo schermo intero. Sul telefono il gioco si mette in orizzontale.'
   ];
@@ -621,6 +621,10 @@
     else if (r < 0.56) tipo = 'transenna';
     else if (r < 0.79) { var q = Math.random(); tipo = q < 0.16 ? 'carabiniere' : q < 0.58 ? 'juve' : 'lazio'; }   // il carabiniere è una variante rara
     else tipo = 'pesce';
+    if (tipo === 'carabiniere') {                 // al massimo un carabiniere ogni 500 m
+      if (g.metri - (g.ultimoCarab === undefined ? -1e9 : g.ultimoCarab) < 500) tipo = Math.random() < 0.5 ? 'juve' : 'lazio';
+      else g.ultimoCarab = g.metri;
+    }
     if (tipo === 'aygo' && g.birreA.some(function (b) { return b.x > MARF_X - 40; })) tipo = 'transenna';   // l'Aygo passerebbe sopra le canne
     var t = TIPI[tipo], o = { tipo: tipo, t: t, x: W + 40, w: t.w, h: t.h, quante: 1 };
     if (tipo === 'durex') { o.quante = 1 + (Math.random() < 0.4 + lvl * 0.3 ? 1 : 0) + (Math.random() < lvl * 0.45 ? 1 : 0); o.h = t.h * o.quante; }
@@ -821,7 +825,8 @@
       return;
     }
     if (m.botta > 0) return;
-    g.colpi++; m.botta = 1.1; g.scuoti = 0.25;
+    var danno = o.tipo === 'aygo' || o.fumo ? 2 : 1;   // auto e jet tolgono due vite
+    g.colpi += danno; m.botta = 1.1; g.scuoti = danno > 1 ? 0.4 : 0.25;
     g.distacco = Math.max(g.distacco - 85, 25);
     bip(110, 0.25, 'sawtooth', 0.07);
   }
