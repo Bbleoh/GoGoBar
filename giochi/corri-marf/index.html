@@ -942,7 +942,7 @@
     var bw = b.naturalWidth, bh = b.naturalHeight, S = PAL_S;
     // in prospettiva i balconi del fianco sono inclinati: in alto scendono verso il fondo, in basso salgono
     // pendenza misurata sui balconi del fianco: ~1.5 in alto, ~0.2 al pianterreno; i primi 13 px (il fronte del balcone) sono dritti
-    var k = 1.6 - 0.0023 * Math.min(cut, bh), fr = 13 * S, dk = k * (bw - 13) * S;
+    var k = cut >= bh ? -0.5 : 1.6 - 0.0023 * cut, fr = 13 * S, dk = k * (bw - 13) * S;   // al pianterreno (cantine) la prospettiva sale
     [p.x, x0 + p.cw].forEach(function (bx, i) {
       ctx.save();
       ctx.translate(bx, 0);
