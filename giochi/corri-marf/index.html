@@ -1390,9 +1390,9 @@
   ['canna', 'pringles', 'ragazza-a-terra', 'durex', 'transenna', 'juve', 'lazio', 'carabiniere', 'pesce-spada', 'aygo', 'jet'].forEach(function (n) {
     var img = new Image(); img.src = (n === 'canna' ? '' : 'ogg/') + n + '.webp?v=1'; OGG[n] = img;
   });
-  // contorno nero di BORDO px attorno a ostacoli e nemici, per farli notare meglio:
+  // contorno nero sottile (BORDO px) attorno a ostacoli e nemici, per farli notare meglio:
   // si fa la sagoma nera dell'immagine e la si stampa tutt'intorno, poi sopra l'immagine
-  var BORDO = 3, SAGOMA = document.createElement('canvas');
+  var BORDO = 1, SAGOMA = document.createElement('canvas');
   function bordoPx() { return Math.ceil(BORDO * scala); }
   function conBordo(src, out) {
     var r = bordoPx(), w = src.width + r * 2, h = src.height + r * 2;
@@ -1404,7 +1404,7 @@
     if (out.width !== w || out.height !== h) { out.width = w; out.height = h; }
     var ox = out.getContext('2d');
     ox.clearRect(0, 0, w, h);
-    for (var i = 0; i < 16; i++) { var a = i / 16 * Math.PI * 2; ox.drawImage(SAGOMA, r + Math.cos(a) * r, r + Math.sin(a) * r); }
+    for (var i = 0; i < 8; i++) { var a = i / 8 * Math.PI * 2; ox.drawImage(SAGOMA, r + Math.cos(a) * r, r + Math.sin(a) * r); }
     ox.drawImage(src, r, r);
     return out;
   }
