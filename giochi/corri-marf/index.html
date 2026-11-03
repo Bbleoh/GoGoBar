@@ -942,12 +942,14 @@
     var bw = b.naturalWidth, bh = b.naturalHeight, S = PAL_S;
     // in prospettiva i balconi del fianco sono inclinati: in alto scendono verso il fondo, in basso salgono
     // pendenza misurata sui balconi del fianco: ~1.5 in alto, ~0.2 al pianterreno; i primi 13 px (il fronte del balcone) sono dritti
-    var k = cut >= bh ? -0.5 : 1.6 - 0.0023 * cut, fr = 13 * S, dk = k * (bw - 13) * S;   // al pianterreno (cantine) la prospettiva sale
+    // con le cantine il taglio segue il bordo inferiore del fianco: dritto per 40 px, poi sale piano (-0.25)
+    var basso = cut >= bh, fx = basso ? 40 : 13, k = basso ? -0.25 : 1.6 - 0.0023 * cut;
+    var fr = fx * S, dk = k * (bw - fx) * S;
     [p.x, x0 + p.cw].forEach(function (bx, i) {
       ctx.save();
       ctx.translate(bx, 0);
       if (!i) { ctx.translate(p.bw, 0); ctx.scale(-1, 1); }             // a sinistra specchiata: i balconi girano l'angolo
-      var ySopra = p.alto + cut * S, ySotto = p.top + p.ch;            // dove finisce il pezzo sopra e comincia quello sotto
+      var ySopra = p.alto + (basso ? cut - 4 : cut) * S, ySotto = p.top + p.ch;            // dove finisce il pezzo sopra e comincia quello sotto
       // muro di mattoni scuri dietro, a collegare i due pezzi
       if (MATTONI) {
         ctx.save();
