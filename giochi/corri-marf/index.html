@@ -935,15 +935,45 @@
     var x0 = p.x + p.bw;
     pezzoFacciata(x0, p.cw, 0, cut, p.alto);
     if (cut < fh) pezzoFacciata(x0, p.cw, cut, fh - cut, p.top + p.ch);
+    var bw = b.naturalWidth, bh = b.naturalHeight, S = PAL_S;
+    // in prospettiva i balconi del fianco sono inclinati: in alto scendono verso il fondo, in basso salgono
+    var k = 1.0 - Math.min(cut, bh) * (1.15 / bh), dk = k * bw;          // pendenza della linea di taglio (px sorgente)
     [p.x, x0 + p.cw].forEach(function (bx, i) {
       ctx.save();
-      if (!i) { ctx.translate(bx + p.bw, 0); ctx.scale(-1, 1); bx = 0; }   // a sinistra specchiata: i balconi girano l'angolo
-      var bh = b.naturalHeight, bc = Math.min(cut, bh);
-      ctx.drawImage(b, 0, 0, b.naturalWidth, bc, bx, p.alto, p.bw, bc * PAL_S);
-      if (cut < bh) ctx.drawImage(b, 0, cut, b.naturalWidth, bh - cut, bx, p.top + p.ch, p.bw, (bh - cut) * PAL_S);
+      ctx.translate(bx, 0);
+      if (!i) { ctx.translate(p.bw, 0); ctx.scale(-1, 1); }             // a sinistra specchiata: i balconi girano l'angolo
+      var ySopra = p.alto + cut * S, ySotto = p.top + p.ch;            // dove finisce il pezzo sopra e comincia quello sotto
+      // muro di mattoni scuri dietro, a collegare i due pezzi
+      if (MATTONI) {
+        ctx.save();
+        ctx.beginPath(); ctx.moveTo(0, ySopra - 2); ctx.lineTo(p.bw, ySopra + dk * S - 2); ctx.lineTo(p.bw, ySotto + dk * S + 2); ctx.lineTo(0, ySotto + 2); ctx.closePath();
+        ctx.clip(); ctx.fillStyle = ctx.createPattern(MATTONI, 'repeat'); ctx.fillRect(0, ySopra - 4, p.bw, ySotto - ySopra + Math.abs(dk * S) + 8);
+        ctx.restore();
+      }
+      // pezzo sopra, tagliato lungo il balcone
+      ctx.save();
+      ctx.beginPath(); ctx.moveTo(0, p.alto - 2); ctx.lineTo(p.bw, p.alto - 2); ctx.lineTo(p.bw, ySopra + dk * S); ctx.lineTo(0, ySopra); ctx.closePath(); ctx.clip();
+      ctx.drawImage(b, 0, 0, bw, bh, 0, p.alto, p.bw, bh * S);
+      ctx.restore();
+      if (cut < bh) {                                                  // pezzo sotto, con lo stesso taglio
+        ctx.save();
+        ctx.beginPath(); ctx.moveTo(0, ySotto); ctx.lineTo(p.bw, ySotto + dk * S); ctx.lineTo(p.bw, H + 10); ctx.lineTo(0, H + 10); ctx.closePath(); ctx.clip();
+        ctx.drawImage(b, 0, 0, bw, bh, 0, ySotto - cut * S, p.bw, bh * S);
+        ctx.restore();
+      }
       ctx.restore();
     });
   }
+  // muro di mattoni scuri (disegnato una volta sola)
+  var MATTONI = (function () {
+    var c = document.createElement('canvas'); c.width = 24; c.height = 12;
+    var x = c.getContext('2d');
+    x.fillStyle = '#2a1712'; x.fillRect(0, 0, 24, 12);
+    var col = ['#4a2a1f', '#55301f', '#40241a'];
+    function m(px, py, w) { x.fillStyle = col[(px + py) % 3 | 0]; x.fillRect(px, py, w, 5); }
+    m(0, 0, 11); m(12, 0, 11); m(-6, 6, 11); m(6, 6, 11); m(18, 6, 11);
+    return c;
+  })();
 
   /* ── Sfondo a strati (i disegni di Leo), dal più lontano:
      1 cielo · 2 palazzi e colline che si alternano ogni QUARTIERE_M metri · 3 strada.
