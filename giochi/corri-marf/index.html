@@ -211,6 +211,7 @@
   <audio id="musica" src="musica.mp3" loop preload="auto"></audio>
   <audio id="musicaLobby" data-musica src="musica-lobby.mp3" loop preload="auto"></audio>
   <audio id="musicaMorte" data-musica src="musica-morte.mp3" loop preload="none"></audio>
+  <audio id="musicaBoss" data-musica src="musica-boss.mp3" loop preload="none"></audio>
 
 <script src="classifica.js?v=2" onerror="window.CorriMarfClassifica = null"></script>
 <script>
@@ -261,7 +262,7 @@
   /* ── Musica e suoni ── */
   // tre musiche: lobby (menu), corsa, morte (schermata finale); ne suona una alla volta
   var musica = document.getElementById('musica');
-  var TRACCE = { gioco: musica, lobby: document.getElementById('musicaLobby'), morte: document.getElementById('musicaMorte') };
+  var TRACCE = { gioco: musica, lobby: document.getElementById('musicaLobby'), morte: document.getElementById('musicaMorte'), boss: document.getElementById('musicaBoss') };
   Object.keys(TRACCE).forEach(function (k) { TRACCE[k].volume = 0.55; });
   var traccia = 'lobby';
   function suona(nome) {
@@ -426,6 +427,7 @@
     'Al terzo colpo ti prendono. Con i carabinieri arrivi fino a 5 vite.',
     'Occhio all\'Aygo: ti viene incontro più veloce degli altri e toglie due vite.',
     'Se senti l\'allarme e vedi i punti esclamativi, arrivano i jet: scivola, ti tolgono due vite!',
+    'A 10 km arriva la Maledotta Miotta: lanciale le canne con → o swipe in su, o scivola sulle sue sfere per rimandargliele.',
     'Ogni 2 km c\'è un palazzo: entra nel corridoio, se è in alto serve un doppio salto perfetto.',
     'Il tuo nome è il tuo profilo: il record si salva da solo in classifica.',
     'Tocca ⛶ per lo schermo intero. Sul telefono il gioco si mette in orizzontale.'
@@ -477,7 +479,8 @@
   var PROVA = location.hash === '#prova';
   if (PROVA) window.corriMarfProva = { salta: function () { salta(); }, giu: function (v) { giu(v); }, stato: function () { return g; }, vai: function (m) { scorrimento = m * 40; g.metri = m; },
     metti: function (tipo, x, quante) { var o = { tipo: tipo, t: TIPI[tipo], x: x, w: TIPI[tipo].w, h: TIPI[tipo].h * (quante || 1), quante: quante || 1 }; g.ostacoli.push(o); return o; },
-    jet: function () { g.prossimoJet = 0; }, palazzo: function (v) { g.ostacoli.length = 0; g.prossimoPalazzo = g.metri; g.variante = v; }, pal: function () { return palazzo; } };
+    jet: function () { g.prossimoJet = 0; }, palazzo: function (v) { g.ostacoli.length = 0; g.prossimoPalazzo = g.metri; g.variante = v; }, pal: function () { return palazzo; },
+    boss: function () { g.ostacoli.length = 0; g.prossimoBoss = g.metri + 1; g.munizioni = MUNI_MAX; }, lancia: function () { lancia(); } };
 
   /* ── Stato ── */
   var FRASI = ['MARF!', 'Aspettaaa!', 'Dove scappi?', 'Ti amo Marf!', 'Un bacino!', 'Marfiiino!', 'Torna qui!'];
@@ -494,7 +497,8 @@
       fumetto: null, prossimoFumetto: 1.5, scatto: 0, scuoti: 0,
       anim: nuovaAnim(), ragazze: [0, 1, 2].map(function (i) { return { fase: i * 0.37, posa: null }; }),
       fx: [], colpi: 0, scudo: 0,
-      jets: [], fumo: [], jetAvviso: 0, prossimoJet: 700 + Math.random() * 500, prossimoPalazzo: PALAZZO_OGNI
+      jets: [], fumo: [], jetAvviso: 0, prossimoJet: 700 + Math.random() * 500, prossimoPalazzo: PALAZZO_OGNI,
+      munizioni: 0, bonus: 0, boss: null, prossimoBoss: BOSS_OGNI, livelloBoss: 1, sfere: [], lanci: [], laser: null
     };
   }
   nuovaPartita();
@@ -525,7 +529,7 @@
       salva();
     }, 1900);   // prima si gode il ragdoll
     setTimeout(function () { if (stato === 'preso') suona('morte'); }, 900);
-    TRACCE.gioco.pause();
+    TRACCE[traccia].pause();
     bip(300, 0.5, 'sawtooth', 0.07); setTimeout(function () { bip(150, 0.6, 'sawtooth', 0.07); }, 200);
   }
 
@@ -561,6 +565,7 @@
       if (stato === 'gioco') salta(); else if (stato === 'menu' || !fine.hidden) inizia();
     }
     else if (e.code === 'ArrowDown' || e.code === 'KeyS') { e.preventDefault(); giu(true); }
+    else if (e.code === 'ArrowRight' || e.code === 'KeyD') { e.preventDefault(); if (!e.repeat) lancia(); }
     else if (e.code === 'Enter' && stato !== 'gioco' && (stato === 'menu' || !fine.hidden)) inizia();
   });
   window.addEventListener('keyup', function (e) {
@@ -578,14 +583,14 @@
   cv.addEventListener('touchmove', function (e) {
     e.preventDefault(); if (!tocco) return; var p = e.changedTouches[0];
     var verso = document.body.classList.contains('ruota') ? tocco.x - p.clientX : p.clientY - tocco.y;   // gioco girato: "giù" va verso sinistra
-    if (!tocco.giu && verso > 24) {
-      tocco.giu = true;
+    var annulla = function () {             // il salto partito al tocco non era voluto: Marf torna giù
       var m = g.marf;
       if (stato === 'gioco' && tocco.daTerra && m.salti === 1 && performance.now() - tocco.t < 300) {
         m.y = tocco.y0; m.vy = 0; m.salti = 0; m.aTerra = true;
       }
-      giu(true);
-    }
+    };
+    if (!tocco.giu && !tocco.su && verso > 24) { tocco.giu = true; annulla(); giu(true); }
+    else if (!tocco.giu && !tocco.su && verso < -24 && g.boss) { tocco.su = true; annulla(); lancia(); }   // swipe in su: lancia una canna al boss
   }, { passive: false });
   cv.addEventListener('touchend', function (e) {
     e.preventDefault(); if (!tocco) return;
@@ -615,7 +620,7 @@
   // canne e pringles non stanno mai sopra un ostacolo: niente oggetti a meno di 90 px in orizzontale
   var DIST_OGG = 90;
   function postoOccupato(x) {
-    if (g.jetAvviso > 0 || g.jets.length || zonaPalazzo()) return true;
+    if (g.jetAvviso > 0 || g.jets.length || zonaPalazzo() || zonaBoss()) return true;
     for (var i = 0; i < g.ostacoli.length; i++) {
       var o = g.ostacoli[i];
       if (o.volo !== undefined) continue;
@@ -689,7 +694,7 @@
 
     // ostacoli
     g.prossimo -= dt;
-    if (g.prossimo <= 0 && g.jetAvviso <= 0 && !g.jets.length && !zonaPalazzo()) generaOstacolo();
+    if (g.prossimo <= 0 && g.jetAvviso <= 0 && !g.jets.length && !zonaPalazzo() && !zonaBoss()) generaOstacolo();
     var hb = hitboxMarf();
     for (var i = g.ostacoli.length - 1; i >= 0; i--) {
       var o = g.ostacoli[i];
@@ -703,7 +708,7 @@
     }
 
     // jet: avviso, poi lo sciame; il fumo resta 5 s e scorre col mondo
-    if (g.metri > g.prossimoJet && g.jetAvviso <= 0 && !g.jets.length && !zonaPalazzo() && g.metri < g.prossimoPalazzo - 120) {
+    if (g.metri > g.prossimoJet && g.jetAvviso <= 0 && !g.jets.length && !zonaPalazzo() && !zonaBoss() && g.metri < g.prossimoPalazzo - 120) {
       g.jetAvviso = 1.4; g.prossimoJet = g.metri + 900 + Math.random() * 900;
       g.prossimo = Math.max(g.prossimo, 3.2);
       bip(880, 0.15, 'square', 0.05); setTimeout(function () { bip(880, 0.15, 'square', 0.05); }, 250);
@@ -725,6 +730,8 @@
       if (pf.t > 5 || pf.x < -40) g.fumo.splice(f, 1);
     }
 
+    aggiornaBoss(dt, dx);
+
     // birre
     g.prossimaBirra -= dt;
     if (g.prossimaBirra <= 0 && !postoOccupato(W + 30)) {
@@ -744,6 +751,7 @@
         } else {
           // la canna si conta solo se le ragazze sono già alla distanza massima, sennò serve solo a staccarle
           if (g.distacco >= 255) g.birre++;
+          g.munizioni = Math.min(g.munizioni + 1, MUNI_MAX);   // le canne raccolte si possono lanciare al boss
           g.distacco = Math.min(g.distacco + 55, 260); g.scatto = 1.2;
           bip(660, 0.08, 'triangle', 0.07); setTimeout(function () { bip(990, 0.1, 'triangle', 0.07); }, 70);
         }
@@ -833,6 +841,259 @@
     }
   }
 
+  /* ── Boss: la Maledotta Miotta, ogni BOSS_OGNI metri ──
+     Una testa gigante che fluttua a destra. Attacchi: sputa sfere che rotolano a terra (si saltano,
+     oppure ci scivoli sopra e gliele rimandi) e spara un laser dagli occhi ad altezza testa (si passa scivolando).
+     Si colpisce lanciando le canne raccolte (→ o swipe in su) o rimandandole le sfere. Battuta, vola via. */
+  var BOSS_OGNI = 10000, MUNI_MAX = 12, BOSS_H = 230, BOSS_X = 775, BOSS_Y = 195, LASER_Y = TERRA - 70;
+  var BOSS_NOME = 'MALEDOTTA MIOTTA';
+  var BOSS_IMG = {}; ['base', 'attacco', 'sconfitta'].forEach(function (n) {
+    var i = new Image(); i.src = 'boss/' + n + '.webp?v=1'; BOSS_IMG[n] = i;
+    if (i.decode) i.decode().catch(function () {});
+  });
+  function zonaBoss() { return !!g.boss || g.metri > g.prossimoBoss - 90; }
+  function nuovoBoss() {
+    var liv = g.livelloBoss, hp = 30 + (liv - 1) * 12;
+    g.boss = { fase: 'arrivo', t: 0, x: W + 200, y: BOSS_Y, hp: hp, hpMax: hp, liv: liv, az: null, prossimo: 1.2, ferita: 0, lampo: 0 };
+    g.sfere = []; g.lanci = []; g.laser = null; g.banner = 2.8;
+    suona('boss');
+    bip(150, 0.5, 'sawtooth', 0.06); setTimeout(function () { bip(110, 0.7, 'sawtooth', 0.06); }, 350);
+  }
+  function lancia() {
+    if (stato !== 'gioco' || !g.boss || g.boss.fase !== 'lotta') return;
+    if ((g.ricarica || 0) > 0) return;
+    if (g.munizioni <= 0) { g.vuoto = 0.5; bip(140, 0.06, 'square', 0.04); return; }
+    g.munizioni--; g.ricarica = 0.22;
+    var m = g.marf, x = MARF_X + 16, y = m.y - 62, dx = g.boss.x - x, dy = g.boss.y - y, d = Math.hypot(dx, dy) || 1;
+    g.lanci.push({ x: x, y: y, vx: dx / d * 1000, vy: dy / d * 1000, giro: 0 });
+    bip(700, 0.07, 'triangle', 0.06);
+  }
+  function feriscBoss(danno, x, y) {
+    var b = g.boss; if (!b || b.fase !== 'lotta') return;
+    b.hp = Math.max(0, b.hp - danno); b.ferita = 0.3; b.lampo = 0.15;
+    stelline(x, y); g.piuUno = 0;
+    bip(danno > 1 ? 180 : 300, 0.12, 'square', 0.06);
+    if (b.hp <= 0) {
+      b.fase = 'sconfitta'; b.t = 0; b.az = null; g.laser = null; g.scuoti = 0.5;
+      g.sfere.forEach(function (s) { s.via = true; });
+      bip(90, 0.8, 'sawtooth', 0.07);
+    }
+  }
+  function aggiornaBoss(dt, dx) {
+    if (g.ricarica > 0) g.ricarica -= dt;
+    if (g.vuoto > 0) g.vuoto -= dt;
+    if (g.banner > 0) g.banner -= dt;
+    if (g.bonusT > 0) g.bonusT -= dt;
+    if (!g.boss) {
+      if (g.metri >= g.prossimoBoss) nuovoBoss();
+      return;
+    }
+    var b = g.boss, m = g.marf, hb = hitboxMarf();
+    b.t += dt; if (b.ferita > 0) b.ferita -= dt; if (b.lampo > 0) b.lampo -= dt;
+    var faseDue = b.hp <= b.hpMax / 2, ritmo = Math.pow(0.9, b.liv - 1);
+    var quotaY = BOSS_Y + Math.sin(g.t * 1.7) * 22;
+    if (b.fase === 'arrivo') {
+      var u = Math.min(b.t / 1.6, 1), e = 1 - Math.pow(1 - u, 3);
+      b.x = W + 200 + (BOSS_X - W - 200) * e; b.y = quotaY;
+      if (u >= 1) { b.fase = 'lotta'; b.t = 0; }
+    } else if (b.fase === 'lotta') {
+      var mira = quotaY;
+      if (!b.az) {
+        b.prossimo -= dt;
+        if (b.prossimo <= 0) {
+          var scelte = faseDue ? ['raffica', 'laser', 'sputo', 'combo'] : ['sputo', 'sputo', 'laser'];
+          b.az = { tipo: scelte[Math.floor(Math.random() * scelte.length)], t: 0, fatti: 0 };
+        }
+      }
+      var a = b.az;
+      if (a) {
+        a.t += dt;
+        var colpi = { sputo: [0.5], raffica: [0.5, 0.95, 1.4], combo: [0.5] }[a.tipo];
+        if (colpi) {
+          while (a.fatti < colpi.length && a.t >= colpi[a.fatti]) { sputa(b); a.fatti++; }
+          if (a.tipo === 'combo' && a.t >= 0.7) { a.tipo = 'laser'; a.t = 0; }
+          else if (a.t >= colpi[colpi.length - 1] + 0.3) fineAzione(b, faseDue, ritmo);
+        } else if (a.tipo === 'laser') {
+          mira = LASER_Y;
+          if (a.t < 0.85) g.laser = { carica: a.t / 0.85 };
+          else if (a.t < 1.25) { if (!g.laser || g.laser.carica < 2) bip(90, 0.4, 'sawtooth', 0.06); g.laser = { carica: 2 }; }
+          else { g.laser = null; if (a.t >= 1.5) fineAzione(b, faseDue, ritmo); }
+        }
+      }
+      b.y += (mira - b.y) * Math.min(1, dt * (mira === LASER_Y ? 12 : 5));
+      // il laser: una fascia ad altezza testa, si passa solo scivolando
+      if (g.laser && g.laser.carica >= 2) {
+        var occhioX = b.x - BOSS_H * 0.18;
+        if (tocca(hb, { x: 0, y: LASER_Y - 10, w: occhioX, h: 20 })) colpito({ tipo: 'laser' });
+      }
+    } else if (b.fase === 'sconfitta') {
+      if (b.t > 0.9 && !b.volo) { b.volo = true; b.x0 = b.x; b.y0 = b.y; }
+      if (b.volo) {
+        var k = (b.t - 0.9) / 1.4;
+        if (k >= 1 && !b.ding) { b.ding = true; bip(2640, 0.25, 'sine', 0.05); setTimeout(function () { bip(3520, 0.3, 'sine', 0.04); }, 120); }
+        if (k >= 1.5) fineBoss();
+      }
+    }
+    // sfere: cadono dalla bocca, rimbalzano e rotolano verso Marf; scivolandoci sopra tornano indietro
+    for (var i = g.sfere.length - 1; i >= 0; i--) {
+      var s = g.sfere[i];
+      if (s.ritorno) {
+        if (g.boss && g.boss.fase === 'lotta') {     // un filo di guida verso la testa
+          var ddx = b.x - s.x, ddy = b.y - s.y, dd = Math.hypot(ddx, ddy) || 1;
+          s.vx += (ddx / dd * 1100 - s.vx) * Math.min(1, dt * 6); s.vy += (ddy / dd * 1100 - s.vy) * Math.min(1, dt * 6);
+          if (dd < BOSS_H * 0.38) { feriscBoss(3, s.x, s.y); g.sfere.splice(i, 1); continue; }
+        }
+        s.x += s.vx * dt; s.y += s.vy * dt;
+      } else {
+        s.vy += 1500 * dt; s.x += s.vx * dt; s.y += s.vy * dt;
+        if (s.y > TERRA - s.r) { s.y = TERRA - s.r; s.vy = Math.abs(s.vy) > 200 ? -Math.abs(s.vy) * 0.35 : 0; s.vx = -(g.vel * 0.9 + 120); }
+        if (!s.via && !s.preso && tocca(hb, { x: s.x - s.r + 4, y: s.y - s.r + 4, w: s.r * 2 - 8, h: s.r * 2 - 8 })) {
+          if (m.giu && m.aTerra) {
+            s.ritorno = true; s.vx = 700; s.vy = -500;
+            bip(880, 0.08, 'triangle', 0.06); setTimeout(function () { bip(1320, 0.1, 'triangle', 0.06); }, 60);
+          } else { colpito(s); s.via = true; }
+        }
+      }
+      s.giro += dt * 9; if (s.via) s.svanisce = (s.svanisce || 0) + dt;
+      if (s.x < -60 || s.x > W + 120 || s.y < -80 || s.svanisce > 0.25) g.sfere.splice(i, 1);
+    }
+    // canne lanciate
+    for (var j = g.lanci.length - 1; j >= 0; j--) {
+      var c = g.lanci[j];
+      if (g.boss && g.boss.fase === 'lotta') {
+        var cx = b.x - c.x, cy = b.y - c.y, cd = Math.hypot(cx, cy) || 1;
+        c.vx += (cx / cd * 1000 - c.vx) * Math.min(1, dt * 4); c.vy += (cy / cd * 1000 - c.vy) * Math.min(1, dt * 4);
+        if (cd < BOSS_H * 0.36) { feriscBoss(1, c.x, c.y); g.lanci.splice(j, 1); continue; }
+      }
+      c.x += c.vx * dt; c.y += c.vy * dt; c.giro += dt * 16;
+      if (c.x > W + 60 || c.y < -60 || c.y > H + 60) g.lanci.splice(j, 1);
+    }
+  }
+  function sputa(b) {
+    g.sfere.push({ x: b.x - BOSS_H * 0.13, y: b.y + BOSS_H * 0.22, vx: -260 - Math.random() * 80, vy: -260, r: 16, giro: 0 });
+    bip(240, 0.15, 'sawtooth', 0.05);
+  }
+  function fineAzione(b, faseDue, ritmo) {
+    b.az = null; g.laser = null;
+    b.prossimo = (faseDue ? 1.3 + Math.random() * 0.6 : 1.9 + Math.random() * 0.7) * ritmo;
+  }
+  function fineBoss() {
+    var premio = 1000 * g.boss.liv;
+    g.bonus += premio; g.bonusT = 2.2; g.bonusUltimo = premio;
+    g.boss = null; g.sfere = []; g.lanci = []; g.laser = null;
+    g.livelloBoss++; g.prossimoBoss += BOSS_OGNI;
+    g.prossimoPalazzo = Math.max(g.prossimoPalazzo, g.metri + 700);
+    g.prossimoJet = Math.max(g.prossimoJet, g.metri + 600);
+    g.prossimo = 1; g.prossimaBirra = 1.5;
+    suona('gioco');
+  }
+  function disegnaBoss() {
+    var b = g.boss; if (!b) return;
+    var faccia = b.fase === 'sconfitta' || b.ferita > 0 ? 'sconfitta' : (b.az && (b.az.tipo !== 'laser' || b.az.t < 1.3)) ? 'attacco' : 'base';
+    var img = BOSS_IMG[faccia]; if (!pronta(img)) return;
+    var h = BOSS_H, w = h * img.naturalWidth / img.naturalHeight, x = b.x, y = b.y, rot = 0, sc = 1;
+    if (b.fase === 'sconfitta') {
+      if (b.volo) {
+        var k = Math.min((b.t - 0.9) / 1.4, 1), e = 1 - Math.pow(1 - k, 2.2);
+        x = b.x0 + e * 260; y = b.y0 - e * 320; rot = (b.t - 0.9) * 11; sc = 1 - e * 0.95;
+        if (k >= 1) { disegnaLuccichio(x, y, (b.t - 2.3) / 0.5); return; }
+      } else { x += (Math.random() - .5) * 10; y += (Math.random() - .5) * 8; }
+    }
+    ctx.save(); ctx.translate(x, y); ctx.rotate(rot); ctx.scale(sc, sc);
+    // alone dietro la testa: viola, rosso quando attacca
+    var alone = ctx.createRadialGradient(0, 0, h * 0.2, 0, 0, h * 0.62);
+    alone.addColorStop(0, faccia === 'attacco' ? 'rgba(255,60,60,.45)' : 'rgba(150,60,200,.35)'); alone.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = alone; ctx.beginPath(); ctx.arc(0, 0, h * 0.62, 0, TAU); ctx.fill();
+    var tela = cache(img, w, h);
+    ctx.drawImage(tela, -w / 2, -h / 2, w, h);
+    if (b.lampo > 0) { ctx.globalAlpha = b.lampo / 0.15 * 0.7; ctx.globalCompositeOperation = 'lighter'; ctx.drawImage(tela, -w / 2, -h / 2, w, h); }
+    ctx.restore();
+  }
+  function disegnaLuccichio(x, y, k) {
+    if (k <= 0 || k >= 1) return;
+    var r = 8 + Math.sin(k * Math.PI) * 18;
+    ctx.save(); ctx.globalAlpha = 1 - k * k; ctx.translate(x, y); ctx.rotate(k * 2);
+    ctx.drawImage(STELLA, -r, -r, r * 2, r * 2); ctx.restore();
+  }
+  function disegnaColpiBoss() {
+    if (!g.sfere) return;
+    for (var i = 0; i < g.sfere.length; i++) {
+      var s = g.sfere[i], oro = s.ritorno;
+      ctx.save(); if (s.svanisce) ctx.globalAlpha = Math.max(0, 1 - s.svanisce / 0.25);
+      for (var t = 3; t >= 1; t--) {                 // scia
+        ctx.globalAlpha *= 0.85;
+        ctx.fillStyle = oro ? 'rgba(255,214,90,.25)' : 'rgba(255,60,190,.25)';
+        ctx.beginPath(); ctx.arc(s.x - s.vx * 0.012 * t, s.y - s.vy * 0.012 * t, s.r * (1 - t * 0.15), 0, TAU); ctx.fill();
+      }
+      ctx.globalAlpha = s.svanisce ? Math.max(0, 1 - s.svanisce / 0.25) : 1;
+      var gr = ctx.createRadialGradient(s.x - 4, s.y - 5, 2, s.x, s.y, s.r);
+      gr.addColorStop(0, '#fff'); gr.addColorStop(0.35, oro ? '#ffe27a' : '#ff8ad8'); gr.addColorStop(1, oro ? '#e4a01c' : '#b0157a');
+      ctx.fillStyle = gr; ctx.beginPath(); ctx.arc(s.x, s.y, s.r, 0, TAU); ctx.fill();
+      ctx.strokeStyle = 'rgba(255,255,255,.6)'; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.arc(s.x, s.y, s.r - 4, s.giro, s.giro + 1.6); ctx.stroke();
+      ctx.restore();
+    }
+    for (var j = 0; j < g.lanci.length; j++) {
+      var c = g.lanci[j];
+      if (!pronta(OGG.canna)) break;
+      ctx.save(); ctx.translate(c.x, c.y); ctx.rotate(c.giro);
+      ctx.drawImage(cache(OGG.canna, 34, 26), -17, -13, 34, 26); ctx.restore();
+    }
+  }
+  function disegnaLaser() {
+    var b = g.boss; if (!b || !g.laser) return;
+    var x1 = b.x - BOSS_H * 0.18, y = LASER_Y;
+    ctx.save();
+    if (g.laser.carica < 2) {            // mira: linea sottile che lampeggia
+      var k = g.laser.carica;
+      ctx.globalAlpha = 0.12 + 0.18 * k; ctx.fillStyle = '#ff2a2a'; ctx.fillRect(0, y - 10, x1, 20);   // la fascia che sta per colpire
+      ctx.globalAlpha = 0.55 + 0.45 * (Math.sin(g.t * 40) * 0.5 + 0.5);
+      ctx.strokeStyle = '#ff5a5a'; ctx.lineWidth = 2 + k * 2; ctx.setLineDash([16, 10]); ctx.lineDashOffset = g.t * 160;
+      ctx.beginPath(); ctx.moveTo(x1, y); ctx.lineTo(0, y); ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.fillStyle = '#fff'; ctx.globalAlpha = k; ctx.beginPath(); ctx.arc(x1, y, 3 + k * 6, 0, TAU); ctx.fill();
+    } else {
+      var sp = 10 + Math.random() * 4;
+      var gr = ctx.createLinearGradient(0, y - sp * 1.8, 0, y + sp * 1.8);
+      gr.addColorStop(0, 'rgba(255,40,40,0)'); gr.addColorStop(0.3, 'rgba(255,60,60,.8)'); gr.addColorStop(0.5, '#fff');
+      gr.addColorStop(0.7, 'rgba(255,60,60,.8)'); gr.addColorStop(1, 'rgba(255,40,40,0)');
+      ctx.fillStyle = gr; ctx.fillRect(0, y - sp * 1.8, x1, sp * 3.6);
+      ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(x1, y, sp * 1.4, 0, TAU); ctx.fill();
+    }
+    ctx.restore();
+  }
+  function hudBoss() {
+    ctx.save();
+    if (g.boss && g.boss.fase !== 'arrivo' || g.boss && g.boss.t > 0.6) {
+      var b = g.boss, bw = 330, bx = W / 2 - bw / 2, by = 14;
+      ctx.fillStyle = 'rgba(10,10,14,.78)'; smusso(bx, by, bw, 50, 10); ctx.fill();
+      ctx.fillStyle = '#c23bd6'; ctx.fillRect(bx, by + 10, 3, 30);
+      ctx.textAlign = 'left'; ctx.font = 'italic 700 14px "Chakra Petch", sans-serif'; ctx.fillStyle = '#f4efe2';
+      ctx.fillText(BOSS_NOME + (b.liv > 1 ? ' ×' + b.liv : ''), bx + 14, by + 20);
+      ctx.textAlign = 'right'; ctx.font = '500 11px "DM Mono", monospace';
+      ctx.fillStyle = g.vuoto > 0 ? '#ff5c5c' : 'rgba(244,239,226,.7)';
+      ctx.fillText('CANNE ' + g.munizioni + '  → / swipe ↑', bx + bw - 12, by + 20);
+      var p = b.hp / b.hpMax;
+      ctx.fillStyle = 'rgba(255,255,255,.12)'; obliquo(bx + 14, by + 28, bw - 34, 12, 6); ctx.fill();
+      ctx.fillStyle = p < 0.5 ? '#ff3a6e' : '#c23bd6'; obliquo(bx + 14, by + 28, (bw - 34) * p, 12, 6); ctx.fill();
+    }
+    if (g.banner > 0) {                  // avviso d'arrivo
+      var k = g.banner, al = Math.min(1, k * 2, (2.8 - k) * 4);
+      ctx.globalAlpha = al; ctx.textAlign = 'center';
+      ctx.fillStyle = 'rgba(10,10,14,.7)'; obliquo(W / 2 - 300, 150, 600, 86, 18); ctx.fill();
+      ctx.fillStyle = '#ff3a6e'; ctx.font = '600 13px "DM Mono", monospace'; ctx.fillText('⚠  BOSS  ⚠', W / 2, 176);
+      ctx.fillStyle = '#f4efe2'; ctx.font = 'italic 700 40px "Chakra Petch", sans-serif';
+      ctx.fillText(BOSS_NOME, W / 2 + (Math.random() - .5) * 3, 218);
+    }
+    if (g.bonusT > 0) {
+      ctx.globalAlpha = Math.min(1, g.bonusT * 2); ctx.textAlign = 'center';
+      ctx.font = 'italic 700 34px "Chakra Petch", sans-serif'; ctx.lineWidth = 5; ctx.strokeStyle = 'rgba(27,21,48,.7)';
+      var ty = 150 - (2.2 - g.bonusT) * 14;
+      ctx.strokeText('BATTUTA! +' + g.bonusUltimo, W / 2, ty); ctx.fillStyle = '#e4b33c'; ctx.fillText('BATTUTA! +' + g.bonusUltimo, W / 2, ty);
+    }
+    ctx.restore();
+  }
+
   // un colpo: con lo scudo delle pringles non conta, al terzo ti prendono
   function colpito(o) {
     var m = g.marf;
@@ -849,7 +1110,7 @@
     bip(110, 0.25, 'sawtooth', 0.07);
   }
 
-  function punteggio() { return Math.floor(g.metri) + g.birre * 25; }
+  function punteggio() { return Math.floor(g.metri) + g.birre * 25 + (g.bonus || 0); }
 
   var MARF_X = 300;
   function hitboxMarf() {
@@ -871,15 +1132,18 @@
 
     sfondo();
     disegnaFumo();
+    disegnaBoss();
     disegnaCorridoio();
     g.birreA.forEach(birra);
     g.ostacoli.forEach(ostacolo);
+    disegnaColpiBoss();
     g.jets.forEach(disegnaJet);
     avvisoJet();
     disegnaPolvere();
     inseguitrici();
     disegnaLinee();
     marf();
+    disegnaLaser();
     disegnaScudo();
     disegnaFacciata();
     disegnaStelle();
@@ -911,7 +1175,7 @@
   function zonaPalazzo() { return !!palazzo || g.metri > g.prossimoPalazzo - 60; }
   function aggiornaPalazzo(dx) {
     var m = g.marf;
-    if (!palazzo && g.metri >= g.prossimoPalazzo) {
+    if (!palazzo && g.metri >= g.prossimoPalazzo && !zonaBoss()) {
       var vv = ['alto', 'mezzo', 'basso'];
       nuovoPalazzo(g.variante || vv[Math.floor(Math.random() * 3)]); g.variante = null;
       g.prossimoPalazzo += PALAZZO_OGNI;
@@ -1863,6 +2127,7 @@
       ctx.fillText('SCUDO ' + Math.ceil(g.scudo) + 's', W - 26, 65);
     }
     ctx.restore();
+    hudBoss();
   }
 
   function roundRect(x, y, w, h, r) {
