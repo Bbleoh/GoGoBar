@@ -479,6 +479,8 @@
 
   // aprendo la pagina con #prova le ragazze non ti prendono mai (utile per provare le animazioni)
   var PROVA = location.hash === '#prova';
+  // con #beta: boss già a 500 m e si parte con 30 canne (per provare la battaglia); i punti non si salvano
+  var BETA = location.hash === '#beta';
   if (PROVA) window.corriMarfProva = { salta: function () { salta(); }, giu: function (v) { giu(v); }, stato: function () { return g; }, vai: function (m) { scorrimento = m * 40; g.metri = m; },
     metti: function (tipo, x, quante) { var o = { tipo: tipo, t: TIPI[tipo], x: x, w: TIPI[tipo].w, h: TIPI[tipo].h * (quante || 1), quante: quante || 1 }; g.ostacoli.push(o); return o; },
     jet: function () { g.prossimoJet = 0; }, palazzo: function (v) { g.ostacoli.length = 0; g.prossimoPalazzo = g.metri; g.variante = v; }, pal: function () { return palazzo; },
@@ -500,7 +502,7 @@
       anim: nuovaAnim(), ragazze: [0, 1, 2].map(function (i) { return { fase: i * 0.37, posa: null }; }),
       fx: [], colpi: 0, scudo: 0,
       jets: [], fumo: [], jetAvviso: 0, prossimoJet: 700 + Math.random() * 500, prossimoPalazzo: PALAZZO_OGNI,
-      munizioni: 0, bonus: 0, boss: null, prossimoBoss: BOSS_OGNI, livelloBoss: 1, sfere: [], lanci: [], laser: null
+      munizioni: BETA ? 30 : 0, bonus: 0, boss: null, prossimoBoss: BETA ? 500 : BOSS_OGNI, livelloBoss: 1, sfere: [], lanci: [], laser: null
     };
   }
   nuovaPartita();
@@ -518,12 +520,12 @@
   function preso() {
     stato = 'preso';
     avviaRagdoll();
-    var punti = punteggio(), nuovo = punti > record;
+    var punti = punteggio(), nuovo = !BETA && punti > record;
     if (nuovo) { record = punti; scegli(giocatore, punti); }
     document.getElementById('risultato').textContent =
       Math.floor(g.metri) + ' m · ' + g.birre + ' canne · ' + punti.toLocaleString('it-IT') + ' punti' + (nuovo ? ' · nuovo record!' : '');
     nota.textContent = API && API.attiva ? '' : 'Corre ' + giocatore + ' · classifica online non attiva, salvo su questo telefono.';
-    btnSalva.hidden = true; daSalvare = PROVA ? 0 : punti;
+    btnSalva.hidden = true; daSalvare = PROVA || BETA ? 0 : punti;
     mostraClassifica(document.getElementById('classificaFine'));
     setTimeout(function () {
       if (stato !== 'preso') return;
@@ -793,7 +795,7 @@
     if (u < 1 && pronta(img)) {
       ctx.save(); ctx.translate(x, y); ctx.rotate(t * 13); ctx.scale(sc, sc);
       var dh = o.t.dh, dw = dh * img.naturalWidth / img.naturalHeight;
-      ctx.drawImage(cache(img, dw, dh), -dw / 2, -dh / 2, dw, dh);
+      conContorno(img, -dw / 2, -dh / 2, dw, dh);
       ctx.restore();
     }
     var k = (t - VOLO_T) / 0.5;                   // il luccichio quando sparisce
@@ -847,7 +849,7 @@
      Una testa gigante che fluttua a destra. Attacchi: sputa sfere che rotolano a terra (si saltano,
      oppure ci scivoli sopra e gliele rimandi) e spara un laser dagli occhi ad altezza testa (si passa scivolando).
      Si colpisce lanciando le canne raccolte (→ o swipe in su) o rimandandole le sfere. Battuta, vola via. */
-  var BOSS_OGNI = 10000, MUNI_MAX = 12, BOSS_H = 230, BOSS_X = 775, BOSS_Y = 195, LASER_Y = TERRA - 70;
+  var BOSS_OGNI = 10000, MUNI_MAX = BETA ? 30 : 12, BOSS_H = 230, BOSS_X = 775, BOSS_Y = 195, LASER_Y = TERRA - 70;
   var BOSS_NOME = 'MALEDOTTA MIOTTA';
   var BOSS_IMG = {}; ['base', 'attacco', 'sconfitta'].forEach(function (n) {
     var i = new Image(); i.src = 'boss/' + n + '.webp?v=1'; BOSS_IMG[n] = i;
@@ -1006,9 +1008,8 @@
     var alone = ctx.createRadialGradient(0, 0, h * 0.2, 0, 0, h * 0.62);
     alone.addColorStop(0, faccia === 'attacco' ? 'rgba(255,60,60,.45)' : 'rgba(150,60,200,.35)'); alone.addColorStop(1, 'rgba(0,0,0,0)');
     ctx.fillStyle = alone; ctx.beginPath(); ctx.arc(0, 0, h * 0.62, 0, TAU); ctx.fill();
-    var tela = cache(img, w, h);
-    ctx.drawImage(tela, -w / 2, -h / 2, w, h);
-    if (b.lampo > 0) { ctx.globalAlpha = b.lampo / 0.15 * 0.7; ctx.globalCompositeOperation = 'lighter'; ctx.drawImage(tela, -w / 2, -h / 2, w, h); }
+    conContorno(img, -w / 2, -h / 2, w, h);
+    if (b.lampo > 0) { ctx.globalAlpha = b.lampo / 0.15 * 0.7; ctx.globalCompositeOperation = 'lighter'; ctx.drawImage(cache(img, w, h), -w / 2, -h / 2, w, h); }
     ctx.restore();
   }
   function disegnaLuccichio(x, y, k) {
@@ -1030,6 +1031,7 @@
       ctx.globalAlpha = s.svanisce ? Math.max(0, 1 - s.svanisce / 0.25) : 1;
       var gr = ctx.createRadialGradient(s.x - 4, s.y - 5, 2, s.x, s.y, s.r);
       gr.addColorStop(0, '#fff'); gr.addColorStop(0.35, oro ? '#ffe27a' : '#ff8ad8'); gr.addColorStop(1, oro ? '#e4a01c' : '#b0157a');
+      ctx.fillStyle = '#000'; ctx.beginPath(); ctx.arc(s.x, s.y, s.r + BORDO, 0, TAU); ctx.fill();
       ctx.fillStyle = gr; ctx.beginPath(); ctx.arc(s.x, s.y, s.r, 0, TAU); ctx.fill();
       ctx.strokeStyle = 'rgba(255,255,255,.6)'; ctx.lineWidth = 2;
       ctx.beginPath(); ctx.arc(s.x, s.y, s.r - 4, s.giro, s.giro + 1.6); ctx.stroke();
@@ -1388,11 +1390,41 @@
   ['canna', 'pringles', 'ragazza-a-terra', 'durex', 'transenna', 'juve', 'lazio', 'carabiniere', 'pesce-spada', 'aygo', 'jet'].forEach(function (n) {
     var img = new Image(); img.src = (n === 'canna' ? '' : 'ogg/') + n + '.webp?v=1'; OGG[n] = img;
   });
-  function disegnaOgg(nome, cx, fondo, dh) {        // centrata in orizzontale, appoggiata su "fondo"
+  // contorno nero di BORDO px attorno a ostacoli e nemici, per farli notare meglio:
+  // si fa la sagoma nera dell'immagine e la si stampa tutt'intorno, poi sopra l'immagine
+  var BORDO = 3, SAGOMA = document.createElement('canvas');
+  function bordoPx() { return Math.ceil(BORDO * scala); }
+  function conBordo(src, out) {
+    var r = bordoPx(), w = src.width + r * 2, h = src.height + r * 2;
+    if (SAGOMA.width !== src.width || SAGOMA.height !== src.height) { SAGOMA.width = src.width; SAGOMA.height = src.height; }
+    var sx = SAGOMA.getContext('2d');
+    sx.globalCompositeOperation = 'copy'; sx.drawImage(src, 0, 0);
+    sx.globalCompositeOperation = 'source-in'; sx.fillStyle = '#000'; sx.fillRect(0, 0, src.width, src.height);
+    sx.globalCompositeOperation = 'source-over';
+    if (out.width !== w || out.height !== h) { out.width = w; out.height = h; }
+    var ox = out.getContext('2d');
+    ox.clearRect(0, 0, w, h);
+    for (var i = 0; i < 16; i++) { var a = i / 16 * Math.PI * 2; ox.drawImage(SAGOMA, r + Math.cos(a) * r, r + Math.sin(a) * r); }
+    ox.drawImage(src, r, r);
+    return out;
+  }
+  // l'immagine col bordo, già alla misura giusta (in cache come cache())
+  function contorno(img, w, h) {
+    var src = cache(img, w, h), k = src.width + 'x' + src.height;
+    if (!img._bordo || img._bordo.k !== k) img._bordo = { k: k, cv: conBordo(src, document.createElement('canvas')) };
+    return img._bordo.cv;
+  }
+  // disegna un'immagine col bordo: (x, y, w, h) è dove andrebbe l'immagine senza bordo
+  function conContorno(img, x, y, w, h) {
+    var p = bordoPx() / scala;
+    ctx.drawImage(contorno(img, w, h), x - p, y - p, w + p * 2, h + p * 2);
+  }
+  function disegnaOgg(nome, cx, fondo, dh, bordo) {        // centrata in orizzontale, appoggiata su "fondo"
     var img = OGG[nome];
     if (!pronta(img)) return false;
     var dw = dh * img.naturalWidth / img.naturalHeight;
-    ctx.drawImage(cache(img, dw, dh), Math.round(cx - dw / 2), Math.round(fondo - dh), dw, dh);
+    if (bordo) conContorno(img, Math.round(cx - dw / 2), Math.round(fondo - dh), dw, dh);
+    else ctx.drawImage(cache(img, dw, dh), Math.round(cx - dw / 2), Math.round(fondo - dh), dw, dh);
     return true;
   }
   function birra(b) {
@@ -1420,11 +1452,11 @@
     var t = o.t, cx = o.x + o.w / 2, ok;
     if (o.tipo === 'durex') {
       ok = true;
-      for (var i = 0; i < o.quante; i++) ok = disegnaOgg('durex', cx + (i % 2 ? 3 : -2), TERRA + 1 - i * t.h, t.dh) && ok;
+      for (var i = 0; i < o.quante; i++) ok = disegnaOgg('durex', cx + (i % 2 ? 3 : -2), TERRA + 1 - i * t.h, t.dh, true) && ok;
     } else if (t.aria) {
-      ok = disegnaOgg(t.img, cx - 8, TERRA - t.aria + t.dh / 2 + Math.sin(g.t * 4 + o.x * 0.01) * 3, t.dh);
+      ok = disegnaOgg(t.img, cx - 8, TERRA - t.aria + t.dh / 2 + Math.sin(g.t * 4 + o.x * 0.01) * 3, t.dh, true);
     } else if (o.volo !== undefined) { disegnaVolo(o); return; }
-    else ok = disegnaOgg(t.img, cx, TERRA + 2, t.dh);
+    else ok = disegnaOgg(t.img, cx, TERRA + 2, t.dh, true);
     if (!ok) { var bx = boxOstacolo(o); ctx.fillStyle = '#6b4a2b'; ctx.fillRect(bx.x, bx.y, bx.w, bx.h); }
   }
 
@@ -1462,7 +1494,7 @@
     var y = g.marf.y - ((g.marf.giu || g.marf.corridoio) && g.marf.aTerra ? 24 : 50), r = 64 + Math.sin(g.t * 6) * 3;
     ctx.drawImage(BOLLA, MARF_X - r, y - r, r * 2, r * 2);
   }
-  function disegnaJet(j) { disegnaOgg('jet', j.x + JET_DH * 1.36, j.y + JET_DH / 2, JET_DH); }
+  function disegnaJet(j) { disegnaOgg('jet', j.x + JET_DH * 1.36, j.y + JET_DH / 2, JET_DH, true); }
   function avvisoJet() {
     if (g.jetAvviso <= 0 || Math.floor(g.jetAvviso * 6) % 2) return;
     ctx.save(); ctx.fillStyle = '#d2452f'; ctx.font = 'italic 700 36px "Chakra Petch", sans-serif'; ctx.textAlign = 'center';
@@ -1868,6 +1900,8 @@
     { rig: 'ragazza', scala: 0.96 },
     { rig: 'ragazza', scala: 1.03 }
   ];
+  var RAG_W = 170, RAG_H = 160, RAG_OX = 85, RAG_OY = 145;           // tela della ragazza: piedi in (RAG_OX, RAG_OY)
+  var RAG_TELA = document.createElement('canvas'), RAG_BORDO = document.createElement('canvas');
   function inseguitrici() {
     if (stato === 'menu') return;
     var fronte = MARF_X - 30 - Math.max(g.distacco, 0);
@@ -1876,15 +1910,23 @@
       var r = RAGAZZE[i], R = RIG[r.rig];
       var x = fronte - i * 46, y = TERRA - Math.abs(Math.sin(fase + i)) * 4;
       if (x < -60) continue;
-      ctx.save(); ctx.translate(x, y);
       if (R && R.pronto && g.ragazze && g.ragazze[i].posa) {
         var gr = g.ragazze[i];
-        ctx.translate(0, TERRA - y);                    // il rimbalzo lo fa già lo scheletro
+        // la ragazza si disegna su una tela a parte, così le si può dare il contorno nero (il rimbalzo lo fa già lo scheletro)
+        var tl = RAG_TELA, tw = Math.ceil(RAG_W * scala), th = Math.ceil(RAG_H * scala);
+        if (tl.width !== tw || tl.height !== th) { tl.width = tw; tl.height = th; }
+        var vero = ctx; ctx = tl.getContext('2d');
+        ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.clearRect(0, 0, tw, th);
+        ctx.setTransform(scala, 0, 0, scala, RAG_OX * scala, RAG_OY * scala);
         ctx.scale(r.scala, r.scala);
         personaggio(R, gr.anca, gr.posa);
+        ctx = vero;
+        var pb = bordoPx() / scala;
+        ctx.drawImage(conBordo(tl, RAG_BORDO), x - RAG_OX - pb, TERRA - RAG_OY - pb, RAG_W + pb * 2, RAG_H + pb * 2);
+        ctx.save(); ctx.translate(x, TERRA); ctx.scale(r.scala, r.scala);
         cuore(16, -112 - Math.abs(Math.sin(fase * 0.5 + i)) * 10, '#ff5c8a');
+        ctx.restore();
       }
-      ctx.restore();
       if (g.fumetto && g.fumetto.chi === i && stato === 'gioco') fumetto(x, y - 120, g.fumetto.testo);
     }
   }
