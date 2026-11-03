@@ -505,7 +505,12 @@
       <div id="r-side">
         <div id="r-head"><img id="r-croupier" src="assets/croupier-init.png" alt="Il Tromba"><div id="r-msg" aria-live="polite"></div></div>
         <div id="r-storia" aria-label="Ultimi numeri usciti"></div>
-        <div id="r-board" role="group" aria-label="Tavolo delle puntate"></div>
+        <div id="r-modi" role="group" aria-label="Tipo di puntata sui numeri">
+          <button class="bet-tool attivo" data-modo="pieno" aria-pressed="true" onclick="rScegliModo('pieno')" title="Tasto P: un numero solo, paga ×36">Pieno <small>×36</small></button>
+          <button class="bet-tool" data-modo="cavallo" aria-pressed="false" onclick="rScegliModo('cavallo')" title="Tasto C: due numeri vicini, paga ×18">Cavallo <small>×18</small></button>
+          <button class="bet-tool" data-modo="quartina" aria-pressed="false" onclick="rScegliModo('quartina')" title="Tasto Q: quattro numeri, paga ×9">Quartina <small>×9</small></button>
+        </div>
+        <div id="r-board" data-modo="pieno" role="group" aria-label="Tavolo delle puntate"></div>
         <div id="r-pagamenti">Vincite (posta compresa): pieno ×36 · cavallo ×18 · quartina ×9 · dozzina e colonna ×3 · rosso/nero, pari/dispari, 1-18/19-36 ×2<br>Clicca sul bordo tra due numeri per il cavallo, sull'incrocio di quattro per la quartina · clic destro toglie una fiche</div>
       </div>
     </div>
@@ -529,7 +534,7 @@
         <button class="bet-tool" id="r-double" onclick="rRaddoppia()" title="Tasto X">×2</button>
         <button class="btn primary" id="r-spin" onclick="rGira()" disabled title="Invio">Gira<kbd>Invio</kbd></button>
       </div>
-      <div id="r-keys">Tasti: 1-6 fiche · clic sul tavolo per puntare · Z togli · R ripeti · X ×2 · Esc annulla · Invio gira</div>
+      <div id="r-keys">Tasti: 1-6 fiche · P pieno · C cavallo · Q quartina · Z togli · R ripeti · X ×2 · Esc annulla · Invio gira</div>
     </footer>
   </section>
 </div>
