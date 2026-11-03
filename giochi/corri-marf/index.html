@@ -109,6 +109,22 @@
     .giocatore-chip:hover, .giocatore-chip:focus-visible { box-shadow: inset 0 0 0 1px var(--gold); outline: 0; }
     .giocatore-chip.attuale { background: rgba(228,179,60,.18); box-shadow: inset 0 0 0 1px var(--gold); color: var(--gold); }
     .nota:empty { display: none; }
+    /* nastro dei consigli in fondo alla lobby */
+    .consigli {
+      position: absolute; left: 0; right: 0; bottom: 0; height: 30px; display: flex; align-items: center; overflow: hidden;
+      background: rgba(9,9,11,.82); border-top: 1px solid var(--line); font-family: var(--mono); font-size: 12px; letter-spacing: .04em;
+    }
+    .consigli b {
+      flex: none; height: 100%; display: flex; align-items: center; padding: 0 18px 0 14px; position: relative; z-index: 1;
+      background: var(--gold); color: var(--ink); font-family: var(--display); font-style: italic; font-weight: 700; text-transform: uppercase; letter-spacing: .08em;
+      clip-path: polygon(0 0, 100% 0, calc(100% - 10px) 100%, 0 100%);
+    }
+    .nastro { flex: 1; overflow: hidden; white-space: nowrap; mask-image: linear-gradient(90deg, transparent, #000 4%, #000 96%, transparent); -webkit-mask-image: linear-gradient(90deg, transparent, #000 4%, #000 96%, transparent); }
+    .nastro span { display: inline-block; padding-left: 100%; color: var(--ivory); animation: nastro var(--durata, 90s) linear infinite; }
+    .nastro span i { font-style: normal; color: var(--pink); margin: 0 1.2em; }
+    @keyframes nastro { to { transform: translateX(-100%); } }
+    #menu .testo { padding-bottom: 46px; }
+    #menu:not([hidden]) ~ .fs-btn { bottom: 40px; }
     .fs-btn {
       position: absolute; right: 10px; bottom: 10px; z-index: 5; width: 38px; height: 38px; cursor: pointer;
       font-size: 20px; line-height: 1; color: var(--ivory); background: rgba(10,10,14,.62); border: 0;
@@ -171,6 +187,7 @@
           <p class="nota" id="notaMenu"></p>
           <div class="classifica" id="classificaMenu"></div>
         </div>
+        <div class="consigli" aria-label="Consigli"><b>Consigli</b><div class="nastro"><span id="nastro"></span></div></div>
       </div>
 
       <div class="pannello" id="fine" hidden>
@@ -192,8 +209,10 @@
   </div>
   <p class="hint">Salta: spazio, ↑ o tocca lo schermo (anche due volte) · Scivola: ↓ o swipe in giù</p>
   <audio id="musica" src="musica.mp3" loop preload="auto"></audio>
+  <audio id="musicaLobby" data-musica src="musica-lobby.mp3" loop preload="auto"></audio>
+  <audio id="musicaMorte" data-musica src="musica-morte.mp3" loop preload="none"></audio>
 
-<script src="classifica.js?v=1" onerror="window.CorriMarfClassifica = null"></script>
+<script src="classifica.js?v=2" onerror="window.CorriMarfClassifica = null"></script>
 <script>
 (function () {
   'use strict';
@@ -240,20 +259,34 @@
   var record = giocatore ? recordDi(giocatore) : 0;
 
   /* ── Musica e suoni ── */
+  // tre musiche: lobby (menu), corsa, morte (schermata finale); ne suona una alla volta
   var musica = document.getElementById('musica');
-  musica.volume = 0.55;
+  var TRACCE = { gioco: musica, lobby: document.getElementById('musicaLobby'), morte: document.getElementById('musicaMorte') };
+  Object.keys(TRACCE).forEach(function (k) { TRACCE[k].volume = 0.55; });
+  var traccia = 'lobby';
+  function suona(nome) {
+    Object.keys(TRACCE).forEach(function (k) { if (k !== nome) TRACCE[k].pause(); });
+    if (traccia !== nome) { traccia = nome; try { TRACCE[nome].currentTime = 0; } catch (e) {} }
+    avviaMusica();
+  }
   var audioOn = leggi('audio', '1') === '1', actx = null;
   var btnAudio = document.getElementById('audio');
   function aggiornaAudio() {
     btnAudio.textContent = audioOn ? '♪ on' : '♪ off';
-    musica.muted = !audioOn;
+    Object.keys(TRACCE).forEach(function (k) { TRACCE[k].muted = !audioOn; });
   }
   aggiornaAudio();
   btnAudio.addEventListener('click', function () {
     audioOn = !audioOn; scrivi('audio', audioOn ? '1' : '0'); aggiornaAudio();
-    if (audioOn && stato === 'gioco') avviaMusica();
+    if (audioOn) avviaMusica();
   });
-  function avviaMusica() { if (!audioOn) return; var p = musica.play(); if (p && p.catch) p.catch(function () {}); }
+  function avviaMusica() { if (!audioOn) return; var p = TRACCE[traccia].play(); if (p && p.catch) p.catch(function () {}); }
+  // il browser non fa partire l'audio da solo: la musica della lobby parte al primo tocco o tasto
+  function primoGesto() {
+    window.removeEventListener('pointerdown', primoGesto, true); window.removeEventListener('keydown', primoGesto, true);
+    if (TRACCE[traccia].paused) avviaMusica();
+  }
+  window.addEventListener('pointerdown', primoGesto, true); window.addEventListener('keydown', primoGesto, true);
   function bip(freq, dur, tipo, vol) {
     if (!audioOn) return;
     try {
@@ -279,7 +312,10 @@
 
   function scegli(nome, punti) {
     var tutti = giocatori(), k = chiaveNome(nome), a = tutti[k] || { nome: nome, record: 0 };
-    if (online[k]) { a.nome = online[k].nome; a.record = Math.max(+a.record || 0, online[k].punti); }
+    if (API && API.letta) {            // la classifica online comanda: se lì il record non c'è (o è stato tolto), riparte da 0
+      a.record = online[k] ? online[k].punti : 0;
+      if (online[k]) a.nome = online[k].nome;
+    }
     if (punti) a.record = Math.max(+a.record || 0, punti);
     tutti[k] = a; salvaGiocatori(tutti);
     giocatore = a.nome; record = +a.record || 0; scrivi('nome', giocatore);
@@ -295,8 +331,9 @@
   }
   function disegnaGiocatori() {
     var box = document.getElementById('giocatori'), tutti = {}, loc = giocatori();
-    Object.keys(loc).forEach(function (k) { tutti[k] = { nome: loc[k].nome || k, punti: +loc[k].record || 0 }; });
-    Object.keys(online).forEach(function (k) { var t = tutti[k]; tutti[k] = { nome: online[k].nome, punti: Math.max(online[k].punti, t ? t.punti : 0) }; });
+    var letta = API && API.letta;
+    Object.keys(loc).forEach(function (k) { tutti[k] = { nome: loc[k].nome || k, punti: letta ? 0 : +loc[k].record || 0 }; });
+    Object.keys(online).forEach(function (k) { tutti[k] = { nome: online[k].nome, punti: online[k].punti }; });
     var arr = Object.keys(tutti).map(function (k) { return tutti[k]; }).filter(function (x) { return NOME_OK.test(x.nome); })
       .sort(function (a, b) { return b.punti - a.punti || a.nome.localeCompare(b.nome); });
     box.textContent = ''; box.hidden = !arr.length;
@@ -367,7 +404,7 @@
     inizia();
   }
   function cambiaGiocatore() {
-    stato = 'menu'; fine.hidden = true; menu.hidden = false;
+    stato = 'menu'; fine.hidden = true; menu.hidden = false; suona('lobby');
     nomeMenu.value = ''; notaMenu.textContent = '';
     aggiornaChi(); caricaOnline();
   }
@@ -377,6 +414,27 @@
   document.getElementById('riprova').addEventListener('click', inizia);
   document.getElementById('cambia').addEventListener('click', cambiaGiocatore);
   aggiornaChi(); caricaOnline();
+
+  /* ── Consigli che scorrono nella lobby ── */
+  var CONSIGLI = [
+    'Salta con spazio, ↑ o un tocco. Tocca due volte per il doppio salto.',
+    'Scivola con ↓ o con uno swipe in giù: pesci spada e jet si passano solo da sotto.',
+    'Le canne fanno scattare Marf e staccano le femmine. In punteggio contano solo se sono già alla distanza massima.',
+    'Ogni metro vale 1 punto, ogni canna 25.',
+    'Le Pringles ti mettono lo scudo: para un colpo, poi scoppia.',
+    'Scivola sulle caviglie del carabiniere: vola via in cielo e tu guadagni una vita.',
+    'Al terzo colpo ti prendono. Con i carabinieri arrivi fino a 5 vite.',
+    'Occhio all\'Aygo: ti viene incontro più veloce degli altri.',
+    'Se senti l\'allarme e vedi i punti esclamativi, arrivano i jet: scivola!',
+    'Il tuo nome è il tuo profilo: il record si salva da solo in classifica.',
+    'Tocca ⛶ per lo schermo intero. Sul telefono il gioco si mette in orizzontale.'
+  ];
+  (function () {
+    var el = document.getElementById('nastro');
+    var ordine = CONSIGLI.slice().sort(function () { return Math.random() - 0.5; });
+    ordine.forEach(function (c, i) { if (i) { var sep = document.createElement('i'); sep.textContent = '◆'; el.append(sep); } el.append(c); });
+    el.style.setProperty('--durata', Math.round(ordine.join('').length / 9) + 's');   // ~9 caratteri al secondo
+  })();
 
   /* ── Schermo intero: su telefono prova anche a bloccare l'orizzontale; se non si può (iPhone), gira il gioco via CSS ── */
   var btnFs = document.getElementById('schermoIntero');
@@ -447,7 +505,7 @@
     if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
     nuovaPartita(); stato = 'gioco';
     menu.hidden = true; fine.hidden = true;
-    musica.currentTime = 0; avviaMusica();
+    traccia = ''; suona('gioco');
   }
 
   function preso() {
@@ -465,7 +523,8 @@
       fine.hidden = false;
       salva();
     }, 1900);   // prima si gode il ragdoll
-    musica.pause();
+    setTimeout(function () { if (stato === 'preso') suona('morte'); }, 900);
+    TRACCE.gioco.pause();
     bip(300, 0.5, 'sawtooth', 0.07); setTimeout(function () { bip(150, 0.6, 'sawtooth', 0.07); }, 200);
   }
 
@@ -525,7 +584,7 @@
 
   document.addEventListener('visibilitychange', function () {
     ultimo = performance.now();
-    if (document.hidden) musica.pause(); else if (stato === 'gioco') avviaMusica();
+    if (document.hidden) TRACCE[traccia].pause(); else avviaMusica();
   });
 
   /* ── Generazione ostacoli ── */
@@ -541,7 +600,20 @@
     pesce:       { img: 'pesce-spada', dh: 56, w: 128, h: 40, aria: 88 },   // si passa sotto scivolando
     aygo:        { img: 'aygo', dh: 68, w: 112, h: 56, corre: 260 }       // ti viene incontro
   };
+  // canne e pringles non stanno mai sopra un ostacolo: niente oggetti a meno di 90 px in orizzontale
+  var DIST_OGG = 90;
+  function postoOccupato(x) {
+    if (g.jetAvviso > 0 || g.jets.length) return true;
+    for (var i = 0; i < g.ostacoli.length; i++) {
+      var o = g.ostacoli[i];
+      if (o.volo !== undefined) continue;
+      if (o.t.corre && o.x > MARF_X) return true;               // l'Aygo corre più del mondo: finché è davanti, niente canne
+      if (o.x - DIST_OGG < x && o.x + o.w + DIST_OGG > x) return true;
+    }
+    return false;
+  }
   function generaOstacolo() {
+    for (var b = 0; b < g.birreA.length; b++) if (g.birreA[b].x > W + 40 - DIST_OGG - 120) { g.prossimo = 0.15; return; }
     var r = Math.random(), lvl = Math.min(g.metri / 1500, 1), tipo;
     if (g.metri > 400 && r < 0.07) tipo = 'aygo';
     else if (r < 0.25) tipo = 'ragazza';
@@ -549,6 +621,7 @@
     else if (r < 0.56) tipo = 'transenna';
     else if (r < 0.79) { var q = Math.random(); tipo = q < 0.16 ? 'carabiniere' : q < 0.58 ? 'juve' : 'lazio'; }   // il carabiniere è una variante rara
     else tipo = 'pesce';
+    if (tipo === 'aygo' && g.birreA.some(function (b) { return b.x > MARF_X - 40; })) tipo = 'transenna';   // l'Aygo passerebbe sopra le canne
     var t = TIPI[tipo], o = { tipo: tipo, t: t, x: W + 40, w: t.w, h: t.h, quante: 1 };
     if (tipo === 'durex') { o.quante = 1 + (Math.random() < 0.4 + lvl * 0.3 ? 1 : 0) + (Math.random() < lvl * 0.45 ? 1 : 0); o.h = t.h * o.quante; }
     g.ostacoli.push(o);
@@ -599,8 +672,8 @@
     for (var i = g.ostacoli.length - 1; i >= 0; i--) {
       var o = g.ostacoli[i];
       o.x -= dx + (o.t.corre || 0) * dt;
-      if (o.x + o.w < -200) { g.ostacoli.splice(i, 1); continue; }
-      if (o.cade !== undefined) o.cade = Math.min(o.cade + dt / 0.35, 1);
+      if (o.x + o.w < -200 && !(o.volo < VOLO_T + 0.5)) { g.ostacoli.splice(i, 1); continue; }
+      if (o.volo !== undefined) aggiornaVolo(o, dt);
       if (!o.preso && tocca(hb, boxOstacolo(o))) {
         if (o.tipo === 'carabiniere' && m.giu && m.y >= TERRA) sgambetto(o);
         else colpito(o);
@@ -632,7 +705,7 @@
 
     // birre
     g.prossimaBirra -= dt;
-    if (g.prossimaBirra <= 0) {
+    if (g.prossimaBirra <= 0 && !postoOccupato(W + 30)) {
       // le pringles (scudo) sono molto più rare delle canne
       g.birreA.push({ x: W + 30, y: TERRA - 40 - Math.random() * 150, pringles: g.scudo <= 0 && Math.random() < 0.08 });
       g.prossimaBirra = 2.5 + Math.random() * 3.5;
@@ -667,12 +740,36 @@
     if (g.colpi >= 3) preso();
   }
 
-  // scivolata sulle caviglie del carabiniere: cade all'indietro e Marf guadagna una vita (al massimo 5)
+  // scivolata sulle caviglie del carabiniere: vola via in cielo come il Team Rocket e Marf guadagna una vita (al massimo 5)
+  var VOLO_T = 1.3;
   function sgambetto(o) {
-    o.preso = true; o.cade = 0;
+    o.preso = true; o.volo = 0; o.vx0 = o.x + o.w / 2;
     if (3 - g.colpi < 5) g.colpi--;
     stelline(MARF_X, g.marf.y - 40);
-    bip(1320, 0.08, 'triangle', 0.06); setTimeout(function () { bip(1760, 0.12, 'triangle', 0.06); }, 90);
+    g.scuoti = 0.15;
+    bip(220, 0.12, 'square', 0.06); setTimeout(function () { bip(1320, 0.08, 'triangle', 0.06); }, 90); setTimeout(function () { bip(1760, 0.12, 'triangle', 0.06); }, 180);
+  }
+  function aggiornaVolo(o, dt) {
+    var prima = o.volo; o.volo += dt;
+    if (prima < VOLO_T && o.volo >= VOLO_T) { bip(2640, 0.25, 'sine', 0.05); setTimeout(function () { bip(3520, 0.3, 'sine', 0.04); }, 120); }   // ding!
+  }
+  function disegnaVolo(o) {
+    var t = o.volo, img = OGG.carabiniere;
+    // traiettoria sullo schermo (non segue la strada): su e avanti, sempre più piccolo, girando
+    var u = Math.min(t / VOLO_T, 1), e = 1 - Math.pow(1 - u, 2.2);
+    var x = o.vx0 + e * 420, y = TERRA - 50 - e * 300 - Math.sin(u * Math.PI) * 40, sc = 1 - e * 0.94;
+    if (u < 1 && pronta(img)) {
+      ctx.save(); ctx.translate(x, y); ctx.rotate(t * 13); ctx.scale(sc, sc);
+      var dh = o.t.dh, dw = dh * img.naturalWidth / img.naturalHeight;
+      ctx.drawImage(cache(img, dw, dh), -dw / 2, -dh / 2, dw, dh);
+      ctx.restore();
+    }
+    var k = (t - VOLO_T) / 0.5;                   // il luccichio quando sparisce
+    if (k > 0 && k < 1) {
+      var r = 6 + Math.sin(k * Math.PI) * 14;
+      ctx.save(); ctx.globalAlpha = 1 - k * k; ctx.translate(x, y); ctx.rotate(k * 2);
+      ctx.drawImage(STELLA, -r, -r, r * 2, r * 2); ctx.restore();
+    }
   }
   var STELLA = (function () {
     var c = document.createElement('canvas'); c.width = c.height = 32;
@@ -897,11 +994,8 @@
       for (var i = 0; i < o.quante; i++) ok = disegnaOgg('durex', cx + (i % 2 ? 3 : -2), TERRA + 1 - i * t.h, t.dh) && ok;
     } else if (t.aria) {
       ok = disegnaOgg(t.img, cx - 8, TERRA - t.aria + t.dh / 2 + Math.sin(g.t * 4 + o.x * 0.01) * 3, t.dh);
-    } else if (o.cade !== undefined) {
-      var c = o.cade, a = c * c * 1.5;               // cade all'indietro, lontano da Marf
-      ctx.save(); ctx.translate(cx, TERRA + 2); ctx.rotate(a);
-      ok = disegnaOgg(t.img, 0, 0, t.dh); ctx.restore();
-    } else ok = disegnaOgg(t.img, cx, TERRA + 2, t.dh);
+    } else if (o.volo !== undefined) { disegnaVolo(o); return; }
+    else ok = disegnaOgg(t.img, cx, TERRA + 2, t.dh);
     if (!ok) { var bx = boxOstacolo(o); ctx.fillStyle = '#6b4a2b'; ctx.fillRect(bx.x, bx.y, bx.w, bx.h); }
   }
 
