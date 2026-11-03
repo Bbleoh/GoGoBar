@@ -38,7 +38,7 @@
 (function () {
   'use strict';
 
-  var API_KEY = '';  // Chiave API web di Firebase (Impostazioni progetto → Generali). Vuota = account spenti
+  var API_KEY = 'AIzaSyB-sscNzrRcgPXjHdo-6QE2KKB219PbjOY';  // Chiave API web di Firebase (Impostazioni progetto → Generali). Vuota = account spenti
   var DB_URL = 'https://gogobar-ed267-default-rtdb.europe-west1.firebasedatabase.app';
   var AUTH_URL = 'https://identitytoolkit.googleapis.com/v1';
   var TOKEN_URL = 'https://securetoken.googleapis.com/v1';
@@ -156,7 +156,10 @@
       var opz = { method: metodo || 'GET' };
       if (corpo !== undefined) { opz.headers = { 'Content-Type': 'application/json' }; opz.body = JSON.stringify(corpo); }
       return http(url, opz).catch(function (e) {
-        if (e.status === 401 || e.status === 403) e.negato = true;
+        if (e.status === 401 || e.status === 403) {
+          e.negato = true;
+          e.message = 'Il database ha rifiutato la richiesta: forse le regole Firebase non sono ancora aggiornate.';
+        }
         throw e;
       });
     });
