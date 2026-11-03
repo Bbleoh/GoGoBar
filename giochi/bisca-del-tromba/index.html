@@ -574,7 +574,8 @@
 
 <audio id="musica" preload="auto"></audio>
 
-<script src="classifica.js?v=6"></script>
+<script src="../../js/account.js?v=1"></script>
+<script src="classifica.js?v=7"></script>
 <script>
 /* Tavolo in uso: 'lobby' | 'blackjack' | 'roulette' (la roulette è in roulette.js) */
 let gioco = 'lobby';
@@ -641,7 +642,8 @@ function syncRemoto(subito) {
   clearTimeout(syncTimer);
   const invia = () => BiscaClassifica.salvaGiocatore(playerName, datiAccount(), !!subito)
     .then(() => statoAccount('Salvato online'))
-    .catch(() => statoAccount('Non riesco a salvare online: per ora resta su questo browser', true));
+    .catch(e => statoAccount(/account/.test((e && e.message) || '') ? e.message
+                                : 'Non riesco a salvare online: per ora resta su questo browser', true));
   if (subito) invia(); else syncTimer = setTimeout(invia, 1200);
 }
 window.addEventListener('pagehide', () => { if (syncTimer) syncRemoto(true); });
@@ -1751,6 +1753,18 @@ document.addEventListener('keydown', e => {
     if (acc && acc.saldo > 0 && acc.saldo !== SALDO_INIZIALE)
       document.getElementById('name-intro').textContent =
         'Bentornato! I tuoi €' + Math.floor(acc.saldo).toLocaleString('it-IT') + ' sono ancora sul tavolo.';
+  }
+  // con un account GoGoBar (👤 nella home) il nome proposto è quello dell'account
+  function conAccount(st) {
+    if (!st || !st.account || playerName) return;
+    const n = st.account.nome;
+    document.getElementById('name-input').value = n;
+    document.getElementById('name-btn').textContent = 'Continua come ' + n;
+    document.getElementById('name-intro').textContent = 'Sei entrato con il tuo account GoGoBar, ' + n + '.';
+  }
+  if (window.GoGoAccount && GoGoAccount.attivo) {
+    conAccount(GoGoAccount.stato());
+    GoGoAccount.pronto.then(conAccount);
   }
 })();
 deck = newDeck(6);
