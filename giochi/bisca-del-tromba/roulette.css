@@ -150,3 +150,15 @@ button.tavolo:hover,button.tavolo:focus-visible{transform:translateY(-6px);borde
   #r-board{--rh:clamp(24px,4.2vh,34px);}
   #r-storia span{min-width:22px;height:22px;font-size:.7rem;}
 }
+
+/* cavalli e quartine: zone sui bordi tra i numeri */
+.r-hot{position:absolute;z-index:3;cursor:pointer;border-radius:4px;}
+.r-hot.dx{top:18%;bottom:18%;right:calc(-16% - 2px);width:32%;}
+.r-hot.sx{top:18%;bottom:18%;left:calc(-16% - 2px);width:32%;}
+.r-hot.su{left:18%;right:18%;top:calc(-14% - 2px);height:28%;}
+.r-hot.angolo{right:calc(-17% - 2px);top:calc(-15% - 2px);width:34%;height:30%;z-index:4;border-radius:50%;}
+#r-board:not(.bloccato) .r-hot:hover{background:rgba(243,220,154,.55);box-shadow:0 0 8px rgba(243,220,154,.8);}
+#r-board.bloccato .r-hot{cursor:default;}
+.r-hot .r-fiche{right:auto;bottom:auto;left:50%;top:50%;transform:translate(-50%,-50%);animation:none;}
+.r-hot.vince{background:rgba(243,220,154,.6);box-shadow:0 0 12px rgba(243,220,154,.9);}
+#r-board:not(.bloccato) .r-cell:has(.r-hot:hover){box-shadow:none;filter:none;}

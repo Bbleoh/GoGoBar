@@ -295,7 +295,8 @@
     #title-bar{display:none;}
     #topbar{display:flex;justify-content:space-between;}
     .top-btn .lbl{display:none;}
-    .top-btn{width:46px;height:46px;padding:0;justify-content:center;font-size:1.3rem;}
+    .top-btn,.tb-right .icon-btn{width:44px;height:44px;padding:0;justify-content:center;font-size:1.25rem;}
+    .tb-left,.tb-right{gap:6px;}
     #stage{--ch:clamp(80px,16vh,150px);padding:0 8px 4px;}
     #table{border-radius:20px;padding:12px 8px;}
     #dock{padding:8px 10px 12px;gap:8px;}
@@ -307,9 +308,15 @@
     #bet-tools .bet-tool{padding:0 10px;letter-spacing:.5px;white-space:nowrap;flex:1 1 auto;}
     .btn kbd,#keys-hint{display:none;}
   }
-  @media (max-width:380px){
-    .top-btn{width:42px;height:42px;font-size:1.15rem;}
-    .tb-left,.tb-right{gap:5px;}
+  /* telefono stretto: 8 pulsanti devono stare su una riga */
+  @media (max-width:420px){
+    #topbar{padding-left:8px;padding-right:8px;}
+    .top-btn,.tb-right .icon-btn{width:40px;height:40px;font-size:1.1rem;}
+    .tb-left,.tb-right{gap:4px;}
+  }
+  @media (max-width:370px){
+    .top-btn,.tb-right .icon-btn{width:36px;height:36px;font-size:1rem;}
+    .tb-left,.tb-right{gap:3px;}
   }
   /* ORIZZONTALE BASSO (telefono girato) */
   @media (max-height:480px){
@@ -416,7 +423,7 @@
       </button>
       <button class="tavolo" onclick="vaiA('roulette')">
         <div class="tavolo-img ru"><div class="mini-ruota"></div></div>
-        <div class="tavolo-testo"><b>Roulette</b><small>Europea, un solo zero. Il numero pieno paga 35 a 1.</small></div>
+        <div class="tavolo-testo"><b>Roulette</b><small>Europea, un solo zero. Il numero pieno paga 36 volte la puntata.</small></div>
         <kbd>R</kbd>
       </button>
       <div class="tavolo presto" aria-hidden="true">
@@ -499,7 +506,7 @@
         <div id="r-head"><img id="r-croupier" src="assets/croupier-init.png" alt="Il Tromba"><div id="r-msg" aria-live="polite"></div></div>
         <div id="r-storia" aria-label="Ultimi numeri usciti"></div>
         <div id="r-board" role="group" aria-label="Tavolo delle puntate"></div>
-        <div id="r-pagamenti">Pieno 35:1 · Dozzina e colonna 2:1 · Rosso/nero, pari/dispari, 1-18/19-36 1:1 · Clic destro toglie una fiche</div>
+        <div id="r-pagamenti">Vincite (posta compresa): pieno ×36 · cavallo ×18 · quartina ×9 · dozzina e colonna ×3 · rosso/nero, pari/dispari, 1-18/19-36 ×2<br>Clicca sul bordo tra due numeri per il cavallo, sull'incrocio di quattro per la quartina · clic destro toglie una fiche</div>
       </div>
     </div>
     <footer id="r-dock">

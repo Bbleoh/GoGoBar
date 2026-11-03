@@ -4,8 +4,9 @@
    usa lo stesso saldo (balance), le stesse statistiche (stats), i trofei
    (sblocca), gli effetti sonori e il salvataggio dell'account (memScrivi).
 
-   Puntate: numero pieno 35:1 · dozzina e colonna 2:1 ·
-            rosso/nero, pari/dispari, 1-18/19-36 1:1.
+   Puntate (quanto torna indietro per ogni euro puntato, posta compresa):
+     numero pieno ×36 · cavallo (2 numeri) ×18 · quartina (4 numeri) ×9 ·
+     dozzina e colonna ×3 · rosso/nero, pari/dispari, 1-18/19-36 ×2.
    Con lo zero le puntate esterne perdono (niente "la partage").
 ════════════════════════════════════════════════════════════════ */
 'use strict';
@@ -33,6 +34,17 @@ Object.assign(R_PUNTATE, {
   c2: { nome: '2ª colonna', paga: 3, vince: x => x > 0 && x % 3 === 2 },
   c3: { nome: '3ª colonna', paga: 3, vince: x => x > 0 && x % 3 === 0 },
 });
+// cavalli (due numeri vicini) e quartine (quattro numeri che si toccano in un angolo)
+function rRegistra(nums) {
+  nums = nums.slice().sort((a, b) => a - b);
+  const chiave = (nums.length === 2 ? 's' : 'q') + nums.join('_');
+  if (!R_PUNTATE[chiave]) R_PUNTATE[chiave] = {
+    nome: (nums.length === 2 ? 'il cavallo ' : 'la quartina ') + nums.join('-'),
+    paga: 36 / nums.length, vince: x => nums.includes(x), numeri: nums,
+  };
+  return chiave;
+}
+const R_INTERNE = /^[nsq]/; // pieni, cavalli e quartine; il resto sono puntate esterne
 
 let rPuntate = {};        // chiave → euro sul tavolo
 let rStoriaPuntate = [];  // per "togli l'ultima"
@@ -61,26 +73,45 @@ function rCostruisciTavolo() {
     b.setAttribute('aria-label', b.title);
     t.appendChild(b);
   };
-  cella('n0', '0', 'verde', 'grid-column:1;grid-row:1/4', 'Punta sullo 0 (paga 35 a 1)');
+  cella('n0', '0', 'verde', 'grid-column:1;grid-row:1/4', 'Punta sullo 0 (paga 36 volte la puntata)');
   for (let col = 0; col < 12; col++) {
     for (let riga = 0; riga < 3; riga++) {
       const n = col * 3 + (3 - riga);
-      cella('n' + n, n, rColore(n), `grid-column:${col + 2};grid-row:${riga + 1}`, `Punta sul ${n} (paga 35 a 1)`);
+      cella('n' + n, n, rColore(n), `grid-column:${col + 2};grid-row:${riga + 1}`, `Punta sul ${n} (paga 36 volte la puntata)`);
     }
   }
-  ['c3', 'c2', 'c1'].forEach((c, i) => cella(c, '2:1', 'fuori', `grid-column:14;grid-row:${i + 1}`, `Punta sulla ${R_PUNTATE[c].nome} (paga 2 a 1)`));
-  ['d1', 'd2', 'd3'].forEach((d, i) => cella(d, ['1ª 12', '2ª 12', '3ª 12'][i], 'fuori', `grid-column:${i * 4 + 2}/span 4;grid-row:4`, `Punta sulla ${R_PUNTATE[d].nome} (paga 2 a 1)`));
+  // zone sui bordi: a destra del numero il cavallo con quello accanto, sopra il cavallo con
+  // quello di sopra, nell'angolo in alto a destra la quartina
+  const zona = (n, nums, tipo) => {
+    const k = rRegistra(nums);
+    const z = document.createElement('span');
+    z.className = 'r-hot ' + tipo;
+    z.dataset.bet = k;
+    z.title = (nums.length === 2 ? 'Cavallo ' : 'Quartina ') + R_PUNTATE[k].numeri.join('-') +
+      ' (paga ' + R_PUNTATE[k].paga + ' volte la puntata)';
+    t.querySelector('[data-bet="n' + n + '"]').appendChild(z);
+  };
+  for (let n = 1; n <= 36; n++) {
+    const col = Math.ceil(n / 3), inAlto = n % 3 === 0;
+    if (col < 12) zona(n, [n, n + 3], 'dx');
+    if (!inAlto) zona(n, [n, n + 1], 'su');
+    if (col < 12 && !inAlto) zona(n, [n, n + 1, n + 3, n + 4], 'angolo');
+  }
+  [1, 2, 3].forEach(n => zona(n, [0, n], 'sx')); // cavalli con lo zero
+
+  ['c3', 'c2', 'c1'].forEach((c, i) => cella(c, '×3', 'fuori', `grid-column:14;grid-row:${i + 1}`, `Punta sulla ${R_PUNTATE[c].nome} (paga 3 volte la puntata)`));
+  ['d1', 'd2', 'd3'].forEach((d, i) => cella(d, ['1ª 12', '2ª 12', '3ª 12'][i], 'fuori', `grid-column:${i * 4 + 2}/span 4;grid-row:4`, `Punta sulla ${R_PUNTATE[d].nome} (paga 3 volte la puntata)`));
   [['manque', '1-18', ''], ['pari', 'Pari', ''], ['rosso', '<i class="rombo rosso"></i>', 'Rosso'],
    ['nero', '<i class="rombo nero"></i>', 'Nero'], ['dispari', 'Dispari', ''], ['passe', '19-36', '']]
     .forEach(([k, testo, nome], i) => cella(k, testo, 'fuori', `grid-column:${i * 2 + 2}/span 2;grid-row:5`,
-      `Punta su ${nome || R_PUNTATE[k].nome} (paga 1 a 1)`));
+      `Punta su ${nome || R_PUNTATE[k].nome} (paga 2 volte la puntata)`));
 
   t.addEventListener('click', e => {
-    const c = e.target.closest('.r-cell');
+    const c = e.target.closest('[data-bet]');
     if (c) rPunta(c.dataset.bet);
   });
   t.addEventListener('contextmenu', e => { // clic destro: togli una fiche da quella casella
-    const c = e.target.closest('.r-cell');
+    const c = e.target.closest('[data-bet]');
     if (!c) return;
     e.preventDefault();
     rTogliDa(c.dataset.bet);
@@ -88,9 +119,9 @@ function rCostruisciTavolo() {
 }
 
 function rDisegnaPuntate() {
-  document.querySelectorAll('#r-board .r-cell').forEach(c => {
+  document.querySelectorAll('#r-board [data-bet]').forEach(c => {
     const v = rPuntate[c.dataset.bet] || 0;
-    let f = c.querySelector('.r-fiche');
+    let f = c.querySelector(':scope > .r-fiche');
     if (!v) { if (f) f.remove(); return; }
     if (!f) { f = document.createElement('b'); f.className = 'r-fiche'; c.appendChild(f); }
     f.textContent = rBreve(v);
@@ -370,13 +401,15 @@ function rRisultato(n) {
   const esito = document.getElementById('r-esito');
   esito.textContent = n;
   esito.className = 'show ' + rColore(n);
-  document.querySelectorAll('#r-board .r-cell').forEach(c => {
-    c.classList.toggle('vince', R_PUNTATE[c.dataset.bet].vince(n));
+  document.querySelectorAll('#r-board [data-bet]').forEach(c => {
+    // le caselle vincenti si illuminano sempre, i bordi (cavalli e quartine) solo se ci avevi puntato
+    const vinta = R_PUNTATE[c.dataset.bet].vince(n);
+    c.classList.toggle('vince', vinta && (c.classList.contains('r-cell') || !!giocate[c.dataset.bet]));
   });
 
   const nome = n + ' ' + (n === 0 ? 'verde' : rColore(n));
   if (incasso > 0 && netto >= 0) {
-    rMsg(`Esce il ${nome}! Vinci ${rEuro(netto)}`, 'win'); sfxWin(); setCroupier(giocate['n' + n] ? 'festoso' : 'vincente');
+    rMsg(`Esce il ${nome}! Incassi ${rEuro(incasso)}` + (tot > 0 && netto > 0 ? ` (+${rEuro(netto)})` : ''), 'win'); sfxWin(); setCroupier(giocate['n' + n] ? 'festoso' : 'vincente');
   } else if (incasso > 0) {
     rMsg(`Esce il ${nome}. Recuperi ${rEuro(incasso)}, ma perdi ${rEuro(-netto)}`, 'push'); setCroupier('init');
   } else {
@@ -396,7 +429,7 @@ function rRisultato(n) {
     if (stats.rUltimoPieno === n + 1) sblocca('r_bis');
     stats.rUltimoPieno = n + 1;
   } else stats.rUltimoPieno = 0;
-  if (n === 0 && !pieno && Object.keys(giocate).some(k => k[0] !== 'n')) sblocca('r_zeroperso');
+  if (n === 0 && !pieno && Object.keys(giocate).some(k => !R_INTERNE.test(k))) sblocca('r_zeroperso');
   const numeriCoperti = new Set();
   Object.keys(giocate).forEach(k => { for (let x = 0; x <= 36; x++) if (R_PUNTATE[k].vince(x)) numeriCoperti.add(x); });
   if (Object.keys(giocate).filter(k => k[0] === 'n').length >= 10 && pieno) sblocca('r_tappeto');
@@ -418,7 +451,7 @@ function rRisultato(n) {
 
 function rTogliEsito() {
   document.getElementById('r-esito').className = '';
-  document.querySelectorAll('#r-board .r-cell.vince').forEach(c => c.classList.remove('vince'));
+  document.querySelectorAll('#r-board .vince').forEach(c => c.classList.remove('vince'));
 }
 
 function rDisegnaStoria() {
