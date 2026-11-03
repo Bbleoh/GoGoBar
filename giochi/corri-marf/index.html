@@ -567,19 +567,29 @@
     if (e.code === 'ArrowDown' || e.code === 'KeyS') giu(false);
   });
 
+  // telefono: il salto parte appena il dito tocca; se poi il dito scivola giù è una scivolata,
+  // e il salto appena partito da terra si annulla (Marf torna giù e scivola subito)
   var tocco = null;
   cv.addEventListener('touchstart', function (e) {
-    e.preventDefault(); var p = e.changedTouches[0];
-    tocco = { x: p.clientX, y: p.clientY, giu: false };
+    e.preventDefault(); var p = e.changedTouches[0], m = g.marf;
+    tocco = { x: p.clientX, y: p.clientY, giu: false, t: performance.now(), daTerra: stato === 'gioco' && m.aTerra && !m.corridoio, y0: m.y };
+    salta();
   }, { passive: false });
   cv.addEventListener('touchmove', function (e) {
     e.preventDefault(); if (!tocco) return; var p = e.changedTouches[0];
     var verso = document.body.classList.contains('ruota') ? tocco.x - p.clientX : p.clientY - tocco.y;   // gioco girato: "giù" va verso sinistra
-    if (!tocco.giu && verso > 30) { tocco.giu = true; giu(true); }
+    if (!tocco.giu && verso > 24) {
+      tocco.giu = true;
+      var m = g.marf;
+      if (stato === 'gioco' && tocco.daTerra && m.salti === 1 && performance.now() - tocco.t < 300) {
+        m.y = tocco.y0; m.vy = 0; m.salti = 0; m.aTerra = true;
+      }
+      giu(true);
+    }
   }, { passive: false });
   cv.addEventListener('touchend', function (e) {
     e.preventDefault(); if (!tocco) return;
-    if (tocco.giu) giu(false); else salta();
+    if (tocco.giu) giu(false);
     tocco = null;
   }, { passive: false });
   cv.addEventListener('mousedown', salta);
