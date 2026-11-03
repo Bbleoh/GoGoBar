@@ -53,6 +53,8 @@ let rFiche = 5;           // fiche selezionata
 let rGirando = false;
 let rStoria = [];         // ultimi numeri usciti
 let rUltimo = null;
+let rModo = 'pieno';      // 'pieno' | 'cavallo' | 'quartina': cosa fa un tocco su un numero
+let rPrimo = null;        // primo numero scelto per cavallo o quartina
 
 function rTotale(p) { return Object.values(p || rPuntate).reduce((a, b) => a + b, 0); }
 function rEuro(v) { return '€' + Number(v).toLocaleString('it-IT'); }
@@ -108,7 +110,10 @@ function rCostruisciTavolo() {
 
   t.addEventListener('click', e => {
     const c = e.target.closest('[data-bet]');
-    if (c) rPunta(c.dataset.bet);
+    if (!c) return;
+    const k = c.dataset.bet;
+    if (rModo !== 'pieno' && /^n\d+$/.test(k)) rTocca(+k.slice(1));
+    else rPunta(k);
   });
   t.addEventListener('contextmenu', e => { // clic destro: togli una fiche da quella casella
     const c = e.target.closest('[data-bet]');
@@ -116,6 +121,55 @@ function rCostruisciTavolo() {
     e.preventDefault();
     rTogliDa(c.dataset.bet);
   });
+}
+
+/* ── MODI: pieno, cavallo, quartina (comodi soprattutto su telefono) ──
+   Cavallo: tocchi due numeri vicini. Quartina: tocchi due numeri dello stesso
+   quadrato di quattro (meglio in diagonale). Dopo il primo tocco si illuminano
+   i numeri che puoi scegliere come secondo. */
+function rCercaPuntata(a, b) {
+  const tipo = rModo === 'cavallo' ? 's' : 'q';
+  const trovate = Object.keys(R_PUNTATE).filter(k => k[0] === tipo &&
+    R_PUNTATE[k].numeri.includes(a) && R_PUNTATE[k].numeri.includes(b));
+  return trovate.length === 1 ? trovate[0] : null;
+}
+function rScegliModo(m) {
+  if (rGirando) return;
+  rModo = m;
+  rPrimo = null;
+  document.querySelectorAll('#r-modi button').forEach(b => {
+    b.classList.toggle('attivo', b.dataset.modo === m);
+    b.setAttribute('aria-pressed', b.dataset.modo === m);
+  });
+  document.getElementById('r-board').dataset.modo = m;
+  rSegnaScelta();
+  rMsg({ pieno: 'Tocca un numero per puntarci sopra.',
+         cavallo: 'Cavallo: tocca due numeri vicini (paga ×18).',
+         quartina: 'Quartina: tocca due angoli opposti di un quadrato di quattro numeri (paga ×9).' }[m]);
+}
+function rSegnaScelta() {
+  document.querySelectorAll('#r-board .r-cell').forEach(c => {
+    const k = c.dataset.bet;
+    if (!/^n\d+$/.test(k)) return;
+    const n = +k.slice(1);
+    c.classList.toggle('scelto', n === rPrimo);
+    c.classList.toggle('bersaglio', rPrimo !== null && n !== rPrimo && !!rCercaPuntata(rPrimo, n));
+  });
+}
+function rTocca(n) {
+  if (rGirando) return;
+  if (rPrimo === null || n === rPrimo) {
+    rPrimo = rPrimo === n ? null : n;
+    rSegnaScelta();
+    if (rPrimo !== null) rMsg('Ora tocca ' + (rModo === 'cavallo' ? 'il numero accanto' : 'l\'angolo opposto') + ' (quelli illuminati).');
+    return;
+  }
+  const k = rCercaPuntata(rPrimo, n);
+  if (!k) { rPrimo = n; rSegnaScelta(); return; } // non è vicino: ricomincia da questo numero
+  rPrimo = null;
+  rSegnaScelta();
+  rPunta(k);
+  if (rPuntate[k]) rMsg('Puntato su ' + R_PUNTATE[k].nome + '.');
 }
 
 function rDisegnaPuntate() {
@@ -342,6 +396,7 @@ function rGira() {
   if (!rPreparaRuota()) return;
   startMusic();
   rGirando = true;
+  rPrimo = null; rSegnaScelta();
   balance -= tot;
   rUltime = Object.assign({}, rPuntate);
   rTogliEsito();
@@ -486,6 +541,8 @@ window.addEventListener('resize', () => {
 function rTasti(e) {
   const k = e.key.toLowerCase();
   if (/^[1-6]$/.test(e.key)) { e.preventDefault(); rScegliFiche(CHIP_VALUES[+e.key - 1]); return; }
+  const modi = { p: 'pieno', c: 'cavallo', q: 'quartina' };
+  if (modi[k]) { e.preventDefault(); rScegliModo(modi[k]); return; }
   const azioni = { enter: rGira, ' ': rGira, escape: rAnnulla, backspace: rAnnullaUltima, z: rAnnullaUltima, r: rRipeti, x: rRaddoppia };
   if (azioni[k]) { e.preventDefault(); azioni[k](); }
 }
