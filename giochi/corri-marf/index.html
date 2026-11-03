@@ -653,6 +653,7 @@
 
     g.vel = Math.min(380 + g.t * 9, 820) * (g.scatto > 0 ? 1.15 : 1);
     var dx = g.vel * dt;
+    if (palazzo && palazzo.bloccato) dx = 0;                     // contro il muro del palazzo il mondo si ferma
     g.metri += dx / 40;
     scorrimento += dx;
     g.passi += dt * (7 + g.vel / 90);
@@ -674,6 +675,7 @@
 
     // le inseguitrici restano indietro piano piano, molto di più durante lo scatto
     g.distacco = Math.min(g.distacco + (g.scatto > 0 ? 40 : 6) * dt, 260);
+    if (palazzo && palazzo.bloccato) g.distacco = Math.max(g.distacco - 70 * dt, 25);   // fermo contro il muro: le ragazze si avvicinano
 
     // ostacoli
     g.prossimo -= dt;
@@ -908,13 +910,18 @@
     var p = palazzo;
     p.x -= dx;
     var hb = { x: MARF_X - 18, w: 36 };
-    var dentroX = hb.x + hb.w > p.x + 4 && hb.x < p.x + p.w - 4;
-    if (dentroX && !p.dentro && !p.preso) {
+    var muro = hb.x + hb.w - 4;                                // x della facciata quando Marf ci sbatte contro
+    if (!p.dentro && p.x <= muro && hb.x < p.x + p.w - 4) {
       // arrivato alla facciata: entra se i piedi sono fra pavimento e soffitto del corridoio (un filo di tolleranza)
       if (m.y <= p.pav + 10 && m.y >= p.soff + 6) {
-        p.dentro = true; m.y = Math.min(m.y, p.pav); if (m.vy < 0) m.vy = 0;
+        p.dentro = true; p.bloccato = false; m.y = Math.min(m.y, p.pav); if (m.vy < 0) m.vy = 0;
       } else {
-        p.preso = true; colpito({ tipo: 'palazzo' });
+        // il palazzo è solido: Marf ci sbatte, il mondo si ferma finché non salta dentro al corridoio
+        var rientro = muro - p.x;
+        p.x = muro;
+        g.birreA.forEach(function (b) { if (b.palazzo) b.x += rientro; });
+        if (!p.bloccato) { p.bloccato = true; if (m.vy < 0) m.vy *= 0.3; }
+        if (!p.preso) { p.preso = true; colpito({ tipo: 'palazzo' }); }
       }
     }
     if (p.dentro && hb.x >= p.x + p.w - 4) {                  // uscito: si torna a correre (se è in alto si cade)
