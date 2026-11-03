@@ -8,6 +8,8 @@
   <meta property="og:title" content="Corri Marf!">
   <meta property="og:description" content="Marf corre e scappa dalle femmine. Quanto lontano arrivi?">
   <meta property="og:image" content="copertina.jpg">
+  <link rel="preload" as="image" href="marf-pezzi.webp?v=3">
+  <link rel="preload" as="image" href="ragazza-pezzi.webp?v=3">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:ital,wght@0,500;0,600;0,700;1,600;1,700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -208,7 +210,7 @@
     </div>
   </div>
   <p class="hint">Salta: spazio, ↑ o tocca lo schermo (anche due volte) · Scivola: ↓ o swipe in giù</p>
-  <audio id="musica" src="musica.mp3" loop preload="auto"></audio>
+  <audio id="musica" src="musica.mp3" loop preload="metadata"></audio>
   <audio id="musicaLobby" data-musica src="musica-lobby.mp3" loop preload="auto"></audio>
   <audio id="musicaMorte" data-musica src="musica-morte.mp3" loop preload="none"></audio>
   <audio id="musicaBoss" data-musica src="musica-boss.mp3" loop preload="none"></audio>
@@ -1469,155 +1471,8 @@
   }
 
   /* ── Marf: ricci neri, giacca nera aperta, felpa blu-grigia, jeans, sneakers ── */
-  var C = {
-    linea: '#141419', pelle: '#f3c9a3', pelleOmbra: '#dca582', capelli: '#121216',
-    giacca: '#22242c', giaccaOmbra: '#16171d', bordo: '#a3a9b3',
-    felpa: '#5f7590', felpaOmbra: '#4b5f78', jeans: '#3c5272', jeansOmbra: '#2e4060',
-    scarpa: '#18181c', suola: '#f1efe9'
-  };
-  // osso con contorno: due tratti, prima scuro e largo, poi colorato
-  function arto(punti, spessore, colore) {
-    ctx.lineCap = 'round'; ctx.lineJoin = 'round';
-    ctx.beginPath(); ctx.moveTo(punti[0][0], punti[0][1]);
-    for (var i = 1; i < punti.length; i++) ctx.lineTo(punti[i][0], punti[i][1]);
-    ctx.strokeStyle = C.linea; ctx.lineWidth = spessore + 4; ctx.stroke();
-    ctx.strokeStyle = colore; ctx.lineWidth = spessore; ctx.stroke();
-  }
-  function gambaMarf(hx, hy, coscia, stinco, ombra) {
-    var L1 = 22, L2 = 22;
-    var kx = hx + Math.sin(coscia) * L1, ky = hy + Math.cos(coscia) * L1;
-    var fx = kx + Math.sin(stinco) * L2, fy = ky + Math.cos(stinco) * L2;
-    arto([[hx, hy], [kx, ky], [fx, fy]], 12, ombra ? C.jeansOmbra : C.jeans);
-    // scarpa
-    ctx.save(); ctx.translate(fx, fy); ctx.rotate(stinco * 0.6);
-    ctx.fillStyle = C.linea; roundRect(-8, -6, 22, 12, 6); ctx.fill();
-    ctx.fillStyle = ombra ? '#0e0e11' : C.scarpa; roundRect(-6.5, -4.5, 19, 9, 4.5); ctx.fill();
-    ctx.fillStyle = C.suola; ctx.fillRect(-6, 2.5, 18, 3);
-    ctx.restore();
-  }
-  function braccioMarf(sx, sy, spalla, gomito, ombra) {
-    var L1 = 17, L2 = 16;
-    var ex = sx + Math.sin(spalla) * L1, ey = sy + Math.cos(spalla) * L1;
-    var hx = ex + Math.sin(gomito) * L2, hy = ey + Math.cos(gomito) * L2;
-    arto([[sx, sy], [ex, ey], [hx, hy]], 11, ombra ? C.giaccaOmbra : C.giacca);
-    ctx.fillStyle = C.linea; ctx.beginPath(); ctx.arc(hx, hy, 7, 0, Math.PI * 2); ctx.fill();
-    ctx.fillStyle = ombra ? C.pelleOmbra : C.pelle; ctx.beginPath(); ctx.arc(hx, hy, 5, 0, Math.PI * 2); ctx.fill();
-  }
-  function riccio(x, y, r) { ctx.moveTo(x + r, y); ctx.arc(x, y, r, 0, Math.PI * 2); }
-
-  function marf() {
-    var m = g.marf;
-    if (PEZZI.pronto) { marfNuovo(); return; }
-    if (m.botta > 0 && Math.floor(m.botta * 12) % 2 === 0) return; // lampeggia dopo una botta
-    var aTerra = m.aTerra !== false, scivola = (m.giu || m.corridoio) && aTerra;
-    var corre = stato === 'gioco' && aTerra;
-    var p = stato === 'menu' ? g.t * 9 : g.passi;
-    var s = Math.sin(p), c = Math.cos(p);
-    var salto = stato === 'gioco' && !aTerra;
-    var rimbalzo = corre ? Math.abs(c) * 4 : 0;
-
-    ctx.save();
-    ctx.translate(MARF_X, m.y);
-    ctx.translate(0, -rimbalzo);
-    if (!PEZZI.pronto) ctx.scale(0.92, 0.92);
-    var anca = PEZZI.pronto ? -GAMBA_TOT * K : -44, spalla = -78;
-    if (scivola) { ctx.translate(-10, PEZZI.pronto ? -22 : -14); ctx.rotate(-1.2); ctx.translate(0, -anca); } // scivolata: ruota attorno all'anca, gambe avanti
-
-    // pose
-    var cA, sA, cB, sB, bA, gA, bB, gB;
-    if (salto) { cA = 1.1; sA = -0.2; cB = -0.5; sB = -1.3; bA = -2.3; gA = -1.9; bB = 1.2; gB = 2.0; }
-    else if (scivola) { cA = 0.4; sA = 0.35; cB = 0.3; sB = 0.5; bA = 0.3; gA = 0.6; bB = 3.0; gB = 2.8; }
-    else if (corre || stato === 'menu') {
-      var amp = PEZZI.pronto ? 0.68 : 0.9, ampB = PEZZI.pronto ? 0.85 : 1.1; // proporzioni vere: passo più corto
-      cA = s * amp; sA = cA - Math.max(0, -c) * 1.4 - 0.3;
-      cB = -s * amp; sB = cB - Math.max(0, c) * 1.4 - 0.3;
-      bA = -s * ampB; gA = bA + 1.6; bB = s * ampB; gB = bB + 1.6;
-    } else { cA = 0.15; sA = 0; cB = -0.15; sB = -0.1; bA = -0.3; gA = 0.8; bB = 0.3; gB = 1.2; }
-
-    {
-
-    // dietro: gamba e braccio lontani
-    gambaMarf(-2, anca, cB, sB, true);
-    braccioMarf(-4, spalla + 4, bB, gB, true);
-
-    // giacca: falda posteriore che svolazza
-    var vento = corre ? Math.sin(p * 2) * 3 : 0;
-    ctx.fillStyle = C.linea;
-    ctx.beginPath(); ctx.moveTo(-14, spalla); ctx.lineTo(-24 - vento, anca + 6); ctx.lineTo(-6, anca + 2); ctx.closePath(); ctx.fill();
-    ctx.fillStyle = C.giacca;
-    ctx.beginPath(); ctx.moveTo(-12, spalla + 2); ctx.lineTo(-21 - vento, anca + 4); ctx.lineTo(-6, anca); ctx.closePath(); ctx.fill();
-
-    // gamba vicina
-    gambaMarf(3, anca, cA, sA, false);
-
-    // busto: felpa
-    ctx.fillStyle = C.linea; roundRect(-16, spalla - 4, 32, 42, 11); ctx.fill();
-    ctx.fillStyle = C.felpa; roundRect(-13.5, spalla - 1.5, 27, 37, 9); ctx.fill();
-    ctx.fillStyle = C.felpaOmbra; ctx.fillRect(-13.5, anca - 8, 27, 4); // tasca/bordo
-    // stampa "Brooklyn"
-    ctx.fillStyle = '#e9e6df'; ctx.fillRect(-2, spalla + 10, 11, 12);
-    ctx.fillStyle = '#4a4a50'; ctx.fillRect(0, spalla + 12, 2, 10); ctx.fillRect(5, spalla + 12, 2, 10); ctx.fillRect(-1, spalla + 13, 9, 2);
-    // lacci del cappuccio
-    ctx.strokeStyle = '#d7dbe1'; ctx.lineWidth = 1.5;
-    ctx.beginPath(); ctx.moveTo(4, spalla + 2); ctx.lineTo(3, spalla + 11); ctx.moveTo(9, spalla + 2); ctx.lineTo(10, spalla + 10); ctx.stroke();
-    // giacca aperta, pannello davanti con bordo grigio
-    ctx.fillStyle = C.linea;
-    ctx.beginPath(); ctx.moveTo(-17, spalla - 3); ctx.lineTo(-2, spalla - 3); ctx.lineTo(-4, anca + 4); ctx.lineTo(-19, anca + 2); ctx.closePath(); ctx.fill();
-    ctx.fillStyle = C.giacca;
-    ctx.beginPath(); ctx.moveTo(-15, spalla - 1); ctx.lineTo(-4, spalla - 1); ctx.lineTo(-6, anca + 2); ctx.lineTo(-17, anca); ctx.closePath(); ctx.fill();
-    ctx.strokeStyle = C.bordo; ctx.lineWidth = 1.6;
-    ctx.beginPath(); ctx.moveTo(-4.5, spalla); ctx.lineTo(-6.5, anca + 1); ctx.stroke();
-    // cappuccio dietro al collo
-    ctx.fillStyle = C.linea; ctx.beginPath(); ctx.ellipse(-6, spalla - 3, 12, 7, -0.3, 0, Math.PI * 2); ctx.fill();
-    ctx.fillStyle = C.felpa; ctx.beginPath(); ctx.ellipse(-6, spalla - 3, 10, 5, -0.3, 0, Math.PI * 2); ctx.fill();
-
-    // testa
-    var tx = 4, ty = spalla - 24;
-    ctx.save(); ctx.translate(tx, ty); ctx.rotate(salto ? -0.1 : (corre ? 0.08 : 0));
-    // collo
-    ctx.fillStyle = C.pelleOmbra; ctx.fillRect(-4, 12, 9, 10);
-    // faccia
-    ctx.fillStyle = C.linea; ctx.beginPath(); ctx.ellipse(0, 0, 21, 22, 0, 0, Math.PI * 2); ctx.fill();
-    ctx.fillStyle = C.pelle; ctx.beginPath(); ctx.ellipse(0, 0, 19, 20, 0, 0, Math.PI * 2); ctx.fill();
-    // orecchio
-    ctx.fillStyle = C.pelleOmbra; ctx.beginPath(); ctx.ellipse(-8, 2, 4, 5.5, 0, 0, Math.PI * 2); ctx.fill();
-    // occhio grande in stile anime, sguardo determinato
-    ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.ellipse(9, -1, 5, 6.5, 0, 0, Math.PI * 2); ctx.fill();
-    ctx.fillStyle = '#2b1d14'; ctx.beginPath(); ctx.ellipse(10, 0, 3.6, 5, 0, 0, Math.PI * 2); ctx.fill();
-    ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(11.2, -2, 1.4, 0, Math.PI * 2); ctx.fill();
-    // sopracciglio deciso
-    ctx.strokeStyle = C.capelli; ctx.lineWidth = 2.6; ctx.lineCap = 'round';
-    ctx.beginPath(); ctx.moveTo(4, -10); ctx.lineTo(14, -8); ctx.stroke();
-    // guancia e bocca aperta
-    ctx.fillStyle = 'rgba(236,120,110,.35)'; ctx.beginPath(); ctx.ellipse(8, 8, 4, 2.4, 0, 0, Math.PI * 2); ctx.fill();
-    ctx.fillStyle = '#6b2420'; ctx.beginPath(); ctx.ellipse(15, 11, 3.2, 2.2 + (corre ? Math.abs(s) * 1.4 : 1), 0.2, 0, Math.PI * 2); ctx.fill();
-    // goccia di sudore
-    ctx.fillStyle = '#9fd3ff'; ctx.beginPath(); ctx.arc(-14, -4 + (g.t * 30 % 12), 2.6, 0, Math.PI * 2); ctx.fill();
-    // ricci: grappolo di cerchi con contorno
-    var mossa = corre ? Math.sin(p * 2) * 1.5 : 0;
-    var R = [[-14, -10, 8], [-8, -18, 9], [1, -21, 9], [10, -19, 8], [17, -13, 6], [-17, 0, 7], [-12, 7, 5], [-3, -12, 6], [7, -12, 5], [14, -7, 4]];
-    ctx.fillStyle = C.linea; ctx.beginPath();
-    R.forEach(function (r) { riccio(r[0] - mossa * 0.4, r[1] + (r[0] < 0 ? mossa : 0), r[2] + 2); }); ctx.fill();
-    ctx.fillStyle = C.capelli; ctx.beginPath();
-    R.forEach(function (r) { riccio(r[0] - mossa * 0.4, r[1] + (r[0] < 0 ? mossa : 0), r[2]); }); ctx.fill();
-    ctx.strokeStyle = '#3a3a46'; ctx.lineWidth = 1.2;
-    R.forEach(function (r, i) { if (i % 2) { ctx.beginPath(); ctx.arc(r[0] - mossa * 0.4, r[1], r[2] * 0.55, 3.6, 5.4); ctx.stroke(); } });
-    ctx.restore();
-
-    // braccio vicino davanti a tutto
-    braccioMarf(2, spalla + 4, bA, gA, false);
-    }
-    ctx.restore();
-
-    if (g.scatto > 0) { // scie dello scatto
-      ctx.strokeStyle = 'rgba(228,179,60,.6)'; ctx.lineWidth = 3;
-      for (var i = 0; i < 3; i++) { ctx.beginPath(); ctx.moveTo(MARF_X - 30 - i * 12, m.y - 30 - i * 20); ctx.lineTo(MARF_X - 70 - i * 12, m.y - 30 - i * 20); ctx.stroke(); }
-    }
-    if (corre && Math.floor(g.passi * 2) % 2 === 0) { // nuvoletta di polvere
-      ctx.fillStyle = 'rgba(241,239,233,.35)';
-      ctx.beginPath(); ctx.arc(MARF_X - 22, TERRA - 5, 5, 0, Math.PI * 2); ctx.arc(MARF_X - 30, TERRA - 8, 4, 0, Math.PI * 2); ctx.fill();
-    }
-  }
+  // Marf si disegna solo col rig dei pezzi: finché il foglio non è caricato non compare niente
+  function marf() { if (PEZZI.pronto) marfNuovo(); }
   /* ── Personaggi a pezzi: i fogli disegnati da Leo, scontornati e montati su uno scheletro ──
      I dati vengono dallo script che taglia i fogli: per ogni pezzo il rettangolo nell'atlante
      (scala 0.25), l'origine e il perno in pixel del foglio originale (girato verso destra),
@@ -1633,7 +1488,6 @@
     RIG[nome] = r;
   });
   var PEZZI = RIG.marf;
-  var ATL_S = 0.25;
 
   function pezzoR(R, nome, dietro, ang) {
     var pt = R.d.parti[nome], at = R.d.atlante[nome + (dietro ? 'Dietro' : '')], k = R.K;
@@ -2007,18 +1861,12 @@
       ctx.beginPath(); ctx.arc(p.x, p.y, p.r * (1 + u * 1.2), 0, TAU); ctx.fill();
     });
   }
-  var GAMBA_TOT = PEZZI.gamba, K = PEZZI.K;
-
-  function gamba(x, y, ang) {
-    ctx.beginPath(); ctx.moveTo(x, y);
-    ctx.lineTo(x + Math.sin(ang) * 36, y + Math.cos(ang) * 36); ctx.stroke();
-  }
 
   // Le tre inseguitrici: per ora la stessa ragazza ripetuta (poi ne arrivano altre)
   var RAGAZZE = [
-    { capelli: '#f2c94c', vestito: '#e05d8c', rig: 'ragazza', scala: 1 },
-    { capelli: '#3b2a1c', vestito: '#9b5de5', rig: 'ragazza', scala: 0.96 },
-    { capelli: '#c0392b', vestito: '#e4b33c', rig: 'ragazza', scala: 1.03 }
+    { rig: 'ragazza', scala: 1 },
+    { rig: 'ragazza', scala: 0.96 },
+    { rig: 'ragazza', scala: 1.03 }
   ];
   function inseguitrici() {
     if (stato === 'menu') return;
@@ -2034,32 +1882,11 @@
         ctx.translate(0, TERRA - y);                    // il rimbalzo lo fa già lo scheletro
         ctx.scale(r.scala, r.scala);
         personaggio(R, gr.anca, gr.posa);
-        ctx.fillStyle = '#ff5c8a'; cuore(16, -112 - Math.abs(Math.sin(fase * 0.5 + i)) * 10, 7);
-      } else {
-        ctx.lineCap = 'round';
-        ctx.strokeStyle = '#e8b98f'; ctx.lineWidth = 7;
-        var a = Math.sin(fase + i * 1.3) * 0.8;
-        gamba(-3, -30, a); gamba(3, -30, -a);
-        ctx.fillStyle = r.vestito;
-        ctx.beginPath(); ctx.moveTo(-18, -30); ctx.lineTo(18, -30); ctx.lineTo(10, -70); ctx.lineTo(-10, -70); ctx.closePath(); ctx.fill();
-        ctx.strokeStyle = '#e8b98f'; ctx.lineWidth = 6;
-        ctx.beginPath(); ctx.moveTo(6, -64); ctx.lineTo(30, -76 + Math.sin(fase + i) * 6); ctx.stroke();
-        ctx.fillStyle = r.capelli; ctx.beginPath(); ctx.arc(-4, -86, 21, 0, Math.PI * 2); ctx.fill();
-        ctx.fillRect(-24, -88, 14, 34);
-        ctx.fillStyle = '#e8b98f'; ctx.beginPath(); ctx.arc(2, -86, 16, 0, Math.PI * 2); ctx.fill();
-        ctx.fillStyle = '#111'; ctx.beginPath(); ctx.arc(8, -89, 2.5, 0, Math.PI * 2); ctx.fill();
-        ctx.fillStyle = '#d2452f'; ctx.beginPath(); ctx.arc(11, -79, 3.5, 0, Math.PI * 2); ctx.fill();
-        ctx.fillStyle = '#ff5c8a'; cuore(14, -112 - Math.abs(Math.sin(fase * 0.5 + i)) * 10, 7);
+        cuore(16, -112 - Math.abs(Math.sin(fase * 0.5 + i)) * 10, '#ff5c8a');
       }
       ctx.restore();
       if (g.fumetto && g.fumetto.chi === i && stato === 'gioco') fumetto(x, y - 120, g.fumetto.testo);
     }
-  }
-  function cuore(x, y, s) {
-    ctx.beginPath(); ctx.moveTo(x, y + s * 0.9);
-    ctx.bezierCurveTo(x - s * 1.6, y - s * 0.2, x - s * 0.6, y - s * 1.4, x, y - s * 0.4);
-    ctx.bezierCurveTo(x + s * 0.6, y - s * 1.4, x + s * 1.6, y - s * 0.2, x, y + s * 0.9);
-    ctx.fill();
   }
   function fumetto(x, y, testo) {
     ctx.font = 'italic 700 16px "Chakra Petch", sans-serif';
@@ -2130,11 +1957,6 @@
     hudBoss();
   }
 
-  function roundRect(x, y, w, h, r) {
-    ctx.beginPath();
-    ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r);
-    ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath();
-  }
 
   /* ── Ciclo ── */
   var ultimo = performance.now();
