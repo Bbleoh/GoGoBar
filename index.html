@@ -62,6 +62,15 @@
       transition: background .2s, color .2s;
     }
     .nav-links a:hover { background: var(--raised); color: var(--gold-2); }
+    .nav-links { align-items: center; }
+    .nav-account {
+      font-family: var(--mono); font-size: .72rem; letter-spacing: .06em;
+      color: var(--gold-2); background: none; cursor: pointer;
+      border: 1px solid rgba(228,179,60,.45); border-radius: 999px; padding: .45rem .8rem;
+      max-width: 11rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: none;
+      transition: background .2s;
+    }
+    .nav-account:hover { background: rgba(228,179,60,.1); }
 
     /* ── HERO ── */
     .hero {
@@ -296,6 +305,9 @@
       .rail { grid-auto-columns: 78%; }
       .brand { font-size: 1.55rem; }
       .nav-links a { font-size: .66rem; }
+      .nav-account { font-size: .9rem; padding: .3rem .5rem; }
+      .nav-account .gga-txt { display: none; }          /* sul telefono resta solo 👤 */
+      .nav-account.gga-dentro { background: rgba(228,179,60,.18); }
     }
   </style>
 </head>
@@ -307,6 +319,7 @@
     <a href="#video">Video</a>
     <a href="#giochi">Giochi</a>
     <a href="#musica">Musica</a>
+    <button type="button" class="nav-account" data-gogobar-account hidden>👤 Entra</button>
   </div>
 </nav>
 
@@ -374,9 +387,12 @@
 <noscript><p style="padding:2rem;font-family:monospace">Per vedere i contenuti serve JavaScript attivo.</p></noscript>
 
 <script src="contenuti.js?v=11"></script>
+<!-- account GoGoBar senza password (👤 nel menu in alto) -->
+<script src="js/account.js?v=1"></script>
+<script src="js/account-ui.js?v=1"></script>
 <!-- classifiche dei giochi: se un file non c'è ancora, la sua scheda invita a giocare -->
-<script src="giochi/bisca-del-tromba/classifica.js?v=3" onerror="window.BiscaClassifica = null"></script>
-<script src="giochi/corri-marf/classifica.js?v=1" onerror="window.CorriMarfClassifica = null"></script>
+<script src="giochi/bisca-del-tromba/classifica.js?v=4" onerror="window.BiscaClassifica = null"></script>
+<script src="giochi/corri-marf/classifica.js?v=2" onerror="window.CorriMarfClassifica = null"></script>
 <script>
 /*
  * Costruisce la homepage a partire da CONTENUTI (vedi contenuti.js).
@@ -519,7 +535,7 @@
       { gioco: 'La Bisca der Tromba', titolo: '🏆 I più lerci di GoGoBar', api: 'BiscaClassifica',
         link: BISCA, cta: 'Siediti al tavolo', punti: n => '€' + n.toLocaleString('it-IT') },
       { gioco: 'Corri Marf!', titolo: '🏃 I più veloci a scappare', api: 'CorriMarfClassifica',
-        link: 'giochi/corri-marf/', cta: 'Corri anche tu', punti: n => n.toLocaleString('it-IT') + ' pt' },
+        link: 'giochi/corri-marf/', cta: 'Corri anche tu', punti: n => n.toLocaleString('it-IT') + ' m' },
     ];
     const box = el('div', 'card board');
     const testa = el('div', 'board-head');

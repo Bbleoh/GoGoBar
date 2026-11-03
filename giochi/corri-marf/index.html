@@ -239,7 +239,8 @@
   <audio id="musicaMorte" data-musica src="musica-morte.mp3" loop preload="none"></audio>
   <audio id="musicaBoss" data-musica src="musica-boss.mp3" loop preload="none"></audio>
 
-<script src="classifica.js?v=2" onerror="window.CorriMarfClassifica = null"></script>
+<script src="../../js/account.js?v=1"></script>
+<script src="classifica.js?v=3" onerror="window.CorriMarfClassifica = null"></script>
 <script>
 (function () {
   'use strict';
@@ -278,6 +279,10 @@
   function giocatori() { try { var x = JSON.parse(leggi('giocatori', '{}')); return x && typeof x === 'object' ? x : {}; } catch (e) { return {}; } }
   function salvaGiocatori(x) { scrivi('giocatori', JSON.stringify(x)); }
   var giocatore = leggi('nome', '');
+  // con un account GoGoBar (👤 nella home) corre sempre il nome dell'account
+  var ACC = window.GoGoAccount && window.GoGoAccount.attivo ? window.GoGoAccount : null;
+  function nomeAccount() { var s = ACC && ACC.stato(); return s && s.account ? s.account.nome : ''; }
+  if (nomeAccount()) giocatore = nomeAccount();
   (function () {                       // migra il vecchio record unico sul nome salvato
     var vecchio = +leggi('record', 0) || 0, tutti = giocatori();
     if (giocatore && !tutti[chiaveNome(giocatore)]) { tutti[chiaveNome(giocatore)] = { nome: giocatore, record: vecchio }; salvaGiocatori(tutti); }
@@ -286,7 +291,38 @@
   function datiDi(nome) { var a = giocatori()[chiaveNome(nome)] || {}; return { canne: +a.canne || 0, upg: a.upg || {} }; }
   function salvaDati(nome, f) {
     var tutti = giocatori(), k = chiaveNome(nome), a = tutti[k] || { nome: nome, record: 0 };
-    a.canne = +a.canne || 0; a.upg = a.upg || {}; f(a); tutti[k] = a; salvaGiocatori(tutti);
+    a.canne = +a.canne || 0; a.upg = a.upg || {}; f(a); a.aggiornato = new Date().toISOString();
+    tutti[k] = a; salvaGiocatori(tutti); spedisci();
+  }
+  /* ── Portafoglio online: corrimarf/giocatori su Firebase (classifica.js); localStorage fa da cache ──
+     Vince la copia aggiornata più di recente. Se il nome è di un account, scrivono solo i suoi dispositivi. */
+  var syncTimer = null, scaricati = {};
+  function spedisci(subito) {
+    var C = window.CorriMarfClassifica;
+    if (!C || !C.attiva || !C.salvaGiocatore || !giocatore) return;
+    clearTimeout(syncTimer); syncTimer = null;
+    var nome = giocatore;
+    function vai() {
+      syncTimer = null;
+      var a = giocatori()[chiaveNome(nome)] || {};
+      C.salvaGiocatore(nome, { canne: +a.canne || 0, upg: a.upg || {}, record: +a.record || 0 }, !!subito).catch(function () {});
+    }
+    if (subito) vai(); else syncTimer = setTimeout(vai, 800);
+  }
+  window.addEventListener('pagehide', function () { if (syncTimer) spedisci(true); });
+  function scaricaDati(nome) {
+    var C = window.CorriMarfClassifica, k = chiaveNome(nome);
+    if (!C || !C.attiva || !C.caricaGiocatore || !nome || scaricati[k]) return;
+    scaricati[k] = true;
+    C.caricaGiocatore(nome).then(function (r) {
+      var tutti = giocatori(), a = tutti[k] || { nome: nome, record: 0 };
+      if (r && (r.aggiornato || '') > (a.aggiornato || '')) {
+        a.canne = r.canne; a.upg = r.upg; a.aggiornato = r.aggiornato; tutti[k] = a; salvaGiocatori(tutti);
+        if (chiaveNome(giocatore) === k && !document.getElementById('market').hidden) disegnaMarket();
+      } else if ((+a.canne || Object.keys(a.upg || {}).length) && (!r || (a.aggiornato || '') > (r.aggiornato || ''))) {
+        if (chiaveNome(giocatore) === k) spedisci();
+      }
+    }, function () { scaricati[k] = false; });
   }
   function aggiungiCanne(nome, n) { if (nome) salvaDati(nome, function (a) { a.canne += n; }); }
   function livello(id) { return giocatore ? +datiDi(giocatore).upg[id] || 0 : 0; }
@@ -354,18 +390,23 @@
     if (punti) a.record = Math.max(+a.record || 0, punti);
     tutti[k] = a; salvaGiocatori(tutti);
     giocatore = a.nome; record = +a.record || 0; scrivi('nome', giocatore);
+    scaricaDati(giocatore);
     aggiornaChi();
   }
   function aggiornaChi() {
     var chi = document.getElementById('chiCorre');
     chi.textContent = '';
-    if (giocatore) { chi.append('Corre '); chi.append(testo('b', giocatore)); chi.append(' · record ' + record.toLocaleString('it-IT') + ' m'); }
+    var conAccount = !!nomeAccount();
+    if (giocatore) { chi.append('Corre '); chi.append(testo('b', giocatore)); chi.append((conAccount ? ' (account GoGoBar)' : '') + ' · record ' + record.toLocaleString('it-IT') + ' m'); }
     else chi.textContent = 'Chi corre? Scegli il tuo nome o scrivine uno nuovo.';
+    nomeMenu.hidden = conAccount;
     document.getElementById('cambia').hidden = false;
+    document.getElementById('cambia').textContent = conAccount ? 'Torna alla lobby' : 'Cambia giocatore';
     disegnaGiocatori();
   }
   function disegnaGiocatori() {
     var box = document.getElementById('giocatori'), tutti = {}, loc = giocatori();
+    if (nomeAccount()) { box.hidden = true; return; }   // con l'account non si cambia giocatore
     var letta = API && API.letta;
     Object.keys(loc).forEach(function (k) { tutti[k] = { nome: loc[k].nome || k, punti: letta ? 0 : +loc[k].record || 0 }; });
     Object.keys(online).forEach(function (k) { tutti[k] = { nome: online[k].nome, punti: online[k].punti }; });
@@ -428,7 +469,7 @@
     });
   }
   function provaAvvio() {
-    var n = nomeMenu.value.trim();
+    var n = nomeAccount() ? '' : nomeMenu.value.trim();
     notaMenu.textContent = '';
     if (n) {
       if (n.length > 20) { notaMenu.textContent = 'Max 20 caratteri.'; return; }
@@ -449,6 +490,14 @@
   document.getElementById('riprova').addEventListener('click', inizia);
   document.getElementById('cambia').addEventListener('click', cambiaGiocatore);
   aggiornaChi(); caricaOnline();
+  if (giocatore) scaricaDati(giocatore);
+  if (ACC) {                           // l'account si conferma (o cambia) dopo il controllo online
+    var seguiAccount = function () {
+      var n = nomeAccount();
+      if (n && chiaveNome(n) !== chiaveNome(giocatore)) scegli(n); else aggiornaChi();
+    };
+    ACC.pronto.then(seguiAccount); ACC.suCambio(seguiAccount);
+  }
 
 
   /* ── Market: upgrade comprati con le canne del portafoglio ── */

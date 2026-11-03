@@ -29,13 +29,28 @@
     return nome.trim().toLowerCase().replace(/[.$#\[\]\/\s]+/g, '_');
   }
 
+  // Le scritture portano il token dell'account GoGoBar (js/account.js), se c'è:
+  // un nome preso da un account si può scrivere solo dai suoi dispositivi.
+  function conAuth(url, opzioni) {
+    var metodo = (opzioni && opzioni.method) || 'GET';
+    if (metodo === 'GET' || !window.GoGoAccount || !window.GoGoAccount.attivo) return Promise.resolve(url);
+    return window.GoGoAccount.token().then(function (t) {
+      return t ? url + (url.indexOf('?') < 0 ? '?' : '&') + 'auth=' + encodeURIComponent(t) : url;
+    }, function () { return url; });
+  }
+
   function richiesta(url, opzioni) {
+    return conAuth(url, opzioni).then(function (u) { return richiestaDiretta(u, opzioni); });
+  }
+
+  function richiestaDiretta(url, opzioni) {
     var ctrl = typeof AbortController !== 'undefined' ? new AbortController() : null;
     var timer = ctrl ? setTimeout(function () { ctrl.abort(); }, TIMEOUT_MS) : null;
     opzioni = opzioni || {};
     if (ctrl) opzioni.signal = ctrl.signal;
     return fetch(url, opzioni).then(function (r) {
       if (timer) clearTimeout(timer);
+      if (r.status === 401 || r.status === 403) throw new Error('Questo nome è di un account GoGoBar: per salvarci sopra entra con il tuo account dalla home.');
       if (!r.ok) throw new Error('Errore classifica (' + r.status + ')');
       return r.json();
     }, function (e) {

@@ -1,0 +1,144 @@
+{
+  "rules": {
+    "bisca": {
+      "classifica": {
+        ".read": true,
+        "$k": {
+          ".write": "newData.exists() && (!root.child('nomi/' + $k).exists() || (auth != null && root.child('account/' + root.child('nomi/' + $k).val() + '/dispositivi/' + auth.uid).exists()))",
+          ".validate": "newData.hasChildren(['nome','punti','data']) && newData.child('nome').isString() && newData.child('nome').val().length <= 20 && newData.child('punti').isNumber() && newData.child('punti').val() >= 0 && newData.child('punti').val() <= 10000000 && (!data.exists() || newData.child('punti').val() > data.child('punti').val())"
+        }
+      },
+      "giocatori": {
+        ".read": true,
+        "$k": {
+          "nome": {
+            ".write": "(!root.child('nomi/' + $k).exists() || (auth != null && root.child('account/' + root.child('nomi/' + $k).val() + '/dispositivi/' + auth.uid).exists()))",
+            ".validate": "newData.isString() && newData.val().length <= 20"
+          },
+          "saldo": {
+            ".write": "(!root.child('nomi/' + $k).exists() || (auth != null && root.child('account/' + root.child('nomi/' + $k).val() + '/dispositivi/' + auth.uid).exists()))",
+            ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 100000000"
+          },
+          "ultimaPuntata": {
+            ".write": "(!root.child('nomi/' + $k).exists() || (auth != null && root.child('account/' + root.child('nomi/' + $k).val() + '/dispositivi/' + auth.uid).exists()))",
+            ".validate": "newData.isNumber()"
+          },
+          "aggiornato": {
+            ".write": "(!root.child('nomi/' + $k).exists() || (auth != null && root.child('account/' + root.child('nomi/' + $k).val() + '/dispositivi/' + auth.uid).exists()))",
+            ".validate": "newData.isString()"
+          },
+          "stats": {
+            ".write": "(!root.child('nomi/' + $k).exists() || (auth != null && root.child('account/' + root.child('nomi/' + $k).val() + '/dispositivi/' + auth.uid).exists()))",
+            "$s": {
+              ".validate": "newData.isNumber()"
+            }
+          },
+          "trofei": {
+            "$t": {
+              ".write": "newData.exists() && (!root.child('nomi/' + $k).exists() || (auth != null && root.child('account/' + root.child('nomi/' + $k).val() + '/dispositivi/' + auth.uid).exists()))",
+              ".validate": "newData.isString() && newData.val().length <= 30"
+            }
+          }
+        }
+      }
+    },
+    "corrimarf": {
+      "classifica": {
+        ".read": true,
+        "$giocatore": {
+          ".write": "newData.exists() && (!root.child('nomi/' + $giocatore).exists() || (auth != null && root.child('account/' + root.child('nomi/' + $giocatore).val() + '/dispositivi/' + auth.uid).exists()))",
+          ".validate": "newData.hasChildren(['nome', 'punti']) && newData.child('nome').isString() && newData.child('nome').val().length > 0 && newData.child('nome').val().length <= 20 && newData.child('punti').isNumber() && newData.child('punti').val() >= 0 && newData.child('punti').val() <= 1000000 && (!data.exists() || newData.child('punti').val() > data.child('punti').val())"
+        }
+      },
+      "giocatori": {
+        ".read": true,
+        "$g": {
+          ".write": "newData.exists() && (!root.child('nomi/' + $g).exists() || (auth != null && root.child('account/' + root.child('nomi/' + $g).val() + '/dispositivi/' + auth.uid).exists()))",
+          "nome": {
+            ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 20"
+          },
+          "canne": {
+            ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 10000000"
+          },
+          "record": {
+            ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 1000000"
+          },
+          "aggiornato": {
+            ".validate": "newData.isString()"
+          },
+          "upg": {
+            "$u": {
+              ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 10"
+            }
+          },
+          "$altro": {
+            ".validate": false
+          }
+        }
+      }
+    },
+    "account": {
+      "$id": {
+        ".read": "auth != null && data.child('dispositivi/' + auth.uid).exists()",
+        ".write": "auth != null && (data.child('dispositivi/' + auth.uid).exists() || (!data.exists() && $id == auth.uid && newData.child('dispositivi/' + auth.uid).exists()))",
+        "nome": {
+          ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 20"
+        },
+        "creato": {
+          ".validate": "newData.isNumber()"
+        },
+        "dispositivi": {
+          "$uid": {
+            ".write": "auth != null && $uid == auth.uid && !data.exists() && newData.child('codice').isString() && root.child('abbinamenti/' + newData.child('codice').val() + '/account').val() == $id && root.child('abbinamenti/' + newData.child('codice').val() + '/creato').val() + 300000 > now",
+            ".validate": "newData.hasChildren(['nome', 'data'])",
+            "nome": {
+              ".validate": "newData.isString() && newData.val().length <= 40"
+            },
+            "data": {
+              ".validate": "newData.isNumber()"
+            },
+            "codice": {
+              ".validate": "newData.isString() && newData.val().length == 6"
+            },
+            "$altro": {
+              ".validate": false
+            }
+          }
+        },
+        "$altro": {
+          ".validate": false
+        }
+      }
+    },
+    "uid2account": {
+      "$uid": {
+        ".read": "auth != null && auth.uid == $uid",
+        ".write": "auth != null && auth.uid == $uid && (!newData.exists() || root.child('account/' + newData.val() + '/dispositivi/' + auth.uid).exists())",
+        ".validate": "newData.isString()"
+      }
+    },
+    "nomi": {
+      ".read": true,
+      "$k": {
+        ".write": "auth != null && (!data.exists() || root.child('account/' + data.val() + '/dispositivi/' + auth.uid).exists()) && (!newData.exists() || root.child('account/' + newData.val() + '/dispositivi/' + auth.uid).exists())",
+        ".validate": "newData.isString()"
+      }
+    },
+    "abbinamenti": {
+      "$c": {
+        ".read": "auth != null",
+        ".write": "auth != null && ((!data.exists() && newData.exists() && root.child('account/' + newData.child('account').val() + '/dispositivi/' + auth.uid).exists()) || (data.exists() && !newData.exists() && (root.child('account/' + data.child('account').val() + '/dispositivi/' + auth.uid).exists() || data.child('creato').val() + 300000 < now)))",
+        ".validate": "$c.length == 6 && newData.hasChildren(['account', 'creato']) && newData.child('account').isString() && newData.child('creato').val() == now",
+        "account": {
+          ".validate": "newData.isString()"
+        },
+        "creato": {
+          ".validate": "newData.isNumber()"
+        },
+        "$altro": {
+          ".validate": false
+        }
+      }
+    }
+  }
+}
