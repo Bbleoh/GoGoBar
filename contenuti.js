@@ -62,6 +62,7 @@ const CONTENUTI = {
     {
       playlist: 'Memozzi',
       video: [
+        { titolo: 'MEMOZZI',                  youtube: '2k0ky_m0tAY' },
         { titolo: 'MEMOZZI 2',                youtube: 'UoCs9tTNp_0' },
         { titolo: 'AMICI E MARE (MEMOZZI 3)', youtube: 'xsMzE0SXMLE' },
       ],
@@ -70,6 +71,7 @@ const CONTENUTI = {
       playlist: 'Kasti',
       video: [
         { titolo: 'KAST1', youtube: '5yH6RUK1ITs' },
+        { titolo: 'K4STI', youtube: '5xMz43UlNfc' },
       ],
     },
     {
@@ -83,7 +85,15 @@ const CONTENUTI = {
     {
       playlist: "D'autore",
       video: [
-        { titolo: 'BOOM BOOM CRASH', youtube: 'HT-TgkoFppo' },
+        { titolo: 'BOOM BOOM CRASH',     youtube: 'HT-TgkoFppo' },
+        { titolo: 'RESIDENT CREVIL',     youtube: '3_oo7r0jScw' },
+        { titolo: 'SOLVAY DI ROSIGNANO', youtube: 'l0CBPRt9ULA' },
+      ],
+    },
+    {
+      playlist: 'Videoclip',
+      video: [
+        { titolo: 'SONO STATO IO', youtube: '6TXW76pfs5c' },
       ],
     },
   ],
