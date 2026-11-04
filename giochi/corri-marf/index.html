@@ -1264,7 +1264,8 @@
       if (b.calma > 0) b.calma -= dt;
       b.giro8 = (b.giro8 || 0) + dt * (0.7 + b.fn * 0.25);
       var tx, mira;
-      if (b.dietro) { tx = 120 + Math.sin(b.giro8) * 25; mira = 245 + Math.sin(b.giro8 * 2) * 8; }
+      if (b.dietro) { tx = 55 + Math.sin(b.giro8) * 22;   // ultima fase: più a sinistra, mezza fuori dallo schermo
+        mira = 245 + Math.sin(b.giro8 * 2) * 8; }
       else { tx = BOSS_X - 20 + Math.sin(b.giro8) * 60; mira = QUOTE[b.quota] + Math.sin(b.giro8 * 2) * 10 + Math.sin(g.t * 1.7) * 5; }
       var kx = 3, ky = 5, libera = false;     // libera: la posizione la decide l'attacco, niente inseguimento morbido
       b.trema = 0; b.stira = 0; g.allarme = 0; b.ombra = null; b.oro = 0;
@@ -1360,7 +1361,7 @@
             // Esce dall'altra parte e rientra dal suo lato; a volte ricarica subito.
             mira = CARICA_Y; ky = 9;
             if (!a.corsa) {
-              tx = dir < 0 ? W - 90 : 40; kx = 6; b.trema = 1; g.allarme = Math.min(1, a.t / a.avviso);
+              tx = dir < 0 ? W - 90 : 0; kx = 6; b.trema = 1; g.allarme = Math.min(1, a.t / a.avviso);
               if (a.t >= a.avviso) { a.corsa = true; a.preso = false; fx('whoosh', 0.6, 0.8); g.scuoti = 0.2; }
             } else if (!a.fuori) {
               libera = true; b.stira = 1;
@@ -1970,7 +1971,7 @@
     }
     if (g.avvisoFase > 0 && g.boss) {    // cambio di fase: si arrabbia; nell'ultima ricompare dietro
       var kf = g.avvisoFase;
-      scrittaGrande(g.boss.dietro ? 'È DIETRO DI TE!' : g.boss.fn === 3 ? 'ULTIMA FASE!' : 'SI È INCAZZATA!', 140, '#ff3a6e', Math.min(1, kf * 2, (2 - kf) * 6));
+      scrittaGrande(g.boss.dietro ? 'È DIETRO DI TE!' : g.boss.fn === 3 ? 'MO TE VOJO VEDE!' : 'ADESSO BASTA!', 140, '#ff3a6e', Math.min(1, kf * 2, (2 - kf) * 6));
     }
     if (g.boss && g.boss.az && g.boss.az.tipo === 'oro' && g.boss.az.t < 1.4) {
       scrittaGrande('ATTACCO D\'ORO!', 140, '#e4b33c', Math.sin(g.t * 20) > -0.3 ? 1 : 0.5);
