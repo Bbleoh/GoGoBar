@@ -401,8 +401,8 @@
      fx(nome, volume, velocità): la velocità cambia anche l'intonazione (0.5 = un'ottava sotto).
      I suoni con più varianti (salto-1, salto-2…) ne pescano una a caso, così i colpi ripetuti non suonano tutti uguali. */
   var SFX = {}, SFX_VARIANTI = { salto: 3, atterra: 2, swish: 3, fruscio: 2, whoosh: 2, pugno: 3, cazzotto: 3, calcio: 2, ahi: 3, uomo: 2, lei: 4,
-    sforzo: 2, strega: 3, sputo: 2, ding: 2, disco: 2, passo: 5, thump: 2 };
-  var SFX_NOMI = ['canna', 'brace', 'ding-canna', 'morso', 'monete', 'mazzata', 'urlo', 'boato', 'tonfo', 'parata', 'click', 'errore', 'allarme', 'potere',
+    sforzo: 2, campanella: 2, strega: 3, sputo: 2, ding: 2, disco: 2, passo: 5, thump: 2 };
+  var SFX_NOMI = ['canna', 'brace', 'morso', 'monete', 'mazzata', 'urlo', 'boato', 'tonfo', 'parata', 'click', 'errore', 'allarme', 'potere',
     'laser', 'carica-laser', 'jet', 'esplosione', 'oro', 'umpf', 'ding-carica', 'spada-accesa', 'spada-colpo', 'fruscio-scivolata', 'scivolata-loop'];
   var VOLUME_FX = 0.5;   // tutti gli effetti 6 dB sotto
   Object.keys(SFX_VARIANTI).forEach(function (n) { for (var i = 1; i <= SFX_VARIANTI[n]; i++) SFX_NOMI.push(n + '-' + i); });
@@ -1013,7 +1013,7 @@
           g.munizioni++;                                     // le canne raccolte si possono lanciare al boss
           g.distacco = Math.min(g.distacco + 55, 260); g.scatto = 1.2;
           g.bless = valore('scatto');                        // Bless: un attimo di invincibilità dopo ogni canna
-          fx('canna', 0.45, 1.2); fx('brace', 0.55, 0.9 + Math.random() * 0.2); fx('ding-canna', 0.4);
+          fx('canna', 0.45, 1.2); fx('brace', 0.55, 0.9 + Math.random() * 0.2); fx('campanella', 0.45, 1.05 + Math.random() * 0.1);
         }
       }
     }
@@ -1583,11 +1583,16 @@
         var k = Math.max(0, Math.min(1, (o.y + 60) / (TERRA + 60)));
         ctx.fillStyle = 'rgba(0,0,0,' + (0.15 + 0.3 * k) + ')';
         ctx.beginPath(); ctx.ellipse(o.x, TERRA - 2, o.s * (0.3 + 0.4 * k), 5, 0, 0, TAU); ctx.fill();
+        if (pronta(FXI.mirino)) { var pm = o.s * (1.2 + 0.6 * k); ctx.save(); ctx.globalAlpha = 0.5 + 0.4 * k; ctx.translate(o.x, TERRA - 2); ctx.scale(1, 0.26);
+          ctx.drawImage(FXI.mirino, -pm / 2, -pm / 2, pm, pm); ctx.restore(); }
       }
       if (o.tipo === 'boomerang' && o.ritorno > 0) {   // avviso: torna da dietro, in basso
-        ctx.globalAlpha = Math.sin(g.t * 30) > 0 ? 1 : 0.4;
-        ctx.fillStyle = '#ff3a6e'; ctx.font = 'italic 700 30px "Chakra Petch", sans-serif'; ctx.textAlign = 'left';
-        ctx.fillText('!!', 14, TERRA - 8); ctx.globalAlpha = 1;
+        if (pronta(FXI.esclama)) { icona('esclama', 30, TERRA - 26, 44); icona('esclama', 58, TERRA - 26, 44); }
+        else {
+          ctx.globalAlpha = Math.sin(g.t * 30) > 0 ? 1 : 0.4;
+          ctx.fillStyle = '#ff3a6e'; ctx.font = 'italic 700 30px "Chakra Petch", sans-serif'; ctx.textAlign = 'left';
+          ctx.fillText('!!', 14, TERRA - 8); ctx.globalAlpha = 1;
+        }
         continue;
       }
       if (o.tipo === 'onda') {                         // onda d'urto a terra: mezzaluna viola che corre verso Marf
@@ -1702,8 +1707,14 @@
         var ro = 70 + 50 * ko + Math.sin(g.t * 20) * 4;
         ctx.fillStyle = 'rgba(0,0,0,' + (0.4 + 0.3 * ko) + ')';
         ctx.beginPath(); ctx.ellipse(b.ombra, TERRA - 2, ro, 11, 0, 0, TAU); ctx.fill();
-        ctx.strokeStyle = 'rgba(255,58,110,' + (0.5 + 0.4 * Math.sin(g.t * 25)) + ')'; ctx.lineWidth = 3;
-        ctx.beginPath(); ctx.ellipse(b.ombra, TERRA - 2, ro + 8, 15, 0, 0, TAU); ctx.stroke();
+        if (pronta(FXI.mirino)) {                    // mirino schiacciato in prospettiva sul punto d'impatto
+          var mr = (ro + 14) * 2;
+          ctx.save(); ctx.globalAlpha = 0.65 + 0.35 * Math.sin(g.t * 25); ctx.translate(b.ombra, TERRA - 2); ctx.scale(1, 0.24);
+          ctx.drawImage(FXI.mirino, -mr / 2, -mr / 2, mr, mr); ctx.restore();
+        } else {
+          ctx.strokeStyle = 'rgba(255,58,110,' + (0.5 + 0.4 * Math.sin(g.t * 25)) + ')'; ctx.lineWidth = 3;
+          ctx.beginPath(); ctx.ellipse(b.ombra, TERRA - 2, ro + 8, 15, 0, 0, TAU); ctx.stroke();
+        }
       }
       if (b.stira) {                                 // scia di copie mentre si lancia
         for (var gi = 3; gi >= 1; gi--) {
@@ -1805,11 +1816,32 @@
     ctx.globalAlpha = (0.10 + 0.14 * k) * (0.7 + 0.3 * Math.sin(g.t * 30));
     ctx.fillStyle = '#ff2a2a'; ctx.fillRect(xa, y0, xb - xa, y1 - y0);
     ctx.globalAlpha = 0.35 + 0.55 * k; ctx.strokeStyle = '#ff5a5a'; ctx.lineWidth = 5; ctx.lineJoin = 'miter';
-    var off = (g.t * 300) % 90;
+    var off = (g.t * 300) % 90, fr = FXI.freccia;
     for (var x = dir < 0 ? xb - off : xa + off; dir < 0 ? x > xa + 30 : x < xb - 30; x += dir * 90) {
-      ctx.beginPath(); ctx.moveTo(x, cy - 28); ctx.lineTo(x + dir * 28, cy); ctx.lineTo(x, cy + 28); ctx.stroke();
+      if (pronta(fr)) {                               // frecce che corrono nella direzione della carica
+        ctx.save(); ctx.translate(x, cy); ctx.scale(-dir, 1); ctx.drawImage(fr, -26, -26, 52, 52); ctx.restore();
+      } else { ctx.beginPath(); ctx.moveTo(x, cy - 28); ctx.lineTo(x + dir * 28, cy); ctx.lineTo(x, cy + 28); ctx.stroke(); }
     }
+    ctx.globalAlpha = 1;
+    icona('avviso', dir < 0 ? Math.max(40, xb - 40) : Math.min(W - 40, xa + 40), y0 - 26, 50);
     ctx.restore();
+  }
+  // icona d'avviso (Game Icons di Kenney, CC0) che pulsa e lampeggia
+  function icona(nome, x, y, lato, fisso) {
+    var im = FXI[nome]; if (!pronta(im)) return;
+    var p = fisso ? 1 : 1 + 0.12 * Math.sin(g.t * 18), l = lato * p;
+    ctx.save(); ctx.globalAlpha = fisso ? 1 : (Math.sin(g.t * 24) > -0.3 ? 1 : 0.45);
+    ctx.drawImage(im, x - l / 2, y - l / 2, l, l); ctx.restore();
+  }
+  // avvisi sopra la scena: dove cade lo schianto, da che lato arriva il laser, l'attacco d'oro che parte
+  function disegnaAvvisi() {
+    var b = g.boss; if (!b || b.fase !== 'lotta') return;
+    if (b.ombra != null && b.y < TERRA - 140) icona('avviso', b.ombra, TERRA - 70 + Math.sin(g.t * 8) * 5, 54);
+    if (g.laser && g.laser.carica < 2) {
+      var dl = g.laser.dir || -1;
+      icona('avviso', dl < 0 ? 34 : W - 34, g.laser.y - 34, 44);
+    }
+    if (b.az && b.az.tipo === 'oro' && b.az.t < 0.9) icona('esclama-oro', b.x + (b.dietro ? 170 : -170), b.y - 60 + Math.sin(g.t * 10) * 4, 62);   // di fianco alla faccia, verso Marf
   }
   function disegnaLaser() {
     var b = g.boss; if (!b || !g.laser) return;
@@ -1842,7 +1874,7 @@
   }
   // effetti grafici del laser e dello schianto: texture del Particle Pack di Kenney (CC0, fx/LICENZA-kenney.txt), colorate in anticipo
   var FXI = {};
-  ['laser-raggio', 'laser-scarica-1', 'laser-scarica-2', 'laser-bocca', 'laser-bagliore', 'sasso-1', 'sasso-2', 'sasso-3', 'sasso-4', 'sasso-5', 'schizzo', 'polverone', 'impatto']
+  ['laser-raggio', 'laser-scarica-1', 'laser-scarica-2', 'laser-bocca', 'laser-bagliore', 'sasso-1', 'sasso-2', 'sasso-3', 'sasso-4', 'sasso-5', 'schizzo', 'polverone', 'impatto', 'avviso', 'esclama', 'esclama-oro', 'mirino', 'freccia']
     .forEach(function (n) { var im = new Image(); im.src = 'fx/' + n + '.webp?v=1'; FXI[n] = im; });
   // il raggio: alone che vibra lungo tutto il fascio, scariche elettriche che cambiano a ogni frame, fiammata alla bocca
   function raggioLaser(x1, y, xa, xb, dir) {
@@ -2021,7 +2053,7 @@
     disegnaLinee();
     marf();
     if (stato === 'preso') inseguitrici();   // preso: gli sono saltate addosso, stanno sopra di lui
-    disegnaLaser(); disegnaAllarme(); disegnaTiro();
+    disegnaLaser(); disegnaAllarme(); disegnaAvvisi(); disegnaTiro();
     disegnaScudo();
     disegnaFacciata();
     disegnaStelle();

@@ -21,3 +21,6 @@
 	Request:  http://request.kenney.nl
 
 	Follow on Twitter for updates: @KenneyNL (www.twitter.com/kenneynl)
+
+In questa cartella: texture del Particle Pack (laser, sassi, polverone, impatto) e icone del pacchetto Game Icons
+(avviso, esclama, esclama-oro, mirino, freccia), tutte di Kenney, CC0, ricolorate per il gioco.
