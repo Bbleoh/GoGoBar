@@ -1811,7 +1811,7 @@
   function disegnaAllarme() {
     var b = g.boss; if (!b || !(g.allarme > 0)) return;
     var dir = b.dietro ? 1 : -1, k = g.allarme, y0 = CARICA_Y - 85, y1 = CARICA_Y + 90, cy = (y0 + y1) / 2;
-    var xa = dir < 0 ? 0 : Math.max(b.x + 120, 0), xb = dir < 0 ? Math.min(b.x - 120, W) : W;
+    var xa = 0, xb = W;   // la fascia parte da dietro la testa (si disegna sotto il boss) e attraversa tutto lo schermo
     ctx.save();
     ctx.globalAlpha = (0.10 + 0.14 * k) * (0.7 + 0.3 * Math.sin(g.t * 30));
     ctx.fillStyle = '#ff2a2a'; ctx.fillRect(xa, y0, xb - xa, y1 - y0);
@@ -1822,8 +1822,6 @@
         ctx.save(); ctx.translate(x, cy); ctx.scale(-dir, 1); ctx.drawImage(fr, -26, -26, 52, 52); ctx.restore();
       } else { ctx.beginPath(); ctx.moveTo(x, cy - 28); ctx.lineTo(x + dir * 28, cy); ctx.lineTo(x, cy + 28); ctx.stroke(); }
     }
-    ctx.globalAlpha = 1;
-    icona('avviso', dir < 0 ? Math.max(40, xb - 40) : Math.min(W - 40, xa + 40), y0 - 26, 50);
     ctx.restore();
   }
   // icona d'avviso (Game Icons di Kenney, CC0) che pulsa e lampeggia
@@ -1841,6 +1839,7 @@
       var dl = g.laser.dir || -1;
       icona('avviso', dl < 0 ? 34 : W - 34, g.laser.y - 34, 44);
     }
+    if (g.allarme > 0) icona('avviso', b.x + (b.dietro ? 175 : -175), CARICA_Y - 110, 50);   // davanti alla faccia, dal lato dove arriva
     if (b.az && b.az.tipo === 'oro' && b.az.t < 0.9) icona('esclama-oro', b.x + (b.dietro ? 170 : -170), b.y - 60 + Math.sin(g.t * 10) * 4, 62);   // di fianco alla faccia, verso Marf
   }
   function disegnaLaser() {
@@ -2038,6 +2037,7 @@
 
     sfondo();
     disegnaFumo();
+    disegnaAllarme();                    // la fascia della carica sta dietro la testa del boss
     disegnaBoss();
     disegnaPedane();
     disegnaCorridoio();
@@ -2053,7 +2053,7 @@
     disegnaLinee();
     marf();
     if (stato === 'preso') inseguitrici();   // preso: gli sono saltate addosso, stanno sopra di lui
-    disegnaLaser(); disegnaAllarme(); disegnaAvvisi(); disegnaTiro();
+    disegnaLaser(); disegnaAvvisi(); disegnaTiro();
     disegnaScudo();
     disegnaFacciata();
     disegnaStelle();
