@@ -402,7 +402,7 @@
      I suoni con più varianti (salto-1, salto-2…) ne pescano una a caso, così i colpi ripetuti non suonano tutti uguali. */
   var SFX = {}, SFX_VARIANTI = { salto: 3, atterra: 2, swish: 3, fruscio: 2, whoosh: 2, pugno: 3, cazzotto: 3, calcio: 2, ahi: 3, uomo: 2, lei: 4,
     sforzo: 2, strega: 3, sputo: 2, ding: 2, disco: 2, passo: 5, thump: 2 };
-  var SFX_NOMI = ['canna', 'pringles', 'monete', 'mazzata', 'urlo', 'boato', 'tonfo', 'parata', 'click', 'errore', 'allarme', 'potere',
+  var SFX_NOMI = ['canna', 'brace', 'ding-canna', 'morso', 'monete', 'mazzata', 'urlo', 'boato', 'tonfo', 'parata', 'click', 'errore', 'allarme', 'potere',
     'laser', 'carica-laser', 'jet', 'esplosione', 'oro', 'umpf', 'ding-carica', 'spada-accesa', 'spada-colpo', 'fruscio-scivolata', 'scivolata-loop'];
   var VOLUME_FX = 0.5;   // tutti gli effetti 6 dB sotto
   Object.keys(SFX_VARIANTI).forEach(function (n) { for (var i = 1; i <= SFX_VARIANTI[n]; i++) SFX_NOMI.push(n + '-' + i); });
@@ -716,10 +716,11 @@
     jet: function () { g.prossimoJet = 0; }, palazzo: function (v) { g.ostacoli.length = 0; g.prossimoPalazzo = g.metri; g.variante = v; }, pal: function () { return palazzo; },
     boss: function () { g.ostacoli.length = 0; g.prossimoBoss = g.metri + 1; g.munizioni = arguments.length ? arguments[0] : 12; },
     lancia: function (k) { iniziaTiro(); if (g.tiro != null) g.tiro = (k == null ? 1 : k) * TIRO_MAX; lancia(); },
-    carica: function () { iniziaTiro(); }, rilascia: function () { lancia(); } };
+    carica: function () { iniziaTiro(); }, rilascia: function () { lancia(); }, prendi: function () { preso(); }, detriti: function (x) { detriti(x); } };
 
   /* ── Stato ── */
   var FRASI = ['MARF!', 'Aspettaaa!', 'Dove scappi?', 'Ti amo Marf!', 'Un bacino!', 'Marfiiino!', 'Torna qui!'];
+  var FRASI_VICINE = ['MARFIIII!!', 'CI SIAMO QUASI!', 'È MIOOO!', 'TI PRENDOOO!', 'SPOSAMI!!', 'UN BACIOOO!', 'NON SCAPPIII!'];
   var stato = 'menu'; // menu | gioco | preso
   var g;
 
@@ -732,7 +733,7 @@
       ostacoli: [], birreA: [], prossimo: 1.2, prossimaBirra: 3,
       fumetto: null, prossimoFumetto: 1.5, scatto: 0, scuoti: 0,
       anim: nuovaAnim(), ragazze: [0, 1, 2].map(function (i) { return { fase: i * 0.37, posa: null }; }),
-      fx: [], colpi: 0, scudo: 0,
+      fx: [], detriti: [], colpi: 0, scudo: 0,
       jets: [], fumo: [], jetAvviso: 0, prossimoJet: 700 + Math.random() * 500, prossimoPalazzo: PALAZZO_OGNI,
       munizioni: 0, bonus: 0, boss: null, prossimoBoss: BOSS_PRIMO, bless: 0, pedane: [], super: 0, tiro: null, livelloBoss: 1, sfere: [], lanci: [], speciali: [], laser: null
     };
@@ -753,6 +754,10 @@
   function preso() {
     stato = 'preso';
     avviaRagdoll();
+    var fr = MARF_X - 30 - Math.max(g.distacco, 0);   // le ragazze si tuffano addosso a Marf da dove sono
+    g.tuffo = { t: 0, x0: RAGAZZE.map(function (r, i) { return fr - i * 46; }) };
+    setTimeout(function () { if (stato === 'preso') { fx('lei', 0.45, 1.15); fx('swish', 0.4, 0.8); } }, 120);
+    setTimeout(function () { if (stato === 'preso') fx('tonfo', 0.45, 1.1); }, 650);
     var punti = punteggio(), nuovo = punti > record;
     var incassate = PROVA ? 0 : g.munizioni;        // le canne rimaste in tasca vanno nel portafoglio per il Crivo Shop
     if (incassate) aggiungiCanne(giocatore, incassate);
@@ -766,7 +771,7 @@
       if (stato !== 'preso') return;
       fine.hidden = false;
       salva();
-    }, 1900);   // prima si gode il ragdoll
+    }, 2600);   // prima si gode il ragdoll e il mucchio di ragazze
     setTimeout(function () { if (stato === 'preso') suona('morte'); }, 900);
     TRACCE[traccia].pause();
     fx('mazzata', 0.6); fx('ahi', 0.55, 0.9); setTimeout(function () { fx('tonfo', 0.5, 0.8); }, 260);
@@ -1001,14 +1006,14 @@
         g.birreA.splice(j, 1);
         if (b.pringles) {
           g.scudo = valore('scudo');                         // Cuffie insonorizzate: lo scudo dura di più
-          fx('pringles', 0.55); fx('spada-accesa', 0.5);
+          fx('morso', 0.7); setTimeout(function () { fx('spada-accesa', 0.5); }, 170);   // morso, poi lo scudo si accende
         } else {
           // la canna si conta solo se le ragazze sono già alla distanza massima, sennò serve solo a staccarle
           if (g.distacco >= 255) g.birre++;
           g.munizioni++;                                     // le canne raccolte si possono lanciare al boss
           g.distacco = Math.min(g.distacco + 55, 260); g.scatto = 1.2;
           g.bless = valore('scatto');                        // Bless: un attimo di invincibilità dopo ogni canna
-          fx('canna', 0.6, 1.2);
+          fx('canna', 0.45, 1.2); fx('brace', 0.55, 0.9 + Math.random() * 0.2); fx('ding-canna', 0.4);
         }
       }
     }
@@ -1016,8 +1021,9 @@
     // fumetti delle inseguitrici
     g.prossimoFumetto -= dt;
     if (g.prossimoFumetto <= 0) {
-      g.fumetto = { testo: FRASI[Math.floor(Math.random() * FRASI.length)], chi: Math.floor(Math.random() * 3), t: 1.6 };
-      g.prossimoFumetto = 2.5 + Math.random() * 3;
+      var sm = smania(), lista = sm > 0.55 ? FRASI_VICINE : FRASI;   // vicine: frasi più eccitate e più spesso
+      g.fumetto = { testo: lista[Math.floor(Math.random() * lista.length)], chi: Math.floor(Math.random() * 3), t: 1.6 - 0.4 * sm };
+      g.prossimoFumetto = (2.5 + Math.random() * 3) * (1 - 0.65 * sm);
     }
     if (g.fumetto && (g.fumetto.t -= dt) <= 0) g.fumetto = null;
 
@@ -1029,7 +1035,7 @@
   var VOLO_T = 1.3;
   function sgambetto(o) {
     o.preso = true; o.volo = 0; o.vx0 = o.x + o.w / 2;
-    if (3 - g.colpi < (g.maxVite || 5)) g.colpi--;
+    if (3 - g.colpi < (g.maxVite || 5)) { g.colpi--; g.piuUno = 1.1; }   // il "+1" solo se la vita c'è davvero
     stelline(MARF_X, g.marf.y - 40);
     g.scuoti = 0.15;
     fx('calcio', 0.6); setTimeout(function () { fx('uomo', 0.5); }, 70);
@@ -1069,7 +1075,6 @@
       var a = i / 12 * TAU, v = 90 + Math.random() * 60;
       g.stelle.push({ x: x, y: y, vx: Math.cos(a) * v, vy: Math.sin(a) * v - 40, t: 0, vita: 0.8 + Math.random() * 0.3, giro: Math.random() * 6 });
     }
-    g.piuUno = 1.1;
   }
   function aggiornaStelle(dt) {
     if (g.piuUno > 0) g.piuUno -= dt;
@@ -1184,7 +1189,7 @@
     if (b.stordita > 0) danno *= 2;                                                  // stordita: doppio danno
     b.hp = Math.max(0, b.hp - danno); b.ferita = 0.3; b.lampo = 0.15;
     if (!nonRiempie) g.super = Math.min(1, (g.super || 0) + danno / (b.hpMax * 0.45));
-    stelline(x, y); g.piuUno = 0;
+    stelline(x, y);
     fx(danno > 1 ? 'cazzotto' : 'pugno', 0.55); if (danno > 1 || Math.random() < 0.3) fx('lei', 0.4);
     if (b.hp <= 0) {
       b.fase = 'sconfitta'; b.t = 0; b.az = null; g.laser = null; g.allarme = 0; b.ombra = null; b.stira = 0; b.stordita = 0; b.oro = 0;
@@ -1303,7 +1308,7 @@
         else if (rt < 1.6) { mira = TERRA - 75; b.schianto = true; }
         else mira = BOSS_Y;
         if (rt >= 0.8 && !b.schiantata) {
-          b.schiantata = true; g.scuoti = 0.5; fx('mazzata', 0.7, 0.7); fx('tonfo', 0.6, 0.7); b.schiaccia = 1;
+          b.schiantata = true; g.scuoti = 0.5; detriti(b.x); fx('mazzata', 0.7, 0.7); fx('tonfo', 0.6, 0.7); b.schiaccia = 1;
           polvere(b.x - 60, TERRA, 14, 2);
           [0, 420, 840].forEach(function (d) { g.ostacoli.push({ tipo: 'ragazza', t: TIPI.ragazza, x: BOSS_X - 160 + d, w: TIPI.ragazza.w, h: TIPI.ragazza.h, quante: 1 }); });
         }
@@ -1381,7 +1386,7 @@
               libera = true; b.ombra = a.bx; b.vy += 5200 * dt; b.y += b.vy * dt;
               if (b.y >= TERRA - 112) {
                 b.y = TERRA - 112; a.terra = a.t; b.schiaccia = 1; g.scuoti = 0.45;
-                polvere(b.x - 90, TERRA, 10, 2); polvere(b.x + 90, TERRA, 10, 2);
+                polvere(b.x - 90, TERRA, 10, 2); polvere(b.x + 90, TERRA, 10, 2); detriti(b.x);
                 g.speciali.push({ tipo: 'onda', x: b.x - 110, s: 30 });
                 fx('tonfo', 0.6, 0.9);
                 if (a.volte <= 1) b.stordita = STORDITA_T;
@@ -1614,6 +1619,14 @@
         ctx.restore(); continue;
       }
       ctx.fillStyle = '#000';
+      if (o.tipo === 'muro' && pronta(OGG['quattro-quadri'])) {    // muro = 4 di quadri: in alto sospeso, in basso piantato nell'asfalto
+        var cq = OGG['quattro-quadri'], alt = Math.max(o.y1 - o.y0, 183), lw = o.s * 1.2, lx = o.x - (lw - o.s) / 2;
+        ctx.save();
+        if (o.y1 >= TERRA - 1) { ctx.beginPath(); ctx.rect(lx - 10, o.y0 - 10, lw + 20, TERRA - o.y0 + 10); ctx.clip(); }
+        ctx.drawImage(cache(cq, lw, alt), lx, o.y0, lw, alt);
+        ctx.restore();
+        continue;
+      }
       if (o.tipo === 'muro') {
         ctx.fillRect(o.x - 1, o.y0 - 1, o.s + 2, o.y1 - o.y0 + 2);
         for (var y = o.y0; y < o.y1 - 1; y += o.s) {
@@ -1731,16 +1744,24 @@
       ctx.save(); if (s.svanisce) ctx.globalAlpha = Math.max(0, 1 - s.svanisce / 0.25);
       for (var t = 3; t >= 1; t--) {                 // scia
         ctx.globalAlpha *= 0.85;
-        ctx.fillStyle = oro ? 'rgba(255,214,90,.25)' : 'rgba(255,60,190,.25)';
+        ctx.fillStyle = oro ? 'rgba(255,214,90,.25)' : 'rgba(255,120,30,.22)';
         ctx.beginPath(); ctx.arc(s.x - s.vx * 0.012 * t, s.y - s.vy * 0.012 * t, s.r * (1 - t * 0.15), 0, TAU); ctx.fill();
       }
       ctx.globalAlpha = s.svanisce ? Math.max(0, 1 - s.svanisce / 0.25) : 1;
-      var gr = ctx.createRadialGradient(s.x - 4, s.y - 5, 2, s.x, s.y, s.r);
-      gr.addColorStop(0, '#fff'); gr.addColorStop(0.35, oro ? '#ffe27a' : '#ff8ad8'); gr.addColorStop(1, oro ? '#e4a01c' : '#b0157a');
-      ctx.fillStyle = '#000'; ctx.beginPath(); ctx.arc(s.x, s.y, s.r + BORDO, 0, TAU); ctx.fill();
-      ctx.fillStyle = gr; ctx.beginPath(); ctx.arc(s.x, s.y, s.r, 0, TAU); ctx.fill();
-      ctx.strokeStyle = 'rgba(255,255,255,.6)'; ctx.lineWidth = 2;
-      ctx.beginPath(); ctx.arc(s.x, s.y, s.r - 4, s.giro, s.giro + 1.6); ctx.stroke();
+      if (pronta(OGG['super-santos'])) {              // la sfera è un Super Santos che rotola; rimandato indietro si accende d'oro
+        if (oro) {
+          var al = ctx.createRadialGradient(s.x, s.y, s.r * 0.6, s.x, s.y, s.r * 2);
+          al.addColorStop(0, 'rgba(255,214,90,.75)'); al.addColorStop(1, 'rgba(255,214,90,0)');
+          ctx.fillStyle = al; ctx.beginPath(); ctx.arc(s.x, s.y, s.r * 2, 0, TAU); ctx.fill();
+        }
+        ctx.translate(s.x, s.y); ctx.rotate(s.giro * 2.2);
+        ctx.drawImage(cache(OGG['super-santos'], s.r * 2.3, s.r * 2.3), -s.r * 1.15, -s.r * 1.15, s.r * 2.3, s.r * 2.3);
+      } else {
+        var gr = ctx.createRadialGradient(s.x - 4, s.y - 5, 2, s.x, s.y, s.r);
+        gr.addColorStop(0, '#fff'); gr.addColorStop(0.35, oro ? '#ffe27a' : '#ff8ad8'); gr.addColorStop(1, oro ? '#e4a01c' : '#b0157a');
+        ctx.fillStyle = '#000'; ctx.beginPath(); ctx.arc(s.x, s.y, s.r + BORDO, 0, TAU); ctx.fill();
+        ctx.fillStyle = gr; ctx.beginPath(); ctx.arc(s.x, s.y, s.r, 0, TAU); ctx.fill();
+      }
       ctx.restore();
     }
     // canne lanciate: dritte come pugnali, la brace davanti; più carica = più grande, la super è dorata
@@ -1802,13 +1823,91 @@
       ctx.beginPath(); ctx.moveTo(x1, y); ctx.lineTo(dir < 0 ? 0 : W, y); ctx.stroke();
       ctx.setLineDash([]);
       ctx.fillStyle = '#fff'; ctx.globalAlpha = k; ctx.beginPath(); ctx.arc(x1, y, 3 + k * 6, 0, TAU); ctx.fill();
+      if (pronta(FXI['laser-bagliore'])) {               // si carica: bagliore che cresce sulla bocca
+        var bg = 30 + 70 * k * (0.85 + 0.15 * Math.sin(g.t * 50));
+        ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = 0.4 + 0.6 * k;
+        ctx.drawImage(FXI['laser-bagliore'], x1 - bg / 2, y - bg / 2, bg, bg);
+        ctx.globalCompositeOperation = 'source-over';
+      }
     } else {
       var sp = 10 + Math.random() * 4;
       var gr = ctx.createLinearGradient(0, y - sp * 1.8, 0, y + sp * 1.8);
       gr.addColorStop(0, 'rgba(255,40,40,0)'); gr.addColorStop(0.3, 'rgba(255,60,60,.8)'); gr.addColorStop(0.5, '#fff');
       gr.addColorStop(0.7, 'rgba(255,60,60,.8)'); gr.addColorStop(1, 'rgba(255,40,40,0)');
       ctx.fillStyle = gr; ctx.fillRect(xa, y - sp * 1.8, xb - xa, sp * 3.6);
+      raggioLaser(x1, y, xa, xb, dir);
       ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(x1, y, sp * 1.4, 0, TAU); ctx.fill();
+    }
+    ctx.restore();
+  }
+  // effetti grafici del laser e dello schianto: texture del Particle Pack di Kenney (CC0, fx/LICENZA-kenney.txt), colorate in anticipo
+  var FXI = {};
+  ['laser-raggio', 'laser-scarica-1', 'laser-scarica-2', 'laser-bocca', 'laser-bagliore', 'sasso-1', 'sasso-2', 'sasso-3', 'sasso-4', 'sasso-5', 'schizzo', 'polverone', 'impatto']
+    .forEach(function (n) { var im = new Image(); im.src = 'fx/' + n + '.webp?v=1'; FXI[n] = im; });
+  // il raggio: alone che vibra lungo tutto il fascio, scariche elettriche che cambiano a ogni frame, fiammata alla bocca
+  function raggioLaser(x1, y, xa, xb, dir) {
+    if (!pronta(FXI['laser-raggio'])) return;
+    ctx.save(); ctx.globalCompositeOperation = 'lighter';
+    var lun = xb - xa, hr = 54 + Math.random() * 14;
+    ctx.globalAlpha = 0.9; ctx.drawImage(FXI['laser-raggio'], xa - 30, y - hr / 2, lun + 60, hr);
+    var tile = 190;
+    for (var x = 0; x < lun; x += tile * 0.8) {
+      var sc = FXI[Math.random() < 0.5 ? 'laser-scarica-1' : 'laser-scarica-2'];
+      if (!pronta(sc)) break;
+      var hs = 30 + Math.random() * 18, px = dir < 0 ? xb - x - tile : xa + x;
+      ctx.save(); ctx.translate(px + tile / 2, y); ctx.scale(Math.random() < 0.5 ? 1 : -1, Math.random() < 0.5 ? 1 : -1);
+      ctx.globalAlpha = 0.55 + Math.random() * 0.45;
+      ctx.drawImage(sc, -tile / 2, -hs / 2, tile, hs);
+      ctx.restore();
+    }
+    if (pronta(FXI['laser-bocca'])) {
+      var bw = 110 + Math.random() * 30, bh = bw * 0.55;
+      ctx.save(); ctx.translate(x1, y); ctx.scale(dir, 1); ctx.globalAlpha = 1;
+      ctx.drawImage(FXI['laser-bocca'], -10, -bh / 2, bw, bh);
+      ctx.restore();
+    }
+    if (pronta(FXI['laser-bagliore'])) { var bg = 110 + Math.random() * 30; ctx.drawImage(FXI['laser-bagliore'], x1 - bg / 2, y - bg / 2, bg, bg); }
+    ctx.restore();
+  }
+  // schianto del boss: sassi e pezzi d'asfalto che schizzano, polverone che si allarga, lampo a terra
+  function detriti(x) {
+    var d = g.detriti;
+    d.push({ img: 'impatto', x: x, y: TERRA - 8, vx: 0, vy: 0, s: 90, cresce: 260, vita: 0.28, t: 0, luce: true });
+    for (var i = 0; i < 4; i++) d.push({ img: 'polverone', x: x + (i - 1.5) * 60, y: TERRA - 20 - Math.random() * 20, vx: (i - 1.5) * 70, vy: -20 - Math.random() * 30,
+      s: 70, cresce: 150, vita: 0.9 + Math.random() * 0.4, t: 0, rot: Math.random() * TAU, vr: (Math.random() - 0.5) * 1.5 });
+    for (var k = -1; k <= 1; k += 2) d.push({ img: 'schizzo', x: x + k * 50, y: TERRA - 30, vx: k * 160, vy: -120, s: 60, cresce: 110, vita: 0.45, t: 0,
+      rot: Math.random() * TAU, vr: k * 3 });
+    for (var j = 0; j < 14; j++) {
+      var lato = j % 2 ? 1 : -1;
+      d.push({ img: 'sasso-' + (1 + j % 5), x: x + lato * (20 + Math.random() * 60), y: TERRA - 10, vx: lato * (120 + Math.random() * 340), vy: -(280 + Math.random() * 460),
+        s: 9 + Math.random() * 17, g: 1700, vita: 1.1 + Math.random() * 0.4, t: 0, rot: Math.random() * TAU, vr: (Math.random() - 0.5) * 14, rimbalzi: 1 });
+    }
+    if (d.length > 60) d.splice(0, d.length - 60);
+  }
+  function aggiornaDetriti(dt) {
+    var d = g.detriti; if (!d) return;
+    for (var i = d.length - 1; i >= 0; i--) {
+      var p = d[i]; p.t += dt;
+      if (p.t >= p.vita) { d.splice(i, 1); continue; }
+      p.x += p.vx * dt; p.y += p.vy * dt; if (p.g) p.vy += p.g * dt; if (p.vr) p.rot += p.vr * dt;
+      if (p.g && p.y > TERRA - p.s * 0.3) {
+        p.y = TERRA - p.s * 0.3;
+        if (p.rimbalzi-- > 0) { p.vy *= -0.35; p.vx *= 0.6; p.vr *= 0.5; } else { p.vy = 0; p.vx *= 0.8; p.vr = 0; }
+      }
+      if (!p.g) { p.vx *= 1 - dt * 1.5; }
+    }
+  }
+  function disegnaDetriti() {
+    var d = g.detriti; if (!d || !d.length) return;
+    ctx.save();
+    for (var i = 0; i < d.length; i++) {
+      var p = d[i], im = FXI[p.img]; if (!pronta(im)) continue;
+      var u = p.t / p.vita, s = p.s + (p.cresce || 0) * Math.sqrt(u), h = s * im.naturalHeight / im.naturalWidth;
+      ctx.globalCompositeOperation = p.luce ? 'lighter' : 'source-over';
+      ctx.globalAlpha = p.g ? Math.min(1, (1 - u) * 3) : (1 - u) * (p.luce ? 1 : 0.85);
+      ctx.save(); ctx.translate(p.x, p.y); if (p.rot) ctx.rotate(p.rot);
+      ctx.drawImage(im, -s / 2, -h / 2, s, h);
+      ctx.restore();
     }
     ctx.restore();
   }
@@ -1914,12 +2013,14 @@
     g.ostacoli.forEach(ostacolo);
     disegnaColpiBoss();
     disegnaSpeciali();
+    disegnaDetriti();
     g.jets.forEach(disegnaJet);
     avvisoJet();
     disegnaPolvere();
-    inseguitrici();
+    if (stato !== 'preso') inseguitrici();
     disegnaLinee();
     marf();
+    if (stato === 'preso') inseguitrici();   // preso: gli sono saltate addosso, stanno sopra di lui
     disegnaLaser(); disegnaAllarme(); disegnaTiro();
     disegnaScudo();
     disegnaFacciata();
@@ -2160,7 +2261,7 @@
 
   // oggetti disegnati da Leo: la canna (al posto della birra) e la ragazza accovacciata (al posto della sedia)
   var OGG = {};
-  ['canna', 'pringles', 'ragazza-a-terra', 'durex', 'transenna', 'juve', 'lazio', 'carabiniere', 'pesce-spada', 'aygo', 'jet'].forEach(function (n) {
+  ['canna', 'pringles', 'ragazza-a-terra', 'durex', 'transenna', 'juve', 'lazio', 'carabiniere', 'pesce-spada', 'aygo', 'jet', 'quattro-quadri', 'super-santos'].forEach(function (n) {
     var img = new Image(); img.src = (n === 'canna' ? '' : 'ogg/') + n + '.webp?v=1'; OGG[n] = img;
   });
   // contorno nero sottile (BORDO px) attorno a ostacoli e nemici, per farli notare meglio:
@@ -2472,6 +2573,7 @@
     animaMarf(dt);
     animaRagazze(dt);
     aggiornaPolvere(dt);
+    aggiornaDetriti(dt);
     aggiornaLinee(dt);
     aggiornaStelle(dt);
     if (g.rag) aggiornaRagdoll(dt);
@@ -2674,13 +2776,22 @@
   function animaRagazze(dt) {
     var R = RIG.ragazza;
     if (!R || !R.pronto || !g.ragazze) return;
-    var vel = stato === 'gioco' ? g.vel : 380;
+    var vel = stato === 'gioco' ? g.vel : 380, k = smania();
+    if (stato === 'preso' && g.tuffo) g.tuffo.t += dt;
     g.ragazze.forEach(function (r, i) {
-      if (stato !== 'preso') r.fase += dt * (1.5 + vel / 430) * (1 + i * 0.03);
-      var t = posaCorsa(r.fase, 1, r.tmp || (r.tmp = {}));
-      var afferra = Math.sin(g.t * 6 + i * 2);
-      t.bA = 1.3 + 0.22 * afferra; t.gA = t.bA + 0.25 + 0.2 * Math.max(0, -afferra);
-      t.lean = 0.22 + (t.lean - 0.17);
+      if (stato !== 'preso') r.fase += dt * (1.5 + vel / 430) * (1 + i * 0.03) * (1 + 0.35 * k);
+      var t = posaCorsa(r.fase, 1 + 0.15 * k, r.tmp || (r.tmp = {}));
+      // più sono vicine più si agitano: braccia tese che si sbracciano, busto in avanti
+      var afferra = Math.sin(g.t * (6 + 11 * k) + i * 2), agita = Math.sin(g.t * (9 + 13 * k) + i * 1.3);
+      t.bA = 1.3 + 0.35 * k + (0.22 + 0.5 * k) * afferra; t.gA = t.bA + 0.25 + 0.2 * Math.max(0, -afferra);
+      t.bB = t.bB * (1 - k) + (1.5 + 0.6 * agita) * k; t.gB = t.bB + 0.3;
+      t.lean = 0.22 + 0.12 * k + (t.lean - 0.17);
+      if (stato === 'preso' && g.tuffo) {                // il tuffo: braccia avanti, gambe indietro; poi sgambettano contente
+        var u = Math.min(1, Math.max(0, (g.tuffo.t - i * 0.16) / 0.55)), sopra = u >= 1;
+        var calcia = sopra ? Math.sin(g.t * 14 + i * 2) * 0.5 : 0;
+        t.bA = 2.6; t.gA = 2.7; t.bB = 2.3 + (sopra ? 0.3 * Math.sin(g.t * 9 + i) : 0); t.gB = t.bB + 0.2;
+        t.cA = -0.25 + calcia; t.sA = t.cA - 0.9; t.cB = -0.55 - calcia; t.sB = t.cB - 1.1; t.lean = 0; t.head = -0.25;
+      }
       if (!r.posa) r.posa = mescola(t, t, 0);
       verso(r.posa, t, dt, 30);
       r.anca = altezzaAnca(R, r.posa);
@@ -2715,6 +2826,12 @@
     });
   }
 
+  // quanto sono agitate le ragazze: 0 lontane, 1 addosso a Marf
+  function smania() {
+    if (!g || stato === 'menu') return 0;
+    var d = Math.max(0, Math.min(1, (Math.max(g.distacco, 0) - 25) / 235));
+    return Math.pow(1 - d, 1.4);
+  }
   // Le tre inseguitrici: per ora la stessa ragazza ripetuta (poi ne arrivano altre)
   var RAGAZZE = [
     { rig: 'ragazza', scala: 1 },
@@ -2725,11 +2842,20 @@
   var RAG_TELA = document.createElement('canvas'), RAG_BORDO = document.createElement('canvas');
   function inseguitrici() {
     if (stato === 'menu') return;
-    var fronte = MARF_X - 30 - Math.max(g.distacco, 0);
-    var fase = g.t * 14;
+    var fronte = MARF_X - 30 - Math.max(g.distacco, 0), k = smania();
+    var fase = g.t * (14 + 8 * k);
     for (var i = RAGAZZE.length - 1; i >= 0; i--) {
       var r = RAGAZZE[i], R = RIG[r.rig];
-      var x = fronte - i * 46, y = TERRA - Math.abs(Math.sin(fase + i)) * 4;
+      var x = fronte - i * 46 + (Math.random() - 0.5) * 3 * k, y = TERRA - Math.abs(Math.sin(fase + i)) * (4 + 12 * k);
+      var tuffo = stato === 'preso' && g.tuffo, rot = 0;
+      if (tuffo) {                                        // salto addosso a Marf: arco, poi una sopra l'altra su di lui
+        var u = Math.min(1, Math.max(0, (g.tuffo.t - i * 0.16) / 0.55)), e = u * u * (3 - 2 * u);
+        var rg = g.rag, tx = MARF_X + (rg ? rg.x : 0) - 70 + i * 16, ty = TERRA - 16 - i * 19;
+        x = g.tuffo.x0[i] + (tx - g.tuffo.x0[i]) * e;
+        y = TERRA + (ty - TERRA) * e - Math.sin(u * Math.PI) * 110;
+        rot = 1.45 * e;
+        if (u >= 1) y -= Math.abs(Math.sin(g.t * 9 + i)) * 3;
+      }
       if (x < -60) continue;
       if (R && R.pronto && g.ragazze && g.ragazze[i].posa) {
         var gr = g.ragazze[i];
@@ -2743,22 +2869,41 @@
         personaggio(R, gr.anca, gr.posa);
         ctx = vero;
         var pb = bordoPx() / scala;
-        ctx.drawImage(conBordo(tl, RAG_BORDO), x - RAG_OX - pb, TERRA - RAG_OY - pb, RAG_W + pb * 2, RAG_H + pb * 2);
-        ctx.save(); ctx.translate(x, TERRA); ctx.scale(r.scala, r.scala);
-        cuore(16, -112 - Math.abs(Math.sin(fase * 0.5 + i)) * 10, '#ff5c8a');
-        ctx.restore();
+        if (tuffo) {                                      // ruota attorno ai piedi: da in piedi a distesa in avanti
+          ctx.save(); ctx.translate(x, y); ctx.rotate(rot);
+          ctx.drawImage(conBordo(tl, RAG_BORDO), -RAG_OX - pb, -RAG_OY - pb, RAG_W + pb * 2, RAG_H + pb * 2);
+          ctx.restore();
+          if (g.tuffo.t > 0.7 + i * 0.16) {               // cuoricini che salgono dal mucchio
+            var ct = (g.tuffo.t * 0.9 + i * 0.33) % 1;
+            ctx.save(); ctx.globalAlpha = 1 - ct; cuore(x + 40 + i * 14 + Math.sin(ct * 9) * 6, y - 90 - ct * 60, '#ff5c8a'); ctx.restore();
+          }
+        } else {
+          ctx.drawImage(conBordo(tl, RAG_BORDO), x - RAG_OX - pb, y - RAG_OY - pb, RAG_W + pb * 2, RAG_H + pb * 2);
+          ctx.save(); ctx.translate(x, TERRA); ctx.scale(r.scala * (1 + 0.35 * k), r.scala * (1 + 0.35 * k));
+          cuore(16, -112 / (1 + 0.35 * k) - Math.abs(Math.sin(fase * 0.5 + i)) * (10 + 10 * k), '#ff5c8a');
+          ctx.restore();
+        }
       }
       if (g.fumetto && g.fumetto.chi === i && stato === 'gioco') fumetto(x, y - 120, g.fumetto.testo);
     }
   }
+  // fumetto nello stile della UI: pannello scuro con gli angoli tagliati, filo chiaro, barretta rosa, testo in Chakra Petch
   function fumetto(x, y, testo) {
-    ctx.font = 'italic 700 16px "Chakra Petch", sans-serif';
-    var w = ctx.measureText(testo).width + 22;
-    var bx = Math.max(8, x - w / 2);
-    ctx.fillStyle = '#f4efe2'; smusso(bx, y - 31, w, 28, 7); ctx.fill();
-    ctx.beginPath(); ctx.moveTo(x - 6, y - 4); ctx.lineTo(x + 6, y - 4); ctx.lineTo(x - 2, y + 8); ctx.fill();
-    ctx.fillStyle = '#ff5c8a'; ctx.fillRect(bx, y - 31, 3, 28);
-    ctx.fillStyle = '#121216'; ctx.textAlign = 'left'; ctx.fillText(testo, bx + 11, y - 11);
+    var k = smania(), forte = k > 0.55;
+    ctx.save(); ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
+    ctx.font = 'italic 700 ' + (forte ? 17 : 15) + 'px "Chakra Petch", sans-serif';
+    var w = ctx.measureText(testo).width + 26, h = 28;
+    var bx = Math.max(8, Math.min(x - w / 2, W - w - 8)), by = y - 34;
+    if (forte) { bx += (Math.random() - 0.5) * 2.5; by += (Math.random() - 0.5) * 2.5; }   // trema quando sono vicine
+    var px = Math.max(bx + 14, Math.min(x, bx + w - 14));
+    ctx.fillStyle = 'rgba(10,10,14,.82)';
+    smusso(bx, by, w, h, 8); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(px - 7, by + h); ctx.lineTo(px + 5, by + h); ctx.lineTo(px - 5, by + h + 10); ctx.closePath(); ctx.fill();
+    ctx.strokeStyle = forte ? 'rgba(255,92,138,.55)' : 'rgba(255,255,255,.14)'; ctx.lineWidth = 1;
+    smusso(bx + .5, by + .5, w - 1, h - 1, 8); ctx.stroke();
+    ctx.fillStyle = '#ff5c8a'; ctx.fillRect(bx, by + 6, 3, h - 12);
+    ctx.fillStyle = forte ? '#ff8db0' : '#f4efe2'; ctx.fillText(testo, bx + 13, by + 19);
+    ctx.restore();
   }
 
 
