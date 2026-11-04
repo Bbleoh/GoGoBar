@@ -1971,7 +1971,7 @@
     }
     if (g.avvisoFase > 0 && g.boss) {    // cambio di fase: si arrabbia; nell'ultima ricompare dietro
       var kf = g.avvisoFase;
-      scrittaGrande(g.boss.dietro ? 'È DIETRO DI TE!' : g.boss.fn === 3 ? 'MO TE VOJO VEDE!' : 'ADESSO BASTA!', 140, '#ff3a6e', Math.min(1, kf * 2, (2 - kf) * 6));
+      scrittaGrande(g.boss.dietro ? 'MO TE VOJO VEDE!' : g.boss.fn === 3 ? 'ADESSO BASTA!' : 'SI È INCAZZATA!', 140, '#ff3a6e', Math.min(1, kf * 2, (2 - kf) * 6));
     }
     if (g.boss && g.boss.az && g.boss.az.tipo === 'oro' && g.boss.az.t < 1.4) {
       scrittaGrande('ATTACCO D\'ORO!', 140, '#e4b33c', Math.sin(g.t * 20) > -0.3 ? 1 : 0.5);
