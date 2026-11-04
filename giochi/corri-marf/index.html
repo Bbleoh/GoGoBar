@@ -1310,7 +1310,8 @@
         if (rt >= 0.8 && !b.schiantata) {
           b.schiantata = true; g.scuoti = 0.5; detriti(b.x); fx('mazzata', 0.7, 0.7); fx('tonfo', 0.6, 0.7); b.schiaccia = 1;
           polvere(b.x - 60, TERRA, 14, 2);
-          [0, 420, 840].forEach(function (d) { g.ostacoli.push({ tipo: 'ragazza', t: TIPI.ragazza, x: BOSS_X - 160 + d, w: TIPI.ragazza.w, h: TIPI.ragazza.h, quante: 1 }); });
+          // le ragazze compaiono da sotto di lei in poi (più lontane da Marf, così c'è tempo per vederle)
+          [0, 420, 840].forEach(function (d) { g.ostacoli.push({ tipo: 'ragazza', t: TIPI.ragazza, x: BOSS_X + 100 + d, w: TIPI.ragazza.w, h: TIPI.ragazza.h, quante: 1 }); });
         }
         if (b.rabbia <= 0) { b.schiantata = false; b.schianto = false; if (b.fn === 3 && !b.dietro) b.uscita = true; }
       } else {
