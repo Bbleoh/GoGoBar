@@ -10,5 +10,6 @@ Tutti i suoni sono CC0 1.0 (pubblico dominio, royalty free, nessuna attribuzione
 - La risata da strega (strega-*) è una risata dell'Oculus Audio Pack alzata di tono, con vibrato ed eco.
 - Spada laser (spada-*), ding del tiro carico (ding-carica) e fruscio continuo della scivolata (scivolata-loop)
   sono sintetizzati apposta per il gioco: nessun campione esterno.
+  Lo stesso vale per brace, ding-canna e morso (il morso ha sotto anche un pezzo di carta accartocciata dell'Oculus Audio Pack).
 
 Convertiti in mp3 mono 64 kbps, con il silenzio iniziale e finale tolto.
