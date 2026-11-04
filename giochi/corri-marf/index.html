@@ -397,11 +397,14 @@
     if (TRACCE[traccia].paused) avviaMusica();
   }
   window.addEventListener('pointerdown', primoGesto, true); window.addEventListener('keydown', primoGesto, true);
-  /* ── Effetti sonori: suoni arcade di Kenney (CC0, sfx/LICENZA-kenney.txt), caricati in Web Audio ──
-     fx(nome, volume, velocità): la velocità cambia anche l'intonazione (0.5 = un'ottava sotto) */
-  var SFX = {}, SFX_NOMI = ['jump1', 'jump2', 'fall2', 'fall3', 'coin1', 'coin2', 'coin3', 'coin4', 'coin5', 'upgrade1', 'upgrade2', 'upgrade3',
-    'hurt1', 'hurt3', 'hit1', 'hit2', 'hit3', 'hit4', 'hit5', 'rockHit2', 'gameover2', 'error2', 'error3', 'error4', 'explosion1', 'explosion2',
-    'laser2', 'laser3', 'laser4', 'laser5', 'lose4', 'phaseJump1', 'secret2', 'secret4'];
+  /* ── Effetti sonori: foley e sound design royalty free (Oculus Audio Pack di Meta e Kenney, CC0: sfx/LICENZA.txt), in Web Audio ──
+     fx(nome, volume, velocità): la velocità cambia anche l'intonazione (0.5 = un'ottava sotto).
+     I suoni con più varianti (salto-1, salto-2…) ne pescano una a caso, così i colpi ripetuti non suonano tutti uguali. */
+  var SFX = {}, SFX_VARIANTI = { salto: 3, atterra: 2, swish: 3, fruscio: 2, whoosh: 2, scivola: 2, pugno: 3, cazzotto: 3, calcio: 2, ahi: 3, uomo: 2, lei: 4,
+    sforzo: 2, risata: 2, sputo: 2, ding: 2, disco: 2 };
+  var SFX_NOMI = ['canna', 'pringles', 'monete', 'mazzata', 'urlo', 'boato', 'vetro', 'tonfo', 'parata', 'click', 'errore', 'allarme', 'potere',
+    'laser', 'carica-laser', 'jet', 'esplosione', 'oro'];
+  Object.keys(SFX_VARIANTI).forEach(function (n) { for (var i = 1; i <= SFX_VARIANTI[n]; i++) SFX_NOMI.push(n + '-' + i); });
   function contestoAudio() {
     try { actx = actx || new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { return null; }
     if (actx.state === 'suspended' && actx.resume) actx.resume().catch(function () {});
@@ -419,6 +422,7 @@
   function fx(nome, vol, vel) {
     if (!audioOn) return;
     try {
+      if (SFX_VARIANTI[nome]) nome += '-' + (1 + Math.floor(Math.random() * SFX_VARIANTI[nome]));
       var c = contestoAudio(), buf = SFX[nome]; if (!c || !buf) return;
       var s = c.createBufferSource(), gn = c.createGain();
       s.buffer = buf; s.playbackRate.value = vel || 1; gn.gain.value = vol == null ? 0.5 : vol;
@@ -611,7 +615,7 @@
         b.textContent = prezzo + ' canne'; b.disabled = d.canne < prezzo; b.title = 'Prossimo livello: ' + u.u(u.val[lv + 1]);
         b.addEventListener('click', function () {
           salvaDati(giocatore, function (a) { if (a.canne >= prezzo && (+a.upg[u.id] || 0) === lv) { a.canne -= prezzo; a.upg[u.id] = lv + 1; } });
-          fx('upgrade2', 0.5);
+          fx('monete', 0.6);
           disegnaMarket();
         });
       }
@@ -746,7 +750,7 @@
     }, 1900);   // prima si gode il ragdoll
     setTimeout(function () { if (stato === 'preso') suona('morte'); }, 900);
     TRACCE[traccia].pause();
-    fx('gameover2', 0.6);
+    fx('mazzata', 0.6); fx('ahi', 0.55, 0.9); setTimeout(function () { fx('tonfo', 0.5, 0.8); }, 260);
   }
 
   /* ── Comandi ── */
@@ -756,7 +760,7 @@
     if (m.corridoio) return;                        // nel corridoio il soffitto è basso: niente salti
     if (m.salti < 2) {
       m.vy = m.salti === 0 ? -720 : -620; m.salti++; m.giu = false;
-      fx(m.salti === 1 ? 'jump1' : 'jump2', 0.45);
+      if (m.salti === 1) fx('salto', 0.6); else fx('fruscio', 0.5, 0.9);
       if (m.salti === 1) polvere(MARF_X - 4, m.y, 5, 1);
       else g.anim.giro = 1;                       // secondo salto: capriola
     }
@@ -766,7 +770,7 @@
     var m = g.marf;
     if (attivo) {
       if (!m.aTerra) m.vy = Math.max(m.vy, 900); // a terra in fretta
-      if (!m.giu) fx('fall2', 0.3, 1.5);
+      if (!m.giu) fx('scivola', 0.55, 1.1);
     }
     m.giu = attivo;
   }
@@ -875,7 +879,7 @@
   ];
   function lanciaJet() {
     JET_POS.forEach(function (p) { g.jets.push({ x: W + 60 + p[0], y: TERRA - p[1], fumo: p[2], preso: false }); });
-    fx('explosion2', 0.35, 1.3);
+    fx('jet', 0.5);
   }
 
   /* ── Aggiornamento ── */
@@ -935,7 +939,7 @@
     if (g.metri > g.prossimoJet && g.jetAvviso <= 0 && !g.jets.length && !zonaPalazzo() && !zonaBoss() && g.metri < g.prossimoPalazzo - 120) {
       g.jetAvviso = 1.4; g.prossimoJet = g.metri + 900 + Math.random() * 900;
       g.prossimo = Math.max(g.prossimo, 3.2);
-      fx('error2', 0.5); setTimeout(function () { fx('error2', 0.5); }, 250);
+      fx('allarme', 0.45); setTimeout(function () { fx('allarme', 0.45); }, 420);
     }
     if (g.jetAvviso > 0 && (g.jetAvviso -= dt) <= 0) lanciaJet();
     for (var k = g.jets.length - 1; k >= 0; k--) {
@@ -977,14 +981,14 @@
         g.birreA.splice(j, 1);
         if (b.pringles) {
           g.scudo = valore('scudo');                         // Cuffie insonorizzate: lo scudo dura di più
-          fx('upgrade1', 0.5);
+          fx('pringles', 0.55);
         } else {
           // la canna si conta solo se le ragazze sono già alla distanza massima, sennò serve solo a staccarle
           if (g.distacco >= 255) g.birre++;
           g.munizioni++;                                     // le canne raccolte si possono lanciare al boss
           g.distacco = Math.min(g.distacco + 55, 260); g.scatto = 1.2;
           g.bless = valore('scatto');                        // Bless: un attimo di invincibilità dopo ogni canna
-          fx('coin1', 0.4);
+          fx('canna', 0.6, 1.2);
         }
       }
     }
@@ -1008,11 +1012,11 @@
     if (3 - g.colpi < (g.maxVite || 5)) g.colpi--;
     stelline(MARF_X, g.marf.y - 40);
     g.scuoti = 0.15;
-    fx('hit4', 0.5); setTimeout(function () { fx('coin3', 0.45); }, 90);
+    fx('calcio', 0.6); setTimeout(function () { fx('uomo', 0.5); }, 70);
   }
   function aggiornaVolo(o, dt) {
     var prima = o.volo; o.volo += dt;
-    if (prima < VOLO_T && o.volo >= VOLO_T) { fx('coin5', 0.4, 1.5); }   // ding!
+    if (prima < VOLO_T && o.volo >= VOLO_T) { fx('ding', 0.4, 1.3); }   // ding!
   }
   function disegnaVolo(o) {
     var t = o.volo, img = OGG[o.t.img] || OGG.carabiniere;   // carabiniere sgambettato o umano abbattuto con una canna
@@ -1086,7 +1090,7 @@
   var BOSS_VITA = 170, BOSS_VITA_PIU = 40, DANNO_SFERA = 4, RABBIA_T = 3.2;
   // tiro delle canne: danno da DANNO_MIN (tocco) a DANNO_MAX (carica piena, TIRO_MAX secondi)
   var TIRO_MAX = 0.9, DANNO_MIN = 0.4, DANNO_MAX = 1.6;
-  var DANNO_SUPER = 0.08, DANNO_OSTACOLO = 1.8, STORDITA_T = 3.6, STORDITA_ORO = 4;   // oro e super: frazioni della vita massima
+  var DANNO_SUPER = 0.08, DANNO_OSTACOLO = 1.8, STORDITA_T = 4, STORDITA_ORO = 4;   // oro e super: frazioni della vita massima
   // sottofasi: altezza del centro della testa. La mano di Marf da terra è a TERRA-62: la colpisci da terra solo se è bassa
   var QUOTE = { bassa: 232, media: 168, alta: 112 }, QUOTA_T = [8, 3];
   var PEDANA_BASSA = TERRA - 105, PEDANA_ALTA = TERRA - 190;
@@ -1100,10 +1104,10 @@
   var MOSSE = { carica: 1, schianto: 1, oro: 1 };
   // suono d'avviso all'inizio di ogni attacco: così si capisce cosa arriva anche senza guardarla
   function allarme(tipo) {
-    if (tipo === 'laser') { fx('laser5', 0.4, 0.45); fx('error3', 0.25, 1.4); }
-    else if (tipo === 'carica') fx('error2', 0.45, 1.25);
-    else if (tipo === 'schianto') fx('rockHit2', 0.5, 0.7);
-    else if (tipo === 'oro') fx('secret2', 0.45, 1.3);
+    if (tipo === 'laser') fx('carica-laser', 0.5);
+    else if (tipo === 'carica') fx('sforzo', 0.6);
+    else if (tipo === 'schianto') { fx('sforzo', 0.6, 0.9); fx('whoosh', 0.4, 0.7); }
+    else if (tipo === 'oro') fx('oro', 0.6);
   }    // attacchi lunghi: il cambio di fase aspetta che finiscano
   var CARICA_Y = 218, CARICA_V = 1250, CARICA_AVVISO = 0.85;
   // tempi (s dall'inizio dell'attacco) in cui parte ogni pezzo degli attacchi speciali, e quando finisce l'attacco
@@ -1131,7 +1135,7 @@
       quota: 'bassa', tQuota: QUOTA_T[0] + 2, tFase: 0, oroT: 12 + Math.random() * 8, oroFatto: {}, prossimaCanna: 1.5, prossimaPedana: 2, stordita: 0 };
     g.sfere = []; g.lanci = []; g.speciali = []; g.laser = null; g.banner = 2.8; g.super = 0; g.tiro = null;
     suona('boss');
-    fx('lose4', 0.55, 0.7); setTimeout(function () { fx('error2', 0.5, 0.8); }, 350);
+    fx('boato', 0.6); setTimeout(function () { fx('risata', 0.6); }, 250);
   }
 
   // tiro delle canne: si carica tenendo premuto, parte lasciando, vola dritta verso destra dall'altezza della mano
@@ -1139,7 +1143,7 @@
   function puoTirare() { return stato === 'gioco' && !(g.boss && g.boss.uscita); }   // si tira sempre, non solo col boss
   function iniziaTiro() {
     if (!puoTirare() || g.tiro != null) return;
-    if (g.munizioni <= 0) { g.vuoto = 0.5; fx('error3', 0.4); return; }
+    if (g.munizioni <= 0) { g.vuoto = 0.5; fx('click', 0.6); return; }
     g.tiro = 0;
   }
   function lancia() {
@@ -1150,23 +1154,23 @@
     if (sup) { g.super = 0; g.scuoti = Math.max(g.scuoti, 0.2); }
     g.lanci.push({ x: MARF_X + 22, y: manoY(), vx: 900 + 500 * k, k: k, sup: sup,
       danno: sup ? g.boss.hpMax * DANNO_SUPER : DANNO_MIN + (DANNO_MAX - DANNO_MIN) * k });
-    if (sup) { fx('laser4', 0.55, 0.7); setTimeout(function () { fx('upgrade3', 0.45); }, 80); }
-    else fx('laser2', 0.4, 0.9 + 0.5 * k);
+    if (sup) { fx('whoosh', 0.7, 0.7); fx('potere', 0.4); }
+    else fx('swish', 0.45 + 0.25 * k, 1.25 - 0.35 * k);
   }
 
   function feriscBoss(danno, x, y, nonRiempie) {
     var b = g.boss; if (!b || b.fase !== 'lotta') return;
-    if (b.rabbia > 0 || b.uscita) { fx('error3', 0.3, 1.5); return; }      // mentre si arrabbia non si fa niente
+    if (b.rabbia > 0 || b.uscita) { fx('click', 0.4); return; }      // mentre si arrabbia non si fa niente
     if (b.stordita > 0) danno *= 2;                                                  // stordita: doppio danno
     b.hp = Math.max(0, b.hp - danno); b.ferita = 0.3; b.lampo = 0.15;
     if (!nonRiempie) g.super = Math.min(1, (g.super || 0) + danno / (b.hpMax * 0.45));
     stelline(x, y); g.piuUno = 0;
-    fx(danno > 1 ? 'hit1' : 'hit3', 0.5);
+    fx(danno > 1 ? 'cazzotto' : 'pugno', 0.55); if (danno > 1 || Math.random() < 0.3) fx('lei', 0.4);
     if (b.hp <= 0) {
       b.fase = 'sconfitta'; b.t = 0; b.az = null; g.laser = null; g.allarme = 0; b.ombra = null; b.stira = 0; b.stordita = 0; b.oro = 0;
       g.tiro = null; g.scuoti = 0.5;
       g.sfere.forEach(function (s) { s.via = true; }); g.speciali = [];
-      fx('explosion2', 0.6);
+      fx('urlo', 0.6); fx('esplosione', 0.5);
     }
   }
   // un disco d'oro rimandato con una canna la colpisce: si stordisce (smette di attaccare, scende giù e prende danno doppio)
@@ -1176,7 +1180,7 @@
     b.stordita = STORDITA_ORO;
     if (b.az && !MOSSE[b.az.tipo]) { b.az = null; g.laser = null; }
     g.super = Math.min(1, (g.super || 0) + 0.25); g.contro = 1.8; g.scuoti = 0.4;
-    fx('secret4', 0.55);
+    fx('ding', 0.55, 0.8); fx('lei', 0.5);
   }
 
   // pedane in aria: le metti sotto i piedi saltando, servono per arrivare alla sua altezza (e spesso c'è una canna sopra)
@@ -1258,7 +1262,7 @@
       if (fase > b.fn && !(b.az && MOSSE[b.az.tipo])) {
         b.fn = fase; b.rabbia = RABBIA_T; b.az = null; g.laser = null; b.prossimo = 0.6; b.stordita = 0;
         b.tFase = 0; b.oroT = (fase === 3 ? 6 : 10) + Math.random() * 6;
-        g.scuoti = 0.6; g.avvisoFase = 2; fx('lose4', 0.55, 0.6);
+        g.scuoti = 0.6; g.avvisoFase = 2; fx('risata', 0.6, 0.85);
       }
       if (b.uscita) {
         // ultima fase: vola via in alto e ricompare dietro Marf
@@ -1266,7 +1270,7 @@
         if (b.y < -170) {
           b.uscita = false; b.dietro = true; b.x = -230; b.y = 245; b.prossimo = 2.2; b.calma = 1.2;
           g.avvisoFase = 2; g.prossimo = Math.max(g.prossimo, 1.4); g.pedane.length = 0;
-          fx('phaseJump1', 0.5, 0.7);
+          fx('whoosh', 0.6, 0.6);
         }
       } else if (b.rabbia > 0) {
         // si alza, si schianta a terra e lascia delle ragazze accovacciate da saltare, poi torna su
@@ -1276,7 +1280,7 @@
         else if (rt < 1.6) { mira = TERRA - 75; b.schianto = true; }
         else mira = BOSS_Y;
         if (rt >= 0.8 && !b.schiantata) {
-          b.schiantata = true; g.scuoti = 0.5; fx('explosion1', 0.6, 1.1); b.schiaccia = 1;
+          b.schiantata = true; g.scuoti = 0.5; fx('mazzata', 0.7, 0.7); fx('tonfo', 0.6, 0.7); b.schiaccia = 1;
           polvere(b.x - 60, TERRA, 14, 2);
           [0, 420, 840].forEach(function (d) { g.ostacoli.push({ tipo: 'ragazza', t: TIPI.ragazza, x: BOSS_X - 160 + d, w: TIPI.ragazza.w, h: TIPI.ragazza.h, quante: 1 }); });
         }
@@ -1316,7 +1320,7 @@
             var ly = a.basso ? LASER_BASSO_Y : LASER_Y;
             mira = ly;
             if (a.t < 0.85) g.laser = { y: ly, carica: a.t / 0.85, dir: dir };
-            else if (a.t < 1.25) { if (!g.laser || g.laser.carica < 2) fx('laser4', 0.5, 0.55); g.laser = { y: ly, carica: 2, dir: dir }; }
+            else if (a.t < 1.25) { if (!g.laser || g.laser.carica < 2) fx('laser', 0.55, 0.8); g.laser = { y: ly, carica: 2, dir: dir }; }
             else {
               g.laser = null;
               if (a.dopo && a.t >= 1.3) { a.t = 0.25; a.basso = true; a.dopo = null; }     // doppio: subito dopo quello basso
@@ -1328,7 +1332,7 @@
             mira = CARICA_Y; ky = 9;
             if (!a.corsa) {
               tx = dir < 0 ? W - 90 : 40; kx = 6; b.trema = 1; g.allarme = Math.min(1, a.t / a.avviso);
-              if (a.t >= a.avviso) { a.corsa = true; a.preso = false; fx('phaseJump1', 0.55, 0.6); g.scuoti = 0.2; }
+              if (a.t >= a.avviso) { a.corsa = true; a.preso = false; fx('whoosh', 0.6, 0.8); g.scuoti = 0.2; }
             } else if (!a.fuori) {
               libera = true; b.stira = 1;
               b.x += dir * CARICA_V * dt; b.y += (mira - b.y) * Math.min(1, dt * ky);
@@ -1356,7 +1360,7 @@
                 b.y = TERRA - 112; a.terra = a.t; b.schiaccia = 1; g.scuoti = 0.45;
                 polvere(b.x - 90, TERRA, 10, 2); polvere(b.x + 90, TERRA, 10, 2);
                 g.speciali.push({ tipo: 'onda', x: b.x - 110, s: 30 });
-                fx('explosion1', 0.6, 1.3);
+                fx('tonfo', 0.6, 0.9);
                 if (a.volte <= 1) b.stordita = STORDITA_T;
               }
             } else {
@@ -1372,7 +1376,7 @@
             b.oro = 1; if (a.t < 0.9) b.trema = 1;
             while (a.fatti < seq.length && a.t >= 0.9 + a.fatti * passo) {
               g.speciali.push({ tipo: 'oro', alto: seq[a.fatti] === 'alto', x: dir < 0 ? b.x - 100 : -60, dir: dir, v: dir < 0 ? 650 : 430, az: a });
-              fx('coin2', 0.4, seq[a.fatti] === 'alto' ? 1.3 : 1); a.fatti++;
+              fx('disco', 0.45, seq[a.fatti] === 'alto' ? 1.2 : 0.95); a.fatti++;
             }
             if (a.fatti >= seq.length && a.finiti >= seq.length) fineAzione(b, ritmo);
             else if (a.t > 8) fineAzione(b, ritmo);
@@ -1405,7 +1409,7 @@
       if (b.t > 0.9 && !b.volo) { b.volo = true; b.x0 = b.x; b.y0 = b.y; }
       if (b.volo) {
         var k = (b.t - 0.9) / 1.4;
-        if (k >= 1 && !b.ding) { b.ding = true; fx('secret2', 0.5); }
+        if (k >= 1 && !b.ding) { b.ding = true; fx('tonfo', 0.5, 0.8); }
         if (k >= 1.5) fineBoss();
       }
     }
@@ -1425,7 +1429,7 @@
         if (!s.via && !s.preso && tocca(hb, { x: s.x - s.r + 4, y: s.y - s.r + 4, w: s.r * 2 - 8, h: s.r * 2 - 8 })) {
           if (m.giu && m.aTerra) {
             s.ritorno = true; s.vx = s.dir > 0 ? -700 : 700; s.vy = -500;
-            fx('coin4', 0.5);
+            fx('parata', 0.5, 1.2);
           } else { colpito(s); s.via = true; }
         }
       }
@@ -1468,37 +1472,37 @@
     var bo = boxSpeciale(o);
     o.rimandato = true; o.y = bo.y + bo.h / 2; o.vx = -o.dir * 900; o.vy = -200;
     if (!o.finito) { o.finito = true; o.az.finiti++; }
-    stelline(o.x, o.y); fx('coin4', 0.55, 0.8);
+    stelline(o.x, o.y); fx('parata', 0.55);
   }
   function abbatti(o, c) {
     o.preso = true; o.volo = 0; o.vx0 = o.x + o.w / 2;
     stelline(c.x, c.y); g.scuoti = Math.max(g.scuoti, 0.12);
-    fx('hit3', 0.5); setTimeout(function () { fx('hurt3', 0.4, 1.3); }, 60);
+    fx('calcio', 0.6); setTimeout(function () { fx(o.tipo === 'ragazza' ? 'lei' : 'uomo', 0.45, 1.1); }, 60);
   }
   function oltraggio() {
     var m = g.marf;
     g.colpi += 1; m.botta = 1.1; g.scuoti = 0.3; g.scritta = { testo: 'OLTRAGGIO!', t: 1.6 };
     g.distacco = Math.max(g.distacco - 85, 25);
-    fx('error4', 0.6); setTimeout(function () { fx('hurt1', 0.55); }, 120);
+    fx('errore', 0.55); fx('pugno', 0.55); setTimeout(function () { fx('ahi', 0.55); }, 90);
   }
   function sputa(b) {
     b.tSfera = 0; var d = b.dietro ? 1 : -1;
     g.sfere.push({ x: b.x + d * BOSS_H * 0.13, y: b.y + BOSS_H * 0.22, vx: d * (d > 0 ? 200 : 260 + Math.random() * 80), vy: -260, r: 16, giro: 0, dir: d });
-    fx('laser3', 0.4, 0.6);
+    fx('sputo', 0.5, 1.1);
   }
   // attacchi speciali. Grafica neutra (blocchi grigi) finché non arrivano gli asset di Leo: NEUTRO dice le misure
   var NEUTRO = { pioggia: 44, boomerang: 34, muro: 40 };
   function speciale(tipo, i, b) {
     if (tipo === 'pioggia') {           // tre oggetti cadono dal cielo davanti a Marf: l'ombra a terra dice dove; poi restano a terra da saltare
       for (var k = 0; k < 3; k++) g.speciali.push({ tipo: tipo, x: W + 200 + k * 260, y: -60 - k * 40, vy: 0, s: NEUTRO.pioggia, terra: false });
-      fx('fall3', 0.45);
+      fx('whoosh', 0.5, 0.75);
     } else if (tipo === 'boomerang') {  // passa ad altezza testa (scivola), esce a sinistra e torna basso da dietro (salta)
       g.speciali.push({ tipo: tipo, x: b.x - 110, y: LASER_Y, vx: -720, s: NEUTRO.boomerang, giro: 0, ritorno: 0 });
-      fx('laser4', 0.4, 0.8);
+      fx('swish', 0.55, 0.8);
     } else if (tipo === 'muro') {       // muri alternati: alto (scivola), basso (salta), alto
       var alto = i !== 1;
       g.speciali.push({ tipo: tipo, x: W + 30, y0: alto ? TERRA - 230 : TERRA - 46, y1: alto ? TERRA - 47 : TERRA, s: NEUTRO.muro });
-      fx('hit5', 0.45, alto ? 1 : 0.7);
+      fx('tonfo', 0.55, alto ? 1 : 0.75);
     }
   }
   function boxSpeciale(o) {
@@ -1844,7 +1848,7 @@
     if (g.bless > 0) return;                            // Bless: subito dopo una canna non ti fa niente
     if (g.scudo > 0) {                                  // lo scudo para il colpo e si rompe
       g.scudo = 0; m.botta = 0.7; scoppiaScudo();
-      fx('hit2', 0.5);
+      fx('vetro', 0.5);
       return;
     }
     if (m.botta > 0) return;
@@ -1852,7 +1856,7 @@
     g.colpi += danno; m.botta = 1.1; g.scuoti = danno > 1 ? 0.4 : 0.25;
     rallenta(VEL_BOTTA);
     g.distacco = Math.max(g.distacco - 85, 25);
-    fx('hurt1', 0.55);
+    fx('pugno', 0.6); fx('ahi', 0.5);
   }
 
   // la velocità sale di 9 px/s al secondo fino a 820: rallentare = riportare indietro quel tempo
@@ -2420,6 +2424,7 @@
     a.atterra = Math.min(1, 0.45 + vy / 1600);
     a.ripresa = 0; a.giro = 0;
     polvere(MARF_X, g.marf.y, 7 + Math.floor(vy / 200), 1.4);
+    fx('atterra', Math.min(0.6, 0.2 + vy / 2400));
   }
 
   function animaTutto(dt) {
