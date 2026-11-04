@@ -400,10 +400,11 @@
   /* ── Effetti sonori: foley e sound design royalty free (Oculus Audio Pack di Meta e Kenney, CC0: sfx/LICENZA.txt), in Web Audio ──
      fx(nome, volume, velocità): la velocità cambia anche l'intonazione (0.5 = un'ottava sotto).
      I suoni con più varianti (salto-1, salto-2…) ne pescano una a caso, così i colpi ripetuti non suonano tutti uguali. */
-  var SFX = {}, SFX_VARIANTI = { salto: 3, atterra: 2, swish: 3, fruscio: 2, whoosh: 2, scivola: 2, pugno: 3, cazzotto: 3, calcio: 2, ahi: 3, uomo: 2, lei: 4,
-    sforzo: 2, risata: 2, sputo: 2, ding: 2, disco: 2 };
-  var SFX_NOMI = ['canna', 'pringles', 'monete', 'mazzata', 'urlo', 'boato', 'vetro', 'tonfo', 'parata', 'click', 'errore', 'allarme', 'potere',
-    'laser', 'carica-laser', 'jet', 'esplosione', 'oro'];
+  var SFX = {}, SFX_VARIANTI = { salto: 3, atterra: 2, swish: 3, fruscio: 2, whoosh: 2, pugno: 3, cazzotto: 3, calcio: 2, ahi: 3, uomo: 2, lei: 4,
+    sforzo: 2, strega: 3, sputo: 2, ding: 2, disco: 2, passo: 5, thump: 2 };
+  var SFX_NOMI = ['canna', 'pringles', 'monete', 'mazzata', 'urlo', 'boato', 'tonfo', 'parata', 'click', 'errore', 'allarme', 'potere',
+    'laser', 'carica-laser', 'jet', 'esplosione', 'oro', 'umpf', 'ding-carica', 'spada-accesa', 'spada-colpo', 'fruscio-scivolata', 'scivolata-loop'];
+  var VOLUME_FX = 0.5;   // tutti gli effetti 6 dB sotto
   Object.keys(SFX_VARIANTI).forEach(function (n) { for (var i = 1; i <= SFX_VARIANTI[n]; i++) SFX_NOMI.push(n + '-' + i); });
   function contestoAudio() {
     try { actx = actx || new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { return null; }
@@ -425,9 +426,27 @@
       if (SFX_VARIANTI[nome]) nome += '-' + (1 + Math.floor(Math.random() * SFX_VARIANTI[nome]));
       var c = contestoAudio(), buf = SFX[nome]; if (!c || !buf) return;
       var s = c.createBufferSource(), gn = c.createGain();
-      s.buffer = buf; s.playbackRate.value = vel || 1; gn.gain.value = vol == null ? 0.5 : vol;
+      s.buffer = buf; s.playbackRate.value = vel || 1; gn.gain.value = (vol == null ? 0.5 : vol) * VOLUME_FX;
       s.connect(gn); gn.connect(c.destination); s.start();
     } catch (e) {}
+  }
+
+  // fruscio continuo mentre Marf scivola a terra: un loop che parte e si spegne con una piccola dissolvenza
+  var scivolata = null;
+  function suonoScivolata(on) {
+    try {
+      if (on && !scivolata && audioOn && actx && SFX['scivolata-loop']) {
+        var s = actx.createBufferSource(), gn = actx.createGain(), buf = SFX['scivolata-loop'];
+        s.buffer = buf; s.loop = true; s.loopStart = 0.05; s.loopEnd = buf.duration - 0.05;
+        gn.gain.setValueAtTime(0, actx.currentTime); gn.gain.linearRampToValueAtTime(0.16 * VOLUME_FX, actx.currentTime + 0.08);
+        s.connect(gn); gn.connect(actx.destination); s.start(0, 0.05);
+        scivolata = { s: s, gn: gn };
+      } else if ((!on || !audioOn) && scivolata) {
+        var v = scivolata; scivolata = null;
+        v.gn.gain.cancelScheduledValues(actx.currentTime); v.gn.gain.setValueAtTime(v.gn.gain.value, actx.currentTime);
+        v.gn.gain.linearRampToValueAtTime(0, actx.currentTime + 0.1); v.s.stop(actx.currentTime + 0.12);
+      }
+    } catch (e) { scivolata = null; }
   }
 
   // i font del canvas vanno caricati a mano (il DOM non li usa tutti)
@@ -759,7 +778,7 @@
     var m = g.marf;
     if (m.corridoio) return;                        // nel corridoio il soffitto è basso: niente salti
     if (m.salti < 2) {
-      m.vy = m.salti === 0 ? -720 : -620; m.salti++; m.giu = false;
+      m.vy = m.salti === 0 ? -720 : -620; m.salti++; m.giu = false; m.picchiata = false;
       if (m.salti === 1) fx('salto', 0.6); else fx('fruscio', 0.5, 0.9);
       if (m.salti === 1) polvere(MARF_X - 4, m.y, 5, 1);
       else g.anim.giro = 1;                       // secondo salto: capriola
@@ -769,8 +788,8 @@
     if (stato !== 'gioco') return;
     var m = g.marf;
     if (attivo) {
-      if (!m.aTerra) m.vy = Math.max(m.vy, 900); // a terra in fretta
-      if (!m.giu) fx('scivola', 0.55, 1.1);
+      if (!m.aTerra) { m.vy = Math.max(m.vy, 900); if (!m.giu) { m.picchiata = true; fx('fruscio', 0.5, 0.7); } }   // a terra in fretta
+      else if (!m.giu) fx('fruscio-scivolata', 0.6, 1 + Math.random() * 0.15);
     }
     m.giu = attivo;
   }
@@ -959,6 +978,7 @@
     }
 
     aggiornaBoss(dt, dx);
+    suonoScivolata(g.marf.giu && g.marf.aTerra && !g.marf.corridoio);
     aggiornaLanci(dt);
 
     // birre
@@ -981,7 +1001,7 @@
         g.birreA.splice(j, 1);
         if (b.pringles) {
           g.scudo = valore('scudo');                         // Cuffie insonorizzate: lo scudo dura di più
-          fx('pringles', 0.55);
+          fx('pringles', 0.55); fx('spada-accesa', 0.5);
         } else {
           // la canna si conta solo se le ragazze sono già alla distanza massima, sennò serve solo a staccarle
           if (g.distacco >= 255) g.birre++;
@@ -1135,7 +1155,7 @@
       quota: 'bassa', tQuota: QUOTA_T[0] + 2, tFase: 0, oroT: 12 + Math.random() * 8, oroFatto: {}, prossimaCanna: 1.5, prossimaPedana: 2, stordita: 0 };
     g.sfere = []; g.lanci = []; g.speciali = []; g.laser = null; g.banner = 2.8; g.super = 0; g.tiro = null;
     suona('boss');
-    fx('boato', 0.6); setTimeout(function () { fx('risata', 0.6); }, 250);
+    fx('boato', 0.6); setTimeout(function () { fx('strega', 0.65); }, 250);
   }
 
   // tiro delle canne: si carica tenendo premuto, parte lasciando, vola dritta verso destra dall'altezza della mano
@@ -1213,7 +1233,10 @@
     if (g.bonusT > 0) g.bonusT -= dt;
     if (g.contro > 0) g.contro -= dt;
     if (g.scritta && (g.scritta.t -= dt) <= 0) g.scritta = null;
-    if (g.tiro != null) { if (puoTirare()) g.tiro += dt; else g.tiro = null; }
+    if (g.tiro != null) {
+      if (puoTirare()) { var tPrima = g.tiro; g.tiro += dt; if (tPrima < TIRO_MAX && g.tiro >= TIRO_MAX) fx('ding-carica', 0.55); }   // carica piena: ding
+      else g.tiro = null;
+    }
     if (!g.boss) {
       if (g.metri >= g.prossimoBoss) nuovoBoss();
       return;
@@ -1262,7 +1285,7 @@
       if (fase > b.fn && !(b.az && MOSSE[b.az.tipo])) {
         b.fn = fase; b.rabbia = RABBIA_T; b.az = null; g.laser = null; b.prossimo = 0.6; b.stordita = 0;
         b.tFase = 0; b.oroT = (fase === 3 ? 6 : 10) + Math.random() * 6;
-        g.scuoti = 0.6; g.avvisoFase = 2; fx('risata', 0.6, 0.85);
+        g.scuoti = 0.6; g.avvisoFase = 2; fx('strega', 0.65);
       }
       if (b.uscita) {
         // ultima fase: vola via in alto e ricompare dietro Marf
@@ -1848,7 +1871,7 @@
     if (g.bless > 0) return;                            // Bless: subito dopo una canna non ti fa niente
     if (g.scudo > 0) {                                  // lo scudo para il colpo e si rompe
       g.scudo = 0; m.botta = 0.7; scoppiaScudo();
-      fx('vetro', 0.5);
+      fx('spada-colpo', 0.6);
       return;
     }
     if (m.botta > 0) return;
@@ -2326,7 +2349,23 @@
     var pt = PEZZI.d.parti.avambraccio, mano = (pt.h - pt.p[1]) * PEZZI.K * 0.78;
     var cw = 38, ch = cw * OGG.canna.naturalHeight / OGG.canna.naturalWidth;
     ctx.save(); ctx.rotate(-avamb); ctx.translate(0, mano); ctx.rotate(avamb + 0.58);   // di nuovo dritta nel mondo: orizzontale, brace avanti
+    var piena = g.tiro != null && g.tiro >= TIRO_MAX;
+    if (piena) { ctx.shadowColor = '#ffd76a'; ctx.shadowBlur = 14 + 6 * Math.sin(g.t * 18); }
     ctx.drawImage(cache(OGG.canna, cw, ch), -cw / 2, -ch / 2, cw, ch);
+    ctx.shadowBlur = 0;
+    if (piena) luccichio(cw, ch);
+    ctx.restore();
+  }
+  // carica piena: la canna luccica (stelline che si accendono e spengono lungo la canna)
+  function luccichio(cw, ch) {
+    ctx.save(); ctx.globalCompositeOperation = 'lighter';
+    for (var i = 0; i < 4; i++) {
+      var ph = g.t * 3.1 + i * 0.37, k = ph - Math.floor(ph), s = Math.sin(k * Math.PI) * (5 + i % 2 * 3);
+      var x = (((i * 0.29 + Math.floor(ph) * 0.61) % 1) - 0.5) * cw, y = ((i % 3) - 1) * ch * 0.6;
+      ctx.fillStyle = 'rgba(255, 236, 160, ' + (0.4 + 0.6 * Math.sin(k * Math.PI)).toFixed(2) + ')';
+      ctx.beginPath(); ctx.moveTo(x, y - s); ctx.lineTo(x + s * 0.25, y - s * 0.25); ctx.lineTo(x + s, y); ctx.lineTo(x + s * 0.25, y + s * 0.25);
+      ctx.lineTo(x, y + s); ctx.lineTo(x - s * 0.25, y + s * 0.25); ctx.lineTo(x - s, y); ctx.lineTo(x - s * 0.25, y - s * 0.25); ctx.fill();
+    }
     ctx.restore();
   }
   /* ── Animazione ──────────────────────────────────────────────────────────
@@ -2424,7 +2463,8 @@
     a.atterra = Math.min(1, 0.45 + vy / 1600);
     a.ripresa = 0; a.giro = 0;
     polvere(MARF_X, g.marf.y, 7 + Math.floor(vy / 200), 1.4);
-    fx('atterra', Math.min(0.6, 0.2 + vy / 2400));
+    if (g.marf.picchiata) { g.marf.picchiata = false; fx('thump', 0.8); fx('umpf', 0.45, 0.95 + Math.random() * 0.1); }   // giù in aria: tonfo sordo
+    else fx('atterra', Math.min(0.6, 0.2 + vy / 2400));
   }
 
   function animaTutto(dt) {
@@ -2468,7 +2508,7 @@
       }
       verso(a.posa, target, dt, 10 + 32 * a.ripresa);
       // polvere a ogni appoggio
-      if (inGioco && a.scivola < .2 && Math.floor(fasePrima * 2) !== Math.floor(a.fase * 2)) polvere(MARF_X + 6, m.y, 2, .5);
+      if (inGioco && a.scivola < .2 && Math.floor(fasePrima * 2) !== Math.floor(a.fase * 2)) { polvere(MARF_X + 6, m.y, 2, .5); fx('passo', 0.32, 0.92 + Math.random() * 0.16); }
     }
     a.atterra = Math.max(0, a.atterra - dt * 5.5);
     var vuoleCocca = inGioco && g.tiro != null ? 1 : 0;
@@ -2787,6 +2827,7 @@
     var dt = Math.min((ora - ultimo) / 1000, 1 / 20);
     ultimo = ora;
     aggiorna(dt);
+    if (stato !== 'gioco') suonoScivolata(false);
     disegna();
     requestAnimationFrame(ciclo);
   }
