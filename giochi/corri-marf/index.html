@@ -144,6 +144,16 @@
     .avviso-missione.entra { animation: avviso 2.9s ease both; }
     @keyframes avviso { 0% { opacity: 0; transform: translateX(-50%) translateY(-14px) scale(.9); } 8% { opacity: 1; transform: translateX(-50%) scale(1.04); }
       12%, 85% { opacity: 1; transform: translateX(-50%); } 100% { opacity: 0; transform: translateX(-50%) translateY(-8px); } }
+    .seconda { position: absolute; left: 50%; top: 50%; z-index: 6; transform: translate(-50%, -50%); display: grid; justify-items: center; gap: .55em; text-align: center;
+      padding: 1.1em 2em 1.3em; background: rgba(9,9,11,.92); box-shadow: inset 0 0 0 1px var(--gold); font-size: clamp(12px, 1.7vw, 17px);
+      clip-path: polygon(14px 0, 100% 0, 100% calc(100% - 14px), calc(100% - 14px) 100%, 0 100%, 0 14px); }
+    .seconda[hidden] { display: none; }
+    .seconda small { font-family: var(--mono); font-size: .7em; letter-spacing: .2em; text-transform: uppercase; color: var(--pink); }
+    .seconda b { font-family: var(--display); font-style: italic; font-weight: 700; font-size: 1.7em; color: var(--gold); text-transform: uppercase; line-height: 1; }
+    .seconda .riga { justify-content: center; }
+    .seconda .tempo { display: block; width: 100%; height: 4px; background: var(--pink); transform-origin: left; }
+    .seconda.conta .tempo { animation: tempoSeconda 5s linear forwards; }
+    @keyframes tempoSeconda { to { transform: scaleX(0); } }
     .consigli-boss { display: grid; gap: .45em; }
     .consigli-boss[hidden] { display: none; }
     .consigli-boss h3 { font-family: var(--mono); font-size: .8em; color: var(--pink); font-weight: 500; letter-spacing: .16em; text-transform: uppercase; }
@@ -391,7 +401,14 @@
           <div class="classifica" id="classificaFine"></div>
         </div>
       </div>
- <div class="avviso-missione" id="avvisoMissione" hidden aria-live="polite"><small>Missione compiuta</small><b></b><span></span></div>
+ <div class="seconda" id="seconda" hidden>
+        <small>Pensiero</small>
+        <b>Seconda possibilità?</b>
+        <div class="riga"><button class="btn" id="secondaSi" type="button">Riparti</button><button class="btn secondario" id="secondaNo" type="button">Lascia stare</button></div>
+        <p class="nota" id="secondaNota"></p>
+        <i class="tempo"></i>
+      </div>
+      <div class="avviso-missione" id="avvisoMissione" hidden aria-live="polite"><small>Missione compiuta</small><b></b><span></span></div>
       <button class="fs-btn" id="schermoIntero" type="button" aria-label="Schermo intero" title="Schermo intero">⛶</button>
     </div>
   </div>
@@ -561,6 +578,8 @@
       t: function (n) { return 'Fatti prendere prima dei ' + n + ' m'; } },
     { id: 'colpiBoss', ev: 'colpoBoss', modo: 'somma', premio: 40, da: 3, obj: function (gr) { return 10 + 5 * gr; },
       t: function (n) { return 'Colpisci MaDeLucata con ' + n + ' canne'; } },
+    { id: 'sfascia', ev: 'sfascia', modo: 'somma', premio: 25, da: 1, obj: function (gr) { return 5 + 3 * gr; },
+      t: function (n) { return 'Sfascia ' + n + ' ostacoli col carrello della spesa'; } },
     { id: 'boss', ev: 'boss', modo: 'somma', premio: 100, da: 4, obj: function () { return 1; },
       t: function () { return 'Sconfiggi MaDeLucata'; } }
   ];
@@ -681,16 +700,16 @@
   }
   // avviso in alto quando compi una missione (in corsa o al Crivo Shop); se ne arrivano due di fila si mettono in coda
   var codaAvvisi = [], avvisoTimer = null;
-  function avvisoMissione(cosa, premio) {
-    codaAvvisi.push([cosa, premio]);
+  function avvisoMissione(cosa, premio, titolo) {
+    codaAvvisi.push([cosa, premio, titolo || 'Missione compiuta']);
     if (!avvisoTimer) prossimoAvviso();
   }
   function prossimoAvviso() {
     var el = document.getElementById('avvisoMissione'), a = codaAvvisi.shift();
     if (!a) { el.hidden = true; avvisoTimer = null; return; }
-    el.querySelector('b').textContent = a[0]; el.querySelector('span').textContent = a[1];
+    el.querySelector('b').textContent = a[0]; el.querySelector('span').textContent = a[1]; el.querySelector('small').textContent = a[2];
     el.hidden = false; el.classList.remove('entra'); void el.offsetWidth; el.classList.add('entra');
-    avvisoTimer = setTimeout(prossimoAvviso, 2900);
+    avvisoTimer = setTimeout(prossimoAvviso, codaAvvisi.length ? 1700 : 2900);   // se ce ne sono altri in coda, più svelto
   }
 
   /* ── Musica e suoni ── */
@@ -954,7 +973,9 @@
      Gli id restano quelli vecchi (scudo, vita, magnete, scatto, pringles) così chi li ha già comprati li tiene. */
   var UPGRADE = [
     { id: 'scudo', nome: 'Cuffie insonorizzate', desc: 'Aiutano a stare in bolla per più tempo', prezzi: [75, 180, 400], val: [12, 16, 20, 25], u: function (v) { return 'scudo di ' + v + ' s'; } },
-    { id: 'vita', nome: 'Pensiero', desc: 'Un passo più lontano dal greppo', prezzi: [220, 540], val: [5, 6, 7], u: function (v) { return 'fino a ' + v + ' vite'; } },
+    // l'ultimo livello (7.5) = 7 vite e la seconda possibilità: quando ti prendono paghi canne e riparti
+    { id: 'vita', nome: 'Pensiero', desc: 'Un passo più lontano dal greppo', prezzi: [220, 540, 2600], val: [5, 6, 7, 7.5],
+      u: function (v) { return 'fino a ' + Math.floor(v) + ' vite' + (v % 1 ? ' e la seconda possibilità' : ''); } },
     { id: 'magnete', nome: 'Scimmia', desc: 'Te ne sfuggono tante... le bombe mai', prezzi: [90, 240, 470], val: [0, 70, 120, 180], u: function (v) { return 'attira da ' + v + ' px'; } },
     { id: 'scatto', nome: 'Bless', desc: 'Momento di chilling', prezzi: [55, 145, 325], val: [0, 0.4, 0.8, 1.2], u: function (v) { return v.toLocaleString('it-IT') + ' s invincibile dopo una canna'; } },
     { id: 'pringles', nome: 'Chimica', desc: 'Il dio Carrefour ti blessa con le sue Pringles', prezzi: [120, 300, 600], val: [0.08, 0.12, 0.16, 0.2], u: function (v) { return Math.round(v * 100) + '% di Pringles'; } },
@@ -983,7 +1004,7 @@
     scatto: ['shop/scatto-0.webp', 'shop/scatto-1.webp', 'shop/scatto-2.webp', 'shop/scatto-3.webp'],   // Bless: pugno, pollice, shaka, shaka che scuote (di Leo)
     gian: ['shop/gian-0.webp?v=2', 'shop/gian-1.webp?v=2', 'shop/gian-2.webp?v=2'],   // Gian base, bifase, trifase (di Leo)
     punto: ['ogg/punto.webp'],
-    pringles: ['ogg/pringles.webp']
+    pringles: ['shop/pringles-0.webp', 'shop/pringles-1.webp', 'shop/pringles-2.webp', 'shop/pringles-3.webp']   // Chimica: a secco, si lecca i baffi, unto, re del Carrefour (di Leo)
   };
   function immagineArticolo(u, lv) {
     var l = IMMAGINI_SHOP[u.id];
@@ -1156,6 +1177,7 @@
     boss: function () { g.ostacoli.length = 0; g.prossimoBoss = g.metri + 1; g.munizioni = arguments.length ? arguments[0] : 12; },
     lancia: function (k) { iniziaTiro(); if (g.tiro != null) g.tiro = (k == null ? 1 : k) * TIRO_MAX; lancia(); },
     missioni: function () { return mieMissioni(); }, evento: function (e, q, v) { evento(e, q, v); },
+    carrello: function () { nuovoCarrelloPickup(); }, seconda: function () { g.seconda = 1; secondaPossibilita(); },
     ritmo: function (f, t) { g.ritmo = { fase: f, t: t || 30 }; },
     formazione: function (f) { g.ostacoli.length = 0; generaFormazione(f); },
     canne: function (n) { var f = FORMAZIONI_CANNE.filter(function (z) { return z.n === n; })[0]; f.punti(80).forEach(function (q) { g.birreA.push({ x: W + 30 + q[0], y: TERRA - q[1] }); }); },
@@ -1190,7 +1212,9 @@
     if (!giocatore) { menu.hidden = false; fine.hidden = true; stato = 'menu'; nomeMenu.focus(); return; }
     if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
     nuovaPartita(); stato = 'gioco';
-    g.maxVite = valore('vita');                                 // Pensiero del Crivo Shop: quante vite puoi accumulare
+    g.maxVite = Math.floor(valore('vita'));                     // Pensiero del Crivo Shop: quante vite puoi accumulare
+    g.seconda = valore('vita') % 1 ? 1 : 0;                     // ultimo livello di Pensiero: una seconda possibilità a corsa
+    g.segnaposti = segnaposti();
     g.valCanna = valore('gian');                                // Benedizione der Gian: una canna vale 1, 2 (bifase) o 3 (trifase)
     if (valore('punto')) g.passaggio = { fino: valore('punto'), t: 0, fase: 'corsa', ruota: 0, v: 0 };   // Punto bianca: Crivo ti porta avanti
     menu.hidden = true; fine.hidden = true;
@@ -1227,6 +1251,173 @@
     fx('mazzata', 0.6); fx('ahi', 0.55, 0.9); setTimeout(function () { fx('tonfo', 0.5, 0.8); }, 260);
   }
 
+  /* ── Seconda possibilità (ultimo livello di Pensiero): quando ti prendono il gioco si ferma,
+     paghi canne (prima quelle in tasca, poi il portafoglio) e riparti con tutte le vite. Una volta a corsa. ── */
+  var SECONDA_T = 5;
+  function prezzoSeconda() { return 75 + Math.round(g.metri / 40); }
+  function canneDisponibili() { return g.munizioni + (giocatore ? datiDi(giocatore).canne : 0); }
+  var secondaTimer = null;
+  function secondaPossibilita() {
+    g.seconda = 0; stato = 'scelta';
+    var pan = document.getElementById('seconda'), prezzo = prezzoSeconda(), ok = canneDisponibili() >= prezzo;
+    var si = document.getElementById('secondaSi');
+    si.textContent = 'Riparti · ' + prezzo + ' canne'; si.disabled = !ok;
+    document.getElementById('secondaNota').textContent = ok ? 'Hai ' + canneDisponibili() + ' canne fra tasca e portafoglio' : 'Ti mancano ' + (prezzo - canneDisponibili()) + ' canne';
+    pan.hidden = false; pan.classList.remove('conta'); void pan.offsetWidth; pan.classList.add('conta');
+    fx('allarme', 0.4);
+    clearTimeout(secondaTimer); secondaTimer = setTimeout(function () { rinuncia(); }, SECONDA_T * 1000);
+  }
+  function rinuncia() {
+    clearTimeout(secondaTimer);
+    if (stato !== 'scelta') return;
+    document.getElementById('seconda').hidden = true;
+    stato = 'gioco'; preso();
+  }
+  function riparti() {
+    if (stato !== 'scelta') return;
+    var prezzo = prezzoSeconda();
+    if (canneDisponibili() < prezzo) return;
+    clearTimeout(secondaTimer);
+    var daTasca = Math.min(g.munizioni, prezzo);
+    g.munizioni -= daTasca;
+    if (prezzo > daTasca && !PROVA) salvaDati(giocatore, function (a) { a.canne = Math.max(0, a.canne - (prezzo - daTasca)); });
+    document.getElementById('seconda').hidden = true;
+    // si riparte puliti: vite piene, niente ostacoli addosso, ragazze lontane, un attimo di invincibilità
+    g.colpi = 0; g.distacco = 230; g.bless = 2; g.marf.botta = 0;
+    g.ostacoli = g.ostacoli.filter(function (o) { return o.x > MARF_X + 420 || o.volo !== undefined; });
+    g.jets.length = 0; g.jetAvviso = 0; g.prossimo = Math.max(g.prossimo, 1.2);
+    stato = 'gioco';
+    avvisoMissione('Seconda possibilità', '-' + prezzo + ' canne', 'Pensiero');
+    fx('potere', 0.55); stelline(MARF_X, g.marf.y - 40);
+  }
+  document.getElementById('secondaSi').addEventListener('click', riparti);
+  document.getElementById('secondaNo').addEventListener('click', rinuncia);
+
+  /* ── Segnaposti sulla strada: il tuo record e quelli degli altri giocatori (classifica online e giocatori di questo telefono).
+     Quando ne superi uno compare l'avviso. ── */
+  function segnaposti() {
+    var io = chiaveNome(giocatore), punti = {}, loc = giocatori();
+    Object.keys(online).forEach(function (k) { if (k !== io && online[k].punti > 0) punti[k] = { m: online[k].punti, nome: online[k].nome }; });
+    Object.keys(loc).forEach(function (k) {
+      var r = +loc[k].record || 0;
+      if (k !== io && r > 0 && (!punti[k] || punti[k].m < r)) punti[k] = { m: r, nome: loc[k].nome || k };
+    });
+    var lista = Object.keys(punti).map(function (k) { return { m: punti[k].m, nomi: [punti[k].nome], io: false }; });
+    if (record > 0) lista.push({ m: record, nomi: ['Il tuo record'], io: true });
+    lista.sort(function (a, b) { return a.m - b.m; });
+    var uniti = [];                                   // segnaposti a meno di 25 m l'uno dall'altro diventano uno solo
+    lista.forEach(function (s) {
+      var u = uniti[uniti.length - 1];
+      if (u && s.m - u.m < 25) { u.nomi = s.io ? s.nomi.concat(u.nomi) : u.nomi.concat(s.nomi); u.io = u.io || s.io; u.m = Math.max(u.m, s.m); }
+      else uniti.push({ m: s.m, nomi: s.nomi.slice(), io: s.io });
+    });
+    return uniti;
+  }
+  function aggiornaSegnaposti() {
+    (g.segnaposti || []).forEach(function (s) {
+      if (s.passato || g.metri < s.m) return;
+      s.passato = true;
+      if (s.io) { avvisoMissione('Nuovo record!', 'Oltre ' + s.m.toLocaleString('it-IT') + ' m', 'Record'); fx('campanella', 0.5, 1.1); }
+      else { avvisoMissione('Hai superato ' + s.nomi.join(', '), s.m.toLocaleString('it-IT') + ' m', 'Sorpasso'); fx('ding', 0.45, 1.2); }
+    });
+  }
+  function disegnaSegnaposti() {
+    if (!g.segnaposti || !g.segnaposti.length) return;
+    ctx.save();
+    ctx.font = 'italic 700 13px "Chakra Petch", sans-serif'; ctx.textBaseline = 'middle';
+    g.segnaposti.forEach(function (s) {
+      var x = MARF_X + 18 + (s.m - g.metri) * 40;
+      if (x < -160 || x > W + 40) return;
+      var testoS = (s.nomi.length > 2 ? s.nomi.slice(0, 2).join(', ') + ' +' + (s.nomi.length - 2) : s.nomi.join(', ')).toUpperCase();
+      var sotto = s.m.toLocaleString('it-IT') + ' m', col = s.io ? '#e4b33c' : '#ff5c8a', alto = 150;
+      ctx.globalAlpha = s.passato ? 0.45 : 1;
+      // linea sull'asfalto
+      ctx.fillStyle = col; ctx.globalAlpha *= 0.55; ctx.fillRect(x - 2, TERRA - 2, 4, 26); ctx.globalAlpha = s.passato ? 0.45 : 1;
+      // palo
+      ctx.fillStyle = '#121216'; ctx.fillRect(x - 2.5, TERRA - alto, 5, alto);
+      ctx.fillStyle = col; ctx.fillRect(x - 1.5, TERRA - alto, 3, alto);
+      // bandierina obliqua col nome
+      var w = Math.max(ctx.measureText(testoS).width, 60) + 22, y = TERRA - alto;
+      ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + w, y); ctx.lineTo(x + w - 8, y + 34); ctx.lineTo(x, y + 34); ctx.closePath();
+      ctx.fillStyle = 'rgba(9,9,11,.85)'; ctx.fill(); ctx.strokeStyle = col; ctx.lineWidth = 1.5; ctx.stroke();
+      ctx.fillStyle = col; ctx.fillText(testoS, x + 8, y + 11);
+      ctx.font = '500 11px "DM Mono", monospace'; ctx.fillStyle = '#f4efe2'; ctx.fillText(sotto, x + 8, y + 25);
+      ctx.font = 'italic 700 13px "Chakra Petch", sans-serif';
+    });
+    ctx.restore();
+  }
+
+  /* ── Carrello della spesa (veicolo a tempo, disegnato a mano finché non arriva l'asset di Leo).
+     Raro, si prende come una canna. Dentro il carrello: un salto solo, ↓ ti abbassi nel cestello (passi sotto i pesci),
+     gli ostacoli a terra li sfasci. Pesci, Aygo, carabinieri, jet e muri ti rompono il carrello ma non ti tolgono vite. ── */
+  var CARRELLO_T = 15, CARRELLO_DA = 800;
+  function nuovoCarrelloPickup() {
+    g.birreA.push({ x: W + 40, y: TERRA - 46, carrello: true, pringles: false });
+    g.prossimoCarrello = g.metri + 1500 + Math.random() * 1200;
+  }
+  function saliCarrello() {
+    g.carrello = { t: CARRELLO_T, giro: 0 };
+    var m = g.marf; m.vy = Math.min(m.vy, -380); m.salti = 1;
+    fx('tonfo', 0.5, 1.2); fx('fruscio', 0.4, 1.3);
+    avvisoMissione('Carrello della spesa!', 'Sfascia tutto per ' + CARRELLO_T + ' s', 'Veicolo');
+  }
+  function scendiCarrello(rotto) {
+    var c = g.carrello; if (!c) return;
+    g.carrello = null;
+    g.carrelloVia = { x: MARF_X, y: TERRA, vx: rotto ? -120 : 60, vy: rotto ? -320 : -120, r: 0, vr: rotto ? -6 : -1.5, t: 0 };
+    var m = g.marf; m.vy = -560; m.salti = 1; m.giu = false; m.botta = 0; g.bless = Math.max(g.bless, 0.8);
+    fx(rotto ? 'mazzata' : 'tonfo', 0.55, rotto ? 0.9 : 1.1);
+    if (rotto) { g.scuoti = 0.25; stelline(MARF_X, TERRA - 40); }
+  }
+  function aggiornaCarrello(dt, dx) {
+    var c = g.carrello;
+    if (c) {
+      c.t -= dt; c.giro += dx;
+      if (c.t <= 0 || zonaPalazzo() || zonaBoss()) scendiCarrello(false);
+    }
+    var v = g.carrelloVia;
+    if (v) {
+      v.t += dt; v.vy += 1500 * dt; v.x += (v.vx * dt) - dx; v.y = Math.min(TERRA, v.y + v.vy * dt); v.r += v.vr * dt;
+      if (v.y >= TERRA) { v.vy = 0; v.vr *= 0.9; }
+      if (v.x < -120 || v.t > 4) g.carrelloVia = null;
+    }
+  }
+  // un ostacolo preso col carrello: a terra si sfascia, gli altri rompono il carrello
+  function urtoCarrello(o) {
+    o.preso = true;
+    var sfascia = !o.t.aria && o.tipo !== 'aygo' && o.tipo !== 'carabiniere' && o.tipo !== 'palazzo';
+    if (!sfascia) { scendiCarrello(true); return; }
+    if (o.parti) crollaCastello(o); else { o.volo = 0; o.vx0 = o.x + o.w / 2; }
+    stelline(o.x + o.w / 2, TERRA - 40); g.scuoti = Math.max(g.scuoti, 0.12);
+    fx('mazzata', 0.5, 1.1 + Math.random() * 0.2);
+    evento('sfascia', 1);
+  }
+  // il carrello disegnato a mano: cestello di filo con la griglia, maniglia rossa, quattro ruote (se ne vedono due)
+  function disegnaCarrello(x, y, r, giro, piccolo) {
+    var k = piccolo ? 0.55 : 1;
+    ctx.save(); ctx.translate(x, y); ctx.rotate(r || 0); ctx.scale(k, k);
+    var L = -44, R = 40, top = -74, fondo = -24;
+    // cestello
+    ctx.beginPath(); ctx.moveTo(L, top); ctx.lineTo(R + 6, top); ctx.lineTo(R - 4, fondo); ctx.lineTo(L + 10, fondo); ctx.closePath();
+    ctx.fillStyle = 'rgba(205,210,220,.18)'; ctx.fill();
+    ctx.strokeStyle = '#121216'; ctx.lineWidth = 5; ctx.stroke();
+    ctx.strokeStyle = '#cfd4dc'; ctx.lineWidth = 2.5; ctx.stroke();
+    ctx.lineWidth = 1.4; ctx.strokeStyle = 'rgba(207,212,220,.75)';
+    for (var i = 1; i < 7; i++) { var u = i / 7; ctx.beginPath(); ctx.moveTo(L + (R + 6 - L) * u, top); ctx.lineTo(L + 10 + (R - 4 - L - 10) * u, fondo); ctx.stroke(); }
+    for (var j = 1; j < 3; j++) { var w = j / 3, yy = top + (fondo - top) * w; ctx.beginPath(); ctx.moveTo(L + 10 * w, yy); ctx.lineTo(R + 6 - 10 * w, yy); ctx.stroke(); }
+    // telaio e maniglia
+    ctx.strokeStyle = '#121216'; ctx.lineWidth = 4; ctx.beginPath(); ctx.moveTo(L + 10, fondo); ctx.lineTo(L + 6, -10); ctx.lineTo(R, -10); ctx.lineTo(R - 4, fondo); ctx.stroke();
+    ctx.strokeStyle = '#9aa0aa'; ctx.lineWidth = 2; ctx.stroke();
+    ctx.strokeStyle = '#121216'; ctx.lineWidth = 5; ctx.beginPath(); ctx.moveTo(L, top); ctx.lineTo(L - 12, top - 10); ctx.stroke();
+    ctx.strokeStyle = '#d2452f'; ctx.lineWidth = 3; ctx.stroke();
+    // ruote
+    [L + 8, R - 4].forEach(function (rx) {
+      ctx.fillStyle = '#121216'; ctx.beginPath(); ctx.arc(rx, -6, 7, 0, TAU); ctx.fill();
+      ctx.strokeStyle = '#6c6a73'; ctx.lineWidth = 2; ctx.beginPath(); var a = (giro || 0) / 7; ctx.moveTo(rx + Math.cos(a) * 5, -6 + Math.sin(a) * 5); ctx.lineTo(rx - Math.cos(a) * 5, -6 - Math.sin(a) * 5); ctx.stroke();
+    });
+    ctx.restore();
+  }
+
   /* ── Comandi ── */
   function salta() {
     if (stato !== 'gioco') return;
@@ -1234,6 +1425,10 @@
     if (g.volo) return;                              // proiettato fuori dalla macchina
     var m = g.marf;
     if (m.corridoio) return;                        // nel corridoio il soffitto è basso: niente salti
+    if (g.carrello) {                               // nel carrello: un salto solo, più pesante
+      if (m.aTerra) { m.vy = -680; m.salti = 1; m.giu = false; fx('salto', 0.5, 0.85); }
+      return;
+    }
     if (m.salti < 2) {
       m.vy = m.salti === 0 ? -720 : -620; m.salti++; m.giu = false; m.picchiata = false;
       if (m.salti === 1) fx('salto', 0.6); else fx('fruscio', 0.5, 0.9);
@@ -1246,7 +1441,7 @@
     var m = g.marf;
     if (attivo) {
       if (!m.aTerra) { m.vy = Math.max(m.vy, 900); if (!m.giu) { m.picchiata = true; fx('fruscio', 0.5, 0.7); } }   // a terra in fretta
-      else if (!m.giu) fx('fruscio-scivolata', 0.6, 1 + Math.random() * 0.15);
+      else if (!m.giu && !g.carrello) fx('fruscio-scivolata', 0.6, 1 + Math.random() * 0.15);
     }
     m.giu = attivo;
   }
@@ -1765,7 +1960,8 @@
       if (o.x + o.w < -200 && !(o.volo < VOLO_T + 0.5)) { g.ostacoli.splice(i, 1); continue; }
       if (o.volo !== undefined) aggiornaVolo(o, dt);
       if (!o.preso && toccaOstacolo(hb, o)) {
-        if (o.tipo === 'carabiniere' && m.giu && m.aTerra) sgambetto(o);
+        if (g.carrello) urtoCarrello(o);
+        else if (o.tipo === 'carabiniere' && m.giu && m.aTerra) sgambetto(o);
         else colpito(o);
       }
       if (o.gruppo && !o.passato && o.x + o.w < MARF_X - 18) {      // formazione superata: se nessun pezzo ti ha preso, vale per le missioni
@@ -1795,7 +1991,7 @@
         continue;
       }
       var bj = { x: j.x + 6, y: j.y - 13, w: jw - 14, h: 26 };
-      if (!j.preso && tocca(hb, bj)) { colpito(j); g.jetPreso = true; }
+      if (!j.preso && tocca(hb, bj)) { if (g.carrello) { j.preso = true; scendiCarrello(true); } else colpito(j); g.jetPreso = true; }
     }
     for (var f = g.fumo.length - 1; f >= 0; f--) {
       var pf = g.fumo[f]; pf.t += dt; pf.x -= dx;
@@ -1803,11 +1999,14 @@
     }
 
     aggiornaBoss(dt, dx);
-    suonoScivolata(g.marf.giu && g.marf.aTerra && !g.marf.corridoio);
+    suonoScivolata(g.marf.giu && g.marf.aTerra && !g.marf.corridoio && !g.carrello);
+    aggiornaCarrello(dt, dx);
+    aggiornaSegnaposti();
     aggiornaLanci(dt);
 
     // birre
     g.prossimaBirra -= dt;
+    if (g.metri > (g.prossimoCarrello || CARRELLO_DA + Math.random() * 700) && !g.carrello && !zonaBoss() && g.metri < g.prossimoPalazzo - 200 && !postoOccupato(W + 40)) nuovoCarrelloPickup();
     if (g.prossimaBirra <= 0 && !postoOccupato(W + 30)) {
       // a volte arriva una formazione di canne (più canne = più rara), sennò una canna sola o le pringles (scudo), molto più rare
       var nf = formazioneCanne();
@@ -1819,12 +2018,13 @@
       var b = g.birreA[j];
       b.x -= dx;
       if (b.x < -30) { g.birreA.splice(j, 1); continue; }
-      if (magnete && !b.pringles) {                    // magnete: le canne vicine volano verso Marf
+      if (magnete && !b.pringles && !b.carrello) {                    // magnete: le canne vicine volano verso Marf
         var mx = MARF_X - b.x, my = g.marf.y - 45 - b.y, md = Math.hypot(mx, my);
         if (md < magnete) { b.x += mx * Math.min(1, dt * 9); b.y += my * Math.min(1, dt * 9); }
       }
       if (tocca(hb, { x: b.x - 12, y: b.y - 22, w: 24, h: 40 })) {
         g.birreA.splice(j, 1);
+        if (b.carrello) { saliCarrello(); continue; }
         if (b.pringles) {
           g.scudo = valore('scudo');                         // Cuffie insonorizzate: lo scudo dura di più
           evento('pringles', 1);
@@ -1852,7 +2052,7 @@
     if (g.fumetto && (g.fumetto.t -= dt) <= 0) g.fumetto = null;
 
     if (PROVA) { g.distacco = Math.max(g.distacco, 120); g.colpi = Math.min(g.colpi, 2); }   // modalità prova: non ti prendono mai
-    if (g.colpi >= 3) preso();
+    if (g.colpi >= 3) { if (g.seconda && !PROVA) secondaPossibilita(); else preso(); }
   }
 
   // scivolata sulle caviglie del carabiniere: vola via in cielo come il Team Rocket e Marf guadagna una vita (al massimo 5)
@@ -2852,6 +3052,7 @@
   var MARF_X = 300;
   function hitboxMarf() {
     var m = g.marf;
+    if (g.carrello) { var hc = m.giu ? 60 : 112; return { x: MARF_X - 34, y: m.y - hc, w: 70, h: hc }; }   // carrello: più largo, e ti abbassi nel cestello
     var h = (m.giu || m.corridoio) && m.aTerra ? 42 : 86;
     return { x: MARF_X - 18, y: m.y - h, w: 36, h: h };
   }
@@ -2878,6 +3079,7 @@
     disegnaBoss();
     disegnaPedane();
     disegnaCorridoio();
+    disegnaSegnaposti();
     g.birreA.forEach(birra);
     g.ostacoli.forEach(ostacolo);
     disegnaColpiBoss();
@@ -2889,7 +3091,9 @@
     if (stato !== 'preso') inseguitrici();
     disegnaLinee();
     disegnaAuto();                       // la Punto sta sotto Marf: quando scende salta fuori da sopra
-    if (!g.passaggio) marf();                              // in macchina non si vede
+    if (g.carrello) marfNelCarrello();
+    else if (!g.passaggio) marf();                              // in macchina non si vede
+    if (g.carrelloVia) { var cv = g.carrelloVia; disegnaCarrello(cv.x, cv.y, cv.r, 0); }
     if (stato === 'preso') inseguitrici();   // preso: gli sono saltate addosso, stanno sopra di lui
     disegnaLaser(); disegnaAvvisi(); disegnaTiro();
     disegnaScudo();
@@ -3174,6 +3378,11 @@
   function imgCanna() { var n = CANNE_GIAN[(g && g.valCanna || 1) - 1]; return pronta(OGG[n]) ? OGG[n] : OGG.canna; }
   function birra(b) {
     var y = b.y + Math.sin(g.t * 5 + b.x * 0.02) * 4;
+    if (b.carrello) {
+      ctx.save(); ctx.fillStyle = 'rgba(255,92,138,.22)'; ctx.beginPath(); ctx.arc(b.x, y - 6, 30 + Math.sin(g.t * 6) * 3, 0, TAU); ctx.fill(); ctx.restore();
+      disegnaCarrello(b.x + 2, y + 18, Math.sin(g.t * 4) * 0.08, 0, true);
+      return;
+    }
     ctx.save(); ctx.translate(b.x, y);
     ctx.fillStyle = 'rgba(228,179,60,.25)'; ctx.beginPath(); ctx.arc(0, 0, 22, 0, Math.PI * 2); ctx.fill();
     if (b.pringles) {
@@ -3298,6 +3507,20 @@
   /* ── Marf: ricci neri, giacca nera aperta, felpa blu-grigia, jeans, sneakers ── */
   // Marf si disegna solo col rig dei pezzi: finché il foglio non è caricato non compare niente
   function marf() { if (PEZZI.pronto) marfNuovo(); }
+  // Marf accovacciato nel carrello: il cestello sta davanti a lui; abbassandosi sparisce quasi tutto dentro
+  function marfNelCarrello() {
+    var m = g.marf, c = g.carrello, giu = m.giu ? 34 : 0;
+    ctx.save(); ctx.beginPath(); ctx.rect(0, 0, W, m.y - 26); ctx.clip();          // le gambe restano nel cestello
+    ctx.translate(-4, -30 + giu);
+    marf();
+    ctx.restore();
+    var sobbalza = m.aTerra ? Math.sin(c.giro * 0.09) * 1.2 : 0;
+    disegnaCarrello(MARF_X, m.y + sobbalza, m.aTerra ? 0 : -0.06, c.giro);
+    // quanto manca: barretta sopra la testa
+    var u = Math.max(0, c.t / CARRELLO_T);
+    ctx.fillStyle = 'rgba(9,9,11,.7)'; ctx.fillRect(MARF_X - 30, m.y - 136, 60, 6);
+    ctx.fillStyle = u < 0.25 && Math.sin(g.t * 20) > 0 ? '#ff5c8a' : '#e4b33c'; ctx.fillRect(MARF_X - 29, m.y - 135, 58 * u, 4);
+  }
   /* ── Personaggi a pezzi: i fogli disegnati da Leo, scontornati e montati su uno scheletro ──
      I dati vengono dallo script che taglia i fogli: per ogni pezzo il rettangolo nell'atlante
      (scala 0.25), l'origine e il perno in pixel del foglio originale (girato verso destra),
@@ -3457,6 +3680,7 @@
   var P_COCCA  = { bA: -2.35, gA: -3.05, lean: -.05 };     // braccio caricato dietro la testa, canna in mano
   var P_LANCIO = { bA: 1.75, gA: 1.55 };                   // braccio teso in avanti appena tirato
   var P_TUFFO  = { cA: -.12, sA: -.35, fA: .5, cB: .05, sB: -.25, fB: .5, bA: 2.95, gA: 3.05, bB: 2.75, gB: 2.9, lean: 0, head: -.9 };
+  var P_CARRELLO = { cA: 1.45, sA: -1.2, fA: .3, cB: 1.25, sB: -1.1, fB: .3, bA: 1.15, gA: 1.75, bB: .95, gB: 1.6, lean: .12, head: -.05 };   // accovacciato nel carrello, mani sul bordo
   var P_FERMO  = { cA: .08, sA: .02, fA: 0, cB: -.08, sB: -.12, fB: 0, bA: -.15, gA: .35, bB: .15, gB: .6, lean: .03, head: 0 };
 
   function nuovaAnim() {
@@ -3513,6 +3737,8 @@
     if (g.volo && inGioco) {                           // in volo dalla Punto: braccia avanti come superman, poi a palla
       verso(a.posa, g.volo.fase === 'aria' ? P_TUFFO : P_PALLA, dt, g.volo.fase === 'aria' ? 16 : 20);
       a.ripresa = 0; aTerra = false;
+    } else if (g.carrello && inGioco) {                       // nel carrello: accovacciato, si regge al bordo
+      verso(a.posa, P_CARRELLO, dt, 12); a.ripresa = 0;
     } else if (stato === 'preso') {                           // preso: si ferma e si arrende
       target = P_FERMO; verso(a.posa, target, dt, 6);
     } else if (!aTerra && inGioco) {
@@ -3543,7 +3769,7 @@
     if (a.giro > 0) a.giro = Math.max(0, a.giro - dt * 1.9);
 
     // scivolata: il corpo si stende piano piano e si rialza piano piano
-    var vuoleScivolare = inGioco && (m.giu || m.corridoio) && aTerra;
+    var vuoleScivolare = inGioco && (m.giu || m.corridoio) && aTerra && !g.carrello;
     a.scivola += ((vuoleScivolare ? 1 : 0) - a.scivola) * (1 - Math.exp(-dt * (vuoleScivolare ? 16 : 10)));
     if (a.scivola > 0.02) {
       mescola(a.posa, P_SCIVOLA, liscia(a.scivola), a.mostra || (a.mostra = {}));
