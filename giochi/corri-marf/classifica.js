@@ -11,6 +11,8 @@
        tiene il punteggio più alto per ogni nome; lancia un Error se fallisce.
    window.CorriMarfClassifica.caricaGiocatore(nome) / salvaGiocatore(nome, { canne, record, upg })
        portafoglio e upgrade del Market online (vedi sotto).
+   window.CorriMarfClassifica.caricaMissioni(nome) / salvaMissioni(nome, { grado, fatte, slot, aggiornato })
+       le missioni del giocatore online.
 
    Servizio: Firebase Realtime Database via REST (fetch, HTTPS, CORS ok).
    Per attivarlo basta mettere qui sotto l'URL del database, ad esempio
@@ -135,8 +137,40 @@
     }).then(function () {});
   }
 
+  /* ── MISSIONI: corrimarf/missioni/<chiave> = { grado, fatte, slot: [{ id, obj, n, fatta }], aggiornato }
+     A parte rispetto ai giocatori: se le regole non le accettano ancora, il portafoglio si salva lo stesso. */
+  var MISSIONI = 'corrimarf/missioni';
+  function urlMissioni(nome) { return base() + '/' + MISSIONI + '/' + encodeURIComponent(chiaveDa(String(nome || ''))) + '.json'; }
+  function numero(v, max) { return Math.min(max, Math.max(0, Math.floor(Number(v)) || 0)); }
+  function pulisciSlot(slot) {
+    var l = Array.isArray(slot) ? slot : slot && typeof slot === 'object' ? Object.keys(slot).sort().map(function (k) { return slot[k]; }) : [];
+    return l.filter(function (z) { return z && typeof z.id === 'string' && /^[a-z0-9_]{1,24}$/i.test(z.id); }).slice(0, 3)
+      .map(function (z) { return { id: z.id, obj: numero(z.obj, 10000000), n: numero(z.n, 10000000), fatta: !!z.fatta }; });
+  }
+  // Promise<{ grado, fatte, slot, aggiornato } | null>
+  function caricaMissioni(nome) {
+    if (!DB_URL) return Promise.reject(new Error('Salvataggi online non attivi'));
+    return richiesta(urlMissioni(nome)).then(function (d) {
+      if (!d || typeof d !== 'object') return null;
+      return { grado: numero(d.grado, 100000), fatte: numero(d.fatte, 1000000), slot: pulisciSlot(d.slot),
+               aggiornato: typeof d.aggiornato === 'string' ? d.aggiornato : '' };
+    });
+  }
+  function salvaMissioni(nome, m, keepalive) {
+    if (!DB_URL) return Promise.reject(new Error('Salvataggi online non attivi'));
+    nome = String(nome || '').trim();
+    if (!nome || !m) return Promise.reject(new Error('Niente da salvare.'));
+    var corpo = { grado: numero(m.grado, 100000), fatte: numero(m.fatte, 1000000), slot: pulisciSlot(m.slot),
+                  aggiornato: typeof m.aggiornato === 'string' ? m.aggiornato : new Date().toISOString() };
+    return richiesta(urlMissioni(nome), {
+      method: 'PUT', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(corpo), keepalive: !!keepalive
+    }).then(function () {});
+  }
+
   // letta: true dopo che carica() ha avuto una risposta dal database (anche vuota)
   var api = { attiva: !!DB_URL, letta: false, carica: carica, salva: salva,
-              caricaGiocatore: caricaGiocatore, salvaGiocatore: salvaGiocatore };
+              caricaGiocatore: caricaGiocatore, salvaGiocatore: salvaGiocatore,
+              caricaMissioni: caricaMissioni, salvaMissioni: salvaMissioni };
   window.CorriMarfClassifica = api;
 })();

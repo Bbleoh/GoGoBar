@@ -75,6 +75,43 @@
             ".validate": false
           }
         }
+      },
+      "missioni": {
+        ".read": true,
+        "$m": {
+          ".write": "newData.exists() && (!root.child('nomi/' + $m).exists() || (auth != null && root.child('account/' + root.child('nomi/' + $m).val() + '/dispositivi/' + auth.uid).exists()))",
+          "grado": {
+            ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 100000"
+          },
+          "fatte": {
+            ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 1000000"
+          },
+          "aggiornato": {
+            ".validate": "newData.isString()"
+          },
+          "slot": {
+            "$i": {
+              "id": {
+                ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 24"
+              },
+              "obj": {
+                ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 10000000"
+              },
+              "n": {
+                ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 10000000"
+              },
+              "fatta": {
+                ".validate": "newData.isBoolean()"
+              },
+              "$altro": {
+                ".validate": false
+              }
+            }
+          },
+          "$altro": {
+            ".validate": false
+          }
+        }
       }
     },
     "account": {

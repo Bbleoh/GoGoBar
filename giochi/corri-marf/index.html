@@ -104,6 +104,46 @@
     .lista-consigli { display: grid; gap: 4px; font-family: var(--mono); font-size: .78em; color: var(--ivory); counter-reset: n; }
     .lista-consigli li { list-style: none; padding: .45em .7em .45em 2.6em; position: relative; background: rgba(255,255,255,.04); border-left: 2px solid var(--line); line-height: 1.35; }
     .lista-consigli li::before { counter-increment: n; content: counter(n, decimal-leading-zero); position: absolute; left: .7em; top: .45em; color: var(--pink); }
+    /* missioni: striscia in lobby, pannello, riepilogo a fine corsa, avviso in alto quando ne compi una */
+    .missioni-striscia { display: flex; align-items: stretch; cursor: pointer; font-family: var(--mono); font-size: .8em; background: rgba(9,9,11,.6);
+      box-shadow: inset 0 0 0 1px var(--line); clip-path: polygon(7px 0, 100% 0, calc(100% - 7px) 100%, 0 100%); }
+    .missioni-striscia[hidden] { display: none; }
+    .missioni-striscia b { display: flex; align-items: center; padding: .35em 1.1em .35em .9em; background: var(--pink); color: var(--ink); font-family: var(--display); font-style: italic;
+      text-transform: uppercase; letter-spacing: .08em; clip-path: polygon(0 0, 100% 0, calc(100% - 8px) 100%, 0 100%); }
+    .missioni-striscia span { display: flex; align-items: center; padding: 0 .8em; color: var(--gold); flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .missioni-striscia em { display: flex; align-items: center; padding: 0 1em; font-style: normal; color: var(--cream); white-space: nowrap; }
+    .missioni-striscia:hover, .missioni-striscia:focus-visible { outline: 0; box-shadow: inset 0 0 0 1px var(--pink); }
+    .stelle { color: var(--gold); letter-spacing: .1em; }
+    .lista-missioni { list-style: none; display: grid; gap: 4px; font-family: var(--mono); font-size: .78em; }
+    .lista-missioni li { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: .3em .8em; align-items: center; padding: .5em .7em; background: rgba(255,255,255,.04); border-left: 2px solid var(--line); }
+    .lista-missioni .cosa { color: var(--ivory); line-height: 1.3; }
+    .lista-missioni li > b { color: var(--gold); font-weight: 500; white-space: nowrap; }
+    .lista-missioni li > b::after { content: ' canne'; color: var(--muted); font-size: .85em; }
+    .lista-missioni .barra { display: block; height: 4px; background: rgba(255,255,255,.1); transform: skewX(-30deg); overflow: hidden; }
+    .lista-missioni .barra i { display: block; height: 100%; background: var(--pink); }
+    .lista-missioni small { color: var(--muted); font-size: .85em; text-align: right; white-space: nowrap; }
+    .lista-missioni li.fatta { background: rgba(228,179,60,.12); border-left-color: var(--gold); }
+    .lista-missioni li.fatta .cosa::before { content: '✓ '; color: var(--gold); }
+    .lista-missioni li.fatta .barra i { background: var(--gold); }
+    .lista-missioni li.fatta small { color: var(--gold); }
+    .missioni-fine { display: grid; gap: .45em; }
+    .missioni-fine[hidden] { display: none; }
+    .missioni-fine h3 { font-family: var(--mono); font-size: .8em; color: var(--pink); font-weight: 500; letter-spacing: .16em; text-transform: uppercase; }
+    .missioni-fine h3 span { color: var(--gold); letter-spacing: .06em; }
+    .grado-su { font-family: var(--display); font-style: italic; font-weight: 700; color: var(--ink); background: var(--gold); padding: .35em .9em; text-transform: uppercase; letter-spacing: .04em;
+      clip-path: polygon(8px 0, 100% 0, calc(100% - 8px) 100%, 0 100%); animation: gradoSu .6s ease-out; }
+    .grado-su[hidden] { display: none; }
+    @keyframes gradoSu { 0% { transform: scale(.6); opacity: 0; } 60% { transform: scale(1.06); opacity: 1; } }
+    .avviso-missione { position: absolute; left: 50%; top: 15%; z-index: 5; transform: translateX(-50%); pointer-events: none; display: grid; justify-items: center; gap: 2px;
+      padding: .5em 1.6em .55em; background: rgba(9,9,11,.88); box-shadow: inset 0 0 0 1px var(--gold); font-size: clamp(11px, 1.6vw, 16px);
+      clip-path: polygon(10px 0, 100% 0, calc(100% - 10px) 100%, 0 100%); max-width: 80%; text-align: center; }
+    .avviso-missione[hidden] { display: none; }
+    .avviso-missione small { font-family: var(--mono); font-size: .7em; letter-spacing: .2em; text-transform: uppercase; color: var(--pink); }
+    .avviso-missione b { font-family: var(--display); font-style: italic; font-weight: 700; color: var(--ivory); text-transform: uppercase; letter-spacing: .02em; }
+    .avviso-missione span { font-family: var(--mono); font-size: .8em; color: var(--gold); }
+    .avviso-missione.entra { animation: avviso 2.9s ease both; }
+    @keyframes avviso { 0% { opacity: 0; transform: translateX(-50%) translateY(-14px) scale(.9); } 8% { opacity: 1; transform: translateX(-50%) scale(1.04); }
+      12%, 85% { opacity: 1; transform: translateX(-50%); } 100% { opacity: 0; transform: translateX(-50%) translateY(-8px); } }
     .consigli-boss { display: grid; gap: .45em; }
     .consigli-boss[hidden] { display: none; }
     .consigli-boss h3 { font-family: var(--mono); font-size: .8em; color: var(--pink); font-weight: 500; letter-spacing: .16em; text-transform: uppercase; }
@@ -276,6 +316,7 @@
             <button class="btn secondario" id="apriMarket" type="button">Crivo Shop</button>
           </div>
           <p class="nota" id="notaMenu"></p>
+          <div class="missioni-striscia" id="apriMissioni" role="button" tabindex="0" aria-label="Apri le missioni" hidden><b>Missioni</b><span id="gradoStriscia"></span><em id="contoStriscia"></em></div>
           <div class="classifica" id="classificaMenu"></div>
         </div>
         <div class="comandi" aria-label="Comandi">
@@ -298,6 +339,18 @@
           <h2>Consigli</h2>
           <ol class="lista-consigli" id="listaConsigli"></ol>
           <div class="riga"><button class="btn secondario" id="chiudiConsigli" type="button">Torna alla lobby</button></div>
+        </div>
+      </div>
+
+      <div class="pannello" id="missioniPan" hidden>
+        <div class="ritratto"></div>
+        <div class="testo">
+          <h2>Missioni</h2>
+          <p class="sotto">Grado: <b class="oro" id="gradoPan"></b> <span class="stelle" id="stellePan"></span></p>
+          <p class="nota" id="prossimoGrado"></p>
+          <ol class="lista-missioni" id="listaMissioni"></ol>
+          <p class="nota">Ogni missione compiuta ti paga in canne. Quelle compiute si cambiano a fine corsa.</p>
+          <div class="riga"><button class="btn secondario" id="chiudiMissioni" type="button">Torna alla lobby</button></div>
         </div>
       </div>
 
@@ -329,10 +382,16 @@
             <button class="btn secondario" id="salva" type="button" hidden>Riprova a salvare</button>
             <button class="btn secondario" id="cambia" type="button">Cambia giocatore</button>
           </div>
+          <div class="missioni-fine" id="missioniFine" hidden>
+            <h3>Missioni · <span id="gradoFine"></span></h3>
+            <p class="grado-su" id="gradoSu" hidden></p>
+            <ol class="lista-missioni" id="listaMissioniFine"></ol>
+          </div>
           <div class="consigli-boss" id="consigliBoss" hidden><h3>Come si batte MaDeLucata</h3><ol class="lista-consigli" id="listaBoss"></ol></div>
           <div class="classifica" id="classificaFine"></div>
         </div>
       </div>
+ <div class="avviso-missione" id="avvisoMissione" hidden aria-live="polite"><small>Missione compiuta</small><b></b><span></span></div>
       <button class="fs-btn" id="schermoIntero" type="button" aria-label="Schermo intero" title="Schermo intero">⛶</button>
     </div>
   </div>
@@ -343,7 +402,7 @@
   <audio id="musicaBoss" data-musica src="musica-boss.mp3" loop preload="none"></audio>
 
 <script src="../../js/account.js?v=3"></script>
-<script src="classifica.js?v=3" onerror="window.CorriMarfClassifica = null"></script>
+<script src="classifica.js?v=4" onerror="window.CorriMarfClassifica = null"></script>
 <script>
 (function () {
   'use strict';
@@ -412,7 +471,17 @@
     }
     if (subito) vai(); else syncTimer = setTimeout(vai, 800);
   }
-  window.addEventListener('pagehide', function () { if (syncTimer) spedisci(true); });
+  window.addEventListener('pagehide', function () { if (syncTimer) spedisci(true); if (syncMissioni) spedisciMissioni(true); });
+  // le missioni stanno in un posto a parte (corrimarf/missioni): se il database non le accetta, il portafoglio si salva lo stesso
+  var syncMissioni = null;
+  function spedisciMissioni(subito) {
+    var C = window.CorriMarfClassifica;
+    if (!C || !C.attiva || !C.salvaMissioni || !giocatore || !missioni) return;
+    clearTimeout(syncMissioni); syncMissioni = null;
+    var nome = giocatore, m = missioni;
+    function vai() { syncMissioni = null; C.salvaMissioni(nome, m, !!subito).catch(function () {}); }
+    if (subito) vai(); else syncMissioni = setTimeout(vai, 1000);
+  }
   function scaricaDati(nome) {
     var C = window.CorriMarfClassifica, k = chiaveNome(nome);
     if (!C || !C.attiva || !C.caricaGiocatore || !nome || scaricati[k]) return;
@@ -426,11 +495,203 @@
         if (chiaveNome(giocatore) === k) spedisci();
       }
     }, function () { scaricati[k] = false; });
+    if (C.caricaMissioni) C.caricaMissioni(nome).then(function (r) {
+      var tutti = giocatori(), a = tutti[k] || { nome: nome, record: 0 }, loc = a.missioni;
+      if (r && (r.aggiornato || '') > ((loc && loc.aggiornato) || '')) {
+        a.missioni = pulisciMissioni(r); a.missioni.aggiornato = r.aggiornato; tutti[k] = a; salvaGiocatori(tutti);
+        if (missioniChi === k) { missioni = null; disegnaMissioni(); }
+      } else if (loc && (!r || (loc.aggiornato || '') > (r.aggiornato || '')) && chiaveNome(giocatore) === k) { mieMissioni(); spedisciMissioni(); }
+    }, function () {});
   }
   function aggiungiCanne(nome, n) { if (nome) salvaDati(nome, function (a) { a.canne += n; }); }
   function livello(id) { return giocatore ? +datiDi(giocatore).upg[id] || 0 : 0; }
   function recordDi(nome) { var a = giocatori()[chiaveNome(nome)]; return a ? +a.record || 0 : 0; }
   var record = giocatore ? recordDi(giocatore) : 0;
+
+  /* ── Missioni (come in Jetpack Joyride): tre alla volta. Ogni missione compiuta paga canne nel portafoglio,
+     ogni 3 missioni compiute sali di grado e Crivo te ne regala altre. Quelle compiute si cambiano a fine corsa.
+     modo: 'somma' = si accumula fra le corse, 'corsa' = si accumula in una corsa sola, 'valore' = il migliore della corsa,
+     'sotto' = compiuta se il valore resta sotto l'obiettivo. ── */
+  var GRADI = ['Pischello', 'Regazzino', 'Coatto', 'Bullo de borgata', 'Er Sorcio', 'Er Bomber', 'Er Mejo der quartiere',
+    'Principe de Laurentina', 'Re de Roma', 'Leggenda der GoGoBar'];
+  var MISSIONI_PER_GRADO = 3;
+  function nomeGrado(gr) { return gr < GRADI.length ? GRADI[gr] : GRADI[GRADI.length - 1] + ' ' + (gr - GRADI.length + 2); }
+  function premioGrado(gr) { return 60 + 40 * gr; }
+  function quanti(n, uno, piu) { return n === 1 ? uno : n.toLocaleString('it-IT') + ' ' + piu; }
+  var MISSIONI = [
+    { id: 'metri', ev: 'metri', modo: 'valore', premio: 20, obj: function (gr) { return [500, 1000, 1500, 2000, 3000, 4000, 5000, 7000, 10000][Math.min(gr, 8)]; },
+      t: function (n) { return 'Corri ' + n.toLocaleString('it-IT') + ' m in una corsa'; } },
+    { id: 'metriTot', ev: 'metri', modo: 'somma', premio: 20, obj: function (gr) { return 3000 + 2000 * gr; },
+      t: function (n) { return 'Corri ' + n.toLocaleString('it-IT') + ' m in totale'; } },
+    { id: 'canne', ev: 'canne', modo: 'corsa', premio: 20, obj: function (gr) { return 10 + 6 * gr; },
+      t: function (n) { return 'Raccogli ' + n + ' canne in una corsa'; } },
+    { id: 'canneTot', ev: 'canne', modo: 'somma', premio: 20, obj: function (gr) { return 50 + 30 * gr; },
+      t: function (n) { return 'Raccogli ' + n + ' canne in totale'; } },
+    { id: 'senzaColpi', ev: 'senzaColpi', modo: 'valore', premio: 25, obj: function (gr) { return 400 + 250 * gr; },
+      t: function (n) { return 'Corri ' + n.toLocaleString('it-IT') + ' m senza prendere colpi'; } },
+    { id: 'doppi', ev: 'doppio', modo: 'corsa', premio: 15, obj: function (gr) { return 15 + 5 * gr; },
+      t: function (n) { return 'Fai ' + n + ' doppi salti in una corsa'; } },
+    { id: 'pesci', ev: 'form-pesci', modo: 'somma', premio: 30, obj: function (gr) { return 1 + Math.floor(gr / 3); },
+      t: function (n) { return 'Scivola sotto i 3 pesci spada' + (n > 1 ? ' ' + n + ' volte' : ''); } },
+    { id: 'castello', ev: 'form-castello', modo: 'somma', premio: 30, obj: function (gr) { return 1 + Math.floor(gr / 3); },
+      t: function (n) { return 'Salta il castello di carte di Durex' + (n > 1 ? ' ' + n + ' volte' : ''); } },
+    { id: 'matto', ev: 'form-matto', modo: 'somma', premio: 30, obj: function (gr) { return 1 + Math.floor(gr / 3); },
+      t: function (n) { return 'Schiva l\'Aygo che inchioda e riparte' + (n > 1 ? ' ' + n + ' volte' : ''); } },
+    { id: 'transenne', ev: 'form-transenne', modo: 'somma', premio: 30, obj: function (gr) { return 1 + Math.floor(gr / 3); },
+      t: function (n) { return 'Salta 3 transenne in un colpo solo' + (n > 1 ? ' ' + n + ' volte' : ''); } },
+    { id: 'formCanne', ev: 'canneTutte', modo: 'somma', premio: 25, obj: function (gr) { return 1 + Math.floor(gr / 2); },
+      t: function (n) { return 'Prendi tutte le canne di ' + quanti(n, 'una formazione', 'formazioni'); } },
+    { id: 'sette', ev: 'canne7', modo: 'somma', premio: 40, da: 2, obj: function () { return 1; },
+      t: function () { return 'Prendi tutte e 7 le canne sparse'; } },
+    { id: 'sgambetto', ev: 'sgambetto', modo: 'somma', premio: 30, da: 1, obj: function (gr) { return 1 + Math.floor(gr / 3); },
+      t: function (n) { return 'Fai lo sgambetto a ' + quanti(n, 'un carabiniere', 'carabinieri'); } },
+    { id: 'abbatti', ev: 'abbatti', modo: 'somma', premio: 25, da: 1, obj: function (gr) { return 2 + gr; },
+      t: function (n) { return 'Abbatti ' + n + ' tifosi con una canna'; } },
+    { id: 'palazzi', ev: 'palazzo', modo: 'somma', premio: 25, obj: function (gr) { return 1 + Math.floor(gr / 2); },
+      t: function (n) { return 'Attraversa ' + quanti(n, 'un palazzo', 'palazzi'); } },
+    { id: 'jet', ev: 'jet', modo: 'somma', premio: 25, obj: function (gr) { return 1 + Math.floor(gr / 3); },
+      t: function (n) { return 'Schiva lo stormo di jet' + (n > 1 ? ' ' + n + ' volte' : ''); } },
+    { id: 'pringles', ev: 'pringles', modo: 'somma', premio: 20, obj: function (gr) { return 1 + Math.floor(gr / 2); },
+      t: function (n) { return 'Mangia ' + quanti(n, 'un tubo di Pringles', 'tubi di Pringles'); } },
+    { id: 'compra', ev: 'compra', modo: 'somma', premio: 15, obj: function () { return 1; },
+      // all'avvio della pagina UPGRADE non è ancora definito: allora va bene sempre
+      se: function () { return !UPGRADE || UPGRADE.some(function (u) { return livello(u.id) < u.prezzi.length; }); },
+      t: function () { return 'Compra qualcosa al Crivo Shop'; } },
+    { id: 'muori', ev: 'preso', modo: 'sotto', premio: 15, da: 1, obj: function () { return 300; },
+      t: function (n) { return 'Fatti prendere prima dei ' + n + ' m'; } },
+    { id: 'colpiBoss', ev: 'colpoBoss', modo: 'somma', premio: 40, da: 3, obj: function (gr) { return 10 + 5 * gr; },
+      t: function (n) { return 'Colpisci MaDeLucata con ' + n + ' canne'; } },
+    { id: 'boss', ev: 'boss', modo: 'somma', premio: 100, da: 4, obj: function () { return 1; },
+      t: function () { return 'Sconfiggi MaDeLucata'; } }
+  ];
+  var MISSIONE = {}; MISSIONI.forEach(function (x) { MISSIONE[x.id] = x; });
+  function premioMissione(x, gr) { return Math.round(x.premio * (1 + 0.3 * gr) / 5) * 5; }
+  function nuovaMissione(m) {
+    var attive = m.slot.map(function (z) { return z.id; });
+    var ok = MISSIONI.filter(function (x) { return attive.indexOf(x.id) < 0 && (x.da || 0) <= m.grado && (!x.se || x.se()); });
+    var x = ok[Math.floor(Math.random() * ok.length)];
+    return { id: x.id, obj: x.obj(m.grado), n: 0, fatta: false };
+  }
+  function pulisciMissioni(m) {
+    if (!m || typeof m !== 'object' || !Array.isArray(m.slot)) m = { grado: 0, fatte: 0, slot: [] };
+    m.grado = Math.max(0, Math.floor(+m.grado) || 0); m.fatte = Math.max(0, Math.floor(+m.fatte) || 0);
+    m.slot = m.slot.filter(function (z) { return z && MISSIONE[z.id] && +z.obj > 0; }).slice(0, 3)
+      .map(function (z) { return { id: z.id, obj: +z.obj, n: Math.max(0, +z.n || 0), fatta: !!z.fatta }; });
+    while (m.slot.length < 3) m.slot.push(nuovaMissione(m));
+    return m;
+  }
+  var missioni = null, missioniChi = '';
+  function mieMissioni() {
+    if (!missioni || missioniChi !== chiaveNome(giocatore)) {
+      missioniChi = chiaveNome(giocatore);
+      var a = giocatori()[missioniChi] || {};
+      missioni = pulisciMissioni(a.missioni);
+    }
+    return missioni;
+  }
+  function salvaMissioni() {
+    if (PROVA || !giocatore || !missioni || missioniChi !== chiaveNome(giocatore)) return;
+    var tutti = giocatori(), a = tutti[missioniChi] || { nome: giocatore, record: 0 };
+    missioni.aggiornato = new Date().toISOString(); a.missioni = missioni; tutti[missioniChi] = a; salvaGiocatori(tutti);
+    spedisciMissioni();
+  }
+  // un evento del gioco fa avanzare le missioni che lo aspettano
+  function evento(ev, quanto, val) {
+    if (!giocatore) return;
+    var m = mieMissioni(), salva = false;
+    m.slot.forEach(function (z) {
+      var x = MISSIONE[z.id];
+      if (z.fatta || x.ev !== ev) return;
+      if (x.modo === 'valore') { if (val > z.n) z.n = val; }
+      else if (x.modo === 'sotto') { if (val < z.obj) z.n = z.obj; }
+      else z.n += quanto == null ? 1 : quanto;
+      if (z.n >= z.obj) { compiuta(z, x); salva = true; }
+    });
+    if (salva || (stato !== 'gioco' && stato !== 'preso')) salvaMissioni();
+  }
+  function compiuta(z, x) {
+    z.fatta = true; z.n = z.obj;
+    var premio = premioMissione(x, mieMissioni().grado);
+    if (!PROVA) aggiungiCanne(giocatore, premio);
+    avvisoMissione(x.t(z.obj), '+' + premio + ' canne');
+    fx('ding', 0.5, 1.1); setTimeout(function () { fx('monete', 0.45); }, 160);
+  }
+  // a inizio corsa ripartono da zero le missioni "in una corsa"
+  function iniziaMissioni() {
+    if (!giocatore) return;
+    mieMissioni().slot.forEach(function (z) { var x = MISSIONE[z.id]; if (!z.fatta && x.modo !== 'somma') z.n = 0; });
+  }
+  // a fine corsa: le compiute si cambiano, ogni 3 sali di grado. Restituisce cosa mostrare nella schermata finale
+  function chiudiMissioni() {
+    if (!giocatore) return null;
+    var m = mieMissioni(), prima = m.grado, righe = m.slot.map(function (z) { return { z: { id: z.id, obj: z.obj, n: z.n, fatta: z.fatta }, x: MISSIONE[z.id], gr: m.grado }; });   // copia: com'erano a fine corsa
+    m.slot = m.slot.map(function (z) {
+      if (!z.fatta) { if (MISSIONE[z.id].modo !== 'somma') z.n = 0; return z; }
+      m.fatte++; return null;
+    });
+    m.grado = Math.floor(m.fatte / MISSIONI_PER_GRADO);
+    var resto = m.slot.filter(Boolean); m.slot = resto;
+    while (m.slot.length < 3) m.slot.push(nuovaMissione(m));
+    var regalo = 0;
+    for (var gr = prima + 1; gr <= m.grado; gr++) regalo += premioGrado(gr);
+    if (regalo && !PROVA) aggiungiCanne(giocatore, regalo);
+    salvaMissioni();
+    return { righe: righe, grado: m.grado, salito: m.grado > prima, regalo: regalo };
+  }
+  function stelleGrado(m) {
+    var k = m.fatte % MISSIONI_PER_GRADO, s = '';
+    for (var i = 0; i < MISSIONI_PER_GRADO; i++) s += i < k ? '★' : '☆';
+    return s;
+  }
+  function rigaMissione(z, x, gr) {
+    var li = document.createElement('li'); if (z.fatta) li.className = 'fatta';
+    var cosa = testo('span', x.t(z.obj)); cosa.className = 'cosa';
+    var premio = testo('b', '+' + premioMissione(x, gr)); premio.title = 'canne';
+    var barra = document.createElement('i'); barra.className = 'barra';
+    var dentro = document.createElement('i'); dentro.style.width = Math.min(100, z.n / z.obj * 100) + '%'; barra.append(dentro);
+    var conto = testo('small', z.fatta ? 'fatta' : x.modo === 'sotto' ? '' : Math.floor(z.n).toLocaleString('it-IT') + ' / ' + z.obj.toLocaleString('it-IT'));
+    li.append(cosa, premio, barra, conto);
+    return li;
+  }
+  function disegnaMissioni() {
+    var str = document.getElementById('apriMissioni');
+    str.hidden = !giocatore;
+    if (!giocatore) return;
+    var m = mieMissioni(), da = m.slot.filter(function (z) { return !z.fatta; }).length;
+    document.getElementById('gradoStriscia').textContent = nomeGrado(m.grado) + ' ' + stelleGrado(m);
+    document.getElementById('contoStriscia').textContent = da === 1 ? '1 da fare' : da + ' da fare';
+    document.getElementById('gradoPan').textContent = nomeGrado(m.grado);
+    document.getElementById('stellePan').textContent = stelleGrado(m);
+    var dopo = MISSIONI_PER_GRADO - m.fatte % MISSIONI_PER_GRADO;
+    document.getElementById('prossimoGrado').textContent = 'Ancora ' + quanti(dopo, 'una missione', 'missioni') + ' per diventare ' + nomeGrado(m.grado + 1) + ' (+' + premioGrado(m.grado + 1) + ' canne)';
+    var ol = document.getElementById('listaMissioni'); ol.textContent = '';
+    m.slot.forEach(function (z) { ol.append(rigaMissione(z, MISSIONE[z.id], m.grado)); });
+  }
+  function missioniFine(r) {
+    var box = document.getElementById('missioniFine');
+    box.hidden = !r;
+    if (!r) return;
+    var m = mieMissioni();
+    document.getElementById('gradoFine').textContent = nomeGrado(r.grado) + ' ' + stelleGrado(m);
+    var ol = document.getElementById('listaMissioniFine'); ol.textContent = '';
+    r.righe.forEach(function (w) { ol.append(rigaMissione(w.z, w.x, w.gr)); });
+    var su = document.getElementById('gradoSu');
+    su.hidden = !r.salito;
+    if (r.salito) su.textContent = 'Sei salito di grado: ' + nomeGrado(r.grado) + '! Crivo ti regala ' + r.regalo + ' canne';
+  }
+  // avviso in alto quando compi una missione (in corsa o al Crivo Shop); se ne arrivano due di fila si mettono in coda
+  var codaAvvisi = [], avvisoTimer = null;
+  function avvisoMissione(cosa, premio) {
+    codaAvvisi.push([cosa, premio]);
+    if (!avvisoTimer) prossimoAvviso();
+  }
+  function prossimoAvviso() {
+    var el = document.getElementById('avvisoMissione'), a = codaAvvisi.shift();
+    if (!a) { el.hidden = true; avvisoTimer = null; return; }
+    el.querySelector('b').textContent = a[0]; el.querySelector('span').textContent = a[1];
+    el.hidden = false; el.classList.remove('entra'); void el.offsetWidth; el.classList.add('entra');
+    avvisoTimer = setTimeout(prossimoAvviso, 2900);
+  }
 
   /* ── Musica e suoni ── */
   // tre musiche: lobby (menu), corsa, morte (schermata finale); ne suona una alla volta
@@ -567,6 +828,7 @@
     if (giocatore) { chi.append('Corre '); chi.append(testo('b', giocatore)); chi.append((conAccount ? ' (account GoGoBar)' : '') + ' · record ' + record.toLocaleString('it-IT') + ' m'); }
     else chi.textContent = 'Chi corre? Scegli il tuo nome o scrivine uno nuovo.';
     nomeMenu.hidden = conAccount;
+    disegnaMissioni();
     document.getElementById('cambia').hidden = false;
     document.getElementById('cambia').textContent = conAccount ? 'Torna alla lobby' : 'Cambia giocatore';
     disegnaGiocatori();
@@ -784,6 +1046,7 @@
           }
           salvaDati(giocatore, function (a) { if (a.canne >= prezzo && (+a.upg[u.id] || 0) === lv) { a.canne -= prezzo; a.upg[u.id] = lv + 1; } });
           fx('monete', 0.6);
+          evento('compra', 1);
           if (lv + 1 >= max) reazioneCrivo('costosa', 'colpito'); else reazioneCrivo('riuscita', 'contento');
           disegnaMarket();
         });
@@ -835,6 +1098,13 @@
     apri.addEventListener('keydown', function (e) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); mostra(); } });
     document.getElementById('chiudiConsigli').addEventListener('click', function () { pan.hidden = true; menu.hidden = false; });
   })();
+  (function () {
+    var pan = document.getElementById('missioniPan'), apri = document.getElementById('apriMissioni');
+    function mostra() { disegnaMissioni(); menu.hidden = true; pan.hidden = false; fx('click', 0.4, 1.3); }
+    apri.addEventListener('click', mostra);
+    apri.addEventListener('keydown', function (e) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); mostra(); } });
+    document.getElementById('chiudiMissioni').addEventListener('click', function () { pan.hidden = true; menu.hidden = false; disegnaMissioni(); });
+  })();
   // dopo una morte durante il boss: 4 consigli a caso su come batterla
   function consigliDopoBoss(boss) {
     var box = document.getElementById('consigliBoss');
@@ -885,6 +1155,7 @@
     jet: function () { g.prossimoJet = 0; }, palazzo: function (v) { g.ostacoli.length = 0; g.prossimoPalazzo = g.metri; g.variante = v; }, pal: function () { return palazzo; },
     boss: function () { g.ostacoli.length = 0; g.prossimoBoss = g.metri + 1; g.munizioni = arguments.length ? arguments[0] : 12; },
     lancia: function (k) { iniziaTiro(); if (g.tiro != null) g.tiro = (k == null ? 1 : k) * TIRO_MAX; lancia(); },
+    missioni: function () { return mieMissioni(); }, evento: function (e, q, v) { evento(e, q, v); },
     formazione: function (f) { g.ostacoli.length = 0; generaFormazione(f); },
     canne: function (n) { var f = FORMAZIONI_CANNE.filter(function (z) { return z.n === n; })[0]; f.punti(80).forEach(function (q) { g.birreA.push({ x: W + 30 + q[0], y: TERRA - q[1] }); }); },
     carica: function () { iniziaTiro(); }, rilascia: function () { lancia(); }, prendi: function () { preso(); }, detriti: function (x) { detriti(x); } };
@@ -922,6 +1193,7 @@
     g.valCanna = valore('gian');                                // Benedizione der Gian: una canna vale 1, 2 (bifase) o 3 (trifase)
     if (valore('punto')) g.passaggio = { fino: valore('punto'), t: 0, fase: 'corsa', ruota: 0, v: 0 };   // Punto bianca: Crivo ti porta avanti
     menu.hidden = true; fine.hidden = true;
+    iniziaMissioni();
     traccia = ''; suona('gioco');
   }
 
@@ -942,6 +1214,8 @@
     btnSalva.hidden = true; daSalvare = PROVA ? 0 : punti;
     mostraClassifica(document.getElementById('classificaFine'));
     consigliDopoBoss(!!g.boss);
+    evento('preso', 0, punti);
+    missioniFine(chiudiMissioni());
     setTimeout(function () {
       if (stato !== 'preso') return;
       fine.hidden = false;
@@ -963,7 +1237,7 @@
       m.vy = m.salti === 0 ? -720 : -620; m.salti++; m.giu = false; m.picchiata = false;
       if (m.salti === 1) fx('salto', 0.6); else fx('fruscio', 0.5, 0.9);
       if (m.salti === 1) polvere(MARF_X - 4, m.y, 5, 1);
-      else g.anim.giro = 1;                       // secondo salto: capriola
+      else { g.anim.giro = 1; evento('doppio', 1); }   // secondo salto: capriola
     }
   }
   function giu(attivo) {
@@ -1109,7 +1383,7 @@
       return true;
     });
     if (!scelte.length) return false;
-    var f = scelte[Math.floor(Math.random() * scelte.length)], x = W + 40, lungo = 0, i, o;
+    var f = scelte[Math.floor(Math.random() * scelte.length)], x = W + 40, lungo = 0, i, o, n0 = g.ostacoli.length;
     g.ultimaFormazione = f;
     if (f === 'pesci') {
       for (i = 0; i < 3; i++) { o = nuovoOstacolo('pesce', x); o.aria = TIPI.pesce.aria + i * PESCI_PASSO; g.ostacoli.push(o); }
@@ -1126,6 +1400,8 @@
       g.ostacoli.push(o);
       lungo = 200;
     }
+    var gruppo = { nome: f, n: g.ostacoli.length - n0, passati: 0, preso: false };   // per le missioni: passata senza colpi?
+    for (i = n0; i < g.ostacoli.length; i++) g.ostacoli[i].gruppo = gruppo;
     g.prossimo = 1.3 + lungo / Math.max(g.vel, 380) + Math.random() * 0.6;
     return true;
   }
@@ -1199,7 +1475,8 @@
     if (!f) return 0;
     var punti = f.punti(40 + Math.random() * 100);
     if (punti.some(function (q) { return postoOccupato(W + 30 + q[0]); })) return 0;   // c'è un ostacolo in mezzo: allora una canna sola
-    punti.forEach(function (q) { g.birreA.push({ x: W + 30 + q[0], y: TERRA - q[1], pringles: false }); });
+    var gruppo = { n: punti.length, presi: 0 };
+    punti.forEach(function (q) { g.birreA.push({ x: W + 30 + q[0], y: TERRA - q[1], pringles: false, gruppo: gruppo }); });
     return punti.length;
   }
 
@@ -1383,6 +1660,9 @@
     animaTutto(dt);
     if (stato !== 'gioco') { suonoLoop('motore-loop', false); return; }
     var m = g.marf;
+    if (g.metri > (g.mVisti || 0)) { evento('metri', g.metri - (g.mVisti || 0), g.metri); g.mVisti = g.metri; }
+    if (g.passaggio || g.volo) g.ultimoColpoM = g.metri;        // i metri in Punto non valgono per "senza colpi"
+    else evento('senzaColpi', 0, g.metri - (g.ultimoColpoM || 0));
     if (g.passaggio || g.volo) { aggiornaStrappo(dt); return; }
     if (g.auto || g.vetri.length || g.fumoGomme.length || g.sgommate.length) aggiornaAuto(dt);
 
@@ -1436,6 +1716,11 @@
         if (o.tipo === 'carabiniere' && m.giu && m.aTerra) sgambetto(o);
         else colpito(o);
       }
+      if (o.gruppo && !o.passato && o.x + o.w < MARF_X - 18) {      // formazione superata: se nessun pezzo ti ha preso, vale per le missioni
+        o.passato = true; var gp = o.gruppo;
+        if (o.preso) gp.preso = true;
+        if (++gp.passati === gp.n && !gp.preso) evento('form-' + gp.nome, 1);
+      }
     }
 
     // jet: avviso, poi lo sciame; il fumo resta 5 s e scorre col mondo
@@ -1452,9 +1737,13 @@
       // sbuffi a distanza fissa lungo la scia, così il fumo è continuo a qualunque fps
       j.scia = (j.scia || 0) + passo;
       for (; j.scia >= 9; j.scia -= 9) g.fumo.push({ x: j.x + jw * 0.48 + j.scia, y: j.y - 2 + (Math.random() - .5) * 4, t: 0, c: j.fumo });
-      if (j.x + jw < -40) { g.jets.splice(k, 1); continue; }
+      if (j.x + jw < -40) {
+        g.jets.splice(k, 1);
+        if (!g.jets.length) { if (!g.jetPreso) evento('jet', 1); g.jetPreso = false; }   // stormo passato senza colpi
+        continue;
+      }
       var bj = { x: j.x + 6, y: j.y - 13, w: jw - 14, h: 26 };
-      if (!j.preso && tocca(hb, bj)) colpito(j);
+      if (!j.preso && tocca(hb, bj)) { colpito(j); g.jetPreso = true; }
     }
     for (var f = g.fumo.length - 1; f >= 0; f--) {
       var pf = g.fumo[f]; pf.t += dt; pf.x -= dx;
@@ -1486,6 +1775,7 @@
         g.birreA.splice(j, 1);
         if (b.pringles) {
           g.scudo = valore('scudo');                         // Cuffie insonorizzate: lo scudo dura di più
+          evento('pringles', 1);
           fx('morso', 0.7); setTimeout(function () { fx('spada-accesa', 0.5); }, 170);   // morso, poi lo scudo si accende
         } else {
           // la canna si conta solo se le ragazze sono già alla distanza massima, sennò serve solo a staccarle
@@ -1493,6 +1783,8 @@
           g.munizioni += g.valCanna || 1;                    // le canne raccolte si possono lanciare al boss (bifase e trifase valgono 2 e 3)
           g.distacco = Math.min(g.distacco + 55, 260); g.scatto = 1.2;
           g.bless = valore('scatto');                        // Bless: un attimo di invincibilità dopo ogni canna
+          evento('canne', 1);
+          if (b.gruppo && ++b.gruppo.presi === b.gruppo.n) { evento('canneTutte', 1); if (b.gruppo.n === 7) evento('canne7', 1); }
           fx('canna', 0.45, 1.2); fx('brace', 0.55, 0.9 + Math.random() * 0.2); fx('campanella', 0.45, 1.05 + Math.random() * 0.1);
         }
       }
@@ -1514,7 +1806,7 @@
   // scivolata sulle caviglie del carabiniere: vola via in cielo come il Team Rocket e Marf guadagna una vita (al massimo 5)
   var VOLO_T = 1.3;
   function sgambetto(o) {
-    o.preso = true; o.volo = 0; o.vx0 = o.x + o.w / 2;
+    o.preso = true; o.volo = 0; o.vx0 = o.x + o.w / 2; evento('sgambetto', 1);
     if (3 - g.colpi < (g.maxVite || 5)) { g.colpi--; g.piuUno = 1.1; }   // il "+1" solo se la vita c'è davvero
     stelline(MARF_X, g.marf.y - 40);
     g.scuoti = 0.15;
@@ -1671,7 +1963,7 @@
     stelline(x, y);
     fx(danno > 1 ? 'cazzotto' : 'pugno', 0.55); if (danno > 1 || Math.random() < 0.3) fx('lei', 0.4);
     if (b.hp <= 0) {
-      b.fase = 'sconfitta'; b.t = 0; b.az = null; g.laser = null; g.allarme = 0; b.ombra = null; b.stira = 0; b.stordita = 0; b.oro = 0;
+      b.fase = 'sconfitta'; b.t = 0; evento('boss', 1); b.az = null; g.laser = null; g.allarme = 0; b.ombra = null; b.stira = 0; b.stordita = 0; b.oro = 0;
       g.tiro = null; g.scuoti = 0.5;
       g.sfere.forEach(function (s) { s.via = true; }); g.speciali = [];
       fx('urlo', 0.6); fx('esplosione', 0.5);
@@ -1978,7 +2270,7 @@
     }
     var b = g.boss;
     if (b && b.fase === 'lotta' && !b.dietro && !bossFuori(b) &&
-        Math.abs(c.y - b.y) < (c.sup ? 95 : 80) && c.x > b.x - 90 && c.x < b.x + 90) { feriscBoss(c.danno, c.x, c.y); return true; }
+        Math.abs(c.y - b.y) < (c.sup ? 95 : 80) && c.x > b.x - 90 && c.x < b.x + 90) { feriscBoss(c.danno, c.x, c.y); evento('colpoBoss', 1); return true; }
     return false;
   }
   function rimanda(o) {
@@ -1989,12 +2281,13 @@
   }
   function abbatti(o, c) {
     o.preso = true; o.volo = 0; o.vx0 = o.x + o.w / 2;
+    if (o.tipo === 'juve' || o.tipo === 'lazio') evento('abbatti', 1);
     stelline(c.x, c.y); g.scuoti = Math.max(g.scuoti, 0.12);
     fx('calcio', 0.6); setTimeout(function () { fx(o.tipo === 'ragazza' ? 'lei' : 'uomo', 0.45, 1.1); }, 60);
   }
   function oltraggio() {
     var m = g.marf;
-    g.colpi += 1; m.botta = 1.1; g.scuoti = 0.3; g.scritta = { testo: 'OLTRAGGIO!', t: 1.6 };
+    g.colpi += 1; m.botta = 1.1; g.scuoti = 0.3; g.scritta = { testo: 'OLTRAGGIO!', t: 1.6 }; g.ultimoColpoM = g.metri;
     g.distacco = Math.max(g.distacco - 85, 25);
     fx('errore', 0.55); fx('pugno', 0.55); setTimeout(function () { fx('ahi', 0.55); }, 90);
   }
@@ -2492,6 +2785,7 @@
     }
     if (m.botta > 0) return;
     var danno = o.tipo === 'aygo' || o.fumo ? 2 : 1;   // auto e jet tolgono due vite
+    g.ultimoColpoM = g.metri;
     g.colpi += danno; m.botta = 1.1; g.scuoti = danno > 1 ? 0.4 : 0.25;
     rallenta(VEL_BOTTA);
     g.distacco = Math.max(g.distacco - 85, 25);
@@ -2601,7 +2895,7 @@
       }
     }
     if (p.dentro && hb.x >= p.x + p.w - 4) {                  // uscito: si torna a correre (se è in alto si cade)
-      p.dentro = false;
+      p.dentro = false; evento('palazzo', 1);
       if (m.y > TERRA) m.vy = -Math.sqrt(2 * 2100 * (m.y - TERRA + 14));   // dalle cantine risale in strada con un saltello
     }
     m.corridoio = p.dentro;
