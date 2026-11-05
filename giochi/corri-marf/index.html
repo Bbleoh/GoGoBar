@@ -418,7 +418,8 @@
     sforzo: 2, campanella: 2, strega: 3, sputo: 2, ding: 2, disco: 2, passo: 5, thump: 2,
     'crivo-costosa': 5, 'crivo-riuscita': 6, 'crivo-fallita': 7 };   // voci del mercante del Crivo Shop
   var SFX_NOMI = ['canna', 'brace', 'morso', 'monete', 'mazzata', 'urlo', 'boato', 'tonfo', 'parata', 'click', 'errore', 'allarme', 'potere',
-    'laser', 'carica-laser', 'jet', 'esplosione', 'oro', 'umpf', 'ding-carica', 'spada-accesa', 'spada-colpo', 'fruscio-scivolata', 'scivolata-loop'];
+    'laser', 'carica-laser', 'jet', 'esplosione', 'oro', 'umpf', 'ding-carica', 'spada-accesa', 'spada-colpo', 'fruscio-scivolata', 'scivolata-loop',
+    'motore-loop', 'frenata', 'vetro'];
   var VOLUME_FX = 0.5;   // tutti gli effetti 6 dB sotto
   Object.keys(SFX_VARIANTI).forEach(function (n) { for (var i = 1; i <= SFX_VARIANTI[n]; i++) SFX_NOMI.push(n + '-' + i); });
   function contestoAudio() {
@@ -463,6 +464,27 @@
         v.gn.gain.linearRampToValueAtTime(0, actx.currentTime + 0.1); v.s.stop(actx.currentTime + 0.12);
       }
     } catch (e) { scivolata = null; }
+  }
+
+  // loop generico (il motore della Punto): parte, cambia giri e si spegne con una piccola dissolvenza
+  var LOOP = {};
+  function suonoLoop(nome, on, vol, giri) {
+    try {
+      var l = LOOP[nome];
+      if (on && !l && audioOn && actx && SFX[nome]) {
+        var s = actx.createBufferSource(), gn = actx.createGain(), buf = SFX[nome];
+        s.buffer = buf; s.loop = true; s.loopStart = 0.05; s.loopEnd = buf.duration - 0.05;
+        gn.gain.setValueAtTime(0, actx.currentTime); gn.gain.linearRampToValueAtTime((vol || 0.4) * VOLUME_FX, actx.currentTime + 0.15);
+        s.connect(gn); gn.connect(actx.destination); s.start(0, 0.05);
+        l = LOOP[nome] = { s: s, gn: gn };
+      } else if ((!on || !audioOn) && l) {
+        LOOP[nome] = null;
+        l.gn.gain.cancelScheduledValues(actx.currentTime); l.gn.gain.setValueAtTime(l.gn.gain.value, actx.currentTime);
+        l.gn.gain.linearRampToValueAtTime(0, actx.currentTime + 0.12); l.s.stop(actx.currentTime + 0.15);
+        return;
+      }
+      if (l && giri) l.s.playbackRate.value = giri;
+    } catch (e) { LOOP[nome] = null; }
   }
 
   // i font del canvas vanno caricati a mano (il DOM non li usa tutti)
@@ -778,6 +800,7 @@
       anim: nuovaAnim(), ragazze: [0, 1, 2].map(function (i) { return { fase: i * 0.37, posa: null }; }),
       fx: [], detriti: [], colpi: 0, scudo: 0,
       jets: [], fumo: [], jetAvviso: 0, prossimoJet: 700 + Math.random() * 500, prossimoPalazzo: PALAZZO_OGNI,
+      vetri: [], fumoGomme: [], sgommate: [], volo: null, auto: null,
       munizioni: 0, bonus: 0, boss: null, prossimoBoss: BOSS_PRIMO, bless: 0, pedane: [], super: 0, tiro: null, livelloBoss: 1, sfere: [], lanci: [], speciali: [], laser: null
     };
   }
@@ -791,7 +814,7 @@
     nuovaPartita(); stato = 'gioco';
     g.maxVite = valore('vita');                                 // Pensiero del Crivo Shop: quante vite puoi accumulare
     g.valCanna = valore('gian');                                // Benedizione der Gian: una canna vale 1, 2 (bifase) o 3 (trifase)
-    if (valore('punto')) g.passaggio = { fino: valore('punto'), t: 0 };   // Punto bianca: Crivo ti porta avanti
+    if (valore('punto')) g.passaggio = { fino: valore('punto'), t: 0, fase: 'corsa', ruota: 0, v: 0 };   // Punto bianca: Crivo ti porta avanti
     menu.hidden = true; fine.hidden = true;
     traccia = ''; suona('gioco');
   }
@@ -825,7 +848,8 @@
   /* ── Comandi ── */
   function salta() {
     if (stato !== 'gioco') return;
-    if (g.passaggio) { scendi(); return; }           // in Punto: salti giù prima
+    if (g.passaggio) { inchioda(); return; }         // in Punto: Crivo inchioda subito
+    if (g.volo) return;                              // proiettato fuori dalla macchina
     var m = g.marf;
     if (m.corridoio) return;                        // nel corridoio il soffitto è basso: niente salti
     if (m.salti < 2) {
@@ -836,7 +860,7 @@
     }
   }
   function giu(attivo) {
-    if (stato !== 'gioco' || g.passaggio) return;
+    if (stato !== 'gioco' || g.passaggio || g.volo) return;
     var m = g.marf;
     if (attivo) {
       if (!m.aTerra) { m.vy = Math.max(m.vy, 900); if (!m.giu) { m.picchiata = true; fx('fruscio', 0.5, 0.7); } }   // a terra in fretta
@@ -953,54 +977,178 @@
   }
 
   /* ── Punto bianca: a inizio corsa Crivo ti dà uno strappo fino a 1000…8000 m.
-     In macchina non succede niente (niente ostacoli, canne, palazzi o boss); salta per scendere prima. ── */
-  function aggiornaPassaggio(dt) {
-    var p = g.passaggio, k = Math.min(g.metri / p.fino, 1);
-    var dur = 3.5 + p.fino / 2000, vmax = p.fino * 40 / dur * 1.6;    // più è lontano, più va forte: da 4 a 9 s circa
-    p.t += dt;
-    g.vel = 420 + (vmax - 420) * Math.pow(Math.sin(Math.PI * Math.max(k, 0.02)), 0.6) * Math.min(1, p.t / 0.8);
-    var dx = g.vel * dt;
+     In macchina non succede niente (niente ostacoli, canne, palazzi o boss). Alla fine inchioda di botto:
+     sgommate e fumo, il parabrezza si frantuma e Marf esce proiettato di testa, atterra con una capriola e riparte.
+     Saltando durante il viaggio Crivo inchioda subito. ── */
+  var PUNTO = { dh: 119, dx: -36,                          // rispetto a MARF_X: il parabrezza cade proprio su Marf
+    ruote: [[401.0, 192.1, 44.3], [85.2, 194.0, 44.0]],     // centri e raggi delle ruote nell'immagine (anteriore, posteriore)
+    vetro: [330, 82] };                                     // dove si rompe il parabrezza
+  var FRENATA = 0.5, LANCIO = 0.13;                         // s per fermarsi; dopo quanto Marf sfonda il vetro
+  function aggiornaStrappo(dt) {
+    var p = g.passaggio, dx;
+    if (p && p.fase === 'corsa') {
+      var k = Math.min(g.metri / p.fino, 1);
+      var dur = 3.5 + p.fino / 2000, vmax = p.fino * 40 / dur * 1.6;    // più è lontano, più va forte: da 4 a 9 s circa
+      p.t += dt;
+      var base = 380 + 320 * k;
+      g.vel = base + (vmax - base) * Math.pow(Math.sin(Math.PI * Math.max(k, 0.02)), k < 0.5 ? 0.6 : 1.5) * Math.min(1, p.t / 0.8);   // in fondo rallenta prima di inchiodare
+      p.v = g.vel; p.ruota += g.vel * dt / (44 * PUNTO.dh / 238);
+      g.scatto = 0.5;                                       // linee di velocità
+      suonoLoop('motore-loop', true, 0.35, 0.75 + 0.6 * Math.min(1, g.vel / 9000));
+      if (g.metri >= p.fino - 15) inchioda();
+    } else if (p && p.fase === 'frena') {
+      p.tf += dt;
+      p.v = Math.max(0, p.v - p.v0 / FRENATA * dt); g.vel = p.v;   // la macchina sta ferma sullo schermo finché Marf è dentro
+      if (p.tf >= LANCIO) lanciaMarf();
+    }
+    if (g.volo) aggiornaProiettato(dt);
+    dx = g.vel * dt;
     g.metri += dx / 40; scorrimento += dx; g.passi += dt * 9;
     g.distacco = 420;                                       // le ragazze restano fuori schermo
-    g.scatto = 0.5;                                         // linee di velocità
-    if (g.metri >= p.fino) scendi();
+    aggiornaAuto(dt);
   }
-  function scendi() {
-    var m = g.marf, p = g.passaggio;
-    if (!p) return;
-    if (g.metri > p.fino) g.metri = p.fino;
-    g.passaggio = null; g.scatto = 0;
-    g.auto = { x: MARF_X, v: g.vel };
-    m.y = TERRA - 40; m.vy = -760; m.aTerra = false; m.salti = 1; g.anim.giro = 1;   // salta giù dalla macchina con una capriola
-    g.tv = 25;                                              // riparte già veloce
-    g.prossimo = 1.6; g.prossimaBirra = 0.8;
-    // quello che hai saltato in macchina riparte dopo: il palazzo, i jet e il boss non si perdono
-    g.prossimoPalazzo = Math.max(g.prossimoPalazzo, g.metri + 400);
-    g.prossimoJet = Math.max(g.prossimoJet, g.metri + 500 + Math.random() * 500);
-    g.prossimoBoss = Math.max(g.prossimoBoss, g.metri + 300);
-    fx('salto', 0.6); fx('whoosh', 0.5, 0.8);
+  function inchioda() {
+    var p = g.passaggio;
+    if (!p || p.fase !== 'corsa') return;
+    p.fase = 'frena'; p.tf = 0; p.v0 = p.v = Math.max(g.vel, 500); g.scatto = 0;
+    suonoLoop('motore-loop', false);
+    fx('frenata', 0.75); g.scuoti = 0.15;
+  }
+  function lanciaMarf() {
+    var p = g.passaggio, m = g.marf, kk = PUNTO.dh / 238;
+    g.passaggio = null;
+    g.auto = { x: (MARF_X + PUNTO.dx), v: p.v, dec: p.v0 / FRENATA, ruota: p.ruota, beccheggio: p.beccheggio || 0, vb: p.vb || 0, ultima: p.ultima };
+    // il parabrezza esplode in pezzetti azzurri che volano avanti e finiscono sull'asfalto
+    var vx0 = (MARF_X + PUNTO.dx) + (PUNTO.vetro[0] - 257) * kk, vy0 = TERRA + 2 - (238 - PUNTO.vetro[1]) * kk;
+    for (var i = 0; i < 70; i++) {
+      var u = Math.random();
+      g.vetri.push({ x: vx0 - 14 + u * 28, y: vy0 - 18 + u * 30 + Math.random() * 6, vx: 120 + Math.random() * 520, vy: -380 + Math.random() * 380,
+        r: Math.random() * TAU, vr: (Math.random() - .5) * 24, s: 1.5 + Math.random() * 3.2, terra: TERRA + 6 + Math.random() * 46, t: 0,
+        c: Math.random() < 0.25 ? '#eaf8ff' : Math.random() < 0.5 ? '#a9dcf5' : '#7fc4e8' });
+    }
+    fx('vetro', 0.8); fx('whoosh', 0.5, 1.1); fx('sforzo', 0.45);
+    g.volo = { fase: 'aria', t: 0, y: vy0 - 6, vy: -430, rot: Math.PI / 2 - 0.15 };
+    g.vel = Math.max(p.v, 540);
+    m.aTerra = false; m.giu = false; m.salti = 2; g.anim.giro = 0;
+  }
+  function aggiornaProiettato(dt) {
+    var v = g.volo, m = g.marf;
+    v.t += dt;
+    g.vel += (600 - g.vel) * Math.min(1, dt * 2.5);         // Marf vola avanti e piano piano riprende a correre
+    if (v.fase === 'aria') {
+      v.vy += 1700 * dt; v.y += v.vy * dt;
+      v.rot += (Math.PI / 2 + Math.atan2(v.vy, 900) * 0.7 - v.rot) * Math.min(1, dt * 8);   // di testa, si inclina mentre scende
+      if (v.y >= TERRA - 20 && v.vy > 0) {
+        v.fase = 'rotola'; v.t = 0; v.rot0 = v.rot; v.y = TERRA - 20;
+        fx('thump', 0.55); fx('fruscio', 0.5, 0.9); polvere(MARF_X + 10, TERRA, 6, 1.2); g.scuoti = 0.12;
+      }
+    } else {
+      var u = Math.min(1, v.t / 0.45);
+      v.rot = v.rot0 + (TAU - v.rot0) * liscia(u);
+      v.y = TERRA - 26 - Math.sin(Math.PI * u) * 10;
+      if (u >= 1) {                                         // in piedi: si corre
+        g.volo = null;
+        m.y = TERRA; m.vy = 0; m.aTerra = true; m.salti = 0; g.anim.atterra = 1;
+        g.tv = (g.vel - 380) / 9;
+        g.prossimo = 1.4; g.prossimaBirra = 0.6;
+        // quello che hai saltato in macchina riparte dopo: il palazzo, i jet e il boss non si perdono
+        g.prossimoPalazzo = Math.max(g.prossimoPalazzo, g.metri + 400);
+        g.prossimoJet = Math.max(g.prossimoJet, g.metri + 500 + Math.random() * 500);
+        g.prossimoBoss = Math.max(g.prossimoBoss, g.metri + 300);
+        polvere(MARF_X, TERRA, 4, 1);
+      }
+    }
+  }
+  // la Punto dopo l'inchiodata: finisce di frenare (sgommate e fumo), beccheggia e resta indietro.
+  // Anche i pezzi di vetro vivono qui: restano fermi sull'asfalto e scorrono via col mondo.
+  function aggiornaAuto(dt) {
+    var a = g.auto, kk = PUNTO.dh / 238, p = g.passaggio;
+    var c = a || (p && p.fase === 'frena' ? p : null);
+    if (c) {
+      if (a) { a.v = Math.max(0, a.v - a.dec * dt); a.x += (a.v - g.vel) * dt; }
+      var x = a ? a.x : (MARF_X + PUNTO.dx), frenando = c.v > 0 && (a || p.tf > 0);
+      // beccheggio: il muso va giù mentre frena, poi rimbalza
+      var voluto = frenando ? 0.07 : 0;
+      c.vb = (c.vb || 0) + ((voluto - (c.beccheggio || 0)) * 220 - (c.vb || 0) * 14) * dt;
+      c.beccheggio = (c.beccheggio || 0) + c.vb * dt;
+      c.ruota += c.v * dt / (44 * kk) * 0.15;               // le ruote bloccate girano appena
+      if (frenando) {
+        PUNTO.ruote.forEach(function (r) {
+          var wx = x + (r[0] - 257) * kk, mondo = wx + scorrimento;
+          g.sgommate.push({ x0: (c.ultima && c.ultima[r[0]]) || mondo, x1: mondo, t: 0 });
+          (c.ultima || (c.ultima = {}))[r[0]] = mondo;
+          if (Math.random() < dt * 40) g.fumoGomme.push({ x: wx + (Math.random() - .5) * 20, y: TERRA - 4, vx: -g.vel * 0.15 + (Math.random() - .5) * 60, vy: -30 - Math.random() * 50, t: 0, vita: 0.9 + Math.random() * 0.6 });
+        });
+      }
+      if (a && a.x < -300) g.auto = null;
+    }
+    for (var i = g.sgommate.length - 1; i >= 0; i--) { var sg = g.sgommate[i]; sg.t += dt; if (sg.t > 5 || sg.x1 - scorrimento < -40) g.sgommate.splice(i, 1); }
+    for (var j = g.fumoGomme.length - 1; j >= 0; j--) {
+      var f = g.fumoGomme[j]; f.t += dt; f.x += (f.vx - g.vel * 0.85) * dt; f.y += f.vy * dt; f.vy *= 0.97;
+      if (f.t > f.vita) g.fumoGomme.splice(j, 1);
+    }
+    for (var k = g.vetri.length - 1; k >= 0; k--) {
+      var v = g.vetri[k]; v.t += dt;
+      if (v.y < v.terra) { v.vy += 1600 * dt; v.x += v.vx * dt; v.y += v.vy * dt; v.r += v.vr * dt; if (v.y >= v.terra) { v.y = v.terra; v.vr = 0; } }
+      v.x -= g.vel * dt;
+      if (v.x < -20 || v.t > 6) g.vetri.splice(k, 1);
+    }
+  }
+  function ruotaAuto(img, r, x, y, scala, ang) {           // una ruota: il cerchio ritagliato che gira sul suo centro
+    var d = img.naturalWidth * scala;
+    ctx.save(); ctx.translate(x, y); ctx.rotate(ang);
+    ctx.drawImage(cache(img, d, d), -d / 2, -d / 2, d, d);
+    ctx.restore();
   }
   function disegnaAuto() {
-    var a = g.passaggio ? { x: MARF_X } : g.auto;
-    if (!a || !pronta(OGG.aygo)) return;                    // segnaposto: la Punto vera arriva da Leo
-    var dh = 82, dw = dh * OGG.aygo.naturalWidth / OGG.aygo.naturalHeight;
-    var y = TERRA + 2 + (g.passaggio ? Math.sin(g.t * 38) * 1.2 : 0);
-    ctx.save(); ctx.translate(a.x + 20, 0); ctx.scale(-1, 1);   // l'immagine guarda a sinistra: girata, va a destra
-    ctx.drawImage(cache(OGG.aygo, dw, dh), -dw / 2, y - dh, dw, dh);
-    ctx.restore();
+    var p = g.passaggio, a = g.auto, kk = PUNTO.dh / 238, i;
+    // sgommate sotto a tutto
+    ctx.strokeStyle = '#141414'; ctx.lineWidth = 4; ctx.lineCap = 'round';
+    for (i = 0; i < g.sgommate.length; i++) {
+      var sg = g.sgommate[i];
+      ctx.globalAlpha = 0.5 * (1 - sg.t / 5);
+      ctx.beginPath(); ctx.moveTo(sg.x0 - scorrimento, TERRA + 1); ctx.lineTo(sg.x1 - scorrimento + 0.5, TERRA + 1); ctx.stroke();
+    }
+    ctx.globalAlpha = 1;
+    var c = a || p;
+    if (c && pronta(OGG.punto)) {
+      var x = a ? a.x : (MARF_X + PUNTO.dx), dw = PUNTO.dh * OGG.punto.naturalWidth / OGG.punto.naturalHeight;
+      var y = TERRA + 2 + (p && p.fase === 'corsa' ? Math.sin(g.t * 38) * 1 : 0);
+      var fx0 = x + (PUNTO.ruote[0][0] - 257) * kk;         // il muso affonda attorno alla ruota anteriore
+      ctx.save(); ctx.translate(fx0, y); ctx.rotate(c.beccheggio || 0); ctx.translate(-fx0, -y);
+      if (p && p.fase === 'frena') ctx.translate((Math.random() - .5) * 2, 0);
+      conContorno(OGG.punto, Math.round(x - dw / 2), Math.round(y - PUNTO.dh), dw, PUNTO.dh);
+      if (pronta(OGG['punto-ruota'])) PUNTO.ruote.forEach(function (r) {
+        ruotaAuto(OGG['punto-ruota'], r[2], x + (r[0] - 257) * kk, y - PUNTO.dh + r[1] * kk, kk * r[2] / 44.1, c.ruota || 0);
+      });
+      ctx.restore();
+    }
+    // fumo delle gomme
+    for (i = 0; i < g.fumoGomme.length; i++) {
+      var f = g.fumoGomme[i], u = f.t / f.vita, rr = 8 + 26 * Math.sqrt(u);
+      ctx.globalAlpha = 0.55 * (1 - u);
+      ctx.drawImage(FUMO.bianco, f.x - rr, f.y - rr, rr * 2, rr * 2);
+    }
+    // vetri del parabrezza
+    for (i = 0; i < g.vetri.length; i++) {
+      var v = g.vetri[i], fermo = v.y >= v.terra;
+      ctx.globalAlpha = Math.min(1, (6 - v.t) / 1.5) * (fermo && Math.sin(g.t * 9 + i) > 0.85 ? 1 : 0.85);
+      ctx.fillStyle = fermo && Math.sin(g.t * 9 + i) > 0.85 ? '#ffffff' : v.c;
+      ctx.save(); ctx.translate(v.x, v.y); ctx.rotate(v.r);
+      ctx.beginPath(); ctx.moveTo(-v.s, -v.s * 0.6); ctx.lineTo(v.s, -v.s * 0.2); ctx.lineTo(-v.s * 0.2, v.s * 0.7); ctx.closePath(); ctx.fill();
+      ctx.restore();
+    }
+    ctx.globalAlpha = 1;
   }
 
   /* ── Aggiornamento ── */
   function aggiorna(dt) {
     g.t += dt;
     animaTutto(dt);
-    if (stato !== 'gioco') return;
+    if (stato !== 'gioco') { suonoLoop('motore-loop', false); return; }
     var m = g.marf;
-    if (g.passaggio) { aggiornaPassaggio(dt); return; }
-    if (g.auto) {                                            // la Punto riparte e se ne va dopo averti lasciato
-      g.auto.v += 700 * dt; g.auto.x += (g.auto.v - g.vel) * dt;
-      if (g.auto.x > W + 260) g.auto = null;
-    }
+    if (g.passaggio || g.volo) { aggiornaStrappo(dt); return; }
+    if (g.auto || g.vetri.length || g.fumoGomme.length || g.sgommate.length) aggiornaAuto(dt);
 
     g.tv += dt;                                              // il "tempo" della velocità: cala dopo una botta e dopo il boss
     g.vel = Math.min(380 + g.tv * 9, 820) * (g.scatto > 0 ? 1.15 : 1);
@@ -1255,7 +1403,7 @@
 
   // tiro delle canne: si carica tenendo premuto, parte lasciando, vola dritta verso destra dall'altezza della mano
   function manoY() { var m = g.marf; return m.y - (m.giu && m.aTerra ? 28 : 62); }
-  function puoTirare() { return stato === 'gioco' && !g.passaggio && !(g.boss && g.boss.uscita); }   // si tira sempre, non solo col boss
+  function puoTirare() { return stato === 'gioco' && !g.passaggio && !g.volo && !(g.boss && g.boss.uscita); }   // si tira sempre, non solo col boss
   function iniziaTiro() {
     if (!puoTirare() || g.tiro != null) return;
     if (g.munizioni <= 0) { g.vuoto = 0.5; fx('click', 0.6); return; }
@@ -2145,7 +2293,7 @@
     if (stato !== 'preso') inseguitrici();
     disegnaLinee();
     disegnaAuto();                       // la Punto sta sotto Marf: quando scende salta fuori da sopra
-    if (!g.passaggio) marf();
+    if (!g.passaggio) marf();                              // in macchina non si vede
     if (stato === 'preso') inseguitrici();   // preso: gli sono saltate addosso, stanno sopra di lui
     disegnaLaser(); disegnaAvvisi(); disegnaTiro();
     disegnaScudo();
@@ -2387,7 +2535,7 @@
 
   // oggetti disegnati da Leo: la canna (al posto della birra) e la ragazza accovacciata (al posto della sedia)
   var OGG = {};
-  ['canna', 'bifase', 'trifase', 'pringles', 'ragazza-a-terra', 'durex', 'transenna', 'juve', 'lazio', 'carabiniere', 'pesce-spada', 'aygo', 'jet', 'quattro-quadri', 'super-santos'].forEach(function (n) {
+  ['canna', 'bifase', 'trifase', 'pringles', 'ragazza-a-terra', 'durex', 'transenna', 'juve', 'lazio', 'carabiniere', 'pesce-spada', 'aygo', 'jet', 'quattro-quadri', 'super-santos', 'punto', 'punto-ruota'].forEach(function (n) {
     var img = new Image(); img.src = (CANNE_GIAN.indexOf(n) >= 0 ? '' : 'ogg/') + n + '.webp?v=1'; OGG[n] = img;
   });
   // contorno nero sottile (BORDO px) attorno a ostacoli e nemici, per farli notare meglio:
@@ -2458,8 +2606,27 @@
     } else if (t.aria) {
       ok = disegnaOgg(t.img, cx - 8, TERRA - t.aria + t.dh / 2 + Math.sin(g.t * 4 + o.x * 0.01) * 3, t.dh, true);
     } else if (o.volo !== undefined) { disegnaVolo(o); return; }
-    else ok = disegnaOgg(t.img, cx, TERRA + 2, t.dh, true);
+    else {
+      ok = disegnaOgg(t.img, cx, TERRA + 2, t.dh, true);
+      if (ok && o.tipo === 'aygo') ruoteAygo(cx, t);
+    }
     if (!ok) { var bx = boxOstacolo(o); ctx.fillStyle = '#6b4a2b'; ctx.fillRect(bx.x, bx.y, bx.w, bx.h); }
+  }
+
+  // ruote dell'Aygo ritagliate dall'immagine: girano mentre ti viene incontro
+  var AYGO_RUOTE = [[71.0, 180.1, 39.4], [345.3, 178.8, 40.6]], ruoteAygoImg = null;
+  function ruoteAygo(cx, t) {
+    var img = OGG.aygo, nw = img.naturalWidth, nh = img.naturalHeight;
+    if (!ruoteAygoImg) ruoteAygoImg = AYGO_RUOTE.map(function (r) {
+      var d = Math.ceil(r[2] * 2), c = document.createElement('canvas'); c.width = c.height = d;
+      var x = c.getContext('2d'); x.beginPath(); x.arc(d / 2, d / 2, r[2] - 0.5, 0, TAU); x.clip();
+      x.drawImage(img, r[0] - d / 2, r[1] - d / 2, d, d, 0, 0, d, d);
+      var im = new Image(); im.src = c.toDataURL(); return im;
+    });
+    var k = t.dh / nh, dw = t.dh * nw / nh, x0 = Math.round(cx - dw / 2), y0 = Math.round(TERRA + 2 - t.dh);
+    AYGO_RUOTE.forEach(function (r, i) {
+      if (pronta(ruoteAygoImg[i])) ruotaAuto(ruoteAygoImg[i], r[2], x0 + r[0] * k, y0 + r[1] * k, k, -g.t * t.corre / (r[2] * k));
+    });
   }
 
   // fumo dei jet: tre sprite sfumati (rosso, bianco, verde) copiati con trasparenza, niente gradienti per frame
@@ -2665,6 +2832,7 @@
   var P_SCIVOLA= { cA: .37, sA: .4, fA: .6, cB: .85, sB: -.35, fB: .3, bA: -2.6, gA: -.15, bB: .55, gB: 3.1, lean: 0, head: -.8 };
   var P_COCCA  = { bA: -2.35, gA: -3.05, lean: -.05 };     // braccio caricato dietro la testa, canna in mano
   var P_LANCIO = { bA: 1.75, gA: 1.55 };                   // braccio teso in avanti appena tirato
+  var P_TUFFO  = { cA: -.12, sA: -.35, fA: .5, cB: .05, sB: -.25, fB: .5, bA: 2.95, gA: 3.05, bB: 2.75, gB: 2.9, lean: 0, head: -.9 };
   var P_FERMO  = { cA: .08, sA: .02, fA: 0, cB: -.08, sB: -.12, fB: 0, bA: -.15, gA: .35, bB: .15, gB: .6, lean: .03, head: 0 };
 
   function nuovaAnim() {
@@ -2718,7 +2886,10 @@
     var target;
     a.ripresa = Math.min(1, a.ripresa + dt * 3.2);
 
-    if (stato === 'preso') {                           // preso: si ferma e si arrende
+    if (g.volo && inGioco) {                           // in volo dalla Punto: braccia avanti come superman, poi a palla
+      verso(a.posa, g.volo.fase === 'aria' ? P_TUFFO : P_PALLA, dt, g.volo.fase === 'aria' ? 16 : 20);
+      a.ripresa = 0; aTerra = false;
+    } else if (stato === 'preso') {                           // preso: si ferma e si arrende
       target = P_FERMO; verso(a.posa, target, dt, 6);
     } else if (!aTerra && inGioco) {
       var u = (m.vy + 650) / 1300;                     // -650 → salita, 0 → cima, +650 → discesa
@@ -2822,8 +2993,11 @@
     }
     ctx.save();
     if (m.botta > 0) ctx.globalAlpha = Math.floor(m.botta * 12) % 2 === 0 ? 0.35 : 1;  // lampeggia dopo una botta
-    ctx.translate(MARF_X, m.y);
-    if (a.giro > 0) {                                    // capriola del doppio salto, attorno alla pancia
+    if (g.volo) {                                        // proiettato dalla Punto: di testa, poi la capriola a terra
+      var cv = a.anca * 1.35;
+      ctx.translate(MARF_X, g.volo.y); ctx.rotate(g.volo.rot); ctx.translate(0, -cv);
+    } else ctx.translate(MARF_X, m.y);
+    if (a.giro > 0 && !g.volo) {                                    // capriola del doppio salto, attorno alla pancia
       var cy = a.anca * 1.35, giro = (1 - Math.pow(a.giro, 1.6)) * TAU;
       ctx.translate(0, cy); ctx.rotate(giro); ctx.translate(0, -cy);
     }
