@@ -718,6 +718,7 @@
   }
   // immagini degli articoli: una per livello, arrivano da Leo (shop/<id>-<livello>.webp); intanto quelle che ci sono già nel gioco
   var IMMAGINI_SHOP = {
+    scatto: ['shop/scatto-0.webp', 'shop/scatto-1.webp', 'shop/scatto-2.webp', 'shop/scatto-3.webp'],   // Bless: pugno, pollice, shaka, shaka che scuote (di Leo)
     gian: ['shop/gian-0.webp?v=2', 'shop/gian-1.webp?v=2', 'shop/gian-2.webp?v=2'],   // Gian base, bifase, trifase (di Leo)
     punto: ['ogg/punto.webp'],
     pringles: ['ogg/pringles.webp']
@@ -746,7 +747,7 @@
     var lv = +d.upg[u.id] || 0, max = u.prezzi.length;
     var foto = document.getElementById('schedaFoto'); foto.textContent = '';
     var src = immagineArticolo(u, lv);
-    if (src) { var im = new Image(); im.src = src; im.alt = u.nome; if (!lv && u.id !== 'gian') im.className = 'futuro'; foto.append(im); }
+    if (src) { var im = new Image(); im.src = src; im.alt = u.nome; if (!lv && IMMAGINI_SHOP[u.id].length <= u.prezzi.length) im.className = 'futuro'; foto.append(im); }   // grigia solo se il livello 0 non ha un'immagine sua
     else foto.append(testo('span', 'immagine in arrivo')), foto.lastChild.className = 'manca';
     document.getElementById('schedaNome').textContent = u.nome;
     document.getElementById('schedaDesc').textContent = u.desc;
