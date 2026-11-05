@@ -696,10 +696,10 @@
     { id: 'scatto', nome: 'Bless', desc: 'Momento di chilling', prezzi: [55, 145, 325], val: [0, 0.4, 0.8, 1.2], u: function (v) { return v.toLocaleString('it-IT') + ' s invincibile dopo una canna'; } },
     { id: 'pringles', nome: 'Chimica', desc: 'Il dio Carrefour ti blessa con le sue Pringles', prezzi: [120, 300, 600], val: [0.08, 0.12, 0.16, 0.2], u: function (v) { return Math.round(v * 100) + '% di Pringles'; } },
     // ogni canna raccolta ne vale 2 (bifase) o 3 (trifase): raddoppia o triplica quello che guadagni, quindi costa caro
-    { id: 'gian', nome: 'Benedizione der Gian', desc: 'Ti ha insegnato arti oscure...', prezzi: [1200, 3600], val: [1, 2, 3],
-      u: function (v) { return CANNE_GIAN[v - 1]; }, piu: function (v) { return 'ogni canna vale ' + v; } },
+    { id: 'gian', nome: 'Benedizione der Gian', desc: 'Ti ha insegnato arti oscure...', prezzi: [780, 2340], val: [1, 2, 3],
+      u: function (v) { return CANNE_GIAN[v - 1]; }, piu: function (v) { return v > 1 ? 'ogni canna vale ' + v + ' e fa ' + v + ' volte il danno' : 'ogni canna vale 1'; } },
     // a inizio corsa la Punto ti porta avanti di tanti metri: costi stralunati
-    { id: 'punto', nome: 'Punto bianca', desc: 'Crivo te da no strappo', prezzi: [1000, 2500, 6000, 12000, 20000], val: [0, 1000, 2000, 4000, 6000, 8000],
+    { id: 'punto', nome: 'Punto bianca', desc: 'Crivo te da no strappo', prezzi: [650, 1625, 3900, 7800, 13000], val: [0, 1000, 2000, 4000, 6000, 8000],
       u: function (v) { return 'passaggio fino a ' + v.toLocaleString('it-IT') + ' m'; } }
   ];
   var CANNE_GIAN = ['canna', 'bifase', 'trifase'];
@@ -717,7 +717,7 @@
   }
   // immagini degli articoli: una per livello, arrivano da Leo (shop/<id>-<livello>.webp); intanto quelle che ci sono già nel gioco
   var IMMAGINI_SHOP = {
-    gian: ['canna.webp', 'bifase.webp', 'trifase.webp'],
+    gian: ['shop/gian-0.webp', 'shop/gian-1.webp', 'shop/gian-2.webp'],   // Gian base, bifase, trifase (di Leo)
     punto: ['ogg/punto.webp'],
     pringles: ['ogg/pringles.webp']
   };
@@ -1519,7 +1519,7 @@
     g.munizioni--; g.anim.lancio = 0.22;
     if (sup) { g.super = 0; g.scuoti = Math.max(g.scuoti, 0.2); }
     g.lanci.push({ x: MARF_X + 22, y: manoY(), vx: 900 + 500 * k, k: k, sup: sup,
-      danno: sup ? g.boss.hpMax * DANNO_SUPER : DANNO_MIN + (DANNO_MAX - DANNO_MIN) * k });
+      danno: sup ? g.boss.hpMax * DANNO_SUPER : (DANNO_MIN + (DANNO_MAX - DANNO_MIN) * k) * (g.valCanna || 1) });   // bifase x2, trifase x3
     if (sup) { fx('whoosh', 0.7, 0.7); fx('potere', 0.4); }
     else fx('swish', 0.45 + 0.25 * k, 1.25 - 0.35 * k);
   }
@@ -1665,6 +1665,10 @@
           if (b.prossimo <= 0 && sgombro) {
             var scelte = ATTACCHI[b.fn], tipo = scelte[Math.floor(Math.random() * scelte.length)];
             if (tipo === b.ultimo) tipo = scelte[Math.floor(Math.random() * scelte.length)];    // raramente due uguali di fila
+            // da dietro, carica e laser alto si passano solo scivolando: partono solo se davanti non c'è nessun ostacolo
+            // da saltare, nemmeno quello appena comparso a destra (sennò saresti chiuso da due lati)
+            if (b.dietro && (tipo === 'carica' || tipo === 'laser') && g.ostacoli.some(function (o) { return o.volo === undefined && o.x + o.w > MARF_X - 30 && o.x < W + 120; }))
+              tipo = Math.random() < 0.5 ? 'sputo' : 'raffica';
             // senza canne l'unico modo di farle male sono le sfere: se non ne sputa da un po', la prossima mossa è uno sputo
             if (b.tSfera > (g.munizioni > 0 ? SFERA_MAX_T : SFERA_MAX_T_VUOTO)) tipo = b.fn === 1 ? 'sputo' : 'raffica';
             if (!b.oroFatto[b.fn] && b.tFase > b.oroT) { tipo = 'oro'; b.oroFatto[b.fn] = true; }   // una volta per fase
