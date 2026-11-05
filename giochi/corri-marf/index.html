@@ -1519,7 +1519,7 @@
     g.munizioni--; g.anim.lancio = 0.22;
     if (sup) { g.super = 0; g.scuoti = Math.max(g.scuoti, 0.2); }
     g.lanci.push({ x: MARF_X + 22, y: manoY(), vx: 900 + 500 * k, k: k, sup: sup,
-      danno: sup ? g.boss.hpMax * DANNO_SUPER : (DANNO_MIN + (DANNO_MAX - DANNO_MIN) * k) * (g.valCanna || 1) });   // bifase x2, trifase x3
+      danno: (sup ? g.boss.hpMax * DANNO_SUPER : DANNO_MIN + (DANNO_MAX - DANNO_MIN) * k) * (g.valCanna || 1) });   // bifase x2, trifase x3 (anche la super)
     if (sup) { fx('whoosh', 0.7, 0.7); fx('potere', 0.4); }
     else fx('swish', 0.45 + 0.25 * k, 1.25 - 0.35 * k);
   }
