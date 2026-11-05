@@ -1156,6 +1156,7 @@
     boss: function () { g.ostacoli.length = 0; g.prossimoBoss = g.metri + 1; g.munizioni = arguments.length ? arguments[0] : 12; },
     lancia: function (k) { iniziaTiro(); if (g.tiro != null) g.tiro = (k == null ? 1 : k) * TIRO_MAX; lancia(); },
     missioni: function () { return mieMissioni(); }, evento: function (e, q, v) { evento(e, q, v); },
+    ritmo: function (f, t) { g.ritmo = { fase: f, t: t || 30 }; },
     formazione: function (f) { g.ostacoli.length = 0; generaFormazione(f); },
     canne: function (n) { var f = FORMAZIONI_CANNE.filter(function (z) { return z.n === n; })[0]; f.punti(80).forEach(function (q) { g.birreA.push({ x: W + 30 + q[0], y: TERRA - q[1] }); }); },
     carica: function () { iniziaTiro(); }, rilascia: function () { lancia(); }, prendi: function () { preso(); }, detriti: function (x) { detriti(x); } };
@@ -1327,27 +1328,77 @@
     return false;
   }
   function generaOstacolo() {
-    for (var b = 0; b < g.birreA.length; b++) if (g.birreA[b].x > W + 40 - DIST_OGG - 120) { g.prossimo = 0.15; return; }
+    for (var b = 0; b < g.birreA.length; b++) if (!g.birreA[b].scia && g.birreA[b].x > W + 40 - DIST_OGG - 120) { g.prossimo = 0.15; return; }
     if (g.ostacoli.some(function (o) { return o.matto && o.x > MARF_X - 60; })) { g.prossimo = 0.2; return; }   // l'Aygo matto passa da solo
-    if (!g.boss && g.metri > FORMAZIONI_DA && Math.random() < 0.06 + 0.06 * Math.min(1, (g.metri - FORMAZIONI_DA) / 6000) && generaFormazione()) return;
-    var r = Math.random(), lvl = Math.min(g.metri / 1500, 1), tipo;
-    if (g.metri > 400 && r < 0.07) tipo = 'aygo';
-    else if (r < 0.25) tipo = 'ragazza';
-    else if (r < 0.42) tipo = 'durex';
-    else if (r < 0.56) tipo = 'transenna';
-    else if (r < 0.79) { var q = Math.random(); tipo = q < 0.16 ? 'carabiniere' : q < 0.58 ? 'juve' : 'lazio'; }   // il carabiniere è una variante rara
-    else tipo = 'pesce';
+    var fase = faseRitmo(), lvl = Math.min(g.metri / 1500, 1);
+    if (fase === 'normale' && !g.boss && g.metri > FORMAZIONI_DA && Math.random() < 0.06 + 0.06 * Math.min(1, (g.metri - FORMAZIONI_DA) / 6000) && generaFormazione()) return;
+    // il tipo di questo ostacolo era già stato deciso col precedente, così la distanza fra i due è sempre fattibile
+    var tipo = g.prossimoTipo || scegliTipo(fase), coppia = g.coppia;
+    g.prossimoTipo = null; g.coppia = false;
     if (tipo === 'carabiniere') {                 // al massimo un carabiniere ogni 500 m, e mai nei primi 500
       if (g.metri < 500 || g.metri - (g.ultimoCarab === undefined ? -1e9 : g.ultimoCarab) < 500) tipo = Math.random() < 0.5 ? 'juve' : 'lazio';
       else g.ultimoCarab = g.metri;
     }
     if (tipo === 'aygo' && g.birreA.some(function (b) { return b.x > MARF_X - 40; })) tipo = 'transenna';   // l'Aygo passerebbe sopra le canne
     var t = TIPI[tipo], o = nuovoOstacolo(tipo, W + 40);
-    if (tipo === 'durex') { o.quante = 1 + (Math.random() < 0.4 + lvl * 0.3 ? 1 : 0) + (Math.random() < lvl * 0.45 ? 1 : 0); o.h = t.h * o.quante; }
+    if (tipo === 'durex' && !coppia) { o.quante = 1 + (Math.random() < 0.4 + lvl * 0.3 ? 1 : 0) + (Math.random() < lvl * 0.45 ? 1 : 0); o.h = t.h * o.quante; }
     g.ostacoli.push(o);
-    var base = 1.25 - lvl * 0.45;
-    g.prossimo = base + Math.random() * 0.9 + (tipo === 'aygo' ? 0.5 : 0);
+    g.prossimoTipo = scegliTipo(fase);
+    g.prossimo = distanzaRitmo(fase, o, g.prossimoTipo, lvl, coppia);
+    if (!coppia && !g.coppia && tipo !== 'aygo' && g.metri > CANNE_DA && Math.random() < (fase === 'fitta' ? 0.3 : fase === 'normale' ? 0.08 : 0)) sciaCanne(o);
     if (bossDietro()) g.prossimo *= 1.5;            // ultima fase del boss: ostacoli più radi
+  }
+  function scegliTipo(fase) {
+    var r = Math.random(), tipo;
+    if (g.metri > 400 && r < 0.07) tipo = fase === 'normale' ? 'aygo' : 'transenna';   // l'Aygo corre più del mondo: nelle ondate niente
+    else if (r < 0.25) tipo = 'ragazza';
+    else if (r < 0.42) tipo = 'durex';
+    else if (r < 0.56) tipo = 'transenna';
+    else if (r < 0.79) { var q = Math.random(); tipo = q < 0.16 ? 'carabiniere' : q < 0.58 ? 'juve' : 'lazio'; }   // il carabiniere è una variante rara
+    else tipo = 'pesce';
+    return tipo;
+  }
+
+  // scia di canne che segue la mossa giusta: un arco sopra gli ostacoli da saltare, una fila sotto i pesci
+  function sciaCanne(o) {
+    var cx = o.x + o.w / 2, punti;
+    if (o.t.aria) punti = [[-40, 26], [0, 26], [40, 26]];
+    else { var h = Math.max(o.h, 40); punti = [[-80, h + 30], [-40, h + 58], [0, h + 68], [40, h + 58], [80, h + 30]]; }
+    var gruppo = { n: punti.length, presi: 0 };
+    punti.forEach(function (q) { g.birreA.push({ x: cx + q[0], y: TERRA - q[1], pringles: false, scia: true, gruppo: gruppo }); });
+  }
+
+  /* ── Ritmo della corsa: tratti normali, ondate fitte di ostacoli (meno canne) e respiri con poche cose e tante canne.
+     Nelle ondate gli ostacoli arrivano a raffica ma sempre a una distanza che si può fare: salta e poi scivola,
+     scivola e poi salta, due salti di fila, o due ostacoli bassi attaccati da prendere con un salto lungo. ── */
+  var RITMO = { normale: [7, 11], fitta: [5, 7.5], respiro: [3.5, 5] }, RITMO_DA = 400;
+  var CANNE_RITMO = { normale: 1, fitta: 2.4, respiro: 0.45 };   // moltiplica l'attesa fra una canna e l'altra
+  function aggiornaRitmo(dt) {
+    var r = g.ritmo || (g.ritmo = { fase: 'normale', t: 8 });
+    if ((r.t -= dt) > 0) return;
+    r.fase = r.fase === 'fitta' ? 'respiro' : r.fase === 'respiro' ? 'normale' : g.metri > RITMO_DA ? 'fitta' : 'normale';
+    var d = RITMO[r.fase]; r.t = d[0] + Math.random() * (d[1] - d[0]);
+  }
+  function faseRitmo() { return g.ritmo && !g.boss ? g.ritmo.fase : 'normale'; }
+  function basso(tipo) { return tipo === 'ragazza' || tipo === 'durex' || tipo === 'transenna'; }
+  // secondi minimi fra un ostacolo e il successivo (più il tempo per superare il primo): tarati col bot
+  // nelle ondate, dopo un ostacolo basso il pesce arriva presto: bisogna tornare giù in picchiata (↓ in aria) e scivolare
+  function distanzaMinima(o, dopo, fitta) {
+    var aria1 = !!o.t.aria, aria2 = !!TIPI[dopo].aria, v = Math.max(g.vel, 380);
+    var base = aria1 && aria2 ? 0.05 : aria1 ? 0.38 : aria2 ? (fitta && o.h <= 62 ? 0.42 : 0.6) : (o.h > 62 || TIPI[dopo].h > 62 ? 0.8 : 0.72);
+    return base + (o.w + 36) / v;
+  }
+  function distanzaRitmo(fase, o, dopo, lvl, coppia) {
+    var v = Math.max(g.vel, 380);
+    if (fase === 'respiro') return 1.7 + Math.random() * 0.8;
+    if (fase === 'fitta') {
+      // a volte due ostacoli bassi attaccati: un salto lungo (solo se si va abbastanza forte)
+      if (!coppia && basso(o.tipo) && o.h <= 62 && basso(dopo) && v >= 600 && Math.random() < 0.4) { g.coppia = true; return (o.w + 40) / v; }
+      if (o.t.aria && Math.random() < 0.45) { g.prossimoTipo = dopo = 'pesce'; }       // pesci in fila: una scivolata lunga
+      return distanzaMinima(o, dopo, true) + Math.random() * (0.22 - 0.1 * lvl);
+    }
+    if (o.tipo !== 'aygo' && dopo !== 'aygo' && g.metri > RITMO_DA && Math.random() < 0.2) return distanzaMinima(o, dopo) + Math.random() * 0.25;   // ogni tanto una combinazione veloce
+    return Math.max(distanzaMinima(o, dopo), 1.15 - lvl * 0.4 + Math.random() * 0.9) + (o.tipo === 'aygo' ? 0.5 : 0);
   }
 
   function nuovoOstacolo(tipo, x) { var t = TIPI[tipo]; return { tipo: tipo, t: t, x: x, w: t.w, h: t.h, quante: 1 }; }
@@ -1699,6 +1750,7 @@
     if (palazzo && palazzo.bloccato) g.distacco = Math.max(g.distacco - 70 * dt, 25);   // fermo contro il muro: le ragazze si avvicinano
 
     // ostacoli
+    aggiornaRitmo(dt);
     g.prossimo -= dt;
     if (g.prossimo <= 0 && g.jetAvviso <= 0 && !g.jets.length && !zonaPalazzo() && ostacoliAmmessi()) generaOstacolo();
     var hb = hitboxMarf();
@@ -1760,7 +1812,7 @@
       // a volte arriva una formazione di canne (più canne = più rara), sennò una canna sola o le pringles (scudo), molto più rare
       var nf = formazioneCanne();
       if (!nf) g.birreA.push({ x: W + 30, y: TERRA - 40 - Math.random() * 150, pringles: g.scudo <= 0 && Math.random() < valore('pringles') });
-      g.prossimaBirra = (2.5 + Math.random() * 3.5) * (nf ? 0.6 + 0.4 * nf : 1);   // dopo una formazione la prossima canna tarda un po' di più
+      g.prossimaBirra = (2.5 + Math.random() * 3.5) * (nf ? 0.6 + 0.4 * nf : 1) * CANNE_RITMO[faseRitmo()];   // nel respiro piovono canne, nelle ondate meno   // dopo una formazione la prossima canna tarda un po' di più
     }
     var magnete = valore('magnete');
     for (var j = g.birreA.length - 1; j >= 0; j--) {
