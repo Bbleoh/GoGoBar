@@ -4,14 +4,15 @@ Tutti i suoni sono CC0 1.0 (pubblico dominio, royalty free, nessuna attribuzione
 tranne le voci del mercante del Crivo Shop (crivo-*), che sono registrazioni originali di GoGoBar.
 
 - Oculus Audio Pack di Meta, CC0 1.0: https://github.com/facebookincubator/Meta-open-sound
-  (passi, salti, atterraggi, fruscii, pugni, calci, voci, risate, vetro, legno, monete, spada, interfaccia)
+  (passi, salti, atterraggi, fruscii, pugni, calci, voci, risate, vetro, legno, monete, spada, interfaccia,
+   motore della Punto: motore-loop; parabrezza: vetro, mescolato con impact_glass_heavy di Kenney)
 - Kenney (www.kenney.nl), CC0 1.0: Impact Sounds, Sci-fi Sounds, RPG Audio
   (campane "ding", dischi metallici, laser, campo di forza, jet, esplosione, monete dell'attacco d'oro)
 
 - La risata da strega (strega-*) è una risata dell'Oculus Audio Pack alzata di tono, con vibrato ed eco.
 - Spada laser (spada-*), ding del tiro carico (ding-carica) e fruscio continuo della scivolata (scivolata-loop)
   sono sintetizzati apposta per il gioco: nessun campione esterno.
-  Lo stesso vale per brace e morso (il morso ha sotto anche un pezzo di carta accartocciata dell'Oculus Audio Pack).
+  Lo stesso vale per la sgommata della Punto (frenata), per brace e per morso (il morso ha sotto anche un pezzo di carta accartocciata dell'Oculus Audio Pack).
 - Campanella della canna (campanella-*): "100 CC0 SFX" di rubberduck su OpenGameArt, CC0 1.0,
   presa dalla raccolta https://github.com/EternityForest/Free-SFX
 
