@@ -87,7 +87,8 @@
     #market.aperta .scheda { opacity: 1; transform: none; pointer-events: auto; }
     .scheda .foto { flex: 1; min-height: 0; display: grid; place-items: center; background: radial-gradient(circle at 50% 55%, rgba(228,179,60,.16), transparent 65%);
       box-shadow: inset 0 0 0 1px rgba(255,255,255,.08); clip-path: polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px); background-color: rgba(9,9,11,.55); }
-    .scheda .foto img { max-width: 82%; max-height: 82%; object-fit: contain; filter: drop-shadow(0 6px 10px rgba(0,0,0,.5)); }
+    .scheda .foto { position: relative; }
+    .scheda .foto img { position: absolute; left: 6%; top: 6%; width: 88%; height: 88%; object-fit: contain; filter: drop-shadow(0 6px 10px rgba(0,0,0,.5)); }
     .scheda .foto img.futuro { opacity: .35; filter: grayscale(1); }
     .scheda .foto .manca { font-family: var(--mono); font-size: .7em; color: var(--muted); text-align: center; padding: 1em; }
     .scheda h3 { font-family: var(--display); font-style: italic; font-weight: 700; font-size: 1.35em; line-height: 1; color: var(--gold); text-transform: uppercase; }
