@@ -62,18 +62,50 @@
     .articolo .btn.povero { opacity: .5; cursor: not-allowed; }
     .articolo .btn.povero.no { animation: stizzito .35s ease-out; }
     .oro { color: var(--gold); }
-    .scaffale { display: grid; gap: 4px; }
-    .articolo { display: flex; align-items: center; gap: .8em; padding: .45em .6em; background: rgba(255,255,255,.04); border-left: 2px solid var(--line); }
-    .articolo .info { flex: 1; display: grid; gap: .15em; min-width: 0; }
-    .articolo .info b { font-family: var(--display); font-style: italic; color: var(--ivory); }
-    .articolo .info span { font-family: var(--mono); font-size: .75em; color: var(--cream); }
-    .articolo .btn { font-size: .8em; padding: .45em 1em; white-space: nowrap; }
-    .articolo .testa { display: flex; flex-wrap: wrap; align-items: center; gap: .2em .7em; }
-    .articolo .testa b { white-space: nowrap; }
+    /* Crivo Shop: lista di nomi con "ora" e prezzo; cliccando un nome si apre la scheda fra mercante e lista */
+    #market { grid-template-columns: minmax(0, .8fr) 0fr minmax(0, 1.2fr); transition: grid-template-columns .28s ease; }
+    #market.aperta { grid-template-columns: minmax(0, .5fr) minmax(0, .46fr) minmax(0, 1.04fr); }
     #market .testo { gap: .45em; padding-top: 2.5%; padding-bottom: 2.5%; }
     #market h2 { font-size: 1.9em; }
-    #market .articolo { padding: .28em .6em; }
+    .scaffale { display: grid; gap: 4px; container-type: inline-size; }
+    @container (max-width: 520px) { .scaffale .articolo .btn { font-size: .62em; letter-spacing: .02em; } .scaffale .ora span { font-size: .66em; } }
+    .articolo { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr) minmax(5.5em, .68fr); align-items: stretch; gap: 6px; padding: 3px 6px 3px 0;
+      background: rgba(255,255,255,.04); border-left: 2px solid var(--line); transition: transform .18s ease, background .18s ease; transform-origin: 100% 50%; }
+    .articolo.scelto { transform: scale(1.035); background: rgba(228,179,60,.12); border-left-color: var(--gold); position: relative; z-index: 1; }
+    .articolo .nome-art { all: unset; cursor: pointer; display: flex; flex-wrap: wrap; align-items: center; gap: .2em .7em; padding: .35em .6em; min-width: 0; }
+    .articolo .nome-art:focus-visible { box-shadow: inset 0 0 0 1px var(--gold); }
+    .articolo .nome-art b { font-family: var(--display); font-style: italic; color: var(--ivory); line-height: 1.05; }
+    .articolo.scelto .nome-art b { color: var(--gold); }
+    .ora { display: flex; flex-direction: column; justify-content: center; gap: .05em; padding: .25em .6em; min-width: 0;
+      background: rgba(9,9,11,.55); box-shadow: inset 0 0 0 1px rgba(255,255,255,.08); clip-path: polygon(5px 0, 100% 0, 100% calc(100% - 5px), calc(100% - 5px) 100%, 0 100%, 0 5px); }
+    .ora small { font-family: var(--mono); font-size: .58em; letter-spacing: .16em; text-transform: uppercase; color: var(--muted); }
+    .ora span { font-family: var(--mono); font-size: .72em; color: var(--cream); line-height: 1.2; overflow-wrap: anywhere; }
+    .ora.niente span { color: var(--muted); }
+    .articolo .btn { font-size: .8em; padding: .45em .4em; white-space: nowrap; align-self: center; width: 100%; min-width: 0; }
+    .scheda { align-self: stretch; min-width: 0; overflow: hidden; display: flex; flex-direction: column; gap: .5em; padding: 6% 0 4% 0; font-size: clamp(11px, 1.5vw, 15px);
+      opacity: 0; transform: translateX(-12px); transition: opacity .2s ease .08s, transform .25s ease .05s; pointer-events: none; }
+    #market.aperta .scheda { opacity: 1; transform: none; pointer-events: auto; }
+    .scheda .foto { flex: 1; min-height: 0; display: grid; place-items: center; background: radial-gradient(circle at 50% 55%, rgba(228,179,60,.16), transparent 65%);
+      box-shadow: inset 0 0 0 1px rgba(255,255,255,.08); clip-path: polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px); background-color: rgba(9,9,11,.55); }
+    .scheda .foto img { max-width: 82%; max-height: 82%; object-fit: contain; filter: drop-shadow(0 6px 10px rgba(0,0,0,.5)); }
+    .scheda .foto img.futuro { opacity: .35; filter: grayscale(1); }
+    .scheda .foto .manca { font-family: var(--mono); font-size: .7em; color: var(--muted); text-align: center; padding: 1em; }
+    .scheda h3 { font-family: var(--display); font-style: italic; font-weight: 700; font-size: 1.35em; line-height: 1; color: var(--gold); text-transform: uppercase; }
+    .scheda .desc { font-size: .85em; color: var(--ivory); }
+    .scheda .prossimo { font-family: var(--mono); font-size: .7em; color: var(--cream); }
+    .scheda .ora { padding: .5em .8em; }
+    .scheda .ora span { font-size: .85em; color: var(--ivory); }
     .livelli { display: flex; gap: 3px; }
+    /* consigli: nastro cliccabile e pannello con la lista; consigli sul boss solo dopo che ti ha preso lei */
+    .consigli { cursor: pointer; }
+    .consigli:hover b, .consigli:focus-visible b { background: var(--ivory); }
+    .consigli:focus-visible { outline: 0; box-shadow: inset 0 0 0 1px var(--gold); }
+    .lista-consigli { display: grid; gap: 4px; font-family: var(--mono); font-size: .78em; color: var(--ivory); counter-reset: n; }
+    .lista-consigli li { list-style: none; padding: .45em .7em .45em 2.6em; position: relative; background: rgba(255,255,255,.04); border-left: 2px solid var(--line); line-height: 1.35; }
+    .lista-consigli li::before { counter-increment: n; content: counter(n, decimal-leading-zero); position: absolute; left: .7em; top: .45em; color: var(--pink); }
+    .consigli-boss { display: grid; gap: .45em; }
+    .consigli-boss[hidden] { display: none; }
+    .consigli-boss h3 { font-family: var(--mono); font-size: .8em; color: var(--pink); font-weight: 500; letter-spacing: .16em; text-transform: uppercase; }
     .livelli em { width: 14px; height: 6px; background: rgba(255,255,255,.14); transform: skewX(-30deg); }
     .livelli em.si { background: var(--gold); }
     .pannello .ritratto { height: 92%; align-self: end; background: url(marf.webp) center bottom / contain no-repeat; filter: drop-shadow(0 10px 18px rgba(0,0,0,.5)); }
@@ -256,11 +288,27 @@
             <span><i class="g-su"></i><span>tira<small>swipe su e stacca</small></span></span>
           </div>
         </div>
-        <div class="consigli" aria-label="Consigli"><b>Consigli</b><div class="nastro"><span id="nastro"></span></div></div>
+        <div class="consigli" id="apriConsigli" role="button" tabindex="0" aria-label="Apri i consigli" title="Tutti i consigli"><b>Consigli</b><div class="nastro"><span id="nastro"></span></div></div>
+      </div>
+
+      <div class="pannello" id="consigliPan" hidden>
+        <div class="ritratto"></div>
+        <div class="testo">
+          <h2>Consigli</h2>
+          <ol class="lista-consigli" id="listaConsigli"></ol>
+          <div class="riga"><button class="btn secondario" id="chiudiConsigli" type="button">Torna alla lobby</button></div>
+        </div>
       </div>
 
       <div class="pannello" id="market" hidden>
         <div class="negoziante" aria-hidden="true"></div>
+        <aside class="scheda" id="scheda" aria-live="polite">
+          <div class="foto" id="schedaFoto"></div>
+          <h3 id="schedaNome"></h3>
+          <p class="desc" id="schedaDesc"></p>
+          <p class="prossimo" id="schedaProssimo"></p>
+          <div class="ora" id="schedaOra"><small>ora</small><span></span></div>
+        </aside>
         <div class="testo">
           <h2>Crivo Shop</h2>
           <p class="sotto">Portafoglio: <b class="oro" id="portafoglio">0</b> canne</p>
@@ -280,6 +328,7 @@
             <button class="btn secondario" id="salva" type="button" hidden>Riprova a salvare</button>
             <button class="btn secondario" id="cambia" type="button">Cambia giocatore</button>
           </div>
+          <div class="consigli-boss" id="consigliBoss" hidden><h3>Come si batte MaDeLucata</h3><ol class="lista-consigli" id="listaBoss"></ol></div>
           <div class="classifica" id="classificaFine"></div>
         </div>
       </div>
@@ -666,24 +715,58 @@
     voceCrivo = fx('crivo-' + tipo + '-' + k, 1.2);
     negoziante.classList.remove('contento', 'colpito', 'stizzito'); void negoziante.offsetWidth; negoziante.classList.add(mossa);
   }
+  // immagini degli articoli: una per livello, arrivano da Leo (shop/<id>-<livello>.webp); intanto quelle che ci sono già nel gioco
+  var IMMAGINI_SHOP = {
+    gian: ['canna.webp', 'bifase.webp', 'trifase.webp'],
+    punto: ['ogg/punto.webp'],
+    pringles: ['ogg/pringles.webp']
+  };
+  function immagineArticolo(u, lv) {
+    var l = IMMAGINI_SHOP[u.id];
+    if (!l) return null;
+    return l[Math.min(lv, l.length - 1)];
+  }
+  function testoOra(u, lv) { return u.val[lv] ? u.u(u.val[lv]) : 'niente'; }
+  function boxOra(u, lv) {
+    var o = document.createElement('div'); o.className = 'ora' + (u.val[lv] ? '' : ' niente');
+    o.append(testo('small', 'ora'), testo('span', testoOra(u, lv)));
+    return o;
+  }
+  var scelto = null;                                   // id dell'articolo aperto nella scheda
   function apriMarket() {
     if (!giocatore) { notaMenu.textContent = 'Scrivi prima il tuo nome: il portafoglio è del giocatore.'; nomeMenu.focus(); return; }
-    menu.hidden = true; market.hidden = false; disegnaMarket();
+    scelto = null; menu.hidden = true; market.hidden = false; disegnaMarket();
   }
   function chiudiMarket() { market.hidden = true; menu.hidden = false; aggiornaChi(); }
+  function disegnaScheda(d) {
+    var u = UPGRADE.filter(function (x) { return x.id === scelto; })[0];
+    market.classList.toggle('aperta', !!u);
+    if (!u) return;
+    var lv = +d.upg[u.id] || 0, max = u.prezzi.length;
+    var foto = document.getElementById('schedaFoto'); foto.textContent = '';
+    var src = immagineArticolo(u, lv);
+    if (src) { var im = new Image(); im.src = src; im.alt = u.nome; if (!lv && u.id !== 'gian') im.className = 'futuro'; foto.append(im); }
+    else foto.append(testo('span', 'immagine in arrivo')), foto.lastChild.className = 'manca';
+    document.getElementById('schedaNome').textContent = u.nome;
+    document.getElementById('schedaDesc').textContent = u.desc;
+    document.getElementById('schedaProssimo').textContent = lv >= max ? 'Al massimo' :
+      'Prossimo livello: ' + u.u(u.val[lv + 1]) + (u.piu ? ' (' + u.piu(u.val[lv + 1]) + ')' : '') + ' · ' + u.prezzi[lv] + ' canne';
+    var ora = document.getElementById('schedaOra');
+    ora.className = 'ora' + (u.val[lv] ? '' : ' niente'); ora.querySelector('span').textContent = testoOra(u, lv) + (u.piu && u.val[lv] ? ' · ' + u.piu(u.val[lv]) : '');
+  }
   function disegnaMarket() {
     var d = datiDi(giocatore);
     document.getElementById('portafoglio').textContent = d.canne.toLocaleString('it-IT');
     var box = document.getElementById('scaffale'); box.textContent = '';
     UPGRADE.forEach(function (u) {
       var lv = +d.upg[u.id] || 0, max = u.prezzi.length, prezzo = u.prezzi[lv];
-      var r = document.createElement('div'); r.className = 'articolo';
-      var info = document.createElement('div'); info.className = 'info';
-      var testa = document.createElement('div'); testa.className = 'testa';      // nome e livelli sulla stessa riga: 7 articoli stanno nel pannello
+      var r = document.createElement('div'); r.className = 'articolo' + (scelto === u.id ? ' scelto' : '');
+      // il nome apre (o chiude) la scheda descrittiva
+      var nome = document.createElement('button'); nome.type = 'button'; nome.className = 'nome-art'; nome.setAttribute('aria-expanded', scelto === u.id ? 'true' : 'false');
       var pal = document.createElement('i'); pal.className = 'livelli';
       for (var i = 0; i < max; i++) { var p = document.createElement('em'); if (i < lv) p.className = 'si'; pal.append(p); }
-      testa.append(testo('b', u.nome), pal);
-      info.append(testa, testo('span', u.desc + ' · ora: ' + (u.val[lv] ? u.u(u.val[lv]) : 'niente')));
+      nome.append(testo('b', u.nome), pal);
+      nome.addEventListener('click', function () { scelto = scelto === u.id ? null : u.id; fx('click', 0.4, 1.3); disegnaMarket(); });
       var b = document.createElement('button'); b.type = 'button'; b.className = 'btn' + (lv >= max ? ' secondario' : '');
       if (lv >= max) { b.textContent = 'Al massimo'; b.disabled = true; }
       else {
@@ -703,13 +786,14 @@
           disegnaMarket();
         });
       }
-      r.append(info, b); box.append(r);
+      r.append(nome, boxOra(u, lv), b); box.append(r);
     });
+    disegnaScheda(d);
   }
   document.getElementById('apriMarket').addEventListener('click', apriMarket);
   document.getElementById('chiudiMarket').addEventListener('click', chiudiMarket);
 
-  /* ── Consigli che scorrono nella lobby ── */
+  /* ── Consigli che scorrono nella lobby (cliccando si apre la lista). Quelli sul boss compaiono solo quando ti prende lei ── */
   var CONSIGLI = [
     'Salta con spazio, ↑ o un tocco. Tocca due volte per il doppio salto.',
     'Scivola con ↓ o con uno swipe in giù: pesci spada e jet si passano solo da sotto.',
@@ -722,21 +806,39 @@
     'Se senti l\'allarme e vedi i punti esclamativi, arrivano i jet: scivola, ti tolgono due vite!',
     'Tieni premuto → (o swipe in su tenendo il dito) per caricare una canna, lascia per tirarla: abbatte gli umani che hai davanti.',
     'Mai tirare una canna a un carabiniere: oltraggio a pubblico ufficiale, perdi una vita.',
-    'A 500 m arriva MaDeLucata: le canne cariche le fanno più male.',
-    'Le canne contro il boss volano dritte: salta o sali sulle pedane per arrivare all\'altezza della sua testa.',
-    'Quando MaDeLucata lancia i dischi d\'oro, colpiscine uno con una canna: torna indietro e la stordisce. Stordita prende danno doppio.',
-    'Le canne che raccogli durante il boss puoi tirarle o tenerle per il Crivo Shop: decidi tu.',
-    'Ogni canna raccolta è un colpo da lanciare al boss: se ne hai poche, dovrai rimandarle le sue sfere.',
     'Ogni 2 km c\'è un palazzo: entra nel corridoio, se è in alto serve un doppio salto perfetto.',
+    'Con la Punto bianca del Crivo Shop parti già avanti. Se salti durante il viaggio, Crivo inchioda.',
     'Il tuo nome è il tuo profilo: il record si salva da solo in classifica.',
     'Tocca ⛶ per lo schermo intero. Sul telefono il gioco si mette in orizzontale.'
   ];
+  var CONSIGLI_BOSS = [
+    'Le canne cariche le fanno più male: tieni premuto → (o swipe in su) e lascia quando la canna luccica.',
+    'Le canne volano dritte: salta o sali sulle pedane per arrivare all\'altezza della sua testa.',
+    'Quando lancia i dischi d\'oro, colpiscine uno con una canna: torna indietro e la stordisce.',
+    'Dopo lo schianto resta stordita per qualche secondo: stordita prende danno doppio, caricale addosso.',
+    'Le sue sfere si saltano, oppure ci scivoli sopra e gliele rimandi: ti servono quando hai poche canne.',
+    'Le canne che raccogli durante il boss puoi tirarle o tenerle per il Crivo Shop: decidi tu.',
+    'Nell\'ultima fase ti arriva alle spalle: gli ostacoli che ti vengono incontro la colpiscono, tu schivali e lasciali passare.'
+  ];
+  function riempiLista(el, lista) { el.textContent = ''; lista.forEach(function (c) { el.append(testo('li', c)); }); }
   (function () {
     var el = document.getElementById('nastro');
     var ordine = CONSIGLI.slice().sort(function () { return Math.random() - 0.5; });
     ordine.forEach(function (c, i) { if (i) { var sep = document.createElement('i'); sep.textContent = '◆'; el.append(sep); } el.append(c); });
     el.style.setProperty('--durata', Math.round(ordine.join('').length / 9) + 's');   // ~9 caratteri al secondo
+    var pan = document.getElementById('consigliPan'), apri = document.getElementById('apriConsigli');
+    riempiLista(document.getElementById('listaConsigli'), CONSIGLI);
+    function mostra() { menu.hidden = true; pan.hidden = false; fx('click', 0.4, 1.3); }
+    apri.addEventListener('click', mostra);
+    apri.addEventListener('keydown', function (e) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); mostra(); } });
+    document.getElementById('chiudiConsigli').addEventListener('click', function () { pan.hidden = true; menu.hidden = false; });
   })();
+  // dopo una morte durante il boss: 4 consigli a caso su come batterla
+  function consigliDopoBoss(boss) {
+    var box = document.getElementById('consigliBoss');
+    box.hidden = !boss;
+    if (boss) riempiLista(document.getElementById('listaBoss'), CONSIGLI_BOSS.slice().sort(function () { return Math.random() - 0.5; }).slice(0, 4));
+  }
 
   /* ── Schermo intero: su telefono prova anche a bloccare l'orizzontale; se non si può (iPhone), gira il gioco via CSS ── */
   var btnFs = document.getElementById('schermoIntero');
@@ -835,6 +937,7 @@
     nota.textContent = API && API.attiva ? '' : 'Corre ' + giocatore + ' · classifica online non attiva, salvo su questo telefono.';
     btnSalva.hidden = true; daSalvare = PROVA ? 0 : punti;
     mostraClassifica(document.getElementById('classificaFine'));
+    consigliDopoBoss(!!g.boss);
     setTimeout(function () {
       if (stato !== 'preso') return;
       fine.hidden = false;
@@ -869,18 +972,18 @@
     m.giu = attivo;
   }
 
-  function inCampo(e) { return e.target && /^(INPUT|BUTTON)$/.test(e.target.tagName); }
+  function inCampo(e) { return e.target && (/^(INPUT|BUTTON)$/.test(e.target.tagName) || (e.target.getAttribute && e.target.getAttribute('role') === 'button')); }
   window.addEventListener('keydown', function (e) {
     if (inCampo(e)) return;
     var su = e.code === 'Space' || e.code === 'ArrowUp' || e.code === 'KeyW';
     if (su) {
       e.preventDefault();
       if (e.repeat) return;
-      if (stato === 'gioco') salta(); else if ((stato === 'menu' && market.hidden) || !fine.hidden) inizia();
+      if (stato === 'gioco') salta(); else if ((stato === 'menu' && !menu.hidden) || !fine.hidden) inizia();
     }
     else if (e.code === 'ArrowDown' || e.code === 'KeyS') { e.preventDefault(); giu(true); }
     else if (e.code === 'ArrowRight' || e.code === 'KeyD') { e.preventDefault(); if (!e.repeat) iniziaTiro(); }   // tieni premuto: carica
-    else if (e.code === 'Enter' && stato !== 'gioco' && ((stato === 'menu' && market.hidden) || !fine.hidden)) inizia();
+    else if (e.code === 'Enter' && stato !== 'gioco' && ((stato === 'menu' && !menu.hidden) || !fine.hidden)) inizia();
   });
   window.addEventListener('keyup', function (e) {
     if (e.code === 'ArrowDown' || e.code === 'KeyS') giu(false);
