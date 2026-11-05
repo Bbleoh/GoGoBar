@@ -885,6 +885,8 @@
     jet: function () { g.prossimoJet = 0; }, palazzo: function (v) { g.ostacoli.length = 0; g.prossimoPalazzo = g.metri; g.variante = v; }, pal: function () { return palazzo; },
     boss: function () { g.ostacoli.length = 0; g.prossimoBoss = g.metri + 1; g.munizioni = arguments.length ? arguments[0] : 12; },
     lancia: function (k) { iniziaTiro(); if (g.tiro != null) g.tiro = (k == null ? 1 : k) * TIRO_MAX; lancia(); },
+    formazione: function (f) { g.ostacoli.length = 0; generaFormazione(f); },
+    canne: function (n) { var f = FORMAZIONI_CANNE.filter(function (z) { return z.n === n; })[0]; f.punti(80).forEach(function (q) { g.birreA.push({ x: W + 30 + q[0], y: TERRA - q[1] }); }); },
     carica: function () { iniziaTiro(); }, rilascia: function () { lancia(); }, prendi: function () { preso(); }, detriti: function (x) { detriti(x); } };
 
   /* ── Stato ── */
@@ -1052,6 +1054,8 @@
   }
   function generaOstacolo() {
     for (var b = 0; b < g.birreA.length; b++) if (g.birreA[b].x > W + 40 - DIST_OGG - 120) { g.prossimo = 0.15; return; }
+    if (g.ostacoli.some(function (o) { return o.matto && o.x > MARF_X - 60; })) { g.prossimo = 0.2; return; }   // l'Aygo matto passa da solo
+    if (!g.boss && g.metri > FORMAZIONI_DA && Math.random() < 0.06 + 0.06 * Math.min(1, (g.metri - FORMAZIONI_DA) / 6000) && generaFormazione()) return;
     var r = Math.random(), lvl = Math.min(g.metri / 1500, 1), tipo;
     if (g.metri > 400 && r < 0.07) tipo = 'aygo';
     else if (r < 0.25) tipo = 'ragazza';
@@ -1059,17 +1063,144 @@
     else if (r < 0.56) tipo = 'transenna';
     else if (r < 0.79) { var q = Math.random(); tipo = q < 0.16 ? 'carabiniere' : q < 0.58 ? 'juve' : 'lazio'; }   // il carabiniere è una variante rara
     else tipo = 'pesce';
-    if (tipo === 'carabiniere') {                 // al massimo un carabiniere ogni 500 m
-      if (g.metri - (g.ultimoCarab === undefined ? -1e9 : g.ultimoCarab) < 500) tipo = Math.random() < 0.5 ? 'juve' : 'lazio';
+    if (tipo === 'carabiniere') {                 // al massimo un carabiniere ogni 500 m, e mai nei primi 500
+      if (g.metri < 500 || g.metri - (g.ultimoCarab === undefined ? -1e9 : g.ultimoCarab) < 500) tipo = Math.random() < 0.5 ? 'juve' : 'lazio';
       else g.ultimoCarab = g.metri;
     }
     if (tipo === 'aygo' && g.birreA.some(function (b) { return b.x > MARF_X - 40; })) tipo = 'transenna';   // l'Aygo passerebbe sopra le canne
-    var t = TIPI[tipo], o = { tipo: tipo, t: t, x: W + 40, w: t.w, h: t.h, quante: 1 };
+    var t = TIPI[tipo], o = nuovoOstacolo(tipo, W + 40);
     if (tipo === 'durex') { o.quante = 1 + (Math.random() < 0.4 + lvl * 0.3 ? 1 : 0) + (Math.random() < lvl * 0.45 ? 1 : 0); o.h = t.h * o.quante; }
     g.ostacoli.push(o);
     var base = 1.25 - lvl * 0.45;
     g.prossimo = base + Math.random() * 0.9 + (tipo === 'aygo' ? 0.5 : 0);
     if (bossDietro()) g.prossimo *= 1.5;            // ultima fase del boss: ostacoli più radi
+  }
+
+  function nuovoOstacolo(tipo, x) { var t = TIPI[tipo]; return { tipo: tipo, t: t, x: x, w: t.w, h: t.h, quante: 1 }; }
+
+  /* ── Conformazioni rare: più rare degli ostacoli normali, mai durante il boss ──
+     pesci: tre pesci spada uno sopra l'altro, si passa solo scivolando
+     castello: castello di carte fatto di scatole di Durex, serve il doppio salto (salto alto)
+     matto: l'Aygo frena di botto, sta fermo e riparte (riflessi)
+     transenne: tre transenne di fila, salto lungo (doppio se vai piano) */
+  var FORMAZIONI_DA = 600, PESCI_PASSO = 50, TRANSENNE_PASSO = 112;
+  // castello: carte lunghe CARTA_L, inclinate di CARTA_A dal verticale; due "Λ" sotto, una scatola piatta sopra, una "Λ" in cima
+  var CARTA_L = 66, CARTA_T = CARTA_L * 240 / 801, CARTA_A = 0.28;
+  var CASTELLO = (function () {
+    var sx = CARTA_L * Math.sin(CARTA_A), hy = CARTA_L * Math.cos(CARTA_A), coppia = sx * 2 + CARTA_T, carte = [];
+    function lambda(xc, base) {                     // due carte che si appoggiano in cima: [centro x, centro y, rotazione]
+      carte.push([xc - sx / 2 - 1, base - hy / 2, Math.PI / 2 + CARTA_A]);   // sinistra, pende verso il centro
+      carte.push([xc + sx / 2 + 1, base - hy / 2, Math.PI / 2 - CARTA_A]);   // destra
+    }
+    var w = coppia * 2, x1 = coppia / 2, x2 = coppia * 1.5;
+    lambda(x1, 0); lambda(x2, 0);
+    carte.push([w / 2, -hy - CARTA_T / 2, 0]);      // la scatola piatta che fa da piano
+    lambda(w / 2, -hy - CARTA_T);
+    var alto = hy * 2 + CARTA_T;
+    return { w: w, h: alto, carte: carte,
+      parti: [[2, 0, w - 4, hy + CARTA_T], [w / 2 - coppia / 2 + 4, hy + CARTA_T, coppia - 8, hy]] };   // [x, da terra, larghezza, altezza]
+  })();
+  TIPI.castello = { img: 'durex', dh: CASTELLO.h, w: CASTELLO.w, h: CASTELLO.h };
+  function generaFormazione(forza) {
+    var scelte = forza ? [forza] : ['pesci', 'castello', 'matto', 'transenne'].filter(function (f) {
+      if (f === g.ultimaFormazione) return false;                                   // mai la stessa due volte di fila
+      if (f === 'transenne') return g.vel >= 540;                                    // sennò il salto lungo non ci arriva
+      if (f === 'matto') return !g.birreA.some(function (b) { return b.x > MARF_X - 40; });
+      return true;
+    });
+    if (!scelte.length) return false;
+    var f = scelte[Math.floor(Math.random() * scelte.length)], x = W + 40, lungo = 0, i, o;
+    g.ultimaFormazione = f;
+    if (f === 'pesci') {
+      for (i = 0; i < 3; i++) { o = nuovoOstacolo('pesce', x); o.aria = TIPI.pesce.aria + i * PESCI_PASSO; g.ostacoli.push(o); }
+      lungo = TIPI.pesce.w;
+    } else if (f === 'transenne') {
+      for (i = 0; i < 3; i++) g.ostacoli.push(nuovoOstacolo('transenna', x + i * TRANSENNE_PASSO));
+      lungo = TRANSENNE_PASSO * 2 + TIPI.transenna.w;
+    } else if (f === 'castello') {
+      o = nuovoOstacolo('castello', x); o.parti = CASTELLO.parti; g.ostacoli.push(o);
+      lungo = CASTELLO.w;
+    } else {
+      o = nuovoOstacolo('aygo', x); o.vc = 300;
+      o.matto = { fase: 'arriva', t: 0, frenaA: W - 10 - Math.random() * 70, frenate: 0, vmax: 470 + Math.random() * 80 };
+      g.ostacoli.push(o);
+      lungo = 200;
+    }
+    g.prossimo = 1.3 + lungo / Math.max(g.vel, 380) + Math.random() * 0.6;
+    return true;
+  }
+  // Aygo matto: arriva, inchioda (sgommate, fumo, stop rossi), sta fermo un attimo e riparte di scatto.
+  // Riparte quando è ancora abbastanza lontano da Marf (sempre più di MATTO_VICINO): se è già vicino resta fermo e ti arriva addosso alla velocità del mondo.
+  var MATTO_FRENO = 2200, MATTO_SCATTO = 2600, MATTO_VICINO = 340;
+  function aggiornaMatto(o, dt) {
+    var a = o.matto, d = o.x - MARF_X;
+    a.t += dt;
+    if (a.fase === 'arriva' && o.x < a.frenaA) { a.fase = 'frena'; a.t = 0; a.frenate++; fx('frenata', 0.3, 1.15); }
+    if (a.fase === 'frena') {
+      o.vc = Math.max(0, o.vc - MATTO_FRENO * dt);
+      if (!o.vc) { a.fase = 'ferma'; a.t = 0; a.riparteA = MATTO_VICINO + 20 + Math.random() * 110; }   // riparte quando è a questa distanza da Marf
+    } else if (a.fase === 'ferma') {
+      if (a.t >= 0.15 && d <= a.riparteA && d > MATTO_VICINO) { a.fase = 'scatta'; a.t = 0; var sm = fx('motore-loop', 0.4, 1.6); if (sm) setTimeout(function () { try { sm.stop(); } catch (e) {} }, 500); }   // sgasata
+    } else if (a.fase === 'scatta') {
+      o.vc = Math.min(a.vmax, o.vc + MATTO_SCATTO * dt);
+      // a volte inchioda una seconda volta, se ha ancora spazio
+      if (o.vc >= a.vmax && a.frenate < 2 && d > 560 && !a.deciso) { a.deciso = true; if (Math.random() < 0.5) { a.fase = 'arriva'; a.frenaA = o.x - 60 - Math.random() * 120; } }
+    }
+    // beccheggio a molla: il muso va giù frenando, su quando riparte
+    var voluto = a.fase === 'frena' ? -0.06 : a.fase === 'scatta' && a.t < 0.35 ? 0.05 : 0;
+    o.vb = (o.vb || 0) + ((voluto - (o.beccheggio || 0)) * 260 - (o.vb || 0) * 13) * dt;
+    o.beccheggio = (o.beccheggio || 0) + o.vb * dt;
+    // sgommate e fumo mentre frena e quando parte sgommando
+    if (a.fase === 'frena' || (a.fase === 'scatta' && a.t < 0.25)) {
+      var img = OGG.aygo, k = TIPI.aygo.dh / (img.naturalHeight || 220), dw = TIPI.aygo.dh * (img.naturalWidth || 403) / (img.naturalHeight || 220);
+      AYGO_RUOTE.forEach(function (r, i) {
+        var wx = o.x + o.w / 2 - dw / 2 + r[0] * k, mondo = wx + scorrimento;
+        if (a.fase === 'frena') { g.sgommate.push({ x0: (o.ultima && o.ultima[i]) || mondo, x1: mondo, t: 0 }); (o.ultima || (o.ultima = {}))[i] = mondo; }
+        if (Math.random() < dt * 30) g.fumoGomme.push({ x: wx + (Math.random() - .5) * 16, y: TERRA - 4, vx: (a.fase === 'scatta' ? 120 : -40) + (Math.random() - .5) * 50, vy: -25 - Math.random() * 45, t: 0, vita: 0.7 + Math.random() * 0.5 });
+      });
+    } else if (o.ultima) o.ultima = null;
+  }
+  // castello di carte colpito: le scatole crollano (e Marf ci passa in mezzo)
+  function crollaCastello(o) {
+    o.crollo = CASTELLO.carte.map(function (c) {
+      return { x: c[0], y: c[1], r: c[2], vx: -40 + Math.random() * 220, vy: -120 - Math.random() * 260, vr: (Math.random() - .5) * 9, terra: false };
+    });
+    fx('tonfo', 0.4, 1.3);
+  }
+  function aggiornaCrollo(o, dt) {
+    o.crollo.forEach(function (c) {
+      if (c.terra) return;
+      c.vy += 1500 * dt; c.x += c.vx * dt; c.y += c.vy * dt; c.r += c.vr * dt;
+      if (c.y >= -CARTA_T / 2) { c.y = -CARTA_T / 2; c.terra = true; c.r = Math.round(c.r / Math.PI) * Math.PI; }
+    });
+  }
+
+  /* ── Formazioni di canne: 3 di fila, 4 a rombo, 5 in colonna, 6 a triangolo, 7 sparse.
+     Più canne ci sono, più è rara. Punti: [dx, altezza sopra il marciapiede] ── */
+  var CANNE_DA = 300, CANNE_PASSO = 46;
+  var FORMAZIONI_CANNE = [
+    { n: 3, p: 0.09, punti: function (h) { return [[0, h], [CANNE_PASSO, h], [CANNE_PASSO * 2, h]]; } },
+    { n: 4, p: 0.05, punti: function (h) { h = Math.max(h, 85); return [[0, h], [CANNE_PASSO, h + 42], [CANNE_PASSO, h - 42], [CANNE_PASSO * 2, h]]; } },
+    { n: 5, p: 0.032, punti: function () { return [0, 1, 2, 3, 4].map(function (i) { return [0, 40 + i * 38]; }); } },
+    { n: 6, p: 0.02, punti: function () { var P = CANNE_PASSO; return [[0, 40], [P, 40], [P * 2, 40], [P / 2, 82], [P * 1.5, 82], [P, 124]]; } },
+    { n: 7, p: 0.012, punti: function () {
+      var l = [], tent = 0;
+      while (l.length < 7 && tent++ < 200) {
+        var q = [Math.random() * 300, 40 + Math.random() * 150];
+        if (l.every(function (z) { return Math.hypot(z[0] - q[0], z[1] - q[1]) > 44; })) l.push(q);
+      }
+      return l;
+    } }
+  ];
+  function formazioneCanne() {
+    if (g.metri < CANNE_DA || g.boss) return 0;
+    var r = Math.random(), f = null;
+    for (var i = 0; i < FORMAZIONI_CANNE.length; i++) { if (r < FORMAZIONI_CANNE[i].p) { f = FORMAZIONI_CANNE[i]; break; } r -= FORMAZIONI_CANNE[i].p; }
+    if (!f) return 0;
+    var punti = f.punti(40 + Math.random() * 100);
+    if (punti.some(function (q) { return postoOccupato(W + 30 + q[0]); })) return 0;   // c'è un ostacolo in mezzo: allora una canna sola
+    punti.forEach(function (q) { g.birreA.push({ x: W + 30 + q[0], y: TERRA - q[1], pringles: false }); });
+    return punti.length;
   }
 
   // evento raro: cinque jet in formazione a punta di freccia, si schivano solo scivolando sotto
@@ -1293,17 +1424,22 @@
     var hb = hitboxMarf();
     for (var i = g.ostacoli.length - 1; i >= 0; i--) {
       var o = g.ostacoli[i];
-      o.x -= dx + (o.t.corre || 0) * dt;
+      if (o.matto) aggiornaMatto(o, dt);
+      var vc = o.vc !== undefined ? o.vc : (o.t.corre || 0);
+      o.x -= dx + vc * dt;
+      if (o.t.corre) o.giro = (o.giro || 0) + vc * dt;
+      if (o.crollo) aggiornaCrollo(o, dt);
+      else if (o.parti && o.preso) crollaCastello(o);
       if (o.x + o.w < -200 && !(o.volo < VOLO_T + 0.5)) { g.ostacoli.splice(i, 1); continue; }
       if (o.volo !== undefined) aggiornaVolo(o, dt);
-      if (!o.preso && tocca(hb, boxOstacolo(o))) {
+      if (!o.preso && toccaOstacolo(hb, o)) {
         if (o.tipo === 'carabiniere' && m.giu && m.aTerra) sgambetto(o);
         else colpito(o);
       }
     }
 
     // jet: avviso, poi lo sciame; il fumo resta 5 s e scorre col mondo
-    if (g.metri > g.prossimoJet && g.jetAvviso <= 0 && !g.jets.length && !zonaPalazzo() && !zonaBoss() && g.metri < g.prossimoPalazzo - 120) {
+    if (g.metri > g.prossimoJet && g.jetAvviso <= 0 && !g.jets.length && !g.ostacoli.some(function (o) { return o.matto && o.x > MARF_X - 60; }) && !zonaPalazzo() && !zonaBoss() && g.metri < g.prossimoPalazzo - 120) {
       g.jetAvviso = 1.4; g.prossimoJet = g.metri + 900 + Math.random() * 900;
       g.prossimo = Math.max(g.prossimo, 3.2);
       fx('allarme', 0.45); setTimeout(function () { fx('allarme', 0.45); }, 420);
@@ -1332,9 +1468,10 @@
     // birre
     g.prossimaBirra -= dt;
     if (g.prossimaBirra <= 0 && !postoOccupato(W + 30)) {
-      // le pringles (scudo) sono molto più rare delle canne
-      g.birreA.push({ x: W + 30, y: TERRA - 40 - Math.random() * 150, pringles: g.scudo <= 0 && Math.random() < valore('pringles') });
-      g.prossimaBirra = 2.5 + Math.random() * 3.5;
+      // a volte arriva una formazione di canne (più canne = più rara), sennò una canna sola o le pringles (scudo), molto più rare
+      var nf = formazioneCanne();
+      if (!nf) g.birreA.push({ x: W + 30, y: TERRA - 40 - Math.random() * 150, pringles: g.scudo <= 0 && Math.random() < valore('pringles') });
+      g.prossimaBirra = (2.5 + Math.random() * 3.5) * (nf ? 0.6 + 0.4 * nf : 1);   // dopo una formazione la prossima canna tarda un po' di più
     }
     var magnete = valore('magnete');
     for (var j = g.birreA.length - 1; j >= 0; j--) {
@@ -1452,8 +1589,7 @@
      Una volta per fase fa l'attacco d'oro: se colpisci un disco con una canna torna indietro e la stordisce. La barra super si riempie
      facendole male: piena, il prossimo tiro a carica piena è una canna super.
      Fase 3: vola via e ricompare dietro Marf; tornano gli ostacoli, che colpiscono anche lei: è una fase a tempo. */
-  var BOSS_PRIMO = 500;   // per ora il primo boss arriva a 500 m (Leo): poi si rimette a BOSS_OGNI
-  var BOSS_OGNI = 10000, BOSS_H = 230, BOSS_X = 775, BOSS_Y = 195, LASER_Y = TERRA - 70, LASER_BASSO_Y = TERRA - 14;
+  var BOSS_OGNI = 10000, BOSS_PRIMO = BOSS_OGNI, BOSS_H = 230, BOSS_X = 775, BOSS_Y = 195, LASER_Y = TERRA - 70, LASER_BASSO_Y = TERRA - 14;
   // durata: tarata col bot perché la battaglia duri circa 2 minuti
   var BOSS_VITA = 170, BOSS_VITA_PIU = 40, DANNO_SFERA = 4, RABBIA_T = 3.2;
   // tiro delle canne: danno da DANNO_MIN (tocco) a DANNO_MAX (carica piena, TIRO_MAX secondi)
@@ -2374,8 +2510,13 @@
     return { x: MARF_X - 18, y: m.y - h, w: 36, h: h };
   }
   function boxOstacolo(o) {
-    if (o.t.aria) return { x: o.x, y: TERRA - o.t.aria - o.h / 2, w: o.w, h: o.h };
+    if (o.t.aria) return { x: o.x, y: TERRA - (o.aria || o.t.aria) - o.h / 2, w: o.w, h: o.h };
     return { x: o.x, y: TERRA - o.h, w: o.w, h: o.h };
+  }
+  function toccaOstacolo(hb, o) {                   // il castello di carte ha più pezzi, gli altri un rettangolo solo
+    if (!o.parti) return tocca(hb, boxOstacolo(o));
+    for (var i = 0; i < o.parti.length; i++) { var p = o.parti[i]; if (tocca(hb, { x: o.x + p[0], y: TERRA - p[1] - p[3], w: p[2], h: p[3] })) return true; }
+    return false;
   }
   function tocca(a, b) { return a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y; }
 
@@ -2712,19 +2853,47 @@
     if (o.tipo === 'durex') {
       ok = true;
       for (var i = 0; i < o.quante; i++) ok = disegnaOgg('durex', cx + (i % 2 ? 3 : -2), TERRA + 1 - i * t.h, t.dh, true) && ok;
+    } else if (o.tipo === 'castello') {
+      ok = disegnaCastello(o);
     } else if (t.aria) {
-      ok = disegnaOgg(t.img, cx - 8, TERRA - t.aria + t.dh / 2 + Math.sin(g.t * 4 + o.x * 0.01) * 3, t.dh, true);
+      ok = disegnaOgg(t.img, cx - 8, TERRA - (o.aria || t.aria) + t.dh / 2 + Math.sin(g.t * 4 + o.x * 0.01) * 3, t.dh, true);
     } else if (o.volo !== undefined) { disegnaVolo(o); return; }
-    else {
+    else if (o.tipo === 'aygo') {
+      // ruota attorno al centro in basso: muso giù quando frena, su quando riparte
+      ctx.save(); ctx.translate(cx, TERRA + 2); ctx.rotate(o.beccheggio || 0); ctx.translate(-cx, -TERRA - 2);
       ok = disegnaOgg(t.img, cx, TERRA + 2, t.dh, true);
-      if (ok && o.tipo === 'aygo') ruoteAygo(cx, t);
+      if (ok) { ruoteAygo(cx, t, o.giro); if (o.matto && (o.matto.fase === 'frena' || o.matto.fase === 'ferma')) stopAygo(cx, t); }
+      ctx.restore();
     }
+    else ok = disegnaOgg(t.img, cx, TERRA + 2, t.dh, true);
     if (!ok) { var bx = boxOstacolo(o); ctx.fillStyle = '#6b4a2b'; ctx.fillRect(bx.x, bx.y, bx.w, bx.h); }
   }
 
   // ruote dell'Aygo ritagliate dall'immagine: girano mentre ti viene incontro
   var AYGO_RUOTE = [[71.0, 180.1, 39.4], [345.3, 178.8, 40.6]], ruoteAygoImg = null;
-  function ruoteAygo(cx, t) {
+  // stop rossi accesi sul fanale posteriore (a destra: l'Aygo viene verso Marf)
+  function stopAygo(cx, t) {
+    var img = OGG.aygo, k = t.dh / img.naturalHeight, x0 = cx - t.dh * img.naturalWidth / img.naturalHeight / 2, y0 = TERRA + 2 - t.dh;
+    var x = x0 + 376 * k, y = y0 + 88 * k, acceso = 0.75 + 0.25 * Math.sin(g.t * 40);
+    ctx.globalAlpha = 0.45 * acceso; ctx.fillStyle = '#ff2a1a';
+    ctx.beginPath(); ctx.arc(x, y, 13, 0, TAU); ctx.fill();
+    ctx.globalAlpha = acceso; ctx.fillStyle = '#ff5a3c';
+    ctx.beginPath(); ctx.ellipse(x, y, 3.5, 6, 0, 0, TAU); ctx.fill();
+    ctx.globalAlpha = 1;
+  }
+  // castello di carte di Durex: le carte in piedi a coppie, una scatola piatta, e quando crolla le scatole cadono
+  function disegnaCastello(o) {
+    var img = OGG.durex;
+    if (!pronta(img)) return false;
+    var cv = contorno(img, CARTA_L, CARTA_T), p = bordoPx() / scala;
+    (o.crollo || CASTELLO.carte.map(function (c) { return { x: c[0], y: c[1], r: c[2] }; })).forEach(function (c) {
+      ctx.save(); ctx.translate(o.x + c.x, TERRA + 1 + c.y); ctx.rotate(c.r);
+      ctx.drawImage(cv, -CARTA_L / 2 - p, -CARTA_T / 2 - p, CARTA_L + p * 2, CARTA_T + p * 2);
+      ctx.restore();
+    });
+    return true;
+  }
+  function ruoteAygo(cx, t, giro) {
     var img = OGG.aygo, nw = img.naturalWidth, nh = img.naturalHeight;
     if (!ruoteAygoImg) ruoteAygoImg = AYGO_RUOTE.map(function (r) {
       var d = Math.ceil(r[2] * 2), c = document.createElement('canvas'); c.width = c.height = d;
@@ -2734,7 +2903,7 @@
     });
     var k = t.dh / nh, dw = t.dh * nw / nh, x0 = Math.round(cx - dw / 2), y0 = Math.round(TERRA + 2 - t.dh);
     AYGO_RUOTE.forEach(function (r, i) {
-      if (pronta(ruoteAygoImg[i])) ruotaAuto(ruoteAygoImg[i], r[2], x0 + r[0] * k, y0 + r[1] * k, k, -g.t * t.corre / (r[2] * k));
+      if (pronta(ruoteAygoImg[i])) ruotaAuto(ruoteAygoImg[i], r[2], x0 + r[0] * k, y0 + r[1] * k, k, -(giro !== undefined ? giro : g.t * t.corre) / (r[2] * k));
     });
   }
 
