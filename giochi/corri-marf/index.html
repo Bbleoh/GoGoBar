@@ -51,7 +51,16 @@
       display: grid; grid-template-columns: minmax(0, .8fr) minmax(0, 1.2fr); align-items: center;
     }
     .pannello[hidden] { display: none; }
-    .negoziante { height: 94%; align-self: end; background: url(mercante.webp) center bottom / contain no-repeat; filter: drop-shadow(0 10px 18px rgba(0,0,0,.5)); }
+    .negoziante { height: 94%; align-self: end; background: url(mercante.webp) center bottom / contain no-repeat; filter: drop-shadow(0 10px 18px rgba(0,0,0,.5)); transform-origin: 50% 100%; }
+    /* reazioni del mercante quando compri (o non puoi) */
+    .negoziante.contento { animation: contento .45s ease-out; }
+    .negoziante.colpito { animation: colpito .7s ease-out; }
+    .negoziante.stizzito { animation: stizzito .45s ease-out; }
+    @keyframes contento { 40% { transform: translateY(-2.5%) scaleY(1.02); } }
+    @keyframes colpito { 25% { transform: translateY(-4%) scale(1.04) rotate(-2deg); } 55% { transform: translateY(-1%) rotate(1.5deg); } }
+    @keyframes stizzito { 20%, 60% { transform: translateX(-2%) rotate(-1.5deg); } 40%, 80% { transform: translateX(2%) rotate(1.5deg); } }
+    .articolo .btn.povero { opacity: .5; cursor: not-allowed; }
+    .articolo .btn.povero.no { animation: stizzito .35s ease-out; }
     .oro { color: var(--gold); }
     .scaffale { display: grid; gap: 4px; }
     .articolo { display: flex; align-items: center; gap: .8em; padding: .45em .6em; background: rgba(255,255,255,.04); border-left: 2px solid var(--line); }
@@ -401,7 +410,8 @@
      fx(nome, volume, velocità): la velocità cambia anche l'intonazione (0.5 = un'ottava sotto).
      I suoni con più varianti (salto-1, salto-2…) ne pescano una a caso, così i colpi ripetuti non suonano tutti uguali. */
   var SFX = {}, SFX_VARIANTI = { salto: 3, atterra: 2, swish: 3, fruscio: 2, whoosh: 2, pugno: 3, cazzotto: 3, calcio: 2, ahi: 3, uomo: 2, lei: 4,
-    sforzo: 2, campanella: 2, strega: 3, sputo: 2, ding: 2, disco: 2, passo: 5, thump: 2 };
+    sforzo: 2, campanella: 2, strega: 3, sputo: 2, ding: 2, disco: 2, passo: 5, thump: 2,
+    'crivo-costosa': 5, 'crivo-riuscita': 6, 'crivo-fallita': 7 };   // voci del mercante del Crivo Shop
   var SFX_NOMI = ['canna', 'brace', 'morso', 'monete', 'mazzata', 'urlo', 'boato', 'tonfo', 'parata', 'click', 'errore', 'allarme', 'potere',
     'laser', 'carica-laser', 'jet', 'esplosione', 'oro', 'umpf', 'ding-carica', 'spada-accesa', 'spada-colpo', 'fruscio-scivolata', 'scivolata-loop'];
   var VOLUME_FX = 0.5;   // tutti gli effetti 6 dB sotto
@@ -428,6 +438,7 @@
       var s = c.createBufferSource(), gn = c.createGain();
       s.buffer = buf; s.playbackRate.value = vel || 1; gn.gain.value = (vol == null ? 0.5 : vol) * VOLUME_FX;
       s.connect(gn); gn.connect(c.destination); s.start();
+      return s;
     } catch (e) {}
   }
 
@@ -610,7 +621,17 @@
     { id: 'pringles', nome: 'Chimica', desc: 'Il dio Carrefour ti blessa con le sue Pringles', prezzi: [120, 300, 600], val: [0.08, 0.12, 0.16, 0.2], u: function (v) { return Math.round(v * 100) + '% di Pringles'; } }
   ];
   function valore(id) { var u = UPGRADE.filter(function (x) { return x.id === id; })[0]; return u.val[livello(id)]; }
-  var market = document.getElementById('market');
+  var market = document.getElementById('market'), negoziante = market.querySelector('.negoziante');
+  /* il mercante reagisce: una voce a caso del tipo giusto, mai la stessa di prima, e la nuova taglia quella che sta ancora parlando */
+  var voceCrivo = null, ultimaVoce = {};
+  function reazioneCrivo(tipo, mossa) {
+    var n = SFX_VARIANTI['crivo-' + tipo], k;
+    do { k = 1 + Math.floor(Math.random() * n); } while (n > 1 && k === ultimaVoce[tipo]);
+    ultimaVoce[tipo] = k;
+    if (voceCrivo) { try { voceCrivo.stop(); } catch (e) {} }
+    voceCrivo = fx('crivo-' + tipo + '-' + k, 1.2);
+    negoziante.classList.remove('contento', 'colpito', 'stizzito'); void negoziante.offsetWidth; negoziante.classList.add(mossa);
+  }
   function apriMarket() {
     if (!giocatore) { notaMenu.textContent = 'Scrivi prima il tuo nome: il portafoglio è del giocatore.'; nomeMenu.focus(); return; }
     menu.hidden = true; market.hidden = false; disegnaMarket();
@@ -631,10 +652,19 @@
       var b = document.createElement('button'); b.type = 'button'; b.className = 'btn' + (lv >= max ? ' secondario' : '');
       if (lv >= max) { b.textContent = 'Al massimo'; b.disabled = true; }
       else {
-        b.textContent = prezzo + ' canne'; b.disabled = d.canne < prezzo; b.title = 'Prossimo livello: ' + u.u(u.val[lv + 1]);
+        // chi non ha abbastanza canne può comunque cliccare: il mercante gli risponde male
+        var povero = d.canne < prezzo;
+        b.textContent = prezzo + ' canne'; b.title = 'Prossimo livello: ' + u.u(u.val[lv + 1]);
+        if (povero) { b.classList.add('povero'); b.setAttribute('aria-disabled', 'true'); b.title = 'Ti mancano ' + (prezzo - d.canne) + ' canne'; }
         b.addEventListener('click', function () {
+          if (datiDi(giocatore).canne < prezzo) {
+            reazioneCrivo('fallita', 'stizzito');
+            b.classList.remove('no'); void b.offsetWidth; b.classList.add('no');
+            return;
+          }
           salvaDati(giocatore, function (a) { if (a.canne >= prezzo && (+a.upg[u.id] || 0) === lv) { a.canne -= prezzo; a.upg[u.id] = lv + 1; } });
           fx('monete', 0.6);
+          if (lv + 1 >= max) reazioneCrivo('costosa', 'colpito'); else reazioneCrivo('riuscita', 'contento');
           disegnaMarket();
         });
       }

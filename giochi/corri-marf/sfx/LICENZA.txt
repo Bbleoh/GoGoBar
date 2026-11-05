@@ -1,6 +1,7 @@
 Effetti sonori di Corri Marf!
 
-Tutti i suoni sono CC0 1.0 (pubblico dominio, royalty free, nessuna attribuzione richiesta).
+Tutti i suoni sono CC0 1.0 (pubblico dominio, royalty free, nessuna attribuzione richiesta),
+tranne le voci del mercante del Crivo Shop (crivo-*), che sono registrazioni originali di GoGoBar.
 
 - Oculus Audio Pack di Meta, CC0 1.0: https://github.com/facebookincubator/Meta-open-sound
   (passi, salti, atterraggi, fruscii, pugni, calci, voci, risate, vetro, legno, monete, spada, interfaccia)
