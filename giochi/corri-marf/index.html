@@ -68,6 +68,11 @@
     .articolo .info b { font-family: var(--display); font-style: italic; color: var(--ivory); }
     .articolo .info span { font-family: var(--mono); font-size: .75em; color: var(--cream); }
     .articolo .btn { font-size: .8em; padding: .45em 1em; white-space: nowrap; }
+    .articolo .testa { display: flex; flex-wrap: wrap; align-items: center; gap: .2em .7em; }
+    .articolo .testa b { white-space: nowrap; }
+    #market .testo { gap: .45em; padding-top: 2.5%; padding-bottom: 2.5%; }
+    #market h2 { font-size: 1.9em; }
+    #market .articolo { padding: .28em .6em; }
     .livelli { display: flex; gap: 3px; }
     .livelli em { width: 14px; height: 6px; background: rgba(255,255,255,.14); transform: skewX(-30deg); }
     .livelli em.si { background: var(--gold); }
@@ -618,8 +623,15 @@
     { id: 'vita', nome: 'Pensiero', desc: 'Un passo più lontano dal greppo', prezzi: [220, 540], val: [5, 6, 7], u: function (v) { return 'fino a ' + v + ' vite'; } },
     { id: 'magnete', nome: 'Scimmia', desc: 'Te ne sfuggono tante... le bombe mai', prezzi: [90, 240, 470], val: [0, 70, 120, 180], u: function (v) { return 'attira da ' + v + ' px'; } },
     { id: 'scatto', nome: 'Bless', desc: 'Momento di chilling', prezzi: [55, 145, 325], val: [0, 0.4, 0.8, 1.2], u: function (v) { return v.toLocaleString('it-IT') + ' s invincibile dopo una canna'; } },
-    { id: 'pringles', nome: 'Chimica', desc: 'Il dio Carrefour ti blessa con le sue Pringles', prezzi: [120, 300, 600], val: [0.08, 0.12, 0.16, 0.2], u: function (v) { return Math.round(v * 100) + '% di Pringles'; } }
+    { id: 'pringles', nome: 'Chimica', desc: 'Il dio Carrefour ti blessa con le sue Pringles', prezzi: [120, 300, 600], val: [0.08, 0.12, 0.16, 0.2], u: function (v) { return Math.round(v * 100) + '% di Pringles'; } },
+    // ogni canna raccolta ne vale 2 (bifase) o 3 (trifase): raddoppia o triplica quello che guadagni, quindi costa caro
+    { id: 'gian', nome: 'Benedizione der Gian', desc: 'Ti ha insegnato arti oscure...', prezzi: [1200, 3600], val: [1, 2, 3],
+      u: function (v) { return CANNE_GIAN[v - 1]; }, piu: function (v) { return 'ogni canna vale ' + v; } },
+    // a inizio corsa la Punto ti porta avanti di tanti metri: costi stralunati
+    { id: 'punto', nome: 'Punto bianca', desc: 'Crivo te da no strappo', prezzi: [1000, 2500, 6000, 12000, 20000], val: [0, 1000, 2000, 4000, 6000, 8000],
+      u: function (v) { return 'passaggio fino a ' + v.toLocaleString('it-IT') + ' m'; } }
   ];
+  var CANNE_GIAN = ['canna', 'bifase', 'trifase'];
   function valore(id) { var u = UPGRADE.filter(function (x) { return x.id === id; })[0]; return u.val[livello(id)]; }
   var market = document.getElementById('market'), negoziante = market.querySelector('.negoziante');
   /* il mercante reagisce: una voce a caso del tipo giusto, mai la stessa di prima, e la nuova taglia quella che sta ancora parlando */
@@ -645,16 +657,17 @@
       var lv = +d.upg[u.id] || 0, max = u.prezzi.length, prezzo = u.prezzi[lv];
       var r = document.createElement('div'); r.className = 'articolo';
       var info = document.createElement('div'); info.className = 'info';
-      info.append(testo('b', u.nome), testo('span', u.desc + ' · ora: ' + (u.val[lv] ? u.u(u.val[lv]) : 'niente')));
+      var testa = document.createElement('div'); testa.className = 'testa';      // nome e livelli sulla stessa riga: 7 articoli stanno nel pannello
       var pal = document.createElement('i'); pal.className = 'livelli';
       for (var i = 0; i < max; i++) { var p = document.createElement('em'); if (i < lv) p.className = 'si'; pal.append(p); }
-      info.append(pal);
+      testa.append(testo('b', u.nome), pal);
+      info.append(testa, testo('span', u.desc + ' · ora: ' + (u.val[lv] ? u.u(u.val[lv]) : 'niente')));
       var b = document.createElement('button'); b.type = 'button'; b.className = 'btn' + (lv >= max ? ' secondario' : '');
       if (lv >= max) { b.textContent = 'Al massimo'; b.disabled = true; }
       else {
         // chi non ha abbastanza canne può comunque cliccare: il mercante gli risponde male
         var povero = d.canne < prezzo;
-        b.textContent = prezzo + ' canne'; b.title = 'Prossimo livello: ' + u.u(u.val[lv + 1]);
+        b.textContent = prezzo + ' canne'; b.title = 'Prossimo livello: ' + u.u(u.val[lv + 1]) + (u.piu ? ' (' + u.piu(u.val[lv + 1]) + ')' : '');
         if (povero) { b.classList.add('povero'); b.setAttribute('aria-disabled', 'true'); b.title = 'Ti mancano ' + (prezzo - d.canne) + ' canne'; }
         b.addEventListener('click', function () {
           if (datiDi(giocatore).canne < prezzo) {
@@ -777,6 +790,8 @@
     if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
     nuovaPartita(); stato = 'gioco';
     g.maxVite = valore('vita');                                 // Pensiero del Crivo Shop: quante vite puoi accumulare
+    g.valCanna = valore('gian');                                // Benedizione der Gian: una canna vale 1, 2 (bifase) o 3 (trifase)
+    if (valore('punto')) g.passaggio = { fino: valore('punto'), t: 0 };   // Punto bianca: Crivo ti porta avanti
     menu.hidden = true; fine.hidden = true;
     traccia = ''; suona('gioco');
   }
@@ -810,6 +825,7 @@
   /* ── Comandi ── */
   function salta() {
     if (stato !== 'gioco') return;
+    if (g.passaggio) { scendi(); return; }           // in Punto: salti giù prima
     var m = g.marf;
     if (m.corridoio) return;                        // nel corridoio il soffitto è basso: niente salti
     if (m.salti < 2) {
@@ -820,7 +836,7 @@
     }
   }
   function giu(attivo) {
-    if (stato !== 'gioco') return;
+    if (stato !== 'gioco' || g.passaggio) return;
     var m = g.marf;
     if (attivo) {
       if (!m.aTerra) { m.vy = Math.max(m.vy, 900); if (!m.giu) { m.picchiata = true; fx('fruscio', 0.5, 0.7); } }   // a terra in fretta
@@ -936,12 +952,55 @@
     fx('jet', 0.5);
   }
 
+  /* ── Punto bianca: a inizio corsa Crivo ti dà uno strappo fino a 1000…8000 m.
+     In macchina non succede niente (niente ostacoli, canne, palazzi o boss); salta per scendere prima. ── */
+  function aggiornaPassaggio(dt) {
+    var p = g.passaggio, k = Math.min(g.metri / p.fino, 1);
+    var dur = 3.5 + p.fino / 2000, vmax = p.fino * 40 / dur * 1.6;    // più è lontano, più va forte: da 4 a 9 s circa
+    p.t += dt;
+    g.vel = 420 + (vmax - 420) * Math.pow(Math.sin(Math.PI * Math.max(k, 0.02)), 0.6) * Math.min(1, p.t / 0.8);
+    var dx = g.vel * dt;
+    g.metri += dx / 40; scorrimento += dx; g.passi += dt * 9;
+    g.distacco = 420;                                       // le ragazze restano fuori schermo
+    g.scatto = 0.5;                                         // linee di velocità
+    if (g.metri >= p.fino) scendi();
+  }
+  function scendi() {
+    var m = g.marf, p = g.passaggio;
+    if (!p) return;
+    if (g.metri > p.fino) g.metri = p.fino;
+    g.passaggio = null; g.scatto = 0;
+    g.auto = { x: MARF_X, v: g.vel };
+    m.y = TERRA - 40; m.vy = -760; m.aTerra = false; m.salti = 1; g.anim.giro = 1;   // salta giù dalla macchina con una capriola
+    g.tv = 25;                                              // riparte già veloce
+    g.prossimo = 1.6; g.prossimaBirra = 0.8;
+    // quello che hai saltato in macchina riparte dopo: il palazzo, i jet e il boss non si perdono
+    g.prossimoPalazzo = Math.max(g.prossimoPalazzo, g.metri + 400);
+    g.prossimoJet = Math.max(g.prossimoJet, g.metri + 500 + Math.random() * 500);
+    g.prossimoBoss = Math.max(g.prossimoBoss, g.metri + 300);
+    fx('salto', 0.6); fx('whoosh', 0.5, 0.8);
+  }
+  function disegnaAuto() {
+    var a = g.passaggio ? { x: MARF_X } : g.auto;
+    if (!a || !pronta(OGG.aygo)) return;                    // segnaposto: la Punto vera arriva da Leo
+    var dh = 82, dw = dh * OGG.aygo.naturalWidth / OGG.aygo.naturalHeight;
+    var y = TERRA + 2 + (g.passaggio ? Math.sin(g.t * 38) * 1.2 : 0);
+    ctx.save(); ctx.translate(a.x + 20, 0); ctx.scale(-1, 1);   // l'immagine guarda a sinistra: girata, va a destra
+    ctx.drawImage(cache(OGG.aygo, dw, dh), -dw / 2, y - dh, dw, dh);
+    ctx.restore();
+  }
+
   /* ── Aggiornamento ── */
   function aggiorna(dt) {
     g.t += dt;
     animaTutto(dt);
     if (stato !== 'gioco') return;
     var m = g.marf;
+    if (g.passaggio) { aggiornaPassaggio(dt); return; }
+    if (g.auto) {                                            // la Punto riparte e se ne va dopo averti lasciato
+      g.auto.v += 700 * dt; g.auto.x += (g.auto.v - g.vel) * dt;
+      if (g.auto.x > W + 260) g.auto = null;
+    }
 
     g.tv += dt;                                              // il "tempo" della velocità: cala dopo una botta e dopo il boss
     g.vel = Math.min(380 + g.tv * 9, 820) * (g.scatto > 0 ? 1.15 : 1);
@@ -971,7 +1030,8 @@
     if (g.bless > 0) g.bless -= dt;
 
     // le inseguitrici restano indietro piano piano, molto di più durante lo scatto
-    g.distacco = Math.min(g.distacco + (g.scatto > 0 ? 40 : 6) * dt, 260);
+    g.distacco = g.distacco > 260 ? Math.max(260, g.distacco - 110 * dt)   // dopo il passaggio in Punto le ragazze rientrano da sinistra
+      : Math.min(g.distacco + (g.scatto > 0 ? 40 : 6) * dt, 260);
     if (palazzo && palazzo.bloccato) g.distacco = Math.max(g.distacco - 70 * dt, 25);   // fermo contro il muro: le ragazze si avvicinano
 
     // ostacoli
@@ -1040,7 +1100,7 @@
         } else {
           // la canna si conta solo se le ragazze sono già alla distanza massima, sennò serve solo a staccarle
           if (g.distacco >= 255) g.birre++;
-          g.munizioni++;                                     // le canne raccolte si possono lanciare al boss
+          g.munizioni += g.valCanna || 1;                    // le canne raccolte si possono lanciare al boss (bifase e trifase valgono 2 e 3)
           g.distacco = Math.min(g.distacco + 55, 260); g.scatto = 1.2;
           g.bless = valore('scatto');                        // Bless: un attimo di invincibilità dopo ogni canna
           fx('canna', 0.45, 1.2); fx('brace', 0.55, 0.9 + Math.random() * 0.2); fx('campanella', 0.45, 1.05 + Math.random() * 0.1);
@@ -1195,7 +1255,7 @@
 
   // tiro delle canne: si carica tenendo premuto, parte lasciando, vola dritta verso destra dall'altezza della mano
   function manoY() { var m = g.marf; return m.y - (m.giu && m.aTerra ? 28 : 62); }
-  function puoTirare() { return stato === 'gioco' && !(g.boss && g.boss.uscita); }   // si tira sempre, non solo col boss
+  function puoTirare() { return stato === 'gioco' && !g.passaggio && !(g.boss && g.boss.uscita); }   // si tira sempre, non solo col boss
   function iniziaTiro() {
     if (!puoTirare() || g.tiro != null) return;
     if (g.munizioni <= 0) { g.vuoto = 0.5; fx('click', 0.6); return; }
@@ -1810,8 +1870,9 @@
     // canne lanciate: dritte come pugnali, la brace davanti; più carica = più grande, la super è dorata
     for (var j = 0; j < g.lanci.length; j++) {
       var c = g.lanci[j];
-      if (!pronta(OGG.canna)) break;
-      var sc = c.sup ? 1.9 : 1 + 0.45 * c.k, cw = 46 * sc, ch = cw * OGG.canna.naturalHeight / OGG.canna.naturalWidth;
+      var IC = imgCanna();
+      if (!pronta(IC)) break;
+      var sc = c.sup ? 1.9 : 1 + 0.45 * c.k, cw = 46 * sc, ch = cw * IC.naturalHeight / IC.naturalWidth;
       ctx.save();
       ctx.globalAlpha = 0.35 + 0.4 * c.k;                              // scia
       var sg = ctx.createLinearGradient(c.x - 90 * sc, 0, c.x, 0);
@@ -1820,7 +1881,7 @@
       ctx.globalAlpha = 1;
       if (c.sup) { ctx.drawImage(BAGLIORE, c.x - 60, c.y - 60, 120, 120); }
       ctx.translate(c.x, c.y); ctx.rotate(0.58);                       // la canna è disegnata in diagonale: così sta orizzontale
-      ctx.drawImage(cache(OGG.canna, cw, ch), -cw / 2, -ch / 2, cw, ch);
+      ctx.drawImage(cache(IC, cw, ch), -cw / 2, -ch / 2, cw, ch);
       ctx.restore();
     }
   }
@@ -2083,7 +2144,8 @@
     disegnaPolvere();
     if (stato !== 'preso') inseguitrici();
     disegnaLinee();
-    marf();
+    disegnaAuto();                       // la Punto sta sotto Marf: quando scende salta fuori da sopra
+    if (!g.passaggio) marf();
     if (stato === 'preso') inseguitrici();   // preso: gli sono saltate addosso, stanno sopra di lui
     disegnaLaser(); disegnaAvvisi(); disegnaTiro();
     disegnaScudo();
@@ -2325,8 +2387,8 @@
 
   // oggetti disegnati da Leo: la canna (al posto della birra) e la ragazza accovacciata (al posto della sedia)
   var OGG = {};
-  ['canna', 'pringles', 'ragazza-a-terra', 'durex', 'transenna', 'juve', 'lazio', 'carabiniere', 'pesce-spada', 'aygo', 'jet', 'quattro-quadri', 'super-santos'].forEach(function (n) {
-    var img = new Image(); img.src = (n === 'canna' ? '' : 'ogg/') + n + '.webp?v=1'; OGG[n] = img;
+  ['canna', 'bifase', 'trifase', 'pringles', 'ragazza-a-terra', 'durex', 'transenna', 'juve', 'lazio', 'carabiniere', 'pesce-spada', 'aygo', 'jet', 'quattro-quadri', 'super-santos'].forEach(function (n) {
+    var img = new Image(); img.src = (CANNE_GIAN.indexOf(n) >= 0 ? '' : 'ogg/') + n + '.webp?v=1'; OGG[n] = img;
   });
   // contorno nero sottile (BORDO px) attorno a ostacoli e nemici, per farli notare meglio:
   // si fa la sagoma nera dell'immagine e la si stampa tutt'intorno, poi sopra l'immagine
@@ -2365,6 +2427,7 @@
     else ctx.drawImage(cache(img, dw, dh), Math.round(cx - dw / 2), Math.round(fondo - dh), dw, dh);
     return true;
   }
+  function imgCanna() { var n = CANNE_GIAN[(g && g.valCanna || 1) - 1]; return pronta(OGG[n]) ? OGG[n] : OGG.canna; }
   function birra(b) {
     var y = b.y + Math.sin(g.t * 5 + b.x * 0.02) * 4;
     ctx.save(); ctx.translate(b.x, y);
@@ -2374,10 +2437,11 @@
       ctx.rotate(Math.sin(g.t * 3 + b.x * 0.01) * 0.15);
       if (disegnaOgg('pringles', 0, 21, 42)) { ctx.restore(); return; }
     }
-    if (pronta(OGG.canna)) {
-      var cw = 46, ch = cw * OGG.canna.naturalHeight / OGG.canna.naturalWidth;
+    var IC = imgCanna();
+    if (pronta(IC)) {
+      var cw = 46, ch = cw * IC.naturalHeight / IC.naturalWidth;
       ctx.rotate(Math.sin(g.t * 3 + b.x * 0.01) * 0.12);
-      ctx.drawImage(cache(OGG.canna, cw, ch), -cw / 2, -ch / 2, cw, ch);
+      ctx.drawImage(cache(IC, cw, ch), -cw / 2, -ch / 2, cw, ch);
       ctx.restore(); return;
     }
     ctx.fillStyle = '#e4b33c'; ctx.fillRect(-9, -12, 18, 26);
@@ -2510,13 +2574,14 @@
   }
   // la canna in mano mentre carica il tiro: in fondo all'avambraccio, con la brace in avanti
   function cannaInMano(avamb) {
-    if (!pronta(OGG.canna)) return;
+    var IC = imgCanna();
+    if (!pronta(IC)) return;
     var pt = PEZZI.d.parti.avambraccio, mano = (pt.h - pt.p[1]) * PEZZI.K * 0.78;
-    var cw = 38, ch = cw * OGG.canna.naturalHeight / OGG.canna.naturalWidth;
+    var cw = 38, ch = cw * IC.naturalHeight / IC.naturalWidth;
     ctx.save(); ctx.rotate(-avamb); ctx.translate(0, mano); ctx.rotate(avamb + 0.58);   // di nuovo dritta nel mondo: orizzontale, brace avanti
     var piena = g.tiro != null && g.tiro >= TIRO_MAX;
     if (piena) { ctx.shadowColor = '#ffd76a'; ctx.shadowBlur = 14 + 6 * Math.sin(g.t * 18); }
-    ctx.drawImage(cache(OGG.canna, cw, ch), -cw / 2, -ch / 2, cw, ch);
+    ctx.drawImage(cache(IC, cw, ch), -cw / 2, -ch / 2, cw, ch);
     ctx.shadowBlur = 0;
     if (piena) luccichio(cw, ch);
     ctx.restore();
@@ -2818,7 +2883,7 @@
   })();
   function disegnaLinee() {
     if (!g.linee) return;
-    if (g.scatto > 0 && stato === 'gioco') {   // bagliore dorato attorno a Marf mentre lo scatto dura
+    if (g.scatto > 0 && stato === 'gioco' && !g.passaggio) {   // bagliore dorato attorno a Marf mentre lo scatto dura
       ctx.globalAlpha = 0.28 * Math.min(1, g.scatto * 2);
       ctx.drawImage(BAGLIORE, MARF_X - 80, g.marf.y - 135, 160, 160);
     }
@@ -2999,7 +3064,7 @@
     ctx.fillText('M', 30 + mw, 45);
     ctx.font = '500 12px "DM Mono", monospace'; ctx.fillStyle = 'rgba(244,239,226,.55)';
     ctx.textAlign = 'right'; ctx.fillText('REC ' + record + ' m', 248, 66); ctx.textAlign = 'left';
-    if (pronta(OGG.canna)) ctx.drawImage(cache(OGG.canna, 22, 17), 26, 53, 22, 17);
+    var IC = imgCanna(); if (pronta(IC)) ctx.drawImage(cache(IC, 22, 17), 26, 53, 22, 17);
     ctx.fillStyle = g.vuoto > 0 ? '#ff5c5c' : '#f4efe2'; ctx.font = '500 13px "DM Mono", monospace';
     ctx.fillText('× ' + g.munizioni, 52, 66);       // canne in tasca: si consumano lanciandole (rosso: finite)
     // destra: distacco a segmenti, vite, scudo
