@@ -90,6 +90,10 @@
     .scheda .foto { position: relative; }
     .scheda .foto img { position: absolute; left: 6%; top: 6%; width: 88%; height: 88%; object-fit: contain; filter: drop-shadow(0 6px 10px rgba(0,0,0,.5)); }
     .scheda .foto img.futuro { opacity: .35; filter: grayscale(1); }
+    .scheda .foto .citazione { margin: 0; padding: 0 9%; text-align: center; }
+    .scheda .foto .citazione p { font-family: var(--display); font-style: italic; font-weight: 700; font-size: 2em; line-height: 1.05; color: var(--gold); text-transform: uppercase; text-wrap: balance; }
+    .scheda .foto .citazione p::before { content: '«'; } .scheda .foto .citazione p::after { content: '»'; }
+    .scheda .foto .citazione footer { margin-top: .6em; font-family: var(--mono); font-size: .8em; color: var(--muted); }
     .scheda .foto .manca { font-family: var(--mono); font-size: .7em; color: var(--muted); text-align: center; padding: 1em; }
     .scheda h3 { font-family: var(--display); font-style: italic; font-weight: 700; font-size: 1.35em; line-height: 1; color: var(--gold); text-transform: uppercase; }
     .scheda .desc { font-size: .85em; color: var(--ivory); }
@@ -1009,7 +1013,8 @@
   var IMMAGINI_SHOP = {
     scatto: ['shop/scatto-0.webp', 'shop/scatto-1.webp', 'shop/scatto-2.webp', 'shop/scatto-3.webp'],   // Bless: pugno, pollice, shaka, shaka che scuote (di Leo)
     gian: ['shop/gian-0.webp?v=2', 'shop/gian-1.webp?v=2', 'shop/gian-2.webp?v=2'],   // Gian base, bifase, trifase (di Leo)
-    punto: ['ogg/punto.webp', 'shop/punto-1.webp', 'shop/punto-2.webp', 'shop/punto-3.webp', 'shop/punto-4.webp'],   // Punto bianca: sempre più blessata (di Leo); il 5° livello usa la 4ª
+    // Punto bianca: al livello 0 la citazione di Crivo, dal 1 la Punto base e poi sempre più blessata (di Leo)
+    punto: [{ citazione: 'Vai a fette fratè', autore: 'Crivo, sempre' }, 'ogg/punto.webp', 'shop/punto-1.webp', 'shop/punto-2.webp', 'shop/punto-3.webp', 'shop/punto-4.webp'],
     pringles: ['shop/pringles-0.webp', 'shop/pringles-1.webp', 'shop/pringles-2.webp', 'shop/pringles-3.webp']   // Chimica: a secco, si lecca i baffi, unto, re del Carrefour (di Leo)
   };
   function immagineArticolo(u, lv) {
@@ -1036,7 +1041,12 @@
     var lv = +d.upg[u.id] || 0, max = u.prezzi.length;
     var foto = document.getElementById('schedaFoto'); foto.textContent = '';
     var src = immagineArticolo(u, lv);
-    if (src) { var im = new Image(); im.src = src; im.alt = u.nome; if (!lv && IMMAGINI_SHOP[u.id].length <= u.prezzi.length) im.className = 'futuro'; foto.append(im); }   // grigia solo se il livello 0 non ha un'immagine sua
+    if (src && src.citazione) {                          // al posto della foto una citazione
+      var cit = document.createElement('blockquote'); cit.className = 'citazione';
+      var fo = document.createElement('footer'); fo.textContent = '— ' + src.autore;
+      cit.append(testo('p', src.citazione), fo); foto.append(cit);
+    }
+    else if (src) { var im = new Image(); im.src = src; im.alt = u.nome; if (!lv && IMMAGINI_SHOP[u.id].length <= u.prezzi.length) im.className = 'futuro'; foto.append(im); }   // grigia solo se il livello 0 non ha un'immagine sua
     else foto.append(testo('span', 'immagine in arrivo')), foto.lastChild.className = 'manca';
     document.getElementById('schedaNome').textContent = u.nome;
     document.getElementById('schedaDesc').textContent = u.desc;
