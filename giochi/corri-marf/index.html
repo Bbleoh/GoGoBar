@@ -983,7 +983,7 @@
     { id: 'vita', nome: 'Pensiero', desc: 'Un passo più lontano dal greppo', prezzi: [220, 540, 2600], val: [5, 6, 7, 7.5],
       u: function (v) { return 'fino a ' + Math.floor(v) + ' vite' + (v % 1 ? ' e la seconda possibilità' : ''); } },
     { id: 'magnete', nome: 'Scimmia', desc: 'Te ne sfuggono tante... le bombe mai', prezzi: [90, 240, 470], val: [0, 70, 120, 180], u: function (v) { return 'attira da ' + v + ' px'; } },
-    { id: 'scatto', nome: 'Bless', desc: 'Momento di chilling', prezzi: [55, 145, 325], val: [0, 0.4, 0.8, 1.2], u: function (v) { return v.toLocaleString('it-IT') + ' s invincibile dopo una canna'; } },
+    { id: 'scatto', nome: 'Bless', desc: 'Momento di chilling', prezzi: [55, 145, 325], val: [0, 0.1, 0.2, 0.3], u: function (v) { return v.toLocaleString('it-IT') + ' s invincibile dopo una canna'; } },
     { id: 'pringles', nome: 'Chimica', desc: 'Il dio Carrefour ti blessa con le sue Pringles', prezzi: [120, 300, 600], val: [0.08, 0.12, 0.16, 0.2], u: function (v) { return Math.round(v * 100) + '% di Pringles'; } },
     // ogni canna raccolta ne vale 2 (bifase) o 3 (trifase): raddoppia o triplica quello che guadagni, quindi costa caro
     { id: 'gian', nome: 'Benedizione der Gian', desc: 'Ti ha insegnato arti oscure...', prezzi: [780, 2340], val: [1, 2, 3],
@@ -1009,7 +1009,7 @@
   var IMMAGINI_SHOP = {
     scatto: ['shop/scatto-0.webp', 'shop/scatto-1.webp', 'shop/scatto-2.webp', 'shop/scatto-3.webp'],   // Bless: pugno, pollice, shaka, shaka che scuote (di Leo)
     gian: ['shop/gian-0.webp?v=2', 'shop/gian-1.webp?v=2', 'shop/gian-2.webp?v=2'],   // Gian base, bifase, trifase (di Leo)
-    punto: ['ogg/punto.webp'],
+    punto: ['ogg/punto.webp', 'shop/punto-1.webp', 'shop/punto-2.webp', 'shop/punto-3.webp', 'shop/punto-4.webp'],   // Punto bianca: sempre più blessata (di Leo); il 5° livello usa la 4ª
     pringles: ['shop/pringles-0.webp', 'shop/pringles-1.webp', 'shop/pringles-2.webp', 'shop/pringles-3.webp']   // Chimica: a secco, si lecca i baffi, unto, re del Carrefour (di Leo)
   };
   function immagineArticolo(u, lv) {
@@ -1399,7 +1399,17 @@
     evento('sfascia', 1);
   }
   // il carrello disegnato a mano: cestello di filo con la griglia, maniglia rossa, quattro ruote (se ne vedono due)
-  function disegnaCarrello(x, y, r, giro, piccolo) {
+  // carrello di Leo in due strati: dietro (telaio, ruote e cestello) sotto Marf, davanti (la sponda con la targa) sopra
+  var CARRELLO_W = 124;
+  function disegnaCarrello(x, y, r, giro, piccolo, strato) {
+    if (!pronta(OGG.carrello) || !pronta(OGG['carrello-davanti'])) { if (strato !== 'dietro') disegnaCarrelloMano(x, y, r, giro, piccolo); return; }
+    var k = piccolo ? 0.55 : 1, w = CARRELLO_W * k, h = w * OGG.carrello.naturalHeight / OGG.carrello.naturalWidth;
+    ctx.save(); ctx.translate(x, y); ctx.rotate(r || 0);
+    if (strato !== 'davanti') ctx.drawImage(OGG.carrello, -w / 2, -h, w, h);
+    if (strato !== 'dietro') ctx.drawImage(OGG['carrello-davanti'], -w / 2, -h, w, h);
+    ctx.restore();
+  }
+  function disegnaCarrelloMano(x, y, r, giro, piccolo) {
     var k = piccolo ? 0.55 : 1;
     ctx.save(); ctx.translate(x, y); ctx.rotate(r || 0); ctx.scale(k, k);
     var L = -44, R = 40, top = -74, fondo = -24;
@@ -1921,7 +1931,6 @@
     g.tv += dt;                                              // il "tempo" della velocità: cala dopo una botta e dopo il boss
     g.vel = Math.min(380 + g.tv * 9, 820) * (g.scatto > 0 ? 1.15 : 1);
     var dx = g.vel * dt;
-    if (palazzo && palazzo.bloccato) dx = 0;                     // contro il muro del palazzo il mondo si ferma
     if (!g.boss) g.metri += dx / 40;                             // durante il boss i metri non contano
     scorrimento += dx;
     for (var pi = g.pedane.length - 1; pi >= 0; pi--) { g.pedane[pi].x -= dx; if (g.pedane[pi].x + g.pedane[pi].w < -60) g.pedane.splice(pi, 1); }
@@ -1948,7 +1957,6 @@
     // le inseguitrici restano indietro piano piano, molto di più durante lo scatto
     g.distacco = g.distacco > 260 ? Math.max(260, g.distacco - 110 * dt)   // dopo il passaggio in Punto le ragazze rientrano da sinistra
       : Math.min(g.distacco + (g.scatto > 0 ? 40 : 6) * dt, 260);
-    if (palazzo && palazzo.bloccato) g.distacco = Math.max(g.distacco - 70 * dt, 25);   // fermo contro il muro: le ragazze si avvicinano
 
     // ostacoli
     aggiornaRitmo(dt);
@@ -2610,6 +2618,26 @@
       if (!o.preso && !o.rimandato && tocca(hb, boxSpeciale(o))) { o.preso = true; colpito({ tipo: 'speciale' }); }
     }
   }
+  // onda d'urto dello schianto: la strada stessa si gonfia e corre verso Marf (colonne della striscia alzate e stirate)
+  function disegnaOnde() {
+    if (!g.speciali || !pronta(SF.strada)) return;
+    var img = SF.strada, sw = Math.round(img.naturalWidth * SF_S), sh = img.naturalHeight * SF_S, k = img.naturalWidth / sw;
+    for (var i = 0; i < g.speciali.length; i++) {
+      var o = g.speciali[i];
+      if (o.tipo !== 'onda') continue;
+      var R = 54, A = 34 + Math.sin(g.t * 40) * 2;
+      for (var X = Math.floor(o.x - R); X < o.x + R; X += 2) {
+        var u = (X - o.x) / R, d = A * Math.pow(Math.cos(u * Math.PI / 2), 2);
+        if (d < 0.6) continue;
+        var tu = ((X + scorrimento) % sw + sw) % sw, cw = Math.min(2, sw - tu);
+        ctx.drawImage(img, tu * k, 0, cw * k, img.naturalHeight, X, STRADA_Y - d, 2.4, sh + d);
+        // il fronte che arriva verso Marf è in ombra, la cresta prende luce
+        var pend = -Math.sin(u * Math.PI) * Math.PI / 2;
+        ctx.fillStyle = pend > 0 ? 'rgba(0,0,0,' + (0.32 * pend).toFixed(3) + ')' : 'rgba(255,255,255,' + (0.12 * -pend).toFixed(3) + ')';
+        ctx.fillRect(X, STRADA_Y - d, 2.4, d + 16);
+      }
+    }
+  }
   function disegnaSpeciali() {
     if (!g.speciali) return;
     ctx.save();
@@ -2631,15 +2659,7 @@
         }
         continue;
       }
-      if (o.tipo === 'onda') {                         // onda d'urto a terra: mezzaluna viola che corre verso Marf
-        ctx.save(); ctx.translate(o.x, TERRA);
-        var tr = Math.sin(g.t * 40) * 2;
-        ctx.fillStyle = '#000'; ctx.beginPath(); ctx.ellipse(0, 0, 21, 37 + tr, 0, Math.PI, TAU); ctx.fill();
-        ctx.fillStyle = '#c23bd6'; ctx.beginPath(); ctx.ellipse(0, 0, 20, 36 + tr, 0, Math.PI, TAU); ctx.fill();
-        ctx.fillStyle = '#ff8ad8'; ctx.beginPath(); ctx.ellipse(-4, 0, 12, 28 + tr, 0, Math.PI, TAU); ctx.fill();
-        ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.ellipse(-7, 0, 4, 18 + tr, 0, Math.PI, TAU); ctx.fill();
-        ctx.restore(); continue;
-      }
+      if (o.tipo === 'onda') continue;                 // l'onda d'urto è una deformazione della strada: disegnaOnde()
       if (o.tipo === 'oro') {                          // attacco d'oro: disco basso (salta) o lama alta (scivola)
         ctx.save();
         var bb = boxSpeciale(o), cx = o.rimandato ? o.x : bb.x + bb.w / 2, cy = o.rimandato ? o.y : bb.y + bb.h / 2;
@@ -3080,6 +3100,7 @@
     if (g.scuoti > 0) ctx.translate((Math.random() - .5) * 8, (Math.random() - .5) * 6);
 
     sfondo();
+    disegnaOnde();
     disegnaFumo();
     disegnaAllarme();                    // la fascia della carica sta dietro la testa del boss
     disegnaBoss();
@@ -3146,18 +3167,19 @@
     if (!p.dentro && p.x <= muro && hb.x < p.x + p.w - 4) {
       // arrivato alla facciata: entra se i piedi sono fra pavimento e soffitto del corridoio (un filo di tolleranza)
       if (m.y <= p.pav + 10 && m.y >= p.soff + 6) {
-        p.dentro = true; p.bloccato = false; m.y = Math.min(m.y, p.pav); if (m.vy < 0) m.vy = 0;
+        p.dentro = true; m.y = Math.min(m.y, p.pav); if (m.vy < 0) m.vy = 0;
       } else {
-        // il palazzo è solido: Marf ci sbatte, il mondo si ferma finché non salta dentro al corridoio
-        var rientro = muro - p.x;
-        p.x = muro;
-        g.birreA.forEach(function (b) { if (b.palazzo) b.x += rientro; });
-        if (!p.bloccato) { p.bloccato = true; if (m.vy < 0) m.vy *= 0.3; }
-        if (!p.preso) { p.preso = true; colpito({ tipo: 'palazzo' }); }
+        // sbagli l'altezza: prendi la facciata (una vita) ma la corsa non si ferma mai,
+        // Marf rimbalza dentro il corridoio (su con un saltello o giù in caduta) e continua
+        p.dentro = true; p.preso = true;
+        if (m.y > p.pav) { m.vy = -Math.sqrt(2 * 2100 * (m.y - p.pav + 14)); m.salti = 1; }
+        else m.vy = Math.max(m.vy, 420);
+        colpito({ tipo: 'palazzo' });
+        fx('tonfo', 0.6); g.scuoti = Math.max(g.scuoti || 0, 0.35);
       }
     }
     if (p.dentro && hb.x >= p.x + p.w - 4) {                  // uscito: si torna a correre (se è in alto si cade)
-      p.dentro = false; evento('palazzo', 1);
+      p.dentro = false; if (!p.preso) evento('palazzo', 1);     // la missione vale solo se ci entri pulito
       if (m.y > TERRA) m.vy = -Math.sqrt(2 * 2100 * (m.y - TERRA + 14));   // dalle cantine risale in strada con un saltello
     }
     m.corridoio = p.dentro;
@@ -3259,17 +3281,16 @@
   var STRADA_Y = H + 1 - 136 * SF_S;       // la striscia della strada (136 px) poggia sul fondo dello schermo
   var QUARTIERE_M = 1000;
   // ordine dei tratti: i quartieri di città separati dalla campagna, poi si ricomincia
-  var QUARTIERI = ['palazzi', 'colline', 'eur', 'colline', 'garbatella', 'colline'];                  // ogni quanti metri si passa da palazzi a colline e viceversa
-  // monumenti piccoli: sulle giunture dispari (km 1, 3, 5…), a giro
-  var PICCOLI = [
-    { img: 'bar-568', alto: 128, giu: 6 },
-    { img: 'metro-laurentina', alto: 185, giu: 8 },
-    { img: 'lupa', alto: 150, giu: 6 },
-    { img: 'pizzeria-kebab', alto: 136, giu: 6 }
-  ];
-  var MONUMENTI = [
-    { img: 'torre-telecom', alto: 400 },   // Torre Telecom di Tor Pagnotta (km 2, 6, 10…)
-    { img: 'centro-idrico', alto: 340, sposta: 0.1 }    // centro idrico Acea di Vigna Murata (km 4, 8, 12…)
+  // quartieri a ciclo (palazzi = Laurentina): colline, Laurentina, EUR, Garbatella, EUR, Laurentina
+  var QUARTIERI = ['colline', 'palazzi', 'eur', 'garbatella', 'eur', 'palazzi'];
+  // un monumento su ogni giuntura, a giro: la giuntura k sta fra il quartiere k-1 e il quartiere k
+  var GIUNTURE = [
+    { img: 'metro-laurentina', alto: 185, giu: 8 },          // colline → Laurentina
+    { img: 'torre-telecom', alto: 400 },                      // Laurentina → EUR
+    { img: 'lupa', alto: 150, giu: 6 },                       // EUR → Garbatella
+    { img: 'bar-568', alto: 128, giu: 6 },                    // Garbatella → EUR
+    { img: 'pizzeria-kebab', alto: 136, giu: 6 },             // EUR → Laurentina
+    { img: 'centro-idrico', alto: 340, sposta: 0.1 }          // Laurentina → colline (centro idrico Acea)
   ];
   var GIUNTURA_X = W * 0.6;                // la giuntura k arriva qui sullo schermo intorno al metro k·QUARTIERE_M
   function pronta(img) { return img && img.complete && img.naturalWidth > 0; }
@@ -3310,7 +3331,7 @@
       var fondo = STRADA_Y + 4, T = N * qw;
       // ogni tratto ripete la sua striscia (larghe diverse) ed è tagliato alla giuntura, dove sta un monumento
       for (var q = Math.floor(L / T); q * T - L < W; q++) {
-        var img = SF[q < 0 ? 'palazzi' : QUARTIERI[q % QUARTIERI.length]];
+        var img = SF[QUARTIERI[((q % QUARTIERI.length) + QUARTIERI.length) % QUARTIERI.length]];
         if (!pronta(img)) img = SF.palazzi;
         var x0 = q * T - L, x1 = x0 + T, iw = Math.round(img.naturalWidth * SF_S), h = img.naturalHeight * SF_S;
         var cv = cache(img, iw + 1, h), taglia = x0 > 0 || x1 < W;
@@ -3319,9 +3340,9 @@
           ctx.drawImage(cv, Math.floor(xi), fondo - h, iw + 1, h);
         if (taglia) ctx.restore();
       }
-      // monumenti su ogni giuntura: i grandi sulle pari (km 2, 4…), i piccoli sulle dispari (km 1, 3…)
+      // un monumento su ogni giuntura (km 1, 2, 3…), secondo i quartieri che unisce
       for (var k = Math.max(1, Math.floor((L - 400) / (N * qw))); k * N * qw - L < W + 400; k++) {
-        var mo = k % 2 ? PICCOLI[((k - 1) / 2) % PICCOLI.length] : MONUMENTI[(k / 2 - 1) % MONUMENTI.length], mi = SF[mo.img];
+        var mo = GIUNTURE[(k - 1) % GIUNTURE.length], mi = SF[mo.img];
         if (!pronta(mi)) continue;
         var mh = mo.alto, mw = mi.naturalWidth * mh / mi.naturalHeight;
         var mx = k * N * qw - L - mw / 2 + (mo.sposta || 0) * mw;   // sposta: decentrato a destra
@@ -3341,7 +3362,7 @@
 
   // oggetti disegnati da Leo: la canna (al posto della birra) e la ragazza accovacciata (al posto della sedia)
   var OGG = {};
-  ['canna', 'bifase', 'trifase', 'pringles', 'ragazza-a-terra', 'durex', 'transenna', 'juve', 'lazio', 'carabiniere', 'pesce-spada', 'aygo', 'jet', 'quattro-quadri', 'super-santos', 'punto', 'punto-ruota'].forEach(function (n) {
+  ['canna', 'bifase', 'trifase', 'pringles', 'ragazza-a-terra', 'durex', 'transenna', 'juve', 'lazio', 'carabiniere', 'pesce-spada', 'aygo', 'jet', 'quattro-quadri', 'super-santos', 'punto', 'punto-ruota', 'carrello', 'carrello-davanti'].forEach(function (n) {
     var img = new Image(); img.src = (CANNE_GIAN.indexOf(n) >= 0 ? '' : 'ogg/') + n + '.webp?v=1'; OGG[n] = img;
   });
   // contorno nero sottile (BORDO px) attorno a ostacoli e nemici, per farli notare meglio:
@@ -3516,16 +3537,17 @@
   // Marf accovacciato nel carrello: il cestello sta davanti a lui; abbassandosi sparisce quasi tutto dentro
   function marfNelCarrello() {
     var m = g.marf, c = g.carrello, giu = m.giu ? 34 : 0;
-    ctx.save(); ctx.beginPath(); ctx.rect(0, 0, W, m.y - 26); ctx.clip();          // le gambe restano nel cestello
-    ctx.translate(-4, -30 + giu);
+    var sobbalza = m.aTerra ? Math.sin(c.giro * 0.09) * 1.2 : 0, inclina = m.aTerra ? 0 : -0.06;
+    disegnaCarrello(MARF_X, m.y + sobbalza, inclina, c.giro, false, 'dietro');
+    ctx.save(); ctx.beginPath(); ctx.rect(0, 0, W, m.y - 36); ctx.clip();          // le gambe restano nel cestello
+    ctx.translate(4, -46 + giu);
     marf();
     ctx.restore();
-    var sobbalza = m.aTerra ? Math.sin(c.giro * 0.09) * 1.2 : 0;
-    disegnaCarrello(MARF_X, m.y + sobbalza, m.aTerra ? 0 : -0.06, c.giro);
+    disegnaCarrello(MARF_X, m.y + sobbalza, inclina, c.giro, false, 'davanti');
     // quanto manca: barretta sopra la testa
     var u = Math.max(0, c.t / CARRELLO_T);
-    ctx.fillStyle = 'rgba(9,9,11,.7)'; ctx.fillRect(MARF_X - 30, m.y - 136, 60, 6);
-    ctx.fillStyle = u < 0.25 && Math.sin(g.t * 20) > 0 ? '#ff5c8a' : '#e4b33c'; ctx.fillRect(MARF_X - 29, m.y - 135, 58 * u, 4);
+    ctx.fillStyle = 'rgba(9,9,11,.7)'; ctx.fillRect(MARF_X - 30, m.y - 152, 60, 6);
+    ctx.fillStyle = u < 0.25 && Math.sin(g.t * 20) > 0 ? '#ff5c8a' : '#e4b33c'; ctx.fillRect(MARF_X - 29, m.y - 151, 58 * u, 4);
   }
   /* ── Personaggi a pezzi: i fogli disegnati da Leo, scontornati e montati su uno scheletro ──
      I dati vengono dallo script che taglia i fogli: per ogni pezzo il rettangolo nell'atlante
