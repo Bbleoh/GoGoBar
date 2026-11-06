@@ -413,7 +413,8 @@
     </div>
   </div>
   <p class="hint">Salta: spazio, ↑ o tocca lo schermo (anche due volte) · Scivola: ↓ o swipe in giù · Tira: tieni → (o swipe in su) e lascia</p>
-  <audio id="musica" src="musica.mp3" loop preload="metadata"></audio>
+  <audio id="musica" src="musica.mp3" preload="metadata"></audio>
+  <audio id="musicaJungle" data-musica src="musica-jungle.mp3" preload="none"></audio>
   <audio id="musicaLobby" data-musica src="musica-lobby.mp3" loop preload="auto"></audio>
   <audio id="musicaMorte" data-musica src="musica-morte.mp3" loop preload="none"></audio>
   <audio id="musicaBoss" data-musica src="musica-boss.mp3" loop preload="none"></audio>
@@ -715,9 +716,14 @@
   /* ── Musica e suoni ── */
   // tre musiche: lobby (menu), corsa, morte (schermata finale); ne suona una alla volta
   var musica = document.getElementById('musica');
-  var TRACCE = { gioco: musica, lobby: document.getElementById('musicaLobby'), morte: document.getElementById('musicaMorte'), boss: document.getElementById('musicaBoss') };
+  var TRACCE = { gioco: musica, jungle: document.getElementById('musicaJungle'), lobby: document.getElementById('musicaLobby'), morte: document.getElementById('musicaMorte'), boss: document.getElementById('musicaBoss') };
   Object.keys(TRACCE).forEach(function (k) { TRACCE[k].volume = 0.55; });
   var traccia = 'lobby';
+  // in corsa le due tracce si alternano: parte sempre la prima (musica.mp3), finita quella la jungle, poi di nuovo la prima
+  var DOPO = { gioco: 'jungle', jungle: 'gioco' };
+  Object.keys(DOPO).forEach(function (k) {
+    TRACCE[k].addEventListener('ended', function () { if (traccia === k) suona(DOPO[k]); });
+  });
   function suona(nome) {
     Object.keys(TRACCE).forEach(function (k) { if (k !== nome) TRACCE[k].pause(); });
     if (traccia !== nome) { traccia = nome; try { TRACCE[nome].currentTime = 0; } catch (e) {} }
