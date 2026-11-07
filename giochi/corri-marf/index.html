@@ -3271,6 +3271,7 @@
       p.scala = scala;
       // la tela di dietro copre solo la fascia del corridoio, quella davanti tutto il palazzo
       var y0 = Math.floor(p.top - 30), y1 = Math.min(H + 12, Math.ceil(p.top + p.ch + 30));
+      p.tele0 = [y0, y1];
       p.tele = [componi(p, 'retro', y0, y1), componi(p, 'fronte', Math.floor(p.alto) - 2, H + 12)];
     }
     var t = p.tele[i];
@@ -3283,16 +3284,18 @@
     var vero = ctx; ctx = c.getContext('2d');
     ctx.setTransform(scala, 0, 0, scala, 2 * scala, -y0 * scala);
     if (fase === 'retro') {
+      mattoni(p, y0, y1);                                            // dietro al corridoio (come li ha messi Leo nel banco del palazzo)
       ctx.drawImage(PAL['corr-' + p.v], p.bw, p.top, p.cw, p.ch);
       ctx.globalCompositeOperation = 'source-atop';                  // corridoio più scuro, si stacca dalla facciata
       ctx.fillStyle = 'rgba(8,6,12,.4)'; ctx.fillRect(p.bw, p.top, p.cw, p.ch);
       ctx.globalCompositeOperation = 'source-over';
-      lati(p, 'mattoni');                                            // i mattoni stanno dietro: Marf ci passa davanti entrando
     } else {
+      // fuori dalla fascia del corridoio i mattoni stanno nella tela davanti, sotto facciata e lati (lì Marf non passa mai)
+      mattoni(p, y0, p.tele0[0]); mattoni(p, p.tele0[1], y1);
       var f = PAL.facciata, fh = f.naturalHeight;
       segmenti(0, p.cutV, p.extra).forEach(function (sg) { pezzoFacciata(p.bw, p.cw, sg.sy, sg.sh, p.alto + sg.v * PAL_S); });
       if (p.cut < fh) pezzoFacciata(p.bw, p.cw, p.cut, fh - p.cut, p.top + p.ch);
-      lati(p, 'pezzi');
+      lati(p);
     }
     ctx = vero;
     return c;
@@ -3304,7 +3307,7 @@
       ctx.drawImage(f, 0, sy, ww / PAL_S, sh, x0 + x, dy, ww, sh * PAL_S);
     }
   }
-  function lati(p, cosa) {
+  function lati(p) {
     var b = PAL.bordo, cut = p.cut, bw = b.naturalWidth, bh = b.naturalHeight, S = PAL_S;
     // in prospettiva i balconi del fianco sono inclinati: pendenza misurata ~1.5 in alto, ~0.2 al pianterreno;
     // i primi 13 px (il fronte del balcone) sono dritti. Con le cantine il taglio segue il bordo inferiore: dritto 40 px, poi sale (-0.25)
@@ -3315,9 +3318,7 @@
       ctx.translate(bx, 0);
       if (!i) { ctx.translate(p.bw, 0); ctx.scale(-1, 1); }             // a sinistra specchiata: i balconi girano l'angolo
       var ySopra = p.alto + (basso ? p.cutV - 4 : p.cutV) * S, ySotto = p.top + p.ch;
-      if (cosa === 'mattoni') {                                        // colonna di mattoni dietro al bordo, per tutta l'altezza: copre ogni fessura fra i tagli
-        ctx.fillStyle = ctx.createPattern(MATTONI, 'repeat'); ctx.fillRect(0, p.alto - 4, p.bw, H + 20 - p.alto);
-      } else {
+      {
         ctx.save();                                                    // pezzo sopra, tagliato lungo il balcone
         ctx.beginPath(); ctx.moveTo(0, p.alto - 2); ctx.lineTo(p.bw, p.alto - 2); ctx.lineTo(p.bw, ySopra + dk); ctx.lineTo(fr, ySopra); ctx.lineTo(0, ySopra); ctx.closePath(); ctx.clip();
         segmenti(0, bh + p.extra, p.extra).forEach(function (sg) { ctx.drawImage(b, 0, sg.sy, bw, sg.sh, 0, p.alto + sg.v * S, p.bw, sg.sh * S); });
@@ -3329,6 +3330,25 @@
       }
       ctx.restore();
     });
+  }
+  /* colonne di mattoni dietro ai lati, come le ha allineate Leo nel banco del palazzo (2026-11-07):
+     [x, y, larghezza, altezza] con il palazzo che parte da x = 0; la cima segue il tetto (y misurata dal tetto
+     del palazzo senza piani in più, a -5.5), il fondo resta dov'è (il palazzo poggia sul fondo dello schermo) */
+  var MATTONI_LATI = {
+    alto: [[4, 43, 47.1, 369.5], [772, 43, 50.7, 364.2]],
+    mezzo: [[4, 42, 46.2, 370.4], [772, 53, 49.8, 362.4]],
+    basso: [[5, 40, 56, 381.9], [776, 44, 47.1, 380.1]]
+  };
+  function mattoni(p, da, a) {                         // solo la parte fra le quote da e a
+    if (a <= da) return;
+    ctx.save();
+    ctx.beginPath(); ctx.rect(-4, da, p.w + 8, a - da); ctx.clip();
+    ctx.fillStyle = ctx.createPattern(MATTONI, 'repeat');
+    (MATTONI_LATI[p.v] || MATTONI_LATI.mezzo).forEach(function (m) {
+      var cima = p.alto + m[1] + 5.5, fondo = m[1] + m[3];
+      ctx.fillRect(m[0], cima, m[2], fondo - cima);
+    });
+    ctx.restore();
   }
   // muro di mattoni scuri (disegnato una volta sola)
   var MATTONI = (function () {
