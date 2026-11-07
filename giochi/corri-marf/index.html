@@ -418,7 +418,7 @@
   </div>
   <p class="hint">Salta: spazio, ↑ o tocca lo schermo (anche due volte) · Scivola: ↓ o swipe in giù · Tira: tieni → (o swipe in su) e lascia</p>
   <audio id="musica" src="musica.mp3" preload="metadata"></audio>
-  <audio id="musicaJungle" data-musica src="musica-jungle.mp3" preload="none"></audio>
+  <audio id="musicaJungle" data-musica src="musica-jungle.mp3?v=2" preload="none"></audio>
   <audio id="musicaLobby" data-musica src="musica-lobby.mp3" loop preload="auto"></audio>
   <audio id="musicaMorte" data-musica src="musica-morte.mp3" loop preload="none"></audio>
   <audio id="musicaBoss" data-musica src="musica-boss.mp3" loop preload="none"></audio>
@@ -451,7 +451,7 @@
     cv.height = Math.floor(H * s * dpr);
     scala = s * dpr;
   }
-  window.addEventListener('resize', adatta);
+  window.addEventListener('resize', function () { adatta(); if (typeof preparaSfondo === 'function') preparaSfondo(); });
   adatta();
 
   /* ── Salvataggi locali ── */
@@ -462,7 +462,7 @@
   var NOME_OK = /^[\wÀ-ÿ _\-]+$/;
   function chiaveNome(n) { return String(n || '').trim().toLowerCase(); }
   function giocatori() { try { var x = JSON.parse(leggi('giocatori', '{}')); return x && typeof x === 'object' ? x : {}; } catch (e) { return {}; } }
-  function salvaGiocatori(x) { scrivi('giocatori', JSON.stringify(x)); }
+  function salvaGiocatori(x) { scrivi('giocatori', JSON.stringify(x)); upgCache = null; }
   var giocatore = leggi('nome', '');
   // con un account GoGoBar (👤 nella home) corre sempre il nome dell'account
   var ACC = window.GoGoAccount && window.GoGoAccount.attivo ? window.GoGoAccount : null;
@@ -527,7 +527,13 @@
     }, function () {});
   }
   function aggiungiCanne(nome, n) { if (nome) salvaDati(nome, function (a) { a.canne += n; }); }
-  function livello(id) { return giocatore ? +datiDi(giocatore).upg[id] || 0 : 0; }
+  // gli upgrade si leggono a ogni frame (Scimmia): si tengono in memoria e si rileggono solo quando cambia qualcosa
+  var upgCache = null;
+  function livello(id) {
+    if (!giocatore) return 0;
+    if (!upgCache || upgCache.chi !== giocatore) upgCache = { chi: giocatore, upg: datiDi(giocatore).upg };
+    return +upgCache.upg[id] || 0;
+  }
   function recordDi(nome) { var a = giocatori()[chiaveNome(nome)]; return a ? +a.record || 0 : 0; }
   var record = giocatore ? recordDi(giocatore) : 0;
 
@@ -894,11 +900,13 @@
   }
 
   function mostraClassifica(box) {
+    var giro = box.giro = (box.giro || 0) + 1;        // se arriva una richiesta più nuova, questa non scrive
     box.innerHTML = '';
     var h = document.createElement('h3'); h.textContent = 'Classifica'; box.append(h);
     if (!API || !API.attiva) { box.append(testo('p', 'Record su questo telefono: ' + record + ' m')); return; }
     var attesa = testo('p', 'Carico...'); box.append(attesa);
     API.carica(10).then(function (righe) {
+      if (giro !== box.giro) return;
       attesa.remove();
       if (!righe.length) { box.append(testo('p', 'Ancora nessuno. Il primo posto è tuo!')); return; }
       var io = chiaveNome(giocatore);
@@ -926,6 +934,7 @@
       var k = chiaveNome(giocatore);
       if (!online[k] || online[k].punti < punti) online[k] = { nome: giocatore, punti: punti };
       mostraClassifica(document.getElementById('classificaFine'));
+      mostraClassifica(document.getElementById('classificaMenu'));   // anche la lobby vede subito il nuovo record
     }, function (e) {
       btnSalva.hidden = false; nota.textContent = (e && e.message) || 'Non sono riuscito a salvare.';
     });
@@ -962,6 +971,7 @@
     stato = 'menu'; fine.hidden = true; menu.hidden = false; suona('lobby');
     nomeMenu.value = ''; notaMenu.textContent = '';
     aggiornaChi(); caricaOnline();
+    mostraClassifica(document.getElementById('classificaMenu'));
   }
   btnSalva.addEventListener('click', salva);
   nomeMenu.addEventListener('keydown', function (e) { if (e.key === 'Enter') provaAvvio(); });
@@ -998,7 +1008,8 @@
       u: function (v) { return 'passaggio fino a ' + v.toLocaleString('it-IT') + ' m'; } }
   ];
   var CANNE_GIAN = ['canna', 'bifase', 'trifase'];
-  function valore(id) { var u = UPGRADE.filter(function (x) { return x.id === id; })[0]; return u.val[livello(id)]; }
+  var UPG_ID = {}; UPGRADE.forEach(function (u) { UPG_ID[u.id] = u; });
+  function valore(id) { return UPG_ID[id].val[livello(id)]; }
   var market = document.getElementById('market'), negoziante = market.querySelector('.negoziante');
   /* il mercante reagisce: una voce a caso del tipo giusto, mai la stessa di prima, e la nuova taglia quella che sta ancora parlando */
   var voceCrivo = null, ultimaVoce = {};
@@ -1223,6 +1234,7 @@
   }
   nuovaPartita();
   mostraClassifica(document.getElementById('classificaMenu'));
+  setTimeout(preparaSfondo, 300);          // dopo: QUARTIERI e GIUNTURE sono definiti più sotto
 
   function inizia() {
     if (stato === 'gioco') return;
@@ -1233,6 +1245,7 @@
     g.seconda = valore('vita') % 1 ? 1 : 0;                     // ultimo livello di Pensiero: una seconda possibilità a corsa
     g.segnaposti = segnaposti();
     g.valCanna = valore('gian');                                // Benedizione der Gian: una canna vale 1, 2 (bifase) o 3 (trifase)
+    g.prossimoCarrello = CARRELLO_DA + Math.random() * 700;
     if (valore('punto')) g.passaggio = { fino: valore('punto'), t: 0, fase: 'corsa', ruota: 0, v: 0 };   // Punto bianca: Crivo ti porta avanti
     menu.hidden = true; fine.hidden = true;
     iniziaMissioni();
@@ -1803,6 +1816,7 @@
   function lanciaMarf() {
     var p = g.passaggio, m = g.marf, kk = PUNTO.dh / 238;
     g.passaggio = null;
+    g.prossimoCarrello = Math.max(g.prossimoCarrello, g.metri + 1200 + Math.random() * 1500);   // appena sceso dalla Punto niente carrello subito
     g.auto = { x: (MARF_X + PUNTO.dx), v: p.v, dec: p.v0 / FRENATA, ruota: p.ruota, beccheggio: p.beccheggio || 0, vb: p.vb || 0, ultima: p.ultima };
     // il parabrezza esplode in pezzetti azzurri che volano avanti e finiscono sull'asfalto
     var vx0 = (MARF_X + PUNTO.dx) + (PUNTO.vetro[0] - 257) * kk, vy0 = TERRA + 2 - (238 - PUNTO.vetro[1]) * kk;
@@ -2032,7 +2046,7 @@
 
     // birre
     g.prossimaBirra -= dt;
-    if (g.metri > (g.prossimoCarrello || CARRELLO_DA + Math.random() * 700) && !g.carrello && !zonaBoss() && g.metri < g.prossimoPalazzo - 200 && !postoOccupato(VIS_W + 40)) nuovoCarrelloPickup();
+    if (g.metri > g.prossimoCarrello && !g.carrello && !zonaBoss() && g.metri < g.prossimoPalazzo - 200 && !postoOccupato(VIS_W + 40)) nuovoCarrelloPickup();
     if (g.prossimaBirra <= 0 && !postoOccupato(VIS_W + 30)) {
       // a volte arriva una formazione di canne (più canne = più rara), sennò una canna sola o le pringles (scudo), molto più rare
       var nf = formazioneCanne();
@@ -2046,7 +2060,11 @@
       if (b.x < -30) { g.birreA.splice(j, 1); continue; }
       if (magnete && !b.pringles && !b.carrello) {                    // magnete: le canne vicine volano verso Marf
         var mx = MARF_X - b.x, my = g.marf.y - 45 - b.y, md = Math.hypot(mx, my);
-        if (md < magnete) { b.x += mx * Math.min(1, dt * 9); b.y += my * Math.min(1, dt * 9); }
+        if (b.attratta || md < magnete) {
+          // una volta agganciata la canna non subisce più lo scorrimento della strada: sennò a tutta velocità
+          // restava ~90 px dietro a Marf e lo inseguiva per sempre senza farsi prendere
+          b.attratta = true; b.x += dx + mx * Math.min(1, dt * 12); b.y += my * Math.min(1, dt * 12);
+        }
       }
       if (tocca(hb, { x: b.x - 12, y: b.y - 22, w: 24, h: 40 })) {
         g.birreA.splice(j, 1);
@@ -3153,18 +3171,39 @@
      La facciata è tagliata all'altezza dei piani; le strisce laterali hanno i balconi allineati ai piani. ── */
   var PALAZZO_OGNI = 2000;
   var PAL = {}; ['corr-alto', 'corr-mezzo', 'corr-basso', 'bordo', 'facciata'].forEach(function (n) {
-    var i = new Image(); i.src = 'palazzo/' + n + '.webp?v=1'; PAL[n] = i;
+    var i = new Image(); i.src = 'palazzo/' + n + '.webp?v=2'; PAL[n] = i;
     if (i.decode) i.decode().catch(function () {});            // decodifica subito, così non scatta quando arriva il palazzo
   });
   var PAL_S = 0.5, PIANI = { alto: 162, mezzo: 324, basso: 649 }, FACC_H = 649, CORR_H = 206, BORDO_W = 96, CORR_W = 1460;
-  var PAV = 0.95, SOFF = 0.05;            // pavimento e soffitto del corridoio, in frazione della sua altezza
+  var PAV = 0.95, SOFF = 0.05;
+  var ENTRATA_MIN = 22, ENTRATA_SOTTO = 46;   // per entrare: almeno 22 px di Marf nell'apertura, piedi al massimo 46 px sotto il pavimento            // pavimento e soffitto del corridoio, in frazione della sua altezza
+  /* il palazzo è più alto dell'immagine: sotto il tetto si ripetono altri piani (la fascia RIPETI_DA..+RIPETI_H
+     dell'immagine, due piani), finché la cima esce dallo schermo anche con lo zoom out. Le righe "virtuali" vanno
+     da 0 alla cima a FACC_H + piani extra: segmenti() le traduce nelle righe vere dell'immagine */
+  var RIPETI_DA = 162, RIPETI_H = 162;
+  function segmenti(v0, v1, extra) {
+    var out = [], a = v0;
+    while (a < v1) {
+      var sy, fine;
+      if (a < RIPETI_DA) { sy = a; fine = RIPETI_DA; }
+      else if (a < RIPETI_DA + extra) { var q = (a - RIPETI_DA) % RIPETI_H; sy = RIPETI_DA + q; fine = a + RIPETI_H - q; }
+      else { sy = a - extra; fine = Infinity; }
+      fine = Math.min(fine, v1);
+      out.push({ v: a, sy: sy, sh: fine - a });
+      a = fine;
+    }
+    return out;
+  }
   var palazzo = null;
   function nuovoPalazzo(v) {
     var cut = PIANI[v], ch = CORR_H * PAL_S, sotto = (FACC_H - cut) * PAL_S;
     var bottom = H + 2, top = bottom - sotto - ch;        // in primo piano: poggia sul bordo dello schermo, davanti alla strada
     var bw = BORDO_W * PAL_S, cw = CORR_W * PAL_S;
-    palazzo = { v: v, x: VIS_W + 40, bw: bw, cw: cw, w: bw * 2 + cw, cut: cut, ch: ch, top: top, bottom: bottom,
-                pav: top + ch * PAV, soff: top + ch * SOFF, alto: top - cut * PAL_S, dentro: false, preso: false };
+    var cima = H - H / ZOOM_PALAZZO - 30;                 // il bordo alto dello schermo con lo zoom out, più un margine
+    var extra = Math.max(0, Math.ceil((top - cut * PAL_S - cima) / (RIPETI_H * PAL_S))) * RIPETI_H;
+    var cutV = cut + extra;
+    palazzo = { v: v, x: VIS_W + 40, bw: bw, cw: cw, w: bw * 2 + cw, cut: cut, cutV: cutV, extra: extra, ch: ch, top: top, bottom: bottom,
+                pav: top + ch * PAV, soff: top + ch * SOFF, alto: top - cutV * PAL_S, dentro: false, preso: false };
     // qualche canna lungo il corridoio, come premio
     for (var i = 0; i < 3; i++) g.birreA.push({ x: palazzo.x + bw + cw * (0.3 + i * 0.22), y: palazzo.pav - 20, pringles: false, palazzo: true });
   }
@@ -3196,17 +3235,22 @@
     var hb = { x: MARF_X - 18, w: 36 };
     var muro = hb.x + hb.w - 4;                                // x della facciata quando Marf ci sbatte contro
     if (!p.dentro && p.x <= muro && hb.x < p.x + p.w - 4) {
-      // arrivato alla facciata: entra se i piedi sono fra pavimento e soffitto del corridoio (un filo di tolleranza)
-      if (m.y <= p.pav + 10 && m.y >= p.soff + 6) {
-        p.dentro = true; m.y = Math.min(m.y, p.pav); if (m.vy < 0) m.vy = 0;
+      // arrivato alla facciata: se un pezzo di Marf (almeno le gambe) sta nell'apertura del corridoio è dentro,
+      // anche se con la testa tocca il soffitto o con i piedi sta sotto il pavimento: lo si sistema e niente danno
+      var mh = hitboxMarf().h, dentro = Math.min(m.y, p.pav) - Math.max(m.y - mh, p.soff);
+      if (dentro >= ENTRATA_MIN && m.y <= p.pav + ENTRATA_SOTTO) {
+        p.dentro = true;
+        if (m.y > p.pav) m.vy = -Math.sqrt(2 * 2100 * (m.y - p.pav + 4));   // piedi sotto il pavimento: un saltello e ci sale sopra
+        else if (m.vy < 0) m.vy = 0;
       } else {
-        // sbagli l'altezza: prendi la facciata (una vita) ma la corsa non si ferma mai,
-        // Marf rimbalza dentro il corridoio (su con un saltello o giù in caduta) e continua
+        // contro la facciata: perdi tutte le vite (lo scudo e Bless non bastano contro un palazzo)
         p.dentro = true; p.preso = true;
         if (m.y > p.pav) { m.vy = -Math.sqrt(2 * 2100 * (m.y - p.pav + 14)); m.salti = 1; }
         else m.vy = Math.max(m.vy, 420);
-        colpito({ tipo: 'palazzo' });
-        fx('tonfo', 0.6); g.scuoti = Math.max(g.scuoti || 0, 0.35);
+        g.bless = 0; g.scudo = 0; m.botta = 0;
+        g.ultimoColpoM = g.metri; g.colpi = Math.max(g.colpi, 3);
+        fx('pugno', 0.6); fx('ahi', 0.5);
+        fx('tonfo', 0.8); g.scuoti = Math.max(g.scuoti || 0, 0.5);
       }
     }
     if (p.dentro && hb.x >= p.x + p.w - 4) {                  // uscito: si torna a correre (se è in alto si cade)
@@ -3226,8 +3270,8 @@
       if (!pronta(PAL.facciata) || !pronta(PAL.bordo) || !pronta(PAL['corr-' + p.v])) return;
       p.scala = scala;
       // la tela di dietro copre solo la fascia del corridoio, quella davanti tutto il palazzo
-      var y0 = Math.max(0, Math.floor(Math.min(p.top, p.alto + p.cut * PAL_S) - 30)), y1 = Math.min(H + 12, Math.ceil(p.top + p.ch + 30));
-      p.tele = [componi(p, 'retro', y0, y1), componi(p, 'fronte', Math.max(0, Math.floor(p.alto) - 2), H + 12)];
+      var y0 = Math.floor(p.top - 30), y1 = Math.min(H + 12, Math.ceil(p.top + p.ch + 30));
+      p.tele = [componi(p, 'retro', y0, y1), componi(p, 'fronte', Math.floor(p.alto) - 2, H + 12)];
     }
     var t = p.tele[i];
     ctx.drawImage(t, p.x - 2, t.y0, p.w + 4, t.y1 - t.y0);
@@ -3246,7 +3290,7 @@
       lati(p, 'mattoni');                                            // i mattoni stanno dietro: Marf ci passa davanti entrando
     } else {
       var f = PAL.facciata, fh = f.naturalHeight;
-      pezzoFacciata(p.bw, p.cw, 0, p.cut, p.alto);
+      segmenti(0, p.cutV, p.extra).forEach(function (sg) { pezzoFacciata(p.bw, p.cw, sg.sy, sg.sh, p.alto + sg.v * PAL_S); });
       if (p.cut < fh) pezzoFacciata(p.bw, p.cw, p.cut, fh - p.cut, p.top + p.ch);
       lati(p, 'pezzi');
     }
@@ -3270,13 +3314,13 @@
       ctx.save();
       ctx.translate(bx, 0);
       if (!i) { ctx.translate(p.bw, 0); ctx.scale(-1, 1); }             // a sinistra specchiata: i balconi girano l'angolo
-      var ySopra = p.alto + (basso ? cut - 4 : cut) * S, ySotto = p.top + p.ch;
+      var ySopra = p.alto + (basso ? p.cutV - 4 : p.cutV) * S, ySotto = p.top + p.ch;
       if (cosa === 'mattoni') {                                        // colonna di mattoni dietro al bordo, per tutta l'altezza: copre ogni fessura fra i tagli
         ctx.fillStyle = ctx.createPattern(MATTONI, 'repeat'); ctx.fillRect(0, p.alto - 4, p.bw, H + 20 - p.alto);
       } else {
         ctx.save();                                                    // pezzo sopra, tagliato lungo il balcone
         ctx.beginPath(); ctx.moveTo(0, p.alto - 2); ctx.lineTo(p.bw, p.alto - 2); ctx.lineTo(p.bw, ySopra + dk); ctx.lineTo(fr, ySopra); ctx.lineTo(0, ySopra); ctx.closePath(); ctx.clip();
-        ctx.drawImage(b, 0, 0, bw, bh, 0, p.alto, p.bw, bh * S);
+        segmenti(0, bh + p.extra, p.extra).forEach(function (sg) { ctx.drawImage(b, 0, sg.sy, bw, sg.sh, 0, p.alto + sg.v * S, p.bw, sg.sh * S); });
         ctx.restore();
         if (cut < bh) {                                                // pezzo sotto, con lo stesso taglio
           ctx.beginPath(); ctx.moveTo(0, ySotto); ctx.lineTo(fr, ySotto); ctx.lineTo(p.bw, ySotto + dk); ctx.lineTo(p.bw, H + 10); ctx.lineTo(0, H + 10); ctx.closePath(); ctx.clip();
@@ -3340,16 +3384,20 @@
       x.putImageData(d, 0, 0);
     } catch (e) {}                                   // (file:// o immagine non leggibile: resta com'è)
   }
+  var CACHE_MISURE = 6;
   function cache(img, w, h, sfumato) {
     var cw = Math.max(1, Math.ceil(w * scala)), ch = Math.max(1, Math.ceil(h * scala));
-    var c = img._cache || (img._cache = {}), k = cw + 'x' + ch;
-    if (!c[k]) {
-      var cv = document.createElement('canvas'); cv.width = cw; cv.height = ch;
+    var c = img._cache || (img._cache = { misure: {}, ordine: [] }), k = cw + 'x' + ch;
+    var cv = c.misure[k];
+    if (!cv) {
+      cv = document.createElement('canvas'); cv.width = cw; cv.height = ch;
       var x = cv.getContext('2d'); x.imageSmoothingQuality = 'high'; x.drawImage(img, 0, 0, cw, ch);
       if (sfumato) lontano(x, cw, ch);
-      c = img._cache = {}; c[k] = cv;               // tiene solo l'ultima misura
+      // tiene qualche misura (la canna sta sia in strada sia nell'HUD: con una misura sola la rifaceva a ogni frame)
+      c.misure[k] = cv; c.ordine.push(k);
+      if (c.ordine.length > CACHE_MISURE) delete c.misure[c.ordine.shift()];
     }
-    return c[k];
+    return cv;
   }
   // ripete una striscia: par = velocità rispetto alla strada
   function striscia(par, larg, disegna) {
@@ -3406,6 +3454,25 @@
     } else {
       ctx.fillStyle = '#4a4550'; ctx.fillRect(0, STRADA_Y, VIS_W, H - STRADA_Y);
     }
+  }
+
+  /* prepara in anticipo, un'immagine alla volta, le copie sbiadite di quartieri e monumenti alla misura dello schermo:
+     sbiadirle (getImageData) costa decine di ms, e farlo in corsa quando compare un quartiere nuovo dava uno scatto */
+  var preparaTimer = null;
+  function preparaSfondo() {
+    clearTimeout(preparaTimer);
+    var lista = [];
+    QUARTIERI.forEach(function (n) { if (lista.indexOf(n) < 0) lista.push(n); });
+    GIUNTURE.forEach(function (mo) { lista.push(mo); });
+    (function prossima() {
+      if (!lista.length) return;
+      if (stato === 'gioco') { preparaTimer = setTimeout(prossima, 1500); return; }   // in corsa non si ruba tempo al disegno
+      var x = lista.shift(), img = SF[typeof x === 'string' ? x : x.img];
+      if (!pronta(img)) { lista.push(x); preparaTimer = setTimeout(prossima, 400); return; }
+      if (typeof x === 'string') cache(img, Math.round(img.naturalWidth * SF_S) + 1, img.naturalHeight * SF_S, true);
+      else cache(img, img.naturalWidth * x.alto / img.naturalHeight, x.alto, true);
+      preparaTimer = setTimeout(prossima, 60);
+    })();
   }
 
   // oggetti disegnati da Leo: la canna (al posto della birra) e la ragazza accovacciata (al posto della sedia)
