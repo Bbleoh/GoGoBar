@@ -430,7 +430,8 @@
   'use strict';
 
   /* ── Mondo logico: 960 × 420, scalato per stare nello schermo ── */
-  var W = 960, H = 420, TERRA = 360;   // TERRA = dove poggiano i piedi, sul marciapiede
+  var W = 960, H = 420, TERRA = 360;
+  var VIS_W = W, VIS_H = H;              // pezzo di mondo visibile: più grande quando la camera si allontana (zoom sul palazzo)   // TERRA = dove poggiano i piedi, sul marciapiede
   var cv = document.getElementById('c');
   var ctx = cv.getContext('2d');
   var scala = 1;
@@ -1343,7 +1344,7 @@
     ctx.font = 'italic 700 13px "Chakra Petch", sans-serif'; ctx.textBaseline = 'middle';
     g.segnaposti.forEach(function (s) {
       var x = MARF_X + 18 + (s.m - g.metri) * 40;
-      if (x < -160 || x > W + 40) return;
+      if (x < -160 || x > VIS_W + 40) return;
       var testoS = (s.nomi.length > 2 ? s.nomi.slice(0, 2).join(', ') + ' +' + (s.nomi.length - 2) : s.nomi.join(', ')).toUpperCase();
       var sotto = s.m.toLocaleString('it-IT') + ' m', col = s.io ? '#e4b33c' : '#ff5c8a', alto = 150;
       ctx.globalAlpha = s.passato ? 0.45 : 1;
@@ -1368,7 +1369,7 @@
      gli ostacoli a terra li sfasci. Pesci, Aygo, carabinieri, jet e muri ti rompono il carrello ma non ti tolgono vite. ── */
   var CARRELLO_T = 15, CARRELLO_DA = 800;
   function nuovoCarrelloPickup() {
-    g.birreA.push({ x: W + 40, y: TERRA - 46, carrello: true, pringles: false });
+    g.birreA.push({ x: VIS_W + 40, y: TERRA - 46, carrello: true, pringles: false });
     g.prossimoCarrello = g.metri + 1500 + Math.random() * 1200;
   }
   function saliCarrello() {
@@ -1549,7 +1550,7 @@
     return false;
   }
   function generaOstacolo() {
-    for (var b = 0; b < g.birreA.length; b++) if (!g.birreA[b].scia && g.birreA[b].x > W + 40 - DIST_OGG - 120) { g.prossimo = 0.15; return; }
+    for (var b = 0; b < g.birreA.length; b++) if (!g.birreA[b].scia && g.birreA[b].x > VIS_W + 40 - DIST_OGG - 120) { g.prossimo = 0.15; return; }
     if (g.ostacoli.some(function (o) { return o.matto && o.x > MARF_X - 60; })) { g.prossimo = 0.2; return; }   // l'Aygo matto passa da solo
     var fase = faseRitmo(), lvl = Math.min(g.metri / 1500, 1);
     if (fase === 'normale' && !g.boss && g.metri > FORMAZIONI_DA && Math.random() < 0.06 + 0.06 * Math.min(1, (g.metri - FORMAZIONI_DA) / 6000) && generaFormazione()) return;
@@ -1561,7 +1562,7 @@
       else g.ultimoCarab = g.metri;
     }
     if (tipo === 'aygo' && g.birreA.some(function (b) { return b.x > MARF_X - 40; })) tipo = 'transenna';   // l'Aygo passerebbe sopra le canne
-    var t = TIPI[tipo], o = nuovoOstacolo(tipo, W + 40);
+    var t = TIPI[tipo], o = nuovoOstacolo(tipo, VIS_W + 40);
     if (tipo === 'durex' && !coppia) { o.quante = 1 + (Math.random() < 0.4 + lvl * 0.3 ? 1 : 0) + (Math.random() < lvl * 0.45 ? 1 : 0); o.h = t.h * o.quante; }
     g.ostacoli.push(o);
     g.prossimoTipo = scegliTipo(fase);
@@ -1655,7 +1656,7 @@
       return true;
     });
     if (!scelte.length) return false;
-    var f = scelte[Math.floor(Math.random() * scelte.length)], x = W + 40, lungo = 0, i, o, n0 = g.ostacoli.length;
+    var f = scelte[Math.floor(Math.random() * scelte.length)], x = VIS_W + 40, lungo = 0, i, o, n0 = g.ostacoli.length;
     g.ultimaFormazione = f;
     if (f === 'pesci') {
       for (i = 0; i < 3; i++) { o = nuovoOstacolo('pesce', x); o.aria = TIPI.pesce.aria + i * PESCI_PASSO; g.ostacoli.push(o); }
@@ -1746,9 +1747,9 @@
     for (var i = 0; i < FORMAZIONI_CANNE.length; i++) { if (r < FORMAZIONI_CANNE[i].p) { f = FORMAZIONI_CANNE[i]; break; } r -= FORMAZIONI_CANNE[i].p; }
     if (!f) return 0;
     var punti = f.punti(40 + Math.random() * 100);
-    if (punti.some(function (q) { return postoOccupato(W + 30 + q[0]); })) return 0;   // c'è un ostacolo in mezzo: allora una canna sola
+    if (punti.some(function (q) { return postoOccupato(VIS_W + 30 + q[0]); })) return 0;   // c'è un ostacolo in mezzo: allora una canna sola
     var gruppo = { n: punti.length, presi: 0 };
-    punti.forEach(function (q) { g.birreA.push({ x: W + 30 + q[0], y: TERRA - q[1], pringles: false, gruppo: gruppo }); });
+    punti.forEach(function (q) { g.birreA.push({ x: VIS_W + 30 + q[0], y: TERRA - q[1], pringles: false, gruppo: gruppo }); });
     return punti.length;
   }
 
@@ -1757,7 +1758,7 @@
     [0, 170, 'bianco'], [80, 124, 'rosso'], [160, 78, 'rosso'], [80, 216, 'verde'], [160, 262, 'verde']
   ];
   function lanciaJet() {
-    JET_POS.forEach(function (p) { g.jets.push({ x: W + 60 + p[0], y: TERRA - p[1], fumo: p[2], preso: false }); });
+    JET_POS.forEach(function (p) { g.jets.push({ x: VIS_W + 60 + p[0], y: TERRA - p[1], fumo: p[2], preso: false }); });
     fx('jet', 0.5);
   }
 
@@ -1959,6 +1960,7 @@
       m.y = suolo; m.vy = 0; m.salti = 0;
     }
     aggiornaPalazzo(dx);
+    aggiornaZoom(dt);
     if (m.botta > 0) m.botta -= dt;
     if (g.scatto > 0) g.scatto -= dt;
     if (g.scudo > 0) g.scudo -= dt;
@@ -2030,11 +2032,11 @@
 
     // birre
     g.prossimaBirra -= dt;
-    if (g.metri > (g.prossimoCarrello || CARRELLO_DA + Math.random() * 700) && !g.carrello && !zonaBoss() && g.metri < g.prossimoPalazzo - 200 && !postoOccupato(W + 40)) nuovoCarrelloPickup();
-    if (g.prossimaBirra <= 0 && !postoOccupato(W + 30)) {
+    if (g.metri > (g.prossimoCarrello || CARRELLO_DA + Math.random() * 700) && !g.carrello && !zonaBoss() && g.metri < g.prossimoPalazzo - 200 && !postoOccupato(VIS_W + 40)) nuovoCarrelloPickup();
+    if (g.prossimaBirra <= 0 && !postoOccupato(VIS_W + 30)) {
       // a volte arriva una formazione di canne (più canne = più rara), sennò una canna sola o le pringles (scudo), molto più rare
       var nf = formazioneCanne();
-      if (!nf) g.birreA.push({ x: W + 30, y: TERRA - 40 - Math.random() * 150, pringles: g.scudo <= 0 && Math.random() < valore('pringles') });
+      if (!nf) g.birreA.push({ x: VIS_W + 30, y: TERRA - 40 - Math.random() * 150, pringles: g.scudo <= 0 && Math.random() < valore('pringles') });
       g.prossimaBirra = (2.5 + Math.random() * 3.5) * (nf ? 0.6 + 0.4 * nf : 1) * CANNE_RITMO[faseRitmo()];   // nel respiro piovono canne, nelle ondate meno   // dopo una formazione la prossima canna tarda un po' di più
     }
     var magnete = valore('magnete');
@@ -3108,6 +3110,10 @@
   function disegna() {
     ctx.setTransform(scala, 0, 0, scala, 0, 0);
     if (g.scuoti > 0) ctx.translate((Math.random() - .5) * 8, (Math.random() - .5) * 6);
+    var z = stato === 'menu' ? 1 : (g.zoom || 1);
+    VIS_W = W / z; VIS_H = H / z;
+    cielo();
+    if (z !== 1) { ctx.translate(0, H * (1 - z)); ctx.scale(z, z); }     // la camera si allontana tenendo fermi strada e lato sinistro
 
     sfondo();
     disegnaOnde();
@@ -3136,6 +3142,7 @@
     disegnaScudo();
     disegnaFacciata();
     disegnaStelle();
+    ctx.setTransform(scala, 0, 0, scala, 0, 0);
     if (stato !== 'menu') hud();
   }
 
@@ -3156,10 +3163,24 @@
     var cut = PIANI[v], ch = CORR_H * PAL_S, sotto = (FACC_H - cut) * PAL_S;
     var bottom = H + 2, top = bottom - sotto - ch;        // in primo piano: poggia sul bordo dello schermo, davanti alla strada
     var bw = BORDO_W * PAL_S, cw = CORR_W * PAL_S;
-    palazzo = { v: v, x: W + 40, bw: bw, cw: cw, w: bw * 2 + cw, cut: cut, ch: ch, top: top, bottom: bottom,
+    palazzo = { v: v, x: VIS_W + 40, bw: bw, cw: cw, w: bw * 2 + cw, cut: cut, ch: ch, top: top, bottom: bottom,
                 pav: top + ch * PAV, soff: top + ch * SOFF, alto: top - cut * PAL_S, dentro: false, preso: false };
     // qualche canna lungo il corridoio, come premio
     for (var i = 0; i < 3; i++) g.birreA.push({ x: palazzo.x + bw + cw * (0.3 + i * 0.22), y: palazzo.pav - 20, pringles: false, palazzo: true });
+  }
+  /* zoom out lento verso il palazzo: da ZOOM_DA metri prima la camera si allontana fino a ZOOM_PALAZZO,
+     resta così finché sei dentro e torna normale in ZOOM_RITORNO metri dopo l'uscita */
+  var ZOOM_PALAZZO = 0.75, ZOOM_DA = 200, ZOOM_RITORNO = 120;
+  function liscio(u) { u = Math.max(0, Math.min(1, u)); return u * u * (3 - 2 * u); }
+  function aggiornaZoom(dt) {
+    var z = 1, giu = 1 - ZOOM_PALAZZO;
+    if (!g.boss && !zonaBoss()) {
+      if (palazzo && !palazzo.uscito) z = ZOOM_PALAZZO;
+      else if (!palazzo) z = 1 - giu * liscio((ZOOM_DA - (g.prossimoPalazzo - g.metri)) / (ZOOM_DA - 20));
+      if (g.uscitoPalazzoM !== undefined && g.metri - g.uscitoPalazzoM < ZOOM_RITORNO)
+        z = Math.min(z, ZOOM_PALAZZO + giu * liscio((g.metri - g.uscitoPalazzoM) / ZOOM_RITORNO));
+    }
+    g.zoom = (g.zoom || 1) + (z - (g.zoom || 1)) * Math.min(1, dt * 4);
   }
   function zonaPalazzo() { return !!palazzo || g.metri > g.prossimoPalazzo - 60; }
   function aggiornaPalazzo(dx) {
@@ -3189,7 +3210,7 @@
       }
     }
     if (p.dentro && hb.x >= p.x + p.w - 4) {                  // uscito: si torna a correre (se è in alto si cade)
-      p.dentro = false; if (!p.preso) evento('palazzo', 1);     // la missione vale solo se ci entri pulito
+      p.dentro = false; p.uscito = true; g.uscitoPalazzoM = g.metri; if (!p.preso) evento('palazzo', 1);     // la missione vale solo se ci entri pulito
       if (m.y > TERRA) m.vy = -Math.sqrt(2 * 2100 * (m.y - TERRA + 14));   // dalle cantine risale in strada con un saltello
     }
     m.corridoio = p.dentro;
@@ -3250,10 +3271,8 @@
       ctx.translate(bx, 0);
       if (!i) { ctx.translate(p.bw, 0); ctx.scale(-1, 1); }             // a sinistra specchiata: i balconi girano l'angolo
       var ySopra = p.alto + (basso ? cut - 4 : cut) * S, ySotto = p.top + p.ch;
-      if (cosa === 'mattoni') {                                        // muro di mattoni scuri a collegare i due pezzi
-        ctx.beginPath(); ctx.moveTo(0, ySopra - 2); ctx.lineTo(fr, ySopra - 2); ctx.lineTo(p.bw, ySopra + dk - 2);
-        ctx.lineTo(p.bw, ySotto + dk + 2); ctx.lineTo(fr, ySotto + 2); ctx.lineTo(0, ySotto + 2); ctx.closePath();
-        ctx.clip(); ctx.fillStyle = ctx.createPattern(MATTONI, 'repeat'); ctx.fillRect(0, ySopra - 4, p.bw, ySotto - ySopra + Math.abs(dk) + 8);
+      if (cosa === 'mattoni') {                                        // colonna di mattoni dietro al bordo, per tutta l'altezza: copre ogni fessura fra i tagli
+        ctx.fillStyle = ctx.createPattern(MATTONI, 'repeat'); ctx.fillRect(0, p.alto - 4, p.bw, H + 20 - p.alto);
       } else {
         ctx.save();                                                    // pezzo sopra, tagliato lungo il balcone
         ctx.beginPath(); ctx.moveTo(0, p.alto - 2); ctx.lineTo(p.bw, p.alto - 2); ctx.lineTo(p.bw, ySopra + dk); ctx.lineTo(fr, ySopra); ctx.lineTo(0, ySopra); ctx.closePath(); ctx.clip();
@@ -3306,12 +3325,28 @@
   function pronta(img) { return img && img.complete && img.naturalWidth > 0; }
   // copia dell'immagine già ridimensionata alla misura in cui va disegnata (in pixel veri dello schermo):
   // ridurre ogni frame immagini grandi come le torri o le strisce era la parte più pesante del disegno
-  function cache(img, w, h) {
+  // lontano = sfondo: meno saturo e con un velo d'aria azzurrina, così ostacoli, canne e personaggi si staccano
+  var SFONDO_SAT = 0.7, SFONDO_FOSCHIA = 0.1, FOSCHIA = [196, 214, 236];
+  function lontano(x, cw, ch) {
+    try {
+      var d = x.getImageData(0, 0, cw, ch), a = d.data, s = SFONDO_SAT, f = SFONDO_FOSCHIA;
+      for (var i = 0; i < a.length; i += 4) {
+        if (!a[i + 3]) continue;
+        var l = 0.299 * a[i] + 0.587 * a[i + 1] + 0.114 * a[i + 2];
+        a[i] = (l + (a[i] - l) * s) * (1 - f) + FOSCHIA[0] * f;
+        a[i + 1] = (l + (a[i + 1] - l) * s) * (1 - f) + FOSCHIA[1] * f;
+        a[i + 2] = (l + (a[i + 2] - l) * s) * (1 - f) + FOSCHIA[2] * f;
+      }
+      x.putImageData(d, 0, 0);
+    } catch (e) {}                                   // (file:// o immagine non leggibile: resta com'è)
+  }
+  function cache(img, w, h, sfumato) {
     var cw = Math.max(1, Math.ceil(w * scala)), ch = Math.max(1, Math.ceil(h * scala));
     var c = img._cache || (img._cache = {}), k = cw + 'x' + ch;
     if (!c[k]) {
       var cv = document.createElement('canvas'); cv.width = cw; cv.height = ch;
       var x = cv.getContext('2d'); x.imageSmoothingQuality = 'high'; x.drawImage(img, 0, 0, cw, ch);
+      if (sfumato) lontano(x, cw, ch);
       c = img._cache = {}; c[k] = cv;               // tiene solo l'ultima misura
     }
     return c[k];
@@ -3319,19 +3354,22 @@
   // ripete una striscia: par = velocità rispetto alla strada
   function striscia(par, larg, disegna) {
     var L = scorrimento * par, i0 = Math.floor(L / larg);
-    for (var i = i0; i * larg - L < W; i++) disegna(i, Math.floor(i * larg - L));
+    for (var i = i0; i * larg - L < VIS_W; i++) disegna(i, Math.floor(i * larg - L));
   }
-  function sfondo() {
-    // 1. cielo
+  // il cielo è lontanissimo: non si zooma, copre sempre lo schermo
+  function cielo() {
     if (pronta(SF.cielo)) {
       var cw = Math.ceil(SF.cielo.naturalWidth * SF_S);
       var cc = cache(SF.cielo, cw + 1, H);
-      striscia(0.03, cw, function (i, x) { ctx.drawImage(cc, x, 0, cw + 1, H); });
+      var L = scorrimento * 0.03, i0 = Math.floor(L / cw);
+      for (var i = i0; i * cw - L < W; i++) ctx.drawImage(cc, Math.floor(i * cw - L), 0, cw + 1, H);
     } else {
-      var cielo = ctx.createLinearGradient(0, 0, 0, STRADA_Y);
-      cielo.addColorStop(0, '#4a86d8'); cielo.addColorStop(1, '#f3dfb4');
-      ctx.fillStyle = cielo; ctx.fillRect(0, 0, W, H);
+      var gr = ctx.createLinearGradient(0, 0, 0, STRADA_Y);
+      gr.addColorStop(0, '#4a86d8'); gr.addColorStop(1, '#f3dfb4');
+      ctx.fillStyle = gr; ctx.fillRect(0, 0, W, H);
     }
+  }
+  function sfondo() {
     // 2. palazzi o colline: N ripetizioni per tratto, la parallasse è scelta perché un tratto duri QUARTIERE_M metri
     if (pronta(SF.palazzi) && pronta(SF.colline)) {
       var qw = Math.round(SF.palazzi.naturalWidth * SF_S);
@@ -3340,24 +3378,24 @@
       var L = scorrimento * par - GIUNTURA_X;           // in coordinate dello strato, la giuntura k è a x = k·N·qw
       var fondo = STRADA_Y + 4, T = N * qw;
       // ogni tratto ripete la sua striscia (larghe diverse) ed è tagliato alla giuntura, dove sta un monumento
-      for (var q = Math.floor(L / T); q * T - L < W; q++) {
+      for (var q = Math.floor(L / T); q * T - L < VIS_W; q++) {
         var img = SF[QUARTIERI[((q % QUARTIERI.length) + QUARTIERI.length) % QUARTIERI.length]];
         if (!pronta(img)) img = SF.palazzi;
         var x0 = q * T - L, x1 = x0 + T, iw = Math.round(img.naturalWidth * SF_S), h = img.naturalHeight * SF_S;
-        var cv = cache(img, iw + 1, h), taglia = x0 > 0 || x1 < W;
-        if (taglia) { ctx.save(); ctx.beginPath(); ctx.rect(Math.max(0, x0), 0, Math.min(W, x1) - Math.max(0, x0), H); ctx.clip(); }
-        for (var xi = x0 + Math.max(0, Math.floor(-x0 / iw)) * iw; xi < Math.min(x1, W); xi += iw)
+        var cv = cache(img, iw + 1, h, true), taglia = x0 > 0 || x1 < VIS_W;
+        if (taglia) { ctx.save(); ctx.beginPath(); ctx.rect(Math.max(0, x0), H - VIS_H, Math.min(VIS_W, x1) - Math.max(0, x0), VIS_H); ctx.clip(); }
+        for (var xi = x0 + Math.max(0, Math.floor(-x0 / iw)) * iw; xi < Math.min(x1, VIS_W); xi += iw)
           ctx.drawImage(cv, Math.floor(xi), fondo - h, iw + 1, h);
         if (taglia) ctx.restore();
       }
       // un monumento su ogni giuntura (km 1, 2, 3…), secondo i quartieri che unisce
-      for (var k = Math.max(1, Math.floor((L - 400) / (N * qw))); k * N * qw - L < W + 400; k++) {
+      for (var k = Math.max(1, Math.floor((L - 400) / (N * qw))); k * N * qw - L < VIS_W + 400; k++) {
         var mo = GIUNTURE[(k - 1) % GIUNTURE.length], mi = SF[mo.img];
         if (!pronta(mi)) continue;
         var mh = mo.alto, mw = mi.naturalWidth * mh / mi.naturalHeight;
         var mx = k * N * qw - L - mw / 2 + (mo.sposta || 0) * mw;   // sposta: decentrato a destra
-        if (mx + mw < 0 || mx > W) continue;
-        ctx.drawImage(cache(mi, mw, mh), Math.floor(mx), fondo + (mo.giu || 28) - mh, mw, mh);
+        if (mx + mw < 0 || mx > VIS_W) continue;
+        ctx.drawImage(cache(mi, mw, mh, true), Math.floor(mx), fondo + (mo.giu || 28) - mh, mw, mh);
       }
     }
     // 3. strada
@@ -3366,7 +3404,7 @@
       var cs = cache(SF.strada, sw + 1, sh);
       striscia(1, sw, function (i, x) { ctx.drawImage(cs, x, STRADA_Y, sw + 1, sh); });
     } else {
-      ctx.fillStyle = '#4a4550'; ctx.fillRect(0, STRADA_Y, W, H - STRADA_Y);
+      ctx.fillStyle = '#4a4550'; ctx.fillRect(0, STRADA_Y, VIS_W, H - STRADA_Y);
     }
   }
 
@@ -3549,7 +3587,7 @@
     var m = g.marf, c = g.carrello, giu = m.giu ? 34 : 0;
     var sobbalza = m.aTerra ? Math.sin(c.giro * 0.09) * 1.2 : 0, inclina = m.aTerra ? 0 : -0.06;
     disegnaCarrello(MARF_X, m.y + sobbalza, inclina, c.giro, false, 'dietro');
-    ctx.save(); ctx.beginPath(); ctx.rect(0, 0, W, m.y - 36); ctx.clip();          // le gambe restano nel cestello
+    ctx.save(); ctx.beginPath(); ctx.rect(-50, -1000, VIS_W + 100, m.y - 36 + 1000); ctx.clip();          // le gambe restano nel cestello
     ctx.translate(4, -46 + giu);
     marf();
     ctx.restore();
