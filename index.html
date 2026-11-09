@@ -186,6 +186,7 @@
       opacity: 0; transform: scale(.8); transition: opacity .2s, transform .2s;
     }
     a.card:hover .play { opacity: 1; transform: none; }
+    a.album-card:hover .album-info .play { background: var(--gold-2); }
 
     /* in evidenza: 3 colonne */
     .highlights { display: grid; grid-template-columns: 1.4fr 1fr 1fr; gap: 1rem; }
@@ -248,24 +249,22 @@
     .playlist-card h3 { font-size: 1.4rem; }
     .playlist-card p { font-size: .82rem; color: var(--muted); }
     .playlists { isolation: isolate; }
-    /* copertine degli album: quadrate, con un disco che spunta al passaggio */
-    .album-card { position: relative; }
-    .album-card .card-media { aspect-ratio: 1; background: #111; }
-    .album-card .card-media .gg-cover { transition: transform .4s; }
-    a.album-card:hover .card-media .gg-cover { transform: scale(1.04); }
-    /* album con retro: on hover la copertina si gira */
-    .album-card.si-gira .card-media { perspective: 1200px; }
-    .album-card .flip { position: absolute; inset: 0; transform-style: preserve-3d; transition: transform .7s cubic-bezier(.3,.7,.3,1); }
-    .album-card .faccia { position: absolute; inset: 0; backface-visibility: hidden; -webkit-backface-visibility: hidden; }
-    .album-card .faccia > * { width: 100%; height: 100%; }
+    /* album: copertina quadrata (niente card) che gira in 3D on hover + box info separato sotto */
+    .album-card { display: flex; flex-direction: column; gap: .9rem; text-decoration: none; color: inherit; }
+    .album-card .album-cover { position: relative; aspect-ratio: 1; perspective: 1100px; }
+    .album-card .flip { position: absolute; inset: 0; transform-style: preserve-3d; transition: transform .8s cubic-bezier(.3,.7,.3,1); }
+    .album-card .faccia { position: absolute; inset: 0; backface-visibility: hidden; -webkit-backface-visibility: hidden; box-shadow: 0 14px 30px rgba(0,0,0,.55); background: #111; }
+    .album-card .faccia > * { width: 100%; height: 100%; border-radius: 0; }
     .album-card .faccia.retro { transform: rotateY(180deg); }
     .album-card .faccia.retro img { object-fit: cover; display: block; }
-    a.album-card.si-gira:hover .card-media .gg-cover, a.album-card.si-gira:hover .card-media img { transform: none; }
-    a.album-card.si-gira:hover .flip, .album-card.girata .flip { transform: rotateY(180deg) scale(1.04); }
+    a.album-card:hover .flip { transform: rotateY(-16deg) rotateX(4deg) scale(1.03); }
+    a.album-card.si-gira:hover .flip, .album-card.girata .flip { transform: rotateY(180deg) scale(1.03); }
     @media (prefers-reduced-motion: reduce) { .album-card .flip { transition: none; } }
-    .album-card h3 { font-size: 1.4rem; }
-    .album-card p { font-size: .8rem; color: var(--cream); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
-    .album-durata { font-family: var(--mono); font-size: .7rem; color: var(--muted); margin-top: auto; }
+    .album-info { position: relative; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: .9rem 3.6rem .95rem 1.1rem; display: flex; flex-direction: column; gap: .3rem; transition: border-color .2s, background .2s; }
+    a.album-card:hover .album-info { border-color: var(--gold); background: var(--raised); }
+    .album-info h3 { font-family: var(--display); font-weight: 600; font-size: 1.35rem; line-height: 1.15; }
+    .album-meta { font-family: var(--mono); font-size: .7rem; letter-spacing: .12em; text-transform: uppercase; color: var(--gold); }
+    .album-info .play { top: 50%; right: 1rem; margin-top: -1.2rem; opacity: 1; transform: none; }
     .rail .card h3 { font-size: 1.05rem; }
     .rail .card-body { padding: .85rem 1rem 1rem; }
 
@@ -550,9 +549,9 @@
   nomiAlbum.forEach(function (nome) {
     const lista = brani.filter(b => (b.album || 'Brani') === nome);
     const tot = lista.reduce((t, b) => t + secondi(b.durata), 0);
-    const box = el('a', 'card album-card');
+    const box = el('a', 'album-card');
     box.href = 'musica/#' + lista[0].file.replace(/\.[^.]+$/, '');
-    const m = el('div', 'card-media');
+    const m = el('div', 'album-cover');
     const info = (CONTENUTI.musica || []).find(a => a.album === nome) || {};
     const fronte = window.GoGoCopertina ? GoGoCopertina({ album: nome, copertina: info.copertina || lista[0].copertina }, '') : null;
     if (info.retro && fronte) {
@@ -567,14 +566,15 @@
         document.querySelectorAll('.album-card.girata').forEach(c => c.classList.remove('girata'));
         box.classList.add('girata');
       });
-    } else if (fronte) m.append(fronte);
-    box.append(m, el('span', 'play', '▶'));
-    const body = el('div', 'card-body');
-    body.append(el('span', 'card-kicker', lista.length === 1 ? '1 brano' : lista.length + ' brani'));
+    } else if (fronte) {
+      const flip = el('div', 'flip'), f1 = el('div', 'faccia fronte');
+      f1.append(fronte); flip.append(f1); m.append(flip);
+    }
+    const body = el('div', 'album-info');
     body.append(el('h3', null, nome));
-    body.append(el('p', null, lista.map(b => b.titolo.replace(/\s*\(re-edit 2026\)/i, '')).join(' · ')));
-    if (tot) body.append(el('span', 'album-durata', Math.floor(tot / 60) + ' min'));
-    box.append(body);
+    body.append(el('span', 'album-meta', (lista.length === 1 ? '1 brano' : lista.length + ' brani') + (tot ? ' · ' + Math.floor(tot / 60) + ' min' : '')));
+    body.append(el('span', 'play', '▶'));
+    box.append(m, body);
     gm.append(box);
   });
 
