@@ -126,12 +126,17 @@
     @keyframes eq { 0%,100% { height: 25%; } 50% { height: 100%; } }
 
     /* retro del vinile come scaletta: si clicca sui titoli stampati */
-    .retro-vinile { position: relative; width: min(100%, 640px); margin: 0 auto; border-radius: 14px; overflow: hidden; border: 1px solid var(--line); box-shadow: 0 20px 50px rgba(0,0,0,.55); }
+    .retro-scena { width: min(100%, 640px); margin: 0 auto; perspective: 1100px; }
+    .retro-vinile { position: relative; transform-style: preserve-3d; transition: transform .25s ease-out; box-shadow: 0 20px 50px rgba(0,0,0,.55); }
+    .retro-vinile::after { content: ''; position: absolute; inset: 0; pointer-events: none; opacity: 0; transition: opacity .3s;
+      background: radial-gradient(circle at var(--lx, 50%) var(--ly, 50%), rgba(255,255,255,.16), transparent 55%); }
+    .retro-scena:hover .retro-vinile::after { opacity: 1; }
+    .gruppo[hidden] { display: none; }
     .retro-vinile img { display: block; width: 100%; height: auto; }
     .retro-vinile .hot { position: absolute; border-radius: 8px; transition: background .2s, box-shadow .2s; }
     .retro-vinile .hot:hover, .retro-vinile .hot:focus-visible { background: rgba(255, 236, 170, .22); box-shadow: 0 0 0 2px rgba(246, 215, 122, .8); outline: none; }
     .retro-vinile .hot.attivo { background: rgba(228, 179, 60, .3); box-shadow: 0 0 0 2px var(--gold), 0 0 22px rgba(228, 179, 60, .55); }
-    .retro-vinile .hot .eq { position: absolute; right: 6%; top: 50%; transform: translateY(-50%); display: none; height: 14px; align-items: flex-end; gap: 2px; }
+    .retro-vinile .hot .eq { position: absolute; right: 2px; top: 50%; transform: translateY(-50%); display: none; height: 14px; align-items: flex-end; gap: 2px; }
     .retro-vinile .hot.attivo .eq { display: flex; }
     .retro-vinile .hot .eq i { background: #1a1408; }
     .retro-nota { text-align: center; margin: .9rem 0 0; font-family: var(--mono); font-size: .72rem; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }
@@ -192,7 +197,7 @@
 
 <audio id="audio" preload="metadata"></audio>
 
-<script src="../contenuti.js?v=14"></script>
+<script src="../contenuti.js?v=15"></script>
 <script src="../js/copertina.js?v=1"></script>
 <script>
 /*
@@ -245,8 +250,9 @@
     if (window.GoGoCopertina) btn.append(GoGoCopertina({ album: nome || 'Brani', copertina: lista[0].copertina }, '../'));
     btn.append(t, q);
     btn.onclick = function () {
-      carica(brani.indexOf(lista[0]), true);
-      $('player').scrollIntoView({ behavior: 'smooth', block: 'start' });
+      // seleziona il disco: sotto compare il suo retro con la tracklist
+      mostraAlbum(nome);
+      $('scaletta').scrollIntoView({ behavior: 'smooth', block: 'start' });
     };
     $('scaffale').append(btn);
   });
@@ -266,7 +272,10 @@
       if (window.GoGoCopertina) testa.append(GoGoCopertina({ album: b.album || 'Brani', copertina: b.copertina }, '../'));
       testa.append(h);
       ol = document.createElement('ol');
-      $('scaletta').append(testa, ol);
+      const gruppo = document.createElement('div');
+      gruppo.className = 'gruppo'; gruppo.dataset.album = b.album || '';
+      gruppo.append(testa, ol);
+      $('scaletta').append(gruppo);
       // se l'album ha il retro con la mappa dei titoli, la scaletta è il retro stesso
       const info = INFO_ALBUM.get(b.album) || {};
       const quanti = brani.filter(x => x.album === b.album).length;
@@ -276,10 +285,14 @@
         const img = document.createElement('img');
         img.src = percorso(info.retro); img.alt = 'Retro di ' + b.album + ' con la tracklist';
         retro.append(img);
+        const scena = document.createElement('div');
+        scena.className = 'retro-scena';
+        scena.append(retro);
+        inclina(scena, retro);
         const nota = document.createElement('p');
         nota.className = 'retro-nota'; nota.textContent = 'Tocca un titolo sul retro del vinile per ascoltarlo';
-        ol.replaceWith(retro);
-        retro.after(nota);
+        ol.replaceWith(scena);
+        scena.after(nota);
         ol = null; ultimo = b.album;
         ol = { retro: retro, mappa: info.mappa, k: 0 };
       }
@@ -313,6 +326,29 @@
     ol.append(li);
   });
 
+  // un disco alla volta: si vede solo la scaletta dell'album selezionato
+  function mostraAlbum(nome) {
+    nome = nome || '';
+    document.querySelectorAll('#scaletta .gruppo').forEach(g => { g.hidden = g.dataset.album !== nome; });
+    document.querySelectorAll('.album').forEach(el => el.classList.toggle('attivo', el.dataset.album === nome));
+  }
+
+  // leggero tilt 3D del retro col mouse: l'angolo si calcola sulla "scena" (che non si muove),
+  // così i titoli cliccabili seguono la copertina senza tremolii
+  function inclina(scena, retro) {
+    if (matchMedia('(hover: none), (prefers-reduced-motion: reduce)').matches) return;
+    const MAX = 7;
+    scena.addEventListener('pointermove', function (e) {
+      if (e.pointerType !== 'mouse') return;
+      const r = scena.getBoundingClientRect();
+      const x = (e.clientX - r.left) / r.width - .5, y = (e.clientY - r.top) / r.height - .5;
+      retro.style.transform = `rotateY(${(x * 2 * MAX).toFixed(2)}deg) rotateX(${(-y * 2 * MAX).toFixed(2)}deg)`;
+      retro.style.setProperty('--lx', (x + .5) * 100 + '%');
+      retro.style.setProperty('--ly', (y + .5) * 100 + '%');
+    });
+    scena.addEventListener('pointerleave', function () { retro.style.transform = ''; });
+  }
+
   // ── stato ──
   let corrente = -1;
   let casuale = false;
@@ -333,7 +369,7 @@
       aggiornaBarra(0);
       document.title = b.titolo + ' · GoGoBar';
       document.querySelectorAll('.track, .hot').forEach(el => el.classList.toggle('attivo', +el.dataset.i === i));
-      document.querySelectorAll('.album').forEach(el => el.classList.toggle('attivo', el.dataset.album === (b.album || '')));
+      mostraAlbum(b.album);
       // al centro del vinile: la copertina dell'album, se c'è, altrimenti il gatto
       $('etichetta').classList.toggle('foto', !!b.copertina);
       $('etichetta-img').src = b.copertina ? (/^(https?:)?\/\//.test(b.copertina) ? b.copertina : '../' + b.copertina) : '../img/maneki-neko.webp';
