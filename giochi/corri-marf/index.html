@@ -2078,7 +2078,7 @@
         g.birreA.splice(j, 1);
         if (b.carrello) { saliCarrello(); continue; }
         if (b.pringles) {
-          g.scudo = valore('scudo');                         // Cuffie insonorizzate: lo scudo dura di più
+          g.scudo = g.scudoMax = valore('scudo');                         // Cuffie insonorizzate: lo scudo dura di più
           evento('pringles', 1);
           fx('morso', 0.7); setTimeout(function () { fx('spada-accesa', 0.5); }, 170);   // morso, poi lo scudo si accende
         } else {
@@ -2125,7 +2125,15 @@
     // traiettoria sullo schermo (non segue la strada): su e avanti, sempre più piccolo, girando
     var u = Math.min(t / VOLO_T, 1), e = 1 - Math.pow(1 - u, 2.2);
     var x = o.vx0 + e * 420, y = TERRA - 50 - e * 300 - Math.sin(u * Math.PI) * 40, sc = 1 - e * 0.94;
-    if (u < 1 && pronta(img)) {
+    if (o.tipo === 'durex' && u < 1 && pronta(img)) {      // scatole di Durex: ognuna vola per conto suo
+      var dhd = o.t.dh, dwd = dhd * img.naturalWidth / img.naturalHeight;
+      for (var q = 0; q < (o.quante || 1); q++) {
+        var a = (q - (o.quante - 1) / 2) * 0.35, xq = x + Math.sin(a) * e * 160, yq = y + q * 22 * (1 - e) - Math.cos(a) * e * 40 + 40 * e;
+        ctx.save(); ctx.translate(xq, yq); ctx.rotate(t * (11 + q * 4) * (q % 2 ? -1 : 1)); ctx.scale(sc, sc);
+        conContorno(img, -dwd / 2, -dhd / 2, dwd, dhd);
+        ctx.restore();
+      }
+    } else if (u < 1 && pronta(img)) {
       ctx.save(); ctx.translate(x, y); ctx.rotate(t * 13); ctx.scale(sc, sc);
       var dh = o.t.dh, dw = dh * img.naturalWidth / img.naturalHeight;
       conContorno(img, -dw / 2, -dh / 2, dw, dh);
@@ -3184,7 +3192,10 @@
   });
   var PAL_S = 0.5, PIANI = { alto: 162, mezzo: 324, basso: 649 }, FACC_H = 649, CORR_H = 206, BORDO_W = 96, CORR_W = 1460;
   var PAV = 0.95, SOFF = 0.05;
-  var ENTRATA_MIN = 22, ENTRATA_SOTTO = 46;   // per entrare: almeno 22 px di Marf nell'apertura, piedi al massimo 46 px sotto il pavimento            // pavimento e soffitto del corridoio, in frazione della sua altezza
+  var ENTRATA_MIN = 22, ENTRATA_SOTTO = 46;
+  // piano alto: tarato sull'apice del doppio salto, con margini generosi (piedi fino a 100 px sotto il pavimento
+  // se hai già fatto il doppio salto) e un po' di tolleranza sul bordo della facciata finché stai ancora salendo
+  var ENTRATA_SOTTO_ALTO = 100, ENTRATA_TOLLERANZA = 50;   // per entrare: almeno 22 px di Marf nell'apertura, piedi al massimo 46 px sotto il pavimento            // pavimento e soffitto del corridoio, in frazione della sua altezza
   /* il palazzo è più alto dell'immagine: sotto il tetto si ripetono altri piani (la fascia RIPETI_DA..+RIPETI_H
      dell'immagine, due piani), finché la cima esce dallo schermo anche con lo zoom out. Le righe "virtuali" vanno
      da 0 alla cima a FACC_H + piani extra: segmenti() le traduce nelle righe vere dell'immagine */
@@ -3246,7 +3257,11 @@
       // arrivato alla facciata: se un pezzo di Marf (almeno le gambe) sta nell'apertura del corridoio è dentro,
       // anche se con la testa tocca il soffitto o con i piedi sta sotto il pavimento: lo si sistema e niente danno
       var mh = hitboxMarf().h, dentro = Math.min(m.y, p.pav) - Math.max(m.y - mh, p.soff);
-      if (dentro >= ENTRATA_MIN && m.y <= p.pav + ENTRATA_SOTTO) {
+      var sotto = p.v === 'alto' && m.salti >= 2 ? ENTRATA_SOTTO_ALTO : ENTRATA_SOTTO;
+      var buono = dentro >= ENTRATA_MIN && m.y <= p.pav + sotto;
+      var aspetta = !buono && p.v === 'alto' && p.x > muro - ENTRATA_TOLLERANZA && (m.vy < 0 || m.y <= p.pav + sotto + 40);
+      if (aspetta) { /* ancora qualche pixel: magari arriva all'apice */ }
+      else if (buono) {
         p.dentro = true;
         if (m.y > p.pav) m.vy = -Math.sqrt(2 * 2100 * (m.y - p.pav + 4));   // piedi sotto il pavimento: un saltello e ci sale sopra
         else if (m.vy < 0) m.vy = 0;
@@ -3575,6 +3590,7 @@
 
   function ostacolo(o) {
     var t = o.t, cx = o.x + o.w / 2, ok;
+    if (o.volo !== undefined && !t.aria && o.tipo !== 'castello') { disegnaVolo(o); return; }   // sbalzato (carrello, sgambetto, canna)
     if (o.tipo === 'durex') {
       ok = true;
       for (var i = 0; i < o.quante; i++) ok = disegnaOgg('durex', cx + (i % 2 ? 3 : -2), TERRA + 1 - i * t.h, t.dh, true) && ok;
@@ -4281,9 +4297,13 @@
       ctx.fillStyle = v < vite ? (v >= 3 ? '#e4b33c' : '#ff5c8a') : 'rgba(255,255,255,.14)';
       obliquo(px + 66 + v * 24, 63, 16, 16, 5); ctx.fill();
     }
-    if (g.scudo > 0) {
-      ctx.textAlign = 'right'; ctx.fillStyle = '#7fe3ff'; ctx.font = 'italic 700 20px "Chakra Petch", sans-serif';
-      ctx.fillText('SCUDO ' + Math.ceil(g.scudo) + 's', W - 26, 79);
+    if (g.scudo > 0) {                                 // scudo: barra azzurra sotto le vite che si svuota
+      var su = Math.min(1, g.scudo / (g.scudoMax || g.scudo)), sx0 = px + 66, sbw = 196;
+      ctx.fillStyle = 'rgba(127,227,255,.16)'; obliquo(sx0, 84, sbw, 5, 3); ctx.fill();
+      if (!(g.scudo < 1.5 && Math.floor(g.scudo * 8) % 2)) {
+        ctx.fillStyle = '#7fe3ff'; ctx.shadowColor = 'rgba(127,227,255,.8)'; ctx.shadowBlur = 8;
+        obliquo(sx0, 84, Math.max(0, sbw * su), 5, 3); ctx.fill(); ctx.shadowBlur = 0;
+      }
     }
     ctx.restore();
     hudBoss();
