@@ -111,11 +111,11 @@ const CONTENUTI = {
       // copertina e retro del vinile (facoltativi). "mappa" dice dove sta ogni brano
       // sul retro, in percentuale: [sinistra, alto, larghezza, altezza], nell'ordine dei brani.
       copertina: 'musica/copertine/og-tracks-fronte.jpg',
-      retro: 'musica/copertine/og-tracks-retro.jpg',
+      retro: 'musica/copertine/og-tracks-retro.jpg?v=2',
       mappa: [
-        [42.78, 32.41, 29.26, 5.65], [42.78, 38.06, 29.26, 5.28], [42.78, 43.33, 29.26, 9.35],
-        [42.78, 52.69, 29.26, 5.19], [42.78, 57.87, 29.26, 5.28], [42.78, 63.15, 29.26, 9.35],
-        [42.78, 72.5, 29.26, 13.43], [42.78, 85.93, 29.26, 5.74],
+        [42.78, 33.06, 27.96, 5.05], [42.78, 38.1, 27.96, 5.28], [42.78, 43.38, 27.96, 9.35],
+        [42.78, 52.73, 27.96, 5.23], [42.78, 57.96, 27.96, 5.23], [42.78, 63.19, 27.96, 9.35],
+        [42.78, 72.55, 27.96, 13.43], [42.78, 85.97, 27.96, 5.14],
       ],
       brani: [
         { titolo: 'SQUALO',            artisti: 'C-Rischio feat. Cele-Kun',                         prod: 'StepLeo', file: 'squalo.mp3',            durata: '2:14' },
