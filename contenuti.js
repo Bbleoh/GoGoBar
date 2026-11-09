@@ -140,7 +140,7 @@ const CONTENUTI = {
     },
     {
       album: 'Collab',
-      copertina: '',
+      copertina: '', // copertina vera in arrivo: per ora quella provvisoria
       brani: [
         { titolo: 'GARDALAND', artisti: 'Skedaz & P-Boy',                                              file: 'gardaland.mp3', durata: '2:11' },
         { titolo: 'PEDOPORNO', artisti: 'CiciLeo feat. MalevolentKing Lo Slev', prod: 'Ignazio Laroossa', file: 'pedoporno.mp3', durata: '3:37' },
