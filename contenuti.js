@@ -108,15 +108,23 @@ const CONTENUTI = {
   musica: [
     {
       album: 'OG Tracks',
-      copertina: '',
+      // copertina e retro del vinile (facoltativi). "mappa" dice dove sta ogni brano
+      // sul retro, in percentuale: [sinistra, alto, larghezza, altezza], nell'ordine dei brani.
+      copertina: 'musica/copertine/og-tracks-fronte.jpg',
+      retro: 'musica/copertine/og-tracks-retro.jpg',
+      mappa: [
+        [42.78, 32.41, 29.26, 5.65], [42.78, 38.06, 29.26, 5.28], [42.78, 43.33, 29.26, 9.35],
+        [42.78, 52.69, 29.26, 5.19], [42.78, 57.87, 29.26, 5.28], [42.78, 63.15, 29.26, 9.35],
+        [42.78, 72.5, 29.26, 13.43], [42.78, 85.93, 29.26, 5.74],
+      ],
       brani: [
-        { titolo: 'FIORE',             artisti: 'CiciLeo feat. C-Rischio (LilCriver & Fiskiabad)',  file: 'fiore.mp3',             durata: '3:17' },
-        { titolo: 'FUOCO E FARFALLE',  artisti: 'feat. C-Rischio, Celeperù, MarkyMarko, CiciLeo',   prod: 'StepLeo', file: 'fuoco-e-farfalle.mp3',  durata: '2:42' },
-        { titolo: 'PAURA DELLE TETTE', artisti: 'Fiskiabad, LilCriver feat. CiciLeo, MarkyMarko',   prod: 'StepLeo', file: 'paura-delle-tette.mp3', durata: '6:03' },
-        { titolo: 'REGINA CRIVI',      artisti: 'feat. C-Rischio, Malevolent Marf, VickyDicky',     prod: 'StepLeo', file: 'regina-crivi.mp3',      durata: '2:33' },
-        { titolo: 'SECCO SLE',         artisti: 'feat. Lil Criver, Fiskiabad, CiciLeo',             prod: 'StepLeo', file: 'secco-sle.mp3',         durata: '2:40' },
         { titolo: 'SQUALO',            artisti: 'C-Rischio feat. Cele-Kun',                         prod: 'StepLeo', file: 'squalo.mp3',            durata: '2:14' },
+        { titolo: 'REGINA CRIVI',      artisti: 'feat. C-Rischio, Malevolent Marf, VickyDicky',     prod: 'StepLeo', file: 'regina-crivi.mp3',      durata: '2:33' },
+        { titolo: 'FUOCO E FARFALLE',  artisti: 'feat. C-Rischio, Celeperù, MarkyMarko, CiciLeo',   prod: 'StepLeo', file: 'fuoco-e-farfalle.mp3',  durata: '2:42' },
+        { titolo: 'SECCO SLE',         artisti: 'feat. Lil Criver, Fiskiabad, CiciLeo',             prod: 'StepLeo', file: 'secco-sle.mp3',         durata: '2:40' },
+        { titolo: 'FIORE',             artisti: 'CiciLeo feat. C-Rischio (LilCriver & Fiskiabad)',  file: 'fiore.mp3',             durata: '3:17' },
         { titolo: 'BENTORNATO MARCO',  artisti: 'Collettivo M.I.A.O.',                              file: 'bentornato-marco.mp3',  durata: '5:45' },
+        { titolo: 'PAURA DELLE TETTE', artisti: 'Fiskiabad, LilCriver feat. CiciLeo, MarkyMarko',   prod: 'StepLeo', file: 'paura-delle-tette.mp3', durata: '6:03' },
         { titolo: 'CIAO PALLE',        artisti: 'MarkyMarco feat. C-Rischio, Chil(l)yCele, CiciLeo', file: 'ciao-palle.mp3',        durata: '4:45' },
       ],
     },

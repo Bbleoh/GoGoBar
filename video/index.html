@@ -27,6 +27,8 @@
     .top a { color: var(--cream); text-decoration: none; font-family: var(--mono); font-size: .72rem; letter-spacing: .14em; text-transform: uppercase; }
     .top a:hover { color: var(--accent1); }
     .top a.logo { font-family: var(--serif); font-size: 1.4rem; letter-spacing: 0; text-transform: none; color: var(--ivory); font-weight: 700; }
+    .top a.logo { display: inline-flex; align-items: center; gap: .4rem; }
+    .top a.logo img { width: 1.15em; height: 1.15em; display: block; }
     .logo em { color: var(--accent1); font-style: normal; }
 
     /* player */
@@ -53,12 +55,11 @@
 
     /* elenco */
     .list { padding: 3rem 4rem 4rem; }
+    .serie + .serie { margin-top: 2.5rem; }
     .section-label {
-      margin-top: 2.5rem;
       font-family: var(--serif); font-weight: 600; font-size: 1.35rem; color: #f6d77a;
       margin-bottom: 1rem; display: flex; align-items: center; gap: 1rem;
     }
-    .section-label:first-child { margin-top: 0; }
     .section-label::after { content: ''; flex: 1; height: 1px; background: var(--line); }
     .grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; }
     .item {
@@ -96,8 +97,8 @@
 <body>
 
 <div class="top">
-  <a href="../" class="logo">Go<em>Go</em>Bar</a>
-  <a href="../#video">← Torna al bar</a>
+  <a href="../" class="logo"><img src="../img/icone/icona-96.png" alt="" width="40" height="40">Go<em>Go</em>Bar</a>
+  <a href="../">← Home</a>
 </div>
 
 <section class="stage" id="stage">
@@ -118,7 +119,7 @@
   <div id="grid"></div>
 </section>
 
-<script src="../contenuti.js?v=13"></script>
+<script src="../contenuti.js?v=14"></script>
 <script>
 /*
  * Pagina Video: legge i video da contenuti.js.
@@ -156,7 +157,11 @@
       label.textContent = v.playlist || 'Video';
       griglia = document.createElement('div');
       griglia.className = 'grid';
-      grid.append(label, griglia);
+      const serie = document.createElement('div');
+      serie.className = 'serie';
+      serie.dataset.playlist = v.playlist || '';
+      serie.append(label, griglia);
+      grid.append(serie);
     }
     const a = document.createElement('a');
     a.className = 'item';
@@ -173,6 +178,7 @@
     griglia.append(a);
   });
 
+  const ordine = new Map([...grid.querySelectorAll('.serie')].map((el, i) => [el, i]));
   let corrente = -1;
 
   function mostra(i, autoplay) {
@@ -191,6 +197,10 @@
     document.getElementById('now-label').textContent = (v.playlist ? v.playlist + ' · ' : '') + pos[i].n + ' di ' + pos[i].tot;
     document.title = v.titolo + ' · GoGoBar';
     grid.querySelectorAll('.item').forEach(el => el.classList.toggle('attivo', el.dataset.id === v.youtube));
+    // sotto al player, prima la serie del video che stai guardando, poi le altre nell'ordine solito
+    const serie = [...grid.querySelectorAll('.serie')];
+    serie.sort((a, b) => (b.dataset.playlist === (v.playlist || '')) - (a.dataset.playlist === (v.playlist || '')) || ordine.get(a) - ordine.get(b));
+    serie.forEach(el => grid.append(el));
   }
 
   function vai(i) {
