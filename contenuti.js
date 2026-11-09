@@ -138,6 +138,15 @@ const CONTENUTI = {
         { titolo: 'SECCO SLE (re-edit 2026)',        artisti: 'feat. Lil Criver, Fiskiabad, CiciLeo',           prod: 'StepLeo', file: 'secco-sle-re-edit-2026.mp3',        durata: '2:53' },
       ],
     },
+    {
+      album: 'Collab',
+      copertina: '',
+      brani: [
+        { titolo: 'GARDALAND', artisti: 'Skedaz & P-Boy',                                              file: 'gardaland.mp3', durata: '2:11' },
+        { titolo: 'PEDOPORNO', artisti: 'CiciLeo feat. MalevolentKing Lo Slev', prod: 'Ignazio Laroossa', file: 'pedoporno.mp3', durata: '3:37' },
+        { titolo: 'CANNONE',   artisti: 'The Marfalorian & Leo Gewurztraminer feat. Skedaz & P-Boy', prod: 'CiciLeo', file: 'cannone.mp3',   durata: '2:15' },
+      ],
+    },
   ],
 
 };
