@@ -63,6 +63,10 @@
     }
     .nav-links a:hover { background: var(--raised); color: var(--gold-2); }
     .nav-links { align-items: center; }
+    .nav-links a.nav-icona { display: grid; place-items: center; width: 2.6rem; height: 2.6rem; padding: 0; }
+    .nav-icona svg { width: 1.45rem; height: 1.45rem; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+    .brand { display: inline-flex; align-items: center; gap: .45rem; }
+    .brand img { width: 1.15em; height: 1.15em; display: block; }
     .nav-account {
       font-family: var(--mono); font-size: .72rem; letter-spacing: .06em;
       color: var(--gold-2); background: none; cursor: pointer;
@@ -165,7 +169,7 @@
       transition: transform .2s, border-color .2s, background .2s;
     }
     a.card:hover { transform: translateY(-4px); border-color: var(--gold); background: var(--raised); }
-    .card-media { aspect-ratio: 16 / 9; background: #000; overflow: hidden; }
+    .card-media { position: relative; aspect-ratio: 16 / 9; background: #000; overflow: hidden; }
     .card-media img { width: 100%; height: 100%; object-fit: cover; display: block; transition: transform .4s; }
     a.card:hover .card-media img { transform: scale(1.04); }
     .card-body { padding: 1.1rem 1.2rem 1.3rem; display: flex; flex-direction: column; gap: .45rem; flex: 1; }
@@ -249,6 +253,16 @@
     .album-card .card-media { aspect-ratio: 1; background: #111; }
     .album-card .card-media .gg-cover { transition: transform .4s; }
     a.album-card:hover .card-media .gg-cover { transform: scale(1.04); }
+    /* album con retro: on hover la copertina si gira */
+    .album-card.si-gira .card-media { perspective: 1200px; }
+    .album-card .flip { position: absolute; inset: 0; transform-style: preserve-3d; transition: transform .7s cubic-bezier(.3,.7,.3,1); }
+    .album-card .faccia { position: absolute; inset: 0; backface-visibility: hidden; -webkit-backface-visibility: hidden; }
+    .album-card .faccia > * { width: 100%; height: 100%; }
+    .album-card .faccia.retro { transform: rotateY(180deg); }
+    .album-card .faccia.retro img { object-fit: cover; display: block; }
+    a.album-card.si-gira:hover .card-media .gg-cover, a.album-card.si-gira:hover .card-media img { transform: none; }
+    a.album-card.si-gira:hover .flip, .album-card.girata .flip { transform: rotateY(180deg) scale(1.04); }
+    @media (prefers-reduced-motion: reduce) { .album-card .flip { transition: none; } }
     .album-card h3 { font-size: 1.4rem; }
     .album-card p { font-size: .8rem; color: var(--cream); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
     .album-durata { font-family: var(--mono); font-size: .7rem; color: var(--muted); margin-top: auto; }
@@ -326,11 +340,11 @@
 <body>
 
 <nav class="nav" aria-label="Sezioni">
-  <a href="#" class="brand">Go<span>Go</span>Bar</a>
+  <a href="#" class="brand"><img src="img/icone/icona-96.png" alt="" width="40" height="40">Go<span>Go</span>Bar</a>
   <div class="nav-links">
-    <a href="#video">Video</a>
-    <a href="#giochi">Giochi</a>
-    <a href="#musica">Musica</a>
+    <a href="#video" class="nav-icona" aria-label="Video" title="Video"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="2.5" y="7" width="13" height="10" rx="2"/><path d="M15.5 10.5l5-3v9l-5-3z"/></svg></a>
+    <a href="#giochi" class="nav-icona" aria-label="Giochi" title="Giochi"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 8h10a4.5 4.5 0 0 1 4.3 5.8l-1 3.3a2.3 2.3 0 0 1-3.9.9L14 15.5h-4L7.6 18a2.3 2.3 0 0 1-3.9-.9l-1-3.3A4.5 4.5 0 0 1 7 8z"/><path d="M7.5 10.5v3M6 12h3"/><circle cx="15.5" cy="11.3" r=".6" fill="currentColor" stroke="none"/><circle cx="17.3" cy="13" r=".6" fill="currentColor" stroke="none"/></svg></a>
+    <a href="#musica" class="nav-icona" aria-label="Musica" title="Musica"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 17V5l11-2v12"/><circle cx="6.5" cy="17" r="2.5" fill="currentColor"/><circle cx="17.5" cy="15" r="2.5" fill="currentColor"/></svg></a>
     <button type="button" class="nav-account" data-gogobar-account hidden>👤 Entra</button>
   </div>
 </nav>
@@ -341,7 +355,7 @@
     <p class="hero-text"><b>MI</b>nchia <b>A</b>nche <b>O</b>rg!</p>
     <div class="cta">
       <a class="btn btn-primary" href="video/">▶ Guarda i video</a>
-      <a class="btn btn-ghost" href="giochi/bisca-del-tromba/">Siediti alla bisca</a>
+      <a class="btn btn-ghost" href="#giochi">Gioca</a>
     </div>
   </div>
 
@@ -392,13 +406,13 @@
 </section>
 
 <footer>
-  <div><strong>GoGoBar</strong> · Collettivo M.I.A.O. · costruito con pazienza</div>
+  <div><strong>GoGoBar</strong> · Collettivo M.I.A.O.</div>
   <a href="https://github.com/Bbleoh/GoGoBar" target="_blank" rel="noopener">github.com/Bbleoh/GoGoBar</a>
 </footer>
 
 <noscript><p style="padding:2rem;font-family:monospace">Per vedere i contenuti serve JavaScript attivo.</p></noscript>
 
-<script src="contenuti.js?v=13"></script>
+<script src="contenuti.js?v=14"></script>
 <script src="js/copertina.js?v=1"></script>
 <!-- account GoGoBar senza password (👤 nel menu in alto) -->
 <script src="js/account.js?v=2"></script>
@@ -416,10 +430,24 @@
 
   // ── ticker ──
   const frasi = ['Fare casino', 'Schimicare', 'Bombolò', 'Disastri', 'Fuggi fuggi', 'Grida scimmiesche', 'Botte da orbi', 'Rumori forti'];
+  // La striscia scorre di metà della sua lunghezza e poi ricomincia: ogni metà
+  // deve essere più larga dello schermo, altrimenti per un attimo resta vuota.
   const ticker = document.getElementById('ticker');
-  for (let k = 0; k < 2; k++) frasi.forEach(f => {
-    ticker.append(el('span', null, f), el('span', 'dot', '✦'));
-  });
+  function riempiTicker() {
+    ticker.replaceChildren();
+    const meta = document.createDocumentFragment();
+    const giro = () => frasi.forEach(f => meta.append(el('span', null, f), el('span', 'dot', '✦')));
+    giro();
+    ticker.append(meta);
+    let volte = 0;
+    while (ticker.scrollWidth < innerWidth * 1.25 && volte++ < 20) { giro(); ticker.append(meta); }
+    [...ticker.children].forEach(n => ticker.append(n.cloneNode(true)));
+    ticker.style.animationDuration = Math.round(ticker.scrollWidth / 2 / 60) + 's'; // ~60 px al secondo
+  }
+  riempiTicker();
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(riempiTicker);
+  let tickerLarghezza = innerWidth;
+  addEventListener('resize', () => { if (innerWidth > tickerLarghezza) { tickerLarghezza = innerWidth; riempiTicker(); } });
 
   // ── utilità ──
   function el(tag, cls, text) {
@@ -525,7 +553,21 @@
     const box = el('a', 'card album-card');
     box.href = 'musica/#' + lista[0].file.replace(/\.[^.]+$/, '');
     const m = el('div', 'card-media');
-    if (window.GoGoCopertina) m.append(GoGoCopertina({ album: nome, copertina: lista[0].copertina }, ''));
+    const info = (CONTENUTI.musica || []).find(a => a.album === nome) || {};
+    const fronte = window.GoGoCopertina ? GoGoCopertina({ album: nome, copertina: info.copertina || lista[0].copertina }, '') : null;
+    if (info.retro && fronte) {
+      // fronte + retro: la card si gira on hover (su touch: primo tap gira, secondo apre)
+      box.classList.add('si-gira');
+      const flip = el('div', 'flip'), f1 = el('div', 'faccia fronte'), f2 = el('div', 'faccia retro');
+      const img = new Image(); img.src = info.retro; img.alt = 'Retro di ' + nome; img.loading = 'lazy';
+      f1.append(fronte); f2.append(img); flip.append(f1, f2); m.append(flip);
+      box.addEventListener('click', function (e) {
+        if (!matchMedia('(hover: none)').matches || box.classList.contains('girata')) return;
+        e.preventDefault();
+        document.querySelectorAll('.album-card.girata').forEach(c => c.classList.remove('girata'));
+        box.classList.add('girata');
+      });
+    } else if (fronte) m.append(fronte);
     box.append(m, el('span', 'play', '▶'));
     const body = el('div', 'card-body');
     body.append(el('span', 'card-kicker', lista.length === 1 ? '1 brano' : lista.length + ' brani'));
@@ -551,7 +593,7 @@
     const GIOCHI_CLASSIFICA = [
       { gioco: 'La Bisca der Tromba', titolo: '🏆 I più lerci di GoGoBar', api: 'BiscaClassifica',
         link: BISCA, cta: 'Siediti al tavolo', punti: n => '€' + n.toLocaleString('it-IT') },
-      { gioco: 'Corri Marf!', titolo: '🏃 I più veloci a scappare', api: 'CorriMarfClassifica',
+      { gioco: 'Corri Marf!', titolo: '💔 I peggio single', api: 'CorriMarfClassifica',
         link: 'giochi/corri-marf/', cta: 'Corri anche tu', punti: n => n.toLocaleString('it-IT') + ' m' },
     ];
     const box = el('div', 'card board');

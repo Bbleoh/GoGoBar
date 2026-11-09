@@ -24,6 +24,8 @@
     .top a { color: var(--cream); text-decoration: none; font-family: var(--mono); font-size: .72rem; letter-spacing: .14em; text-transform: uppercase; }
     .top a:hover { color: var(--gold); }
     .top a.logo { font-family: var(--display); font-size: 2rem; line-height: 1; letter-spacing: 0; text-transform: none; color: var(--ivory); font-weight: 700; }
+    .top a.logo { display: inline-flex; align-items: center; gap: .4rem; }
+    .top a.logo img { width: 1.15em; height: 1.15em; display: block; }
     .logo em { color: var(--gold); font-style: normal; }
 
     /* ── PLAYER ── */
@@ -123,6 +125,17 @@
     .playing .eq i { animation-play-state: running; }
     @keyframes eq { 0%,100% { height: 25%; } 50% { height: 100%; } }
 
+    /* retro del vinile come scaletta: si clicca sui titoli stampati */
+    .retro-vinile { position: relative; width: min(100%, 640px); margin: 0 auto; border-radius: 14px; overflow: hidden; border: 1px solid var(--line); box-shadow: 0 20px 50px rgba(0,0,0,.55); }
+    .retro-vinile img { display: block; width: 100%; height: auto; }
+    .retro-vinile .hot { position: absolute; border-radius: 8px; transition: background .2s, box-shadow .2s; }
+    .retro-vinile .hot:hover, .retro-vinile .hot:focus-visible { background: rgba(255, 236, 170, .22); box-shadow: 0 0 0 2px rgba(246, 215, 122, .8); outline: none; }
+    .retro-vinile .hot.attivo { background: rgba(228, 179, 60, .3); box-shadow: 0 0 0 2px var(--gold), 0 0 22px rgba(228, 179, 60, .55); }
+    .retro-vinile .hot .eq { position: absolute; right: 6%; top: 50%; transform: translateY(-50%); display: none; height: 14px; align-items: flex-end; gap: 2px; }
+    .retro-vinile .hot.attivo .eq { display: flex; }
+    .retro-vinile .hot .eq i { background: #1a1408; }
+    .retro-nota { text-align: center; margin: .9rem 0 0; font-family: var(--mono); font-size: .72rem; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }
+
     .empty { font-family: var(--mono); color: var(--muted); padding: 3rem var(--pad); }
 
     @media (max-width: 760px) {
@@ -142,8 +155,8 @@
 <body>
 
 <div class="top">
-  <a href="../" class="logo">Go<em>Go</em>Bar</a>
-  <a href="../#musica">← Torna al bar</a>
+  <a href="../" class="logo"><img src="../img/icone/icona-96.png" alt="" width="40" height="40">Go<em>Go</em>Bar</a>
+  <a href="../">← Home</a>
 </div>
 
 <section class="player" id="player">
@@ -179,7 +192,7 @@
 
 <audio id="audio" preload="metadata"></audio>
 
-<script src="../contenuti.js?v=13"></script>
+<script src="../contenuti.js?v=14"></script>
 <script src="../js/copertina.js?v=1"></script>
 <script>
 /*
@@ -212,6 +225,10 @@
     const stesso = brani.filter(x => x.album === b.album);
     return { n: stesso.indexOf(b) + 1, tot: stesso.length };
   });
+
+  // dati completi degli album (copertina, retro, mappa dei titoli sul retro)
+  const INFO_ALBUM = new Map(((typeof CONTENUTI !== 'undefined' && CONTENUTI.musica) || []).map(a => [a.album, a]));
+  const percorso = f => /^(https?:)?\/\//.test(f) ? f : '../' + f;
 
   const slugAlbum = n => String(n || 'brani').toLowerCase().normalize('NFD').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
 
@@ -250,6 +267,34 @@
       testa.append(h);
       ol = document.createElement('ol');
       $('scaletta').append(testa, ol);
+      // se l'album ha il retro con la mappa dei titoli, la scaletta è il retro stesso
+      const info = INFO_ALBUM.get(b.album) || {};
+      const quanti = brani.filter(x => x.album === b.album).length;
+      if (info.retro && Array.isArray(info.mappa) && info.mappa.length === quanti) {
+        const retro = document.createElement('div');
+        retro.className = 'retro-vinile';
+        const img = document.createElement('img');
+        img.src = percorso(info.retro); img.alt = 'Retro di ' + b.album + ' con la tracklist';
+        retro.append(img);
+        const nota = document.createElement('p');
+        nota.className = 'retro-nota'; nota.textContent = 'Tocca un titolo sul retro del vinile per ascoltarlo';
+        ol.replaceWith(retro);
+        retro.after(nota);
+        ol = null; ultimo = b.album;
+        ol = { retro: retro, mappa: info.mappa, k: 0 };
+      }
+    }
+    if (ol && ol.retro) {
+      const [x, y, w, h] = ol.mappa[ol.k++];
+      const hot = document.createElement('button');
+      hot.className = 'hot'; hot.dataset.i = i;
+      hot.style.cssText = `left:${x}%;top:${y}%;width:${w}%;height:${h}%`;
+      hot.setAttribute('aria-label', pos[i].n + '. ' + b.titolo + (b.artisti ? ' — ' + b.artisti : '') + (b.durata ? ' (' + b.durata + ')' : ''));
+      hot.title = b.titolo + (b.durata ? ' · ' + b.durata : '');
+      const eq = document.createElement('span'); eq.className = 'eq'; eq.innerHTML = '<i></i><i></i><i></i>';
+      hot.append(eq);
+      ol.retro.append(hot);
+      return;
     }
     const li = document.createElement('li');
     const btn = document.createElement('button');
@@ -287,7 +332,7 @@
       $('ora').textContent = '0:00';
       aggiornaBarra(0);
       document.title = b.titolo + ' · GoGoBar';
-      document.querySelectorAll('.track').forEach(el => el.classList.toggle('attivo', +el.dataset.i === i));
+      document.querySelectorAll('.track, .hot').forEach(el => el.classList.toggle('attivo', +el.dataset.i === i));
       document.querySelectorAll('.album').forEach(el => el.classList.toggle('attivo', el.dataset.album === (b.album || '')));
       // al centro del vinile: la copertina dell'album, se c'è, altrimenti il gatto
       $('etichetta').classList.toggle('foto', !!b.copertina);
@@ -338,7 +383,7 @@
     this.setAttribute('aria-pressed', casuale);
   };
   $('scaletta').addEventListener('click', e => {
-    const t = e.target.closest('.track'); if (!t) return;
+    const t = e.target.closest('.track, .hot'); if (!t) return;
     const i = +t.dataset.i;
     if (i === corrente) { audio.paused ? audio.play().catch(() => {}) : audio.pause(); }
     else carica(i, true);
