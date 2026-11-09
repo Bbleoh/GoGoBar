@@ -96,11 +96,6 @@
     .album .quanti { font-family: var(--mono); font-size: .72rem; color: var(--muted); }
 
     /* ── SCALETTA ── */
-    .album-head { display: flex; align-items: center; gap: 1rem; margin-bottom: 1rem; scroll-margin-top: 1rem; }
-    .album-head .gg-cover { width: 64px; flex: none; border-radius: 8px; }
-    .album-head .gg-cover .gg-nota, .album-head .gg-cover .gg-neko { display: none; }
-    .list .album-head h2 { margin-bottom: 0; }
-    .list ol + .album-head { margin-top: 2.5rem; }
     .list { max-width: 1200px; margin: 0 auto; padding: 2.5rem var(--pad) 4rem; }
     .list h2 { font-family: var(--display); font-weight: 700; font-size: 1.8rem; margin-bottom: 1rem; }
     .list h2 small { font-family: var(--mono); font-weight: 400; font-size: .8rem; color: var(--muted); margin-left: .5rem; }
@@ -126,20 +121,33 @@
     @keyframes eq { 0%,100% { height: 25%; } 50% { height: 100%; } }
 
     /* retro del vinile come scaletta: si clicca sui titoli stampati */
+    /* disco: fronte che ondeggia da solo; on hover (o tap su telefono) si gira sul retro con la tracklist */
     .retro-scena { width: min(100%, 640px); margin: 0 auto; perspective: 1100px; }
-    .retro-vinile { position: relative; transform-style: preserve-3d; transition: transform .25s ease-out; box-shadow: 0 20px 50px rgba(0,0,0,.55); }
-    .retro-vinile::after { content: ''; position: absolute; inset: 0; pointer-events: none; opacity: 0; transition: opacity .3s;
+    .retro-vinile.ondeggia { animation: ondeggia 8s ease-in-out infinite; }
+    @keyframes ondeggia {
+      0%, 100% { transform: rotateY(0deg) rotateX(0deg) rotateZ(0deg); }
+      25% { transform: rotateY(-7deg) rotateX(3deg) rotateZ(-.6deg); }
+      50% { transform: rotateY(1deg) rotateX(-2.5deg) rotateZ(.3deg); }
+      75% { transform: rotateY(7deg) rotateX(2deg) rotateZ(.6deg); }
+    }
+    .retro-vinile { position: relative; aspect-ratio: 1; transform-style: preserve-3d; transition: transform .2s ease-out; }
+    .retro-vinile.girando { transition: transform .75s cubic-bezier(.3,.7,.3,1); }
+    .retro-vinile .faccia { position: absolute; inset: 0; backface-visibility: hidden; -webkit-backface-visibility: hidden; box-shadow: 0 20px 50px rgba(0,0,0,.55); background: #111; }
+    .retro-vinile .faccia > img, .retro-vinile .faccia > .gg-cover { width: 100%; height: 100%; border-radius: 0; border: 0; }
+    .retro-vinile .faccia.dietro { transform: rotateY(180deg); }
+    .retro-vinile .faccia.dietro::after { content: ''; position: absolute; inset: 0; pointer-events: none; opacity: 0; transition: opacity .3s;
       background: radial-gradient(circle at var(--lx, 50%) var(--ly, 50%), rgba(255,255,255,.16), transparent 55%); }
-    .retro-scena:hover .retro-vinile::after { opacity: 1; }
+    .retro-scena:hover .faccia.dietro::after { opacity: 1; }
+    @media (prefers-reduced-motion: reduce) { .retro-vinile.ondeggia { animation: none; } }
     .gruppo[hidden] { display: none; }
-    .retro-vinile img { display: block; width: 100%; height: auto; }
+    .retro-vinile img { display: block; width: 100%; height: 100%; object-fit: cover; }
     .retro-vinile .hot { position: absolute; border-radius: 8px; transition: background .2s, box-shadow .2s; }
     .retro-vinile .hot:hover, .retro-vinile .hot:focus-visible { background: rgba(255, 236, 170, .22); box-shadow: 0 0 0 2px rgba(246, 215, 122, .8); outline: none; }
     .retro-vinile .hot.attivo { background: rgba(228, 179, 60, .3); box-shadow: 0 0 0 2px var(--gold), 0 0 22px rgba(228, 179, 60, .55); }
     .retro-vinile .hot .eq { position: absolute; right: 2px; top: 50%; transform: translateY(-50%); display: none; height: 14px; align-items: flex-end; gap: 2px; }
     .retro-vinile .hot.attivo .eq { display: flex; }
     .retro-vinile .hot .eq i { background: #1a1408; }
-    .retro-nota { text-align: center; margin: .9rem 0 0; font-family: var(--mono); font-size: .72rem; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }
+    .retro-nota { text-align: center; margin: 1.6rem 0 0; font-family: var(--mono); font-size: .72rem; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }
 
     .empty { font-family: var(--mono); color: var(--muted); padding: 3rem var(--pad); }
 
@@ -262,39 +270,35 @@
   brani.forEach(function (b, i) {
     if (!ol || b.album !== ultimo) {
       ultimo = b.album;
-      const testa = document.createElement('div');
-      testa.className = 'album-head'; testa.id = 'album-' + slugAlbum(b.album);
-      const h = document.createElement('h2');
-      h.textContent = b.album || 'Brani';
-      const c = document.createElement('small');
-      c.textContent = brani.filter(x => x.album === b.album).length + ' brani';
-      h.append(c);
-      if (window.GoGoCopertina) testa.append(GoGoCopertina({ album: b.album || 'Brani', copertina: b.copertina }, '../'));
-      testa.append(h);
       ol = document.createElement('ol');
       const gruppo = document.createElement('div');
       gruppo.className = 'gruppo'; gruppo.dataset.album = b.album || '';
-      gruppo.append(testa, ol);
+      gruppo.id = 'album-' + slugAlbum(b.album);
+      gruppo.append(ol);
       $('scaletta').append(gruppo);
       // se l'album ha il retro con la mappa dei titoli, la scaletta è il retro stesso
       const info = INFO_ALBUM.get(b.album) || {};
       const quanti = brani.filter(x => x.album === b.album).length;
       if (info.retro && Array.isArray(info.mappa) && info.mappa.length === quanti) {
         const retro = document.createElement('div');
-        retro.className = 'retro-vinile';
+        retro.className = 'retro-vinile ondeggia';
+        const fronte = document.createElement('div'); fronte.className = 'faccia fronte';
+        if (window.GoGoCopertina) fronte.append(GoGoCopertina({ album: b.album || 'Brani', copertina: b.copertina }, '../'));
+        const dietro = document.createElement('div'); dietro.className = 'faccia dietro';
         const img = document.createElement('img');
         img.src = percorso(info.retro); img.alt = 'Retro di ' + b.album + ' con la tracklist';
-        retro.append(img);
+        dietro.append(img);
+        retro.append(fronte, dietro);
         const scena = document.createElement('div');
         scena.className = 'retro-scena';
         scena.append(retro);
         inclina(scena, retro);
         const nota = document.createElement('p');
-        nota.className = 'retro-nota'; nota.textContent = 'Tocca un titolo sul retro del vinile per ascoltarlo';
+        nota.className = 'retro-nota'; nota.textContent = matchMedia('(hover: none)').matches ? 'Tocca la copertina per girarla, poi tocca un titolo' : 'Passa sul disco e clicca un titolo per ascoltarlo';
         ol.replaceWith(scena);
         scena.after(nota);
         ol = null; ultimo = b.album;
-        ol = { retro: retro, mappa: info.mappa, k: 0 };
+        ol = { retro: dietro, mappa: info.mappa, k: 0 };
       }
     }
     if (ol && ol.retro) {
@@ -333,20 +337,46 @@
     document.querySelectorAll('.album').forEach(el => el.classList.toggle('attivo', el.dataset.album === nome));
   }
 
-  // leggero tilt 3D del retro col mouse: l'angolo si calcola sulla "scena" (che non si muove),
-  // così i titoli cliccabili seguono la copertina senza tremolii
+  // il disco: on hover si gira sul retro e segue il mouse con un leggero tilt; l'angolo si calcola
+  // sulla "scena" (che non si muove), così i titoli cliccabili non tremano. Su touch: tap = gira.
   function inclina(scena, retro) {
-    if (matchMedia('(hover: none), (prefers-reduced-motion: reduce)').matches) return;
-    const MAX = 7;
+    const touch = matchMedia('(hover: none)').matches;
+    const MAX = matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : 7;
+    let timer;
+    // l'ondeggiamento si ferma dov'è (si copia l'angolo attuale) e da lì parte il giro, senza scatti
+    function gira(su) {
+      scena.classList.toggle('girata', su);
+      clearTimeout(timer);
+      if (su) {
+        retro.style.transform = getComputedStyle(retro).transform;
+        retro.classList.remove('ondeggia');
+        void retro.offsetWidth;
+      }
+      retro.classList.add('girando');
+      retro.style.transform = su ? 'rotateY(180deg)' : 'rotateY(0deg)';
+      timer = setTimeout(function () {
+        retro.classList.remove('girando');
+        if (!su) { retro.style.transform = ''; retro.classList.add('ondeggia'); }
+      }, 750);
+    }
+    if (touch) {
+      scena.addEventListener('click', function (e) {
+        if (scena.classList.contains('girata')) return;
+        e.stopPropagation(); e.preventDefault(); gira(true);
+      }, true);
+      return;
+    }
+    scena.addEventListener('pointerenter', e => { if (e.pointerType === 'mouse') gira(true); });
+    scena.addEventListener('pointerleave', e => { if (e.pointerType === 'mouse') gira(false); });
     scena.addEventListener('pointermove', function (e) {
-      if (e.pointerType !== 'mouse') return;
+      if (e.pointerType !== 'mouse' || retro.classList.contains('girando')) return;
       const r = scena.getBoundingClientRect();
       const x = (e.clientX - r.left) / r.width - .5, y = (e.clientY - r.top) / r.height - .5;
-      retro.style.transform = `rotateY(${(x * 2 * MAX).toFixed(2)}deg) rotateX(${(-y * 2 * MAX).toFixed(2)}deg)`;
+      // girato di 180°, l'asse X si inverte: per questo rotateX ha segno +
+      retro.style.transform = `rotateY(${(180 + x * 2 * MAX).toFixed(2)}deg) rotateX(${(y * 2 * MAX).toFixed(2)}deg)`;
       retro.style.setProperty('--lx', (x + .5) * 100 + '%');
       retro.style.setProperty('--ly', (y + .5) * 100 + '%');
     });
-    scena.addEventListener('pointerleave', function () { retro.style.transform = ''; });
   }
 
   // ── stato ──
