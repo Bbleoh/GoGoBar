@@ -65,6 +65,27 @@
     .articolo .btn.povero { opacity: .5; cursor: not-allowed; }
     .articolo .btn.povero.no { animation: stizzito .35s ease-out; }
     .oro { color: var(--gold); }
+    /* Achievement: griglia divisa per rarità (come i trofei della Bisca) */
+    .r-comune { --rc: #c9c2b0; } .r-raro { --rc: #4fa3ff; } .r-epico { --rc: #c06bff; } .r-leggendario { --rc: #ffb02e; }
+    #trofeiPan { grid-template-columns: 1fr; background: rgba(9,9,11,.88); }
+    #trofeiPan .testo { padding: 3% 4%; gap: .5em; }
+    #trofeiPan .capo { display: flex; align-items: flex-end; justify-content: space-between; gap: 1em; flex-wrap: wrap; }
+    #trofeiPan h2 { font-size: calc(1.9em - 0.9 * var(--piu)); }
+    .trofei-griglia { display: grid; grid-template-columns: repeat(auto-fill, minmax(11.5em, 1fr)); gap: 5px; }
+    .rarita-capo { grid-column: 1 / -1; margin-top: .5em; padding-bottom: .2em; border-bottom: 1px solid var(--rc); color: var(--rc);
+      font-family: var(--display); font-style: italic; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; }
+    .rarita-capo small { font-family: var(--mono); font-style: normal; font-weight: 400; opacity: .75; margin-left: .6em; }
+    .trofeo { display: flex; flex-direction: column; gap: .15em; padding: .45em .6em; background: rgba(255,255,255,.04); border-left: 2px solid var(--line); opacity: .62;
+      clip-path: polygon(0 0, 100% 0, 100% calc(100% - 7px), calc(100% - 7px) 100%, 0 100%); }
+    .trofeo b { font-family: var(--display); font-style: italic; color: var(--ivory); line-height: 1.1; }
+    .trofeo small { font-family: var(--mono); font-size: calc(.68em + 0.32 * var(--piu)); color: var(--muted); line-height: 1.25; }
+    .trofeo.ok { opacity: 1; border-left-color: var(--rc); background: color-mix(in srgb, var(--rc) 14%, transparent); }
+    .trofeo.ok b { color: var(--rc); }
+    .trofeo.ok.r-leggendario { box-shadow: inset 0 0 18px rgba(255,176,46,.25); }
+    .trofeo.segreto b { letter-spacing: .2em; }
+    .missioni-striscia.trofei b { background: var(--gold); }
+    .avviso-missione.r-comune small, .avviso-missione.r-raro small, .avviso-missione.r-epico small, .avviso-missione.r-leggendario small { color: var(--rc); }
+    .avviso-missione.r-raro b, .avviso-missione.r-epico b, .avviso-missione.r-leggendario b { color: var(--rc); }
     /* Officina di Vito: stesso pannello del Crivo Shop, cambia il negoziante */
     #market.vito .negoziante { background-image: url(vito.webp); }
     /* Crivo Shop: lista di nomi con "ora" e prezzo; cliccando un nome si apre la scheda fra mercante e lista */
@@ -342,6 +363,7 @@
           </div>
           <p class="nota" id="notaMenu"></p>
           <div class="missioni-striscia" id="apriMissioni" role="button" tabindex="0" aria-label="Apri le missioni" hidden><b>Missioni</b><span id="gradoStriscia"></span><em id="contoStriscia"></em></div>
+          <div class="missioni-striscia trofei" id="apriTrofei" role="button" tabindex="0" aria-label="Apri gli achievement" hidden><b>Achievement</b><span id="contoTrofei"></span></div>
           <div class="classifica" id="classificaMenu"></div>
         </div>
         <div class="comandi" aria-label="Comandi">
@@ -376,6 +398,13 @@
           <ol class="lista-missioni" id="listaMissioni"></ol>
           <p class="nota">Ogni missione compiuta ti paga in canne. Quelle compiute si cambiano a fine corsa.</p>
           <div class="riga"><button class="btn secondario" id="chiudiMissioni" type="button">Torna alla lobby</button></div>
+        </div>
+      </div>
+
+      <div class="pannello" id="trofeiPan" hidden>
+        <div class="testo">
+          <div class="capo"><h2>Achievement</h2><div class="riga"><span class="sotto"><b class="oro" id="trofeiPresi"></b></span><button class="btn secondario" id="chiudiTrofei" type="button">Torna alla lobby</button></div></div>
+          <div class="trofei-griglia" id="trofeiGriglia"></div>
         </div>
       </div>
 
@@ -640,6 +669,7 @@
   // un evento del gioco fa avanzare le missioni che lo aspettano
   function evento(ev, quanto, val) {
     if (!giocatore) return;
+    eventoTrofei(ev, quanto, val);
     var m = mieMissioni(), salva = false;
     m.slot.forEach(function (z) {
       var x = MISSIONE[z.id];
@@ -698,6 +728,7 @@
   function disegnaMissioni() {
     var str = document.getElementById('apriMissioni');
     str.hidden = !giocatore;
+    aggiornaContoTrofei();
     if (!giocatore) return;
     var m = mieMissioni(), da = m.slot.filter(function (z) { return !z.fatta; }).length;
     document.getElementById('gradoStriscia').textContent = nomeGrado(m.grado) + ' ' + stelleGrado(m);
@@ -723,17 +754,129 @@
   }
   // avviso in alto quando compi una missione (in corsa o al Crivo Shop); se ne arrivano due di fila si mettono in coda
   var codaAvvisi = [], avvisoTimer = null;
-  function avvisoMissione(cosa, premio, titolo) {
-    codaAvvisi.push([cosa, premio, titolo || 'Missione compiuta']);
+  function avvisoMissione(cosa, premio, titolo, classe) {
+    codaAvvisi.push([cosa, premio, titolo || 'Missione compiuta', classe || '']);
     if (!avvisoTimer) prossimoAvviso();
   }
   function prossimoAvviso() {
     var el = document.getElementById('avvisoMissione'), a = codaAvvisi.shift();
     if (!a) { el.hidden = true; avvisoTimer = null; return; }
     el.querySelector('b').textContent = a[0]; el.querySelector('span').textContent = a[1]; el.querySelector('small').textContent = a[2];
-    el.hidden = false; el.classList.remove('entra'); void el.offsetWidth; el.classList.add('entra');
+    el.className = 'avviso-missione' + (a[3] ? ' ' + a[3] : '');
+    el.hidden = false; void el.offsetWidth; el.classList.add('entra');
     avvisoTimer = setTimeout(prossimoAvviso, codaAvvisi.length ? 1700 : 2900);   // se ce ne sono altri in coda, più svelto
   }
+
+  /* ── Achievement: divisi per rarità come i trofei della Bisca; quelli nascosti compaiono solo quando li sblocchi.
+     Ognuno ascolta un evento del gioco (gli stessi delle missioni, più qualcuno suo): `ok(val, c)` dice se è preso,
+     con `val` il valore dell'evento e `c` i contatori della corsa (quante volte è successo ogni evento).
+     Si salvano fra gli upgrade del giocatore come upg/tr_<id> = 1, così viaggiano online senza regole nuove. ── */
+  var RARITA = { comune: 'Comune', raro: 'Raro', epico: 'Epico', leggendario: 'Leggendario' };
+  var TROFEI = [
+    { id: 'km1', r: 'comune', nome: 'Scaldato', desc: 'Corri 1 km in una corsa', ev: 'metri', ok: function (v) { return v >= 1000; } },
+    { id: 'canne25', r: 'comune', nome: 'Fumantino', desc: 'Raccogli 25 canne in una corsa', ev: 'canne', ok: function (v, c) { return c.canne >= 25; } },
+    { id: 'doppi10', r: 'comune', nome: 'Molleggiato', desc: 'Fai 10 doppi salti in una corsa', ev: 'doppio', ok: function (v, c) { return c.doppio >= 10; } },
+    { id: 'sgambetto', r: 'comune', nome: 'Sgambetto', desc: 'Fai lo sgambetto a un carabiniere', ev: 'sgambetto' },
+    { id: 'palazzo', r: 'comune', nome: 'Condomino', desc: 'Attraversa un palazzo', ev: 'palazzo' },
+    { id: 'pringles', r: 'comune', nome: 'Once you pop', desc: 'Mangia un tubo di Pringles', ev: 'pringles' },
+    { id: 'abbatti', r: 'comune', nome: 'Cecchino', desc: 'Abbatti un calciatore con una canna', ev: 'abbatti' },
+    { id: 'compra', r: 'comune', nome: 'Cliente', desc: 'Compra qualcosa da Crivo o da Vito', ev: 'compra' },
+    { id: 'sfascia5', r: 'comune', nome: 'Sfasciacarrozze', desc: 'Sfascia 5 ostacoli col carrello in una corsa', ev: 'sfascia', ok: function (v, c) { return c.sfascia >= 5; } },
+
+    { id: 'km5', r: 'raro', nome: 'Maratoneta', desc: 'Corri 5 km in una corsa', ev: 'metri', ok: function (v) { return v >= 5000; } },
+    { id: 'canne100', r: 'raro', nome: 'Coltivatore diretto', desc: 'Raccogli 100 canne in una corsa', ev: 'canne', ok: function (v, c) { return c.canne >= 100; } },
+    { id: 'senza2', r: 'raro', nome: 'Intoccabile', desc: 'Corri 2 km senza prendere colpi', ev: 'senzaColpi', ok: function (v) { return v >= 2000; } },
+    { id: 'jet', r: 'raro', nome: 'Top Gun', desc: 'Schiva le frecce', ev: 'jet' },
+    { id: 'castello', r: 'raro', nome: 'Architetto', desc: 'Salta il castello di carte di Durex', ev: 'form-castello' },
+    { id: 'matto', r: 'raro', nome: 'Riflessi', desc: 'Schiva l\'Aygo che inchioda e riparte', ev: 'form-matto' },
+    { id: 'pila', r: 'raro', nome: 'Asta', desc: 'Salta le tre transenne impilate 5 volte in una corsa', ev: 'pila', ok: function (v, c) { return c.pila >= 5; } },
+    { id: 'palazzi3', r: 'raro', nome: 'Amministratore', desc: 'Attraversa 3 palazzi in una corsa', ev: 'palazzo', ok: function (v, c) { return c.palazzo >= 3; } },
+    { id: 'sgambetti3', r: 'raro', nome: 'Recidivo', desc: 'Fai 3 sgambetti in una corsa', ev: 'sgambetto', ok: function (v, c) { return c.sgambetto >= 3; } },
+    { id: 'bossArriva', r: 'raro', nome: 'Faccia a faccia', desc: 'Arriva davanti a MaDeLucata', ev: 'bossArriva' },
+    { id: 'grado3', r: 'raro', nome: 'Pischello', desc: 'Diventa Pischello con le missioni', ev: 'stato', ok: function () { return mieMissioni().grado >= 3; } },
+
+    { id: 'boss', r: 'epico', nome: 'Killala Killer', desc: 'Sconfiggi MaDeLucata', ev: 'boss' },
+    { id: 'km15', r: 'epico', nome: 'Fondista', desc: 'Corri 15 km in una corsa', ev: 'metri', ok: function (v) { return v >= 15000; } },
+    { id: 'senza5', r: 'epico', nome: 'Fantasma', desc: 'Corri 5 km senza prendere colpi', ev: 'senzaColpi', ok: function (v) { return v >= 5000; } },
+    { id: 'canne300', r: 'epico', nome: 'Piantagione', desc: 'Raccogli 300 canne in una corsa', ev: 'canne', ok: function (v, c) { return c.canne >= 300; } },
+    { id: 'sfascia20', r: 'epico', nome: 'Demolitore', desc: 'Sfascia 20 ostacoli col carrello in una corsa', ev: 'sfascia', ok: function (v, c) { return c.sfascia >= 20; } },
+    { id: 'crivoPieno', r: 'epico', nome: 'Miglior cliente', desc: 'Compra tutto il Crivo Shop', ev: 'stato', ok: function () { return negozioPieno(UPGRADE); } },
+    { id: 'vitoPieno', r: 'epico', nome: 'Carrello da corsa', desc: 'Compra tutta l\'Officina di Vito', ev: 'stato', ok: function () { return negozioPieno(UPGRADE_VITO); } },
+    { id: 'grado7', r: 'epico', nome: 'Principe', desc: 'Diventa Principe de Laurentina', ev: 'stato', ok: function () { return mieMissioni().grado >= 7; } },
+
+    { id: 'km25', r: 'leggendario', nome: 'Forrest Marf', desc: 'Corri 25 km in una corsa', ev: 'metri', ok: function (v) { return v >= 25000; } },
+    { id: 'boss2', r: 'leggendario', nome: 'Doppietta', desc: 'Sconfiggi MaDeLucata due volte in una corsa', ev: 'boss', ok: function (v, c) { return c.boss >= 2; } },
+    { id: 'bossIlleso', r: 'leggendario', nome: 'Manco un graffio', desc: 'Sconfiggi MaDeLucata senza prendere colpi durante lo scontro', ev: 'boss', ok: function (v, c) { return (c.colpo || 0) === (c.colpiAlBoss || 0); } },
+    { id: 'grado9', r: 'leggendario', nome: 'Leggenda', desc: 'Diventa Leggenda de GoGoBar', ev: 'stato', ok: function () { return mieMissioni().grado >= 9; } },
+
+    { id: 'oltraggio', r: 'comune', segreto: true, nome: 'Oltraggio', desc: 'Tira una canna a un carabiniere', ev: 'oltraggio' },
+    { id: 'presto', r: 'comune', segreto: true, nome: 'Manco partito', desc: 'Fatti prendere prima dei 50 m', ev: 'preso', ok: function (v) { return v < 50; } },
+    { id: 'facciata', r: 'comune', segreto: true, nome: 'Testata', desc: 'Sbatti contro la facciata di un palazzo', ev: 'facciata' },
+    { id: 'povero', r: 'comune', segreto: true, nome: 'Morto de fame', desc: 'Chiedi 5 volte di fila qualcosa che non ti puoi permettere', ev: 'povero', ok: function (v, c) { return c.povero >= 5; } },
+    { id: 'vuoto', r: 'comune', segreto: true, nome: 'A secco', desc: 'Prova a tirare 10 volte senza canne in una corsa', ev: 'vuoto', ok: function (v, c) { return c.vuoto >= 10; } },
+    { id: 'inchioda', r: 'raro', segreto: true, nome: 'Fammi scendere', desc: 'Fai inchiodare Crivo nei primi 100 m', ev: 'inchioda', ok: function (v) { return v < 100; } },
+    { id: 'aSecco', r: 'raro', segreto: true, nome: 'Tasche vuote', desc: 'Arriva a 3 km senza raccogliere canne', ev: 'metri', ok: function (v, c) { return v >= 3000 && !c.canne; } },
+    { id: 'seconda', r: 'epico', segreto: true, nome: 'Miracolato', desc: 'Usa la seconda possibilità', ev: 'seconda' },
+    { id: 'bossSenzaCanne', r: 'leggendario', segreto: true, nome: 'A mani nude', desc: 'Sconfiggi MaDeLucata senza tirarle neanche una canna', ev: 'boss', ok: function (v, c) { return (c.colpoBoss || 0) === (c.colpiBossPrima || 0); } }
+  ];
+  var contiTrofei = {}, trofeiProva = {};
+  function negozioPieno(lista) { return lista.every(function (u) { return livello(u.id) >= u.prezzi.length; }); }
+  function haTrofeo(id) { return PROVA ? !!trofeiProva[id] : livello('tr_' + id) > 0; }
+  function sbloccaTrofeo(t) {
+    if (haTrofeo(t.id)) return;
+    if (PROVA) trofeiProva[t.id] = 1;
+    else salvaDati(giocatore, function (a) { a.upg['tr_' + t.id] = 1; });
+    avvisoMissione(t.nome, t.desc, 'Achievement ' + RARITA[t.r].toLowerCase(), 'r-' + t.r);
+    fx('ding', 0.5, t.r === 'leggendario' ? 0.8 : t.r === 'epico' ? 0.95 : 1.2); setTimeout(function () { fx('potere', 0.35, 1.2); }, 140);
+    aggiornaContoTrofei();
+  }
+  function eventoTrofei(ev, quanto, val) {
+    if (!giocatore) return;
+    var c = contiTrofei;
+    c[ev] = (c[ev] || 0) + (quanto == null ? 1 : quanto);
+    if (ev === 'bossArriva') { c.colpiAlBoss = c.colpo || 0; c.colpiBossPrima = c.colpoBoss || 0; }
+    if (ev !== 'povero') c.povero = ev === 'compra' ? 0 : c.povero;
+    if (ev === 'compra' || ev === 'preso') eventoTrofei('stato', 0);
+    for (var i = 0; i < TROFEI.length; i++) {
+      var t = TROFEI[i];
+      if (t.ev === ev && !haTrofeo(t.id) && (!t.ok || t.ok(val, c))) sbloccaTrofeo(t);
+    }
+  }
+  function aggiornaContoTrofei() {
+    var str = document.getElementById('apriTrofei'); str.hidden = !giocatore;
+    if (!giocatore) return;
+    var presi = TROFEI.filter(function (t) { return haTrofeo(t.id); }).length;
+    document.getElementById('contoTrofei').textContent = presi + ' / ' + TROFEI.length;
+  }
+  function disegnaTrofei() {
+    eventoTrofei('stato', 0);
+    var box = document.getElementById('trofeiGriglia'); box.textContent = '';
+    var presi = TROFEI.filter(function (t) { return haTrofeo(t.id); }).length;
+    document.getElementById('trofeiPresi').textContent = presi + ' / ' + TROFEI.length;
+    Object.keys(RARITA).forEach(function (r) {
+      var lista = TROFEI.filter(function (t) { return t.r === r && (!t.segreto || haTrofeo(t.id)); });
+      var capo = document.createElement('div'); capo.className = 'rarita-capo r-' + r;
+      capo.append(RARITA[r], testo('small', lista.filter(function (t) { return haTrofeo(t.id); }).length + ' / ' + lista.length));
+      box.append(capo);
+      lista.forEach(function (t) {
+        var d = document.createElement('div'); d.className = 'trofeo r-' + r + (haTrofeo(t.id) ? ' ok' : '');
+        d.append(testo('b', t.nome), testo('small', t.desc + (t.segreto ? ' · nascosto' : ''))); box.append(d);
+      });
+    });
+    var nascosti = TROFEI.filter(function (t) { return t.segreto && !haTrofeo(t.id); }).length;
+    if (nascosti) {
+      var cn = document.createElement('div'); cn.className = 'rarita-capo'; cn.style.setProperty('--rc', 'var(--muted)');
+      cn.append('Nascosti', testo('small', nascosti === 1 ? 'ne manca 1' : 'ne mancano ' + nascosti)); box.append(cn);
+      for (var i = 0; i < nascosti; i++) { var q = document.createElement('div'); q.className = 'trofeo segreto'; q.append(testo('b', '???'), testo('small', 'Compare quando lo sblocchi')); box.append(q); }
+    }
+  }
+  (function () {
+    var pan = document.getElementById('trofeiPan'), apri = document.getElementById('apriTrofei');
+    function mostra() { disegnaTrofei(); menu.hidden = true; pan.hidden = false; fx('click', 0.4, 1.3); }
+    apri.addEventListener('click', mostra);
+    apri.addEventListener('keydown', function (e) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); mostra(); } });
+    document.getElementById('chiudiTrofei').addEventListener('click', function () { pan.hidden = true; menu.hidden = false; aggiornaContoTrofei(); });
+  })();
 
   /* ── Musica e suoni ── */
   // tre musiche: lobby (menu), corsa, morte (schermata finale); ne suona una alla volta
@@ -1025,7 +1168,9 @@
     { id: 'car_durata', nome: 'Ruote nuove', desc: 'Il carrello regge più a lungo', prezzi: [360, 900, 1950], val: [15, 20, 25, 30], u: function (v) { return 'carrello per ' + v + ' s'; } },
     { id: 'car_fiuto', nome: 'Fiuto der carrello', desc: 'Ne trovi di più, e prima', niente: true, prezzi: [450, 1140, 2400], val: [1, 0.85, 0.7, 0.55],
       u: function (v) { return 'un carrello ogni ' + Math.round(2100 * v).toLocaleString('it-IT') + ' m circa'; } },
-    { id: 'car_telaio', nome: 'Telaio saldato', desc: 'Prende le botte senza sfasciarsi', prezzi: [420, 1050, 2250], val: [0, 1, 2, 3], u: function (v) { return v === 1 ? 'regge 1 botta' : 'regge ' + v + ' botte'; } },
+    // quello che il carrello non sfascia (pesci, Aygo, carabinieri, frecce) non lo rompe più: gli toglie secondi
+    { id: 'car_telaio', nome: 'Telaio saldato', desc: 'Le botte gli tolgono meno tempo', sempre: true, prezzi: [420, 1050, 2250, 4200], val: [5, 3, 2, 1, 0],
+      u: function (v) { return v ? 'ogni botta toglie ' + v + ' s' : 'le botte non tolgono niente'; } },
     { id: 'car_molle', nome: 'Molle', desc: 'Il carrello salta come si deve', prezzi: [600, 1650], val: [0, 1, 2], u: function (v) { return v > 1 ? 'doppio salto in carrello' : 'salto normale in carrello'; } },
     { id: 'car_cestello', nome: 'Cestello pieno', desc: 'Quello che sfasci finisce nel cestello', prezzi: [540, 1350, 2850], val: [0, 3, 2, 1],
       u: function (v) { return v > 1 ? '1 canna ogni ' + v + ' ostacoli sfasciati' : '1 canna a ostacolo sfasciato'; } },
@@ -1069,7 +1214,7 @@
     if (!l) return null;
     return l[Math.min(lv, l.length - 1)];
   }
-  function haEffetto(u, lv) { return !!u.val[lv] && !(u.niente && !lv); }
+  function haEffetto(u, lv) { return u.sempre || (!!u.val[lv] && !(u.niente && !lv)); }
   function testoOra(u, lv) { return haEffetto(u, lv) ? u.u(u.val[lv]) : 'niente'; }
   function boxOra(u, lv) {
     var o = document.createElement('div'); o.className = 'ora' + (haEffetto(u, lv) ? '' : ' niente');
@@ -1129,7 +1274,7 @@
         if (povero) { b.classList.add('povero'); b.setAttribute('aria-disabled', 'true'); b.title = 'Ti mancano ' + (prezzo - d.canne) + ' canne'; }
         b.addEventListener('click', function () {
           if (datiDi(giocatore).canne < prezzo) {
-            reazioneCrivo('fallita', 'stizzito');
+            reazioneCrivo('fallita', 'stizzito'); eventoTrofei('povero');
             b.classList.remove('no'); void b.offsetWidth; b.classList.add('no');
             return;
           }
@@ -1256,7 +1401,7 @@
   var g;
 
   function nuovaPartita() {
-    scorrimento = 0; palazzo = null;
+    scorrimento = 0; palazzo = null; contiTrofei = {};
     g = {
       t: 0, tv: 0, vel: 380, metri: 0, birre: 0, passi: 0,
       marf: { y: TERRA, vy: 0, salti: 0, giu: false, botta: 0, aTerra: true },
@@ -1353,7 +1498,7 @@
     var daTasca = Math.min(g.munizioni, prezzo);
     g.munizioni -= daTasca;
     if (prezzo > daTasca && !PROVA) salvaDati(giocatore, function (a) { a.canne = Math.max(0, a.canne - (prezzo - daTasca)); });
-    document.getElementById('seconda').hidden = true;
+    document.getElementById('seconda').hidden = true; eventoTrofei('seconda');
     // si riparte puliti: vite piene, niente ostacoli addosso, ragazze lontane, un attimo di invincibilità
     g.colpi = 0; g.distacco = 230; g.bless = 2; g.marf.botta = 0;
     g.ostacoli = g.ostacoli.filter(function (o) { return o.x > MARF_X + 420 || o.volo !== undefined; });
@@ -1471,21 +1616,20 @@
   }
   function saliCarrello(zitto) {
     var dura = valore('car_durata');
-    g.carrello = { t: dura, max: dura, giro: 0, botte: valore('car_telaio'), colpi: 0 };
+    g.carrello = { t: dura, max: dura, giro: 0 };
     var m = g.marf; m.vy = Math.min(m.vy, -380); m.salti = 1;
     fx('tonfo', 0.5, 1.2); fx('fruscio', 0.4, 1.3);
     if (!zitto) avvisoMissione('Carrello della spesa!', 'Sfascia tutto per ' + dura + ' s', 'Veicolo');
   }
-  // Telaio saldato: il carrello regge qualche botta prima di rompersi (si ammacca, sobbalza e va avanti)
+  // una botta da quello che il carrello non sfascia: non si rompe, perde secondi (5, meno col Telaio saldato di Vito)
   function bottaCarrello() {
     var c = g.carrello; if (!c) return;
-    if (c.botte > 0) {
-      c.botte--; c.colpi++; c.trema = 0.35;
-      g.scuoti = Math.max(g.scuoti || 0, 0.2); stelline(MARF_X + 30, g.marf.y - 50);
-      fx('mazzata', 0.5, 1.35); fx('parata', 0.45, 0.9);
-      return;
-    }
-    scendiCarrello(true);
+    var via = valore('car_telaio');
+    c.trema = 0.35; g.scuoti = Math.max(g.scuoti || 0, 0.2); stelline(MARF_X + 30, g.marf.y - 50);
+    fx('mazzata', 0.5, 1.35); fx('parata', 0.45, 0.9);
+    if (!via) return;
+    c.t -= via; c.meno = { q: via, t: 0.9 };
+    if (c.t <= 0) scendiCarrello(true);
   }
   function scendiCarrello(rotto) {
     var c = g.carrello; if (!c) return;
@@ -1498,7 +1642,7 @@
   function aggiornaCarrello(dt, dx) {
     var c = g.carrello;
     if (c) {
-      c.t -= dt; c.giro += dx; if (c.trema > 0) c.trema -= dt;
+      c.t -= dt; c.giro += dx; if (c.trema > 0) c.trema -= dt; if (c.meno) c.meno.t -= dt;
       if (g.cannaCestello > 0) g.cannaCestello -= dt;
       if (c.t <= 0 || zonaPalazzo() || zonaBoss()) scendiCarrello(false);
     }
@@ -1645,6 +1789,7 @@
     ragazza:     { img: 'ragazza-a-terra', dh: 46, w: 96, h: 36 },
     durex:       { img: 'durex', dh: 26, w: 84, h: 26 },          // impilabili: h × quante
     transenna:   { img: 'transenna', dh: 68, w: 104, h: 62 },
+    pila:        { img: 'transenna', dh: 68, w: 90, h: 146 },     // tre transenne una sopra l'altra: serve il doppio salto
     juve:        { img: 'juve', dh: 106, w: 28, h: 100 },
     lazio:       { img: 'lazio', dh: 106, w: 28, h: 100 },
     carabiniere: { img: 'carabiniere', dh: 110, w: 22, h: 104 },
@@ -1689,7 +1834,7 @@
     if (g.metri > 400 && r < 0.07) tipo = fase === 'normale' ? 'aygo' : 'transenna';   // l'Aygo corre più del mondo: nelle ondate niente
     else if (r < 0.25) tipo = 'ragazza';
     else if (r < 0.42) tipo = 'durex';
-    else if (r < 0.56) tipo = 'transenna';
+    else if (r < 0.56) tipo = g.metri > PILA_DA && fase !== 'fitta' && Math.random() < 0.45 ? 'pila' : 'transenna';   // ogni tanto impilate
     else if (r < 0.79) { var q = Math.random(); tipo = q < 0.16 ? 'carabiniere' : q < 0.58 ? 'juve' : 'lazio'; }   // il carabiniere è una variante rara
     else tipo = 'pesce';
     return tipo;
@@ -1737,7 +1882,8 @@
     return Math.max(distanzaMinima(o, dopo), 1.15 - lvl * 0.4 + Math.random() * 0.9) + (o.tipo === 'aygo' ? 0.5 : 0);
   }
 
-  function nuovoOstacolo(tipo, x) { var t = TIPI[tipo]; return { tipo: tipo, t: t, x: x, w: t.w, h: t.h, quante: 1 }; }
+  var PILA_DA = 500, PILA_PASSO = 44;                  // da quanti metri compaiono le transenne impilate; quanto sale ogni transenna
+  function nuovoOstacolo(tipo, x) { var t = TIPI[tipo]; return { tipo: tipo, t: t, x: x, w: t.w, h: t.h, quante: tipo === 'pila' ? 3 : 1 }; }
 
   /* ── Conformazioni rare: più rare degli ostacoli normali, mai durante il boss ──
      pesci: tre pesci spada uno sopra l'altro, si passa solo scivolando
@@ -1910,7 +2056,7 @@
   function inchioda() {
     var p = g.passaggio;
     if (!p || p.fase !== 'corsa') return;
-    p.fase = 'frena'; p.tf = 0; p.v0 = p.v = Math.max(g.vel, 500); g.scatto = 0;
+    p.fase = 'frena'; p.tf = 0; p.v0 = p.v = Math.max(g.vel, 500); g.scatto = 0; eventoTrofei('inchioda', 1, g.metri);
     suonoLoop('motore-loop', false);
     fx('frenata', 0.75); g.scuoti = 0.15;
   }
@@ -2106,6 +2252,7 @@
         else if (o.tipo === 'carabiniere' && m.giu && m.aTerra) sgambetto(o);
         else colpito(o);
       }
+      if (o.tipo === 'pila' && !o.passato && o.x + o.w < MARF_X - 18) { o.passato = true; if (!o.preso) eventoTrofei('pila'); }
       if (o.gruppo && !o.passato && o.x + o.w < MARF_X - 18) {      // formazione superata: se nessun pezzo ti ha preso, vale per le missioni
         o.passato = true; var gp = o.gruppo;
         if (o.preso) gp.preso = true;
@@ -2219,7 +2366,7 @@
     // traiettoria sullo schermo (non segue la strada): su e avanti, sempre più piccolo, girando
     var u = Math.min(t / VOLO_T, 1), e = 1 - Math.pow(1 - u, 2.2);
     var x = o.vx0 + e * 420, y = TERRA - 50 - e * 300 - Math.sin(u * Math.PI) * 40, sc = 1 - e * 0.94;
-    if (o.tipo === 'durex' && u < 1 && pronta(img)) {      // scatole di Durex: ognuna vola per conto suo
+    if ((o.tipo === 'durex' || o.tipo === 'pila') && u < 1 && pronta(img)) {      // scatole di Durex e transenne impilate: ogni pezzo vola per conto suo
       var dhd = o.t.dh, dwd = dhd * img.naturalWidth / img.naturalHeight;
       for (var q = 0; q < (o.quante || 1); q++) {
         var a = (q - (o.quante - 1) / 2) * 0.35, xq = x + Math.sin(a) * e * 160, yq = y + q * 22 * (1 - e) - Math.cos(a) * e * 40 + 40 * e;
@@ -2333,6 +2480,7 @@
   }
   function nuovoBoss() {
     var liv = g.livelloBoss, hp = BOSS_VITA + (liv - 1) * BOSS_VITA_PIU;
+    eventoTrofei('bossArriva');
     g.boss = { fase: 'arrivo', t: 0, x: W + 200, y: BOSS_Y, hp: hp, hpMax: hp, liv: liv, az: null, prossimo: 1.2, ferita: 0, lampo: 0, fn: 1, rabbia: 0,
       quota: 'bassa', tQuota: QUOTA_T[0] + 2, tFase: 0, oroT: 12 + Math.random() * 8, oroFatto: {}, prossimaCanna: 1.5, prossimaPedana: 2, stordita: 0 };
     g.sfere = []; g.lanci = []; g.speciali = []; g.laser = null; g.banner = 2.8; g.super = 0; g.tiro = null;
@@ -2345,7 +2493,7 @@
   function puoTirare() { return stato === 'gioco' && !g.passaggio && !g.volo && !(g.boss && g.boss.uscita); }   // si tira sempre, non solo col boss
   function iniziaTiro() {
     if (!puoTirare() || g.tiro != null) return;
-    if (g.munizioni <= 0) { g.vuoto = 0.5; fx('click', 0.6); return; }
+    if (g.munizioni <= 0) { g.vuoto = 0.5; fx('click', 0.6); eventoTrofei('vuoto'); return; }
     g.tiro = 0;
   }
   function lancia() {
@@ -2693,7 +2841,7 @@
   }
   function oltraggio() {
     var m = g.marf;
-    g.colpi += 1; m.botta = 1.1; g.scuoti = 0.3; g.scritta = { testo: 'OLTRAGGIO!', t: 1.6 }; g.ultimoColpoM = g.metri;
+    g.colpi += 1; m.botta = 1.1; g.scuoti = 0.3; g.scritta = { testo: 'OLTRAGGIO!', t: 1.6 }; eventoTrofei('oltraggio'); g.ultimoColpoM = g.metri;
     g.distacco = Math.max(g.distacco - 85, 25);
     fx('errore', 0.55); fx('pugno', 0.55); setTimeout(function () { fx('ahi', 0.55); }, 90);
   }
@@ -3204,7 +3352,7 @@
     if (m.botta > 0) return;
     var danno = o.tipo === 'aygo' || o.fumo ? 2 : 1;   // auto e jet tolgono due vite
     g.ultimoColpoM = g.metri;
-    g.colpi += danno; m.botta = 1.1; g.scuoti = danno > 1 ? 0.4 : 0.25;
+    g.colpi += danno; m.botta = 1.1; g.scuoti = danno > 1 ? 0.4 : 0.25; eventoTrofei('colpo');
     rallenta(VEL_BOTTA);
     g.distacco = Math.max(g.distacco - 85, 25);
     fx('pugno', 0.6); fx('ahi', 0.5);
@@ -3364,7 +3512,7 @@
         p.dentro = true; p.preso = true;
         if (m.y > p.pav) { m.vy = -Math.sqrt(2 * 2100 * (m.y - p.pav + 14)); m.salti = 1; }
         else m.vy = Math.max(m.vy, 420);
-        g.bless = 0; g.scudo = 0; m.botta = 0;
+        g.bless = 0; g.scudo = 0; m.botta = 0; eventoTrofei('facciata');
         g.ultimoColpoM = g.metri; g.colpi = Math.max(g.colpi, 3);
         fx('pugno', 0.6); fx('ahi', 0.5);
         fx('tonfo', 0.8); g.scuoti = Math.max(g.scuoti || 0, 0.5);
@@ -3688,6 +3836,9 @@
     if (o.tipo === 'durex') {
       ok = true;
       for (var i = 0; i < o.quante; i++) ok = disegnaOgg('durex', cx + (i % 2 ? 3 : -2), TERRA + 1 - i * t.h, t.dh, true) && ok;
+    } else if (o.tipo === 'pila') {
+      ok = true;
+      for (var ip = 0; ip < 3; ip++) ok = disegnaOgg('transenna', cx + (ip === 1 ? 4 : -2), TERRA + 2 - ip * PILA_PASSO, t.dh, true) && ok;
     } else if (o.tipo === 'castello') {
       ok = disegnaCastello(o);
     } else if (t.aria) {
@@ -3800,7 +3951,10 @@
     disegnaCarrello(MARF_X, m.y + sobbalza, inclina, c.giro, false, 'davanti');
     // quanto manca: barretta sopra la testa
     var u = Math.max(0, c.t / (c.max || CARRELLO_T));
-    for (var bt = 0; bt < c.botte; bt++) { ctx.fillStyle = '#9fd0e8'; ctx.fillRect(MARF_X - 30 + bt * 11, m.y - 161, 8, 5); }   // botte che il telaio regge ancora
+    if (c.meno && c.meno.t > 0) {                     // "-5 s" quando una botta toglie tempo
+      ctx.save(); ctx.globalAlpha = Math.min(1, c.meno.t * 2); ctx.textAlign = 'center'; ctx.font = 'italic 700 20px "Chakra Petch", sans-serif';
+      ctx.fillStyle = '#ff5c8a'; ctx.fillText('-' + c.meno.q + ' s', MARF_X, m.y - 160 - (0.9 - c.meno.t) * 26); ctx.restore();
+    }
     if (g.cannaCestello > 0) {                        // "+1" della canna finita nel cestello
       ctx.save(); ctx.globalAlpha = Math.min(1, g.cannaCestello * 2); ctx.textAlign = 'center'; ctx.font = 'italic 700 20px "Chakra Petch", sans-serif';
       ctx.fillStyle = '#e4b33c'; ctx.fillText('+1', MARF_X + 46, m.y - 120 - (0.9 - g.cannaCestello) * 30); ctx.restore();
