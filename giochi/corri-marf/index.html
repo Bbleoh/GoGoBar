@@ -3,6 +3,8 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
+  <link rel="preload" as="image" href="mercante.webp">
+  <link rel="preload" as="image" href="vito.webp">
   <title>Corri Marf! · GoGoBar</title>
   <meta name="description" content="Marf corre e scappa dalle femmine. Quanto lontano arrivi?">
   <meta property="og:title" content="Corri Marf!">
@@ -1035,6 +1037,10 @@
   var NEGOZI = { crivo: { titolo: 'Crivo Shop', lista: UPGRADE, voce: 'crivo', vol: 1.2 },
                  vito: { titolo: 'Officina di Vito', lista: UPGRADE_VITO, voce: 'vito', vol: 1 } };
   var negozio = NEGOZI.crivo;
+  // i negozianti si caricano e si decodificano subito, così aprendo lo shop compaiono all'istante
+  var NEGOZIANTI_IMG = ['mercante.webp', 'vito.webp'].map(function (src) {
+    var im = new Image(); im.src = src; if (im.decode) im.decode().catch(function () {}); return im;
+  });
   function valore(id) { return UPG_ID[id].val[livello(id)]; }
   var market = document.getElementById('market'), negoziante = market.querySelector('.negoziante');
   /* il mercante reagisce: una voce a caso del tipo giusto, mai la stessa di prima, e la nuova taglia quella che sta ancora parlando */
