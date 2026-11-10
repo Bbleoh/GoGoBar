@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Area personale · GoGoBar</title>
+  <link rel="icon" href="../favicon.ico" sizes="48x48">
+  <link rel="icon" type="image/png" sizes="32x32" href="../img/icone/favicon-32.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=DM+Mono:wght@400;500&family=DM+Sans:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #0d0d0c; --surface: #161614; --raised: #1d1d1a; --line: #2a2a27;
+      --ivory: #f0ead6; --cream: #c8bfa8; --muted: #77715f;
+      --gold: #e4b33c; --gold-2: #f6d77a;
+      --mono: 'DM Mono', monospace; --display: 'Fredoka', 'DM Sans', sans-serif; --sans: 'DM Sans', sans-serif;
+      --pad: clamp(1rem, 4vw, 4rem);
+    }
+    body { background: var(--bg); color: var(--ivory); font-family: var(--sans); min-height: 100vh; }
+    a { color: inherit; }
+
+    .top { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: 1.2rem var(--pad); border-bottom: 1px solid var(--line); }
+    .top a { color: var(--cream); text-decoration: none; font-family: var(--mono); font-size: .72rem; letter-spacing: .14em; text-transform: uppercase; }
+    .top a:hover { color: var(--gold); }
+    .top a.logo { display: inline-flex; align-items: center; gap: .4rem; font-family: var(--display); font-size: 1.4rem; letter-spacing: 0; text-transform: none; color: var(--ivory); font-weight: 700; }
+    .top a.logo img { width: 1.15em; height: 1.15em; display: block; }
+    .logo em { color: var(--gold); font-style: normal; }
+    .top-dx { display: flex; align-items: center; gap: .6rem; }
+    .gga-btn-top { font-family: var(--mono); font-size: .72rem; letter-spacing: .06em; color: var(--gold-2); background: none; cursor: pointer;
+      border: 1px solid rgba(228,179,60,.45); border-radius: 999px; padding: .45rem .8rem; max-width: 11rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+    main { max-width: 1000px; margin: 0 auto; padding: 2.2rem var(--pad) 4rem; display: flex; flex-direction: column; gap: 2.4rem; }
+    h2 { font-family: var(--display); font-weight: 600; font-size: 1.35rem; color: var(--gold-2); margin-bottom: .9rem; }
+    h2 small { font-family: var(--mono); font-size: .72rem; color: var(--muted); font-weight: 400; margin-left: .4rem; }
+    .ggb-ico { width: 1em; height: 1em; vertical-align: -.12em; }
+
+    /* testata */
+    .testa { display: grid; grid-template-columns: 1fr auto; gap: 1.5rem; align-items: center; background: var(--surface); border: 1px solid var(--line); border-radius: 22px; padding: 1.6rem 1.7rem; position: relative; overflow: hidden; }
+    .testa::before { content: ''; position: absolute; inset: 0; background-image: radial-gradient(rgba(228,179,60,.16) 1.2px, transparent 1.3px); background-size: 22px 22px; -webkit-mask-image: linear-gradient(to left, #000, transparent 70%); mask-image: linear-gradient(to left, #000, transparent 70%); pointer-events: none; }
+    .testa .kicker { font-family: var(--mono); font-size: .66rem; letter-spacing: .18em; text-transform: uppercase; color: var(--gold); }
+    .testa h1 { font-family: var(--display); font-size: clamp(1.8rem, 5vw, 2.6rem); line-height: 1.05; margin: .3rem 0 .2rem; }
+    .testa p { color: var(--cream); font-size: .92rem; }
+    .saldo { text-align: right; position: relative; }
+    .saldo b { display: inline-flex; align-items: center; gap: .4rem; font-family: var(--display); font-size: clamp(2.2rem, 7vw, 3.4rem); color: var(--gold-2); line-height: 1; }
+    .saldo small { display: block; margin-top: .35rem; font-family: var(--mono); font-size: .7rem; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }
+    .saldo a { display: inline-block; margin-top: .8rem; text-decoration: none; background: var(--gold); color: #1a1408; border-radius: 999px; padding: .55rem 1rem; font-family: var(--display); font-weight: 600; }
+
+    /* numeri */
+    .numeri { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: .7rem; }
+    .num { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: .9rem 1rem; }
+    .num b { display: block; font-family: var(--display); font-size: 1.5rem; color: var(--ivory); }
+    .num small { font-family: var(--mono); font-size: .66rem; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+
+    /* sblocchi */
+    .sblocchi { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: .7rem; }
+    .sbl { display: flex; align-items: center; justify-content: space-between; gap: .8rem; background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: .9rem 1rem; }
+    .sbl b { font-family: var(--display); font-size: 1.1rem; display: block; }
+    .sbl small { color: var(--muted); font-family: var(--mono); font-size: .7rem; }
+    .sbl.ok { border-color: rgba(228,179,60,.5); }
+    .sbl.ok small { color: var(--gold); }
+    .sbl button { flex: none; border: 1px solid var(--gold); background: var(--gold); color: #1a1408; border-radius: 999px; padding: .45rem .9rem; font-family: var(--display); font-weight: 600; cursor: pointer; }
+
+    /* trofei */
+    .gruppo + .gruppo { margin-top: 1.2rem; }
+    .gruppo h3 { font-family: var(--mono); font-size: .68rem; letter-spacing: .16em; text-transform: uppercase; color: var(--muted); margin-bottom: .55rem; font-weight: 500; }
+    .trofei { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: .7rem; }
+    .trofeo { position: relative; background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: .9rem 1rem 1rem; display: flex; flex-direction: column; gap: .3rem; }
+    .trofeo.ok { border-color: var(--gold); background: linear-gradient(160deg, rgba(228,179,60,.14), var(--surface) 60%); }
+    .trofeo b { font-family: var(--display); font-size: 1.05rem; padding-right: 3.2rem; }
+    .trofeo:not(.ok) b { color: var(--cream); }
+    .trofeo p { font-size: .84rem; color: var(--cream); line-height: 1.4; }
+    .trofeo .val { position: absolute; top: .8rem; right: .8rem; font-family: var(--display); font-weight: 700; font-size: .9rem; color: var(--gold-2); background: rgba(228,179,60,.12); border-radius: 999px; padding: .1rem .5rem; }
+    .trofeo:not(.ok) .val { color: var(--muted); background: var(--raised); }
+    .trofeo small { font-family: var(--mono); font-size: .68rem; color: var(--muted); }
+    .trofeo.ok small { color: var(--gold); }
+    .barra { height: 5px; border-radius: 999px; background: var(--raised); overflow: hidden; margin-top: .2rem; }
+    .barra i { display: block; height: 100%; background: var(--gold); border-radius: inherit; }
+
+    /* giochi */
+    .giochi { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: .7rem; }
+    .gioco { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 1rem 1.1rem; }
+    .gioco h3 { font-family: var(--display); font-size: 1.15rem; margin-bottom: .5rem; }
+    .gioco dl { display: grid; grid-template-columns: 1fr auto; gap: .35rem 1rem; font-size: .9rem; }
+    .gioco dt { color: var(--cream); }
+    .gioco dd { font-family: var(--mono); color: var(--ivory); text-align: right; }
+
+    .vuoto { text-align: center; padding: 4rem 1rem; display: flex; flex-direction: column; align-items: center; gap: 1rem; }
+    .vuoto h1 { font-family: var(--display); font-size: 2rem; }
+    .vuoto p { color: var(--cream); max-width: 30rem; }
+    .vuoto button { border: 1px solid var(--gold); background: var(--gold); color: #1a1408; border-radius: 999px; padding: .75rem 1.3rem; font-family: var(--display); font-weight: 600; font-size: 1rem; cursor: pointer; }
+
+    @media (max-width: 600px) {
+      .testa { grid-template-columns: 1fr; }
+      .saldo { text-align: left; }
+      .top a.indietro { font-size: .66rem; }
+    }
+  </style>
+</head>
+<body>
+<header class="top">
+  <a class="logo" href="../"><img src="../img/icone/icona-96.png" alt="" width="40" height="40">Go<em>Go</em>Bar</a>
+  <div class="top-dx">
+    <a class="indietro" href="../">← Home</a>
+    <button type="button" class="gga-btn-top" data-gogobar-account hidden>👤 Entra</button>
+  </div>
+</header>
+
+<main id="main">
+  <p class="vuoto">Carico il tuo account...</p>
+</main>
+
+<script src="../contenuti.js?v=20"></script>
+<script src="../js/account.js?v=4"></script>
+<script src="../js/account-ui.js?v=3"></script>
+<script src="../js/gogoldbar.js?v=1"></script>
+<script>
+/*
+ * Area personale: GoGoldBar, statistiche dell'account, sblocchi e trofei
+ * (i trofei aumentano le GGB a click sul maneki neko). Tutto da js/gogoldbar.js.
+ */
+(function () {
+  const A = window.GoGoAccount, G = window.GoGoldBar;
+  const main = document.getElementById('main');
+  const F = n => G.formatta(n);
+  function el(tag, cls, testo) { const e = document.createElement(tag); if (cls) e.className = cls; if (testo != null) e.textContent = testo; return e; }
+  const data = t => t ? new Date(t).toLocaleDateString('it-IT', { day: 'numeric', month: 'short', year: 'numeric' }) : '';
+
+  // statistiche dei giochi: rami pubblici del database, letti col nome dell'account
+  let giochi = null;
+  function caricaGiochi(nome) {
+    if (!A || !A.leggi) return;
+    const k = A.chiave(nome);
+    Promise.all([
+      A.leggi('bisca/giocatori/' + k).catch(() => null),
+      A.leggi('corrimarf/giocatori/' + k).catch(() => null),
+      A.leggi('corrimarf/classifica/' + k).catch(() => null)
+    ]).then(function (r) { giochi = { bisca: r[0] || {}, cm: r[1] || {}, cmClass: r[2] || {} }; disegna(); });
+  }
+
+  let ultimoNome = null;
+  function disegna() {
+    const st = G ? G.stato() : null;
+    if (!A || !A.attivo || !G) { main.innerHTML = '<div class="vuoto"><h1>Area personale</h1><p>Gli account GoGoBar non sono attivi.</p></div>'; return; }
+    if (!st.account) {
+      main.replaceChildren();
+      const v = el('div', 'vuoto');
+      v.append(el('h1', null, 'Area personale'), el('p', null, 'Qui trovi le tue GoGoldBar, le statistiche e i trofei. Serve il tuo account GoGoBar: niente password, si crea in un attimo.'));
+      const b = el('button', null, '👤 Crea il tuo account o entra'); b.type = 'button';
+      b.onclick = () => window.GoGoAccountUI && GoGoAccountUI.apri();
+      v.append(b); main.append(v);
+      return;
+    }
+    if (st.account.nome !== ultimoNome) { ultimoNome = st.account.nome; giochi = null; caricaGiochi(st.account.nome); }
+    if (st.saldo == null) return;
+    const cat = G.catalogo();
+    main.replaceChildren();
+
+    // testata
+    const testa = el('section', 'testa');
+    const sx = el('div');
+    sx.append(el('span', 'kicker', 'Area personale'), el('h1', null, st.account.nome));
+    sx.append(el('p', null, st.creato ? 'Nel portafogli dal ' + data(st.creato) : 'Il tuo portafogli GoGoBar'));
+    const dx = el('div', 'saldo');
+    const b = el('b'); b.innerHTML = G.icona; b.append(el('span', null, F(st.saldo)));
+    dx.append(b, el('small', null, 'GoGoldBar · +' + st.perClick + ' a click'));
+    const vai = el('a', null, '🐱 Clicca il maneki neko'); vai.href = '../#neko';
+    dx.append(vai);
+    testa.append(sx, dx);
+    main.append(testa);
+
+    // numeri
+    const presi = cat.filter(t => t.ok).length;
+    const braniTot = cat.filter(t => t.gruppo === 'Musica').reduce((s, t) => s + t.totale, 0);
+    const braniFatti = cat.filter(t => t.gruppo === 'Musica').reduce((s, t) => s + t.fatti, 0);
+    const videoTot = cat.filter(t => t.gruppo === 'Video').reduce((s, t) => s + t.totale, 0);
+    const videoFatti = cat.filter(t => t.gruppo === 'Video').reduce((s, t) => s + t.fatti, 0);
+    const sez1 = el('section'); sez1.append(el('h2', null, 'Statistiche'));
+    const numeri = el('div', 'numeri');
+    [
+      [F(st.click), 'click sul gatto'], [F(st.guadagnati), 'GGB guadagnate'], [F(st.spesi), 'GGB spese'],
+      ['+' + st.perClick, 'GGB a click'], [presi + ' / ' + cat.length, 'trofei'],
+      [braniFatti + ' / ' + braniTot, 'brani ascoltati'], [videoFatti + ' / ' + videoTot, 'video visti']
+    ].forEach(([v, l]) => { const n = el('div', 'num'); n.append(el('b', null, v), el('small', null, l)); numeri.append(n); });
+    sez1.append(numeri);
+    main.append(sez1);
+
+    // sblocchi
+    const sez2 = el('section'); sez2.append(el('h2', null, 'Sblocchi'));
+    const sbl = el('div', 'sblocchi');
+    Object.keys(G.SBLOCCHI).forEach(function (id) {
+      const s = G.SBLOCCHI[id], ok = G.sbloccato(id);
+      const c = el('div', 'sbl' + (ok ? ' ok' : ''));
+      const t = el('div'); t.append(el('b', null, (ok ? '🔓 ' : '🔒 ') + s.nome));
+      const sm = el('small'); sm.textContent = ok ? 'Sbloccato il ' + data(st.sbloccati[id]) : F(s.prezzo) + ' GGB' + (s.album ? ' · album' : ' · gioco');
+      t.append(sm); c.append(t);
+      if (!ok) { const bt = el('button', null, 'Sblocca'); bt.type = 'button'; bt.onclick = () => G.chiediSblocco(id); c.append(bt); }
+      sbl.append(c);
+    });
+    sez2.append(sbl);
+    main.append(sez2);
+
+    // trofei
+    const sez3 = el('section');
+    const h = el('h2', null, 'Trofei'); h.append(el('small', null, presi + ' di ' + cat.length + ' · ogni trofeo aumenta le GGB a click'));
+    sez3.append(h);
+    ['Musica', 'Video', 'Home', 'Giochi'].forEach(function (gr) {
+      const lista = cat.filter(t => t.gruppo === gr);
+      if (!lista.length) return;
+      const g = el('div', 'gruppo'); g.append(el('h3', null, gr));
+      const box = el('div', 'trofei');
+      lista.forEach(function (t) {
+        const c = el('div', 'trofeo' + (t.ok ? ' ok' : ''));
+        c.append(el('span', 'val', '+' + t.valore), el('b', null, (t.ok ? '🏆 ' : '') + t.nome), el('p', null, t.desc));
+        if (t.ok) c.append(el('small', null, 'Preso il ' + data(t.data)));
+        else if (t.totale) {
+          const bar = el('div', 'barra'), i = el('i'); i.style.width = Math.round(t.fatti / t.totale * 100) + '%';
+          bar.append(i); c.append(bar, el('small', null, t.fatti + ' di ' + t.totale));
+        }
+        box.append(c);
+      });
+      g.append(box); sez3.append(g);
+    });
+    main.append(sez3);
+
+    // giochi
+    const sez4 = el('section'); sez4.append(el('h2', null, 'Giochi'));
+    const gb = el('div', 'giochi');
+    function scheda(titolo, righe) {
+      const c = el('div', 'gioco'); c.append(el('h3', null, titolo));
+      const dl = el('dl');
+      righe.forEach(([k, v]) => dl.append(el('dt', null, k), el('dd', null, v)));
+      c.append(dl); gb.append(c);
+    }
+    if (!giochi) scheda('Giochi', [['Carico...', '']]);
+    else {
+      const bs = giochi.bisca.stats || {}, bt = Object.keys(giochi.bisca.trofei || {}).length;
+      scheda('🃏 La Bisca der Tromba', [
+        ['Mani giocate', F(bs.mani || 0)], ['Giri di roulette', F(bs.rGiri || 0)],
+        ['Record di saldo', F(bs.recordSaldo || 0) + ' GGB'], ['Vincita più alta', F(Math.max(bs.vincitaMax || 0, bs.rVincitaMax || 0)) + ' GGB'],
+        ['Trofei', String(bt)]
+      ]);
+      const cm = giochi.cm, upg = cm.upg || {};
+      const ach = Object.keys(upg).filter(u => /^tr_/.test(u) && upg[u] > 0).length;
+      scheda('🏃 Corri Marf!', [
+        ['Record', F(Math.max(cm.record || 0, giochi.cmClass.punti || 0)) + ' m'], ['Canne in saccoccia', F(cm.canne || 0)],
+        ['Achievement', String(ach)], ['Sbloccato', G.sbloccato('corrimarf') ? 'sì' : 'no']
+      ]);
+    }
+    sez4.append(gb);
+    main.append(sez4);
+  }
+
+  if (G) G.suCambio(disegna);
+  if (A && A.attivo) { A.suCambio(disegna); A.pronto.then(disegna); }
+  if (G) G.pronto.then(disegna); else disegna();
+  disegna();
+})();
+</script>
+</body>
+</html>

@@ -120,6 +120,8 @@
 </section>
 
 <script src="../contenuti.js?v=20"></script>
+<script src="../js/account.js?v=4"></script>
+<script src="../js/gogoldbar.js?v=1"></script>
 <script>
 /*
  * Pagina Video: legge i video da contenuti.js.
@@ -188,11 +190,12 @@
     const v = video[i];
     const iframe = document.createElement('iframe');
     iframe.src = 'https://www.youtube-nocookie.com/embed/' + encodeURIComponent(v.youtube) +
-                 '?rel=0&modestbranding=1' + (autoplay ? '&autoplay=1' : '');
+                 '?rel=0&modestbranding=1&enablejsapi=1&origin=' + encodeURIComponent(location.origin) + (autoplay ? '&autoplay=1' : '');
     iframe.title = v.titolo;
     iframe.allow = 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture';
     iframe.allowFullscreen = true;
     document.getElementById('player').replaceChildren(iframe);
+    segui(iframe, v.youtube);
     document.getElementById('now-title').textContent = v.titolo;
     document.getElementById('now-label').textContent = (v.playlist ? v.playlist + ' · ' : '') + pos[i].n + ' di ' + pos[i].tot;
     document.title = v.titolo + ' · GoGoBar';
@@ -201,6 +204,45 @@
     const serie = [...grid.querySelectorAll('.serie')];
     serie.sort((a, b) => (b.dataset.playlist === (v.playlist || '')) - (a.dataset.playlist === (v.playlist || '')) || ordine.get(a) - ordine.get(b));
     serie.forEach(el => grid.append(el));
+  }
+
+  // GoGoldBar: un video conta come visto se ne hai guardato davvero almeno l'80%
+  // (API IFrame di YouTube; se non si carica, il player funziona lo stesso)
+  let apiYT = null, timerVisto = null;
+  function caricaApiYT() {
+    if (apiYT) return apiYT;
+    apiYT = new Promise(function (ok) {
+      if (window.YT && YT.Player) return ok();
+      const prima = window.onYouTubeIframeAPIReady;
+      window.onYouTubeIframeAPIReady = function () { if (prima) prima(); ok(); };
+      const s = document.createElement('script'); s.src = 'https://www.youtube.com/iframe_api'; s.async = true;
+      document.head.appendChild(s);
+    });
+    return apiYT;
+  }
+  function segui(iframe, id) {
+    clearInterval(timerVisto);
+    if (!window.GoGoldBar) return;
+    let visto = 0, ultimo = null, fatto = !!GoGoldBar.stato().video[id];
+    caricaApiYT().then(function () {
+      if (!iframe.isConnected) return;
+      const p = new YT.Player(iframe, {
+        events: {
+          onStateChange: function (e) {
+            clearInterval(timerVisto);
+            if (e.data !== YT.PlayerState.PLAYING || fatto) return;
+            ultimo = p.getCurrentTime();
+            timerVisto = setInterval(function () {
+              if (!iframe.isConnected) return clearInterval(timerVisto);
+              const t = p.getCurrentTime(), dur = p.getDuration(), dt = t - ultimo;
+              ultimo = t;
+              if (dt > 0 && dt < 3) visto += dt;
+              if (dur && visto >= dur * 0.8) { fatto = true; clearInterval(timerVisto); GoGoldBar.visto(id); }
+            }, 1000);
+          }
+        }
+      });
+    });
   }
 
   function vai(i) {

@@ -116,7 +116,7 @@
     .btn-ghost:hover { background: rgba(228,179,60,.1); }
 
     /* mascotte */
-    .mascot { position: relative; justify-self: center; width: min(100%, 400px); aspect-ratio: 1; margin-bottom: 1rem; }
+    .mascot { position: relative; justify-self: center; width: min(100%, 400px); aspect-ratio: 1; margin-bottom: 4.5rem; }
     .mascot .sun {
       position: absolute; inset: 6%;
       border-radius: 50%;
@@ -141,6 +141,38 @@
       width: 104%; height: auto; transform: translateX(-50%);
       filter: drop-shadow(0 10px 14px rgba(0,0,0,.45));
     }
+    /* clicker: il maneki neko dà GoGoldBar */
+    .mascot { scroll-margin-top: 5rem; }
+    .mascot .neko { cursor: pointer; -webkit-tap-highlight-color: transparent; touch-action: manipulation; user-select: none; -webkit-user-drag: none; transition: transform .08s; }
+    .mascot .neko.tocco { animation: tocco .22s ease-out; }
+    @keyframes tocco { 0% { transform: translateX(-50%) scale(1); } 35% { transform: translateX(-50%) scale(.9, .86) translateY(6%); } 100% { transform: translateX(-50%) scale(1); } }
+    .ggb-piu { position: absolute; z-index: 3; pointer-events: none; font-family: var(--display); font-weight: 700; font-size: 1.6rem; color: #fff3c4;
+      text-shadow: 0 2px 0 #7a5512, 0 0 12px rgba(228,179,60,.8); animation: piu 1s ease-out forwards; white-space: nowrap; }
+    @keyframes piu { from { transform: translate(-50%, 0) scale(.7); opacity: 1; } to { transform: translate(-50%, -90px) scale(1.15); opacity: 0; } }
+    .ggb-banco { position: absolute; left: 50%; bottom: -3.2rem; transform: translateX(-50%); z-index: 2; text-align: center; white-space: nowrap; }
+    .ggb-banco b { display: inline-flex; align-items: center; gap: .35rem; font-family: var(--display); font-size: 1.9rem; font-weight: 700; color: var(--gold-2); line-height: 1; }
+    .ggb-banco b .ggb-ico { width: 1.15em; height: 1.15em; }
+    .ggb-banco small { display: block; margin-top: .25rem; font-family: var(--mono); font-size: .66rem; letter-spacing: .14em; text-transform: uppercase; color: var(--muted); }
+    .ggb-banco button { background: none; border: 0; color: var(--gold-2); font: inherit; text-decoration: underline; cursor: pointer; padding: 0; }
+    .ggb-fumetto { position: absolute; left: 50%; top: 2%; transform: translateX(-50%); z-index: 4; width: max-content; max-width: 90%;
+      background: var(--ivory, #f4efe2); color: #1a1408; border-radius: 14px; padding: .55rem .8rem; font-size: .85rem; line-height: 1.3; text-align: center;
+      box-shadow: 0 8px 20px rgba(0,0,0,.4); }
+    .ggb-fumetto button { background: none; border: 0; padding: 0; font: inherit; font-weight: 700; text-decoration: underline; color: inherit; cursor: pointer; }
+    /* saldo nel menu */
+    .nav-ggb { display: inline-flex !important; align-items: center; gap: .3rem; font-family: var(--display) !important; font-weight: 700; font-size: .95rem !important;
+      color: var(--gold-2) !important; padding: .4rem .7rem !important; white-space: nowrap; }
+    .nav-ggb[hidden] { display: none !important; }
+    .nav-ggb .ggb-ico { width: 1.15em; height: 1.15em; }
+    /* +1 raro nel banner */
+    .ticker span.ggb-raro { padding: 0 .6rem; }
+    .ticker span.ggb-raro button { pointer-events: auto; cursor: pointer; font: inherit; color: #fff3c4; background: #1a1408; border: 2px solid #fff3c4; border-radius: 999px;
+      padding: .05rem .7rem; animation: brilla 1s ease-in-out infinite alternate; }
+    @keyframes brilla { to { box-shadow: 0 0 14px #fff3c4; } }
+    /* lucchetti */
+    .lucchetto { position: absolute; top: .7rem; left: .7rem; z-index: 2; display: inline-flex; align-items: center; gap: .3rem; background: rgba(13,13,12,.88);
+      color: var(--gold-2); border: 1px solid var(--gold); border-radius: 999px; padding: .3rem .65rem; font-family: var(--display); font-weight: 700; font-size: .9rem; }
+    .bloccato .card-media img, .bloccato .album-cover .faccia { filter: grayscale(.85) brightness(.55); }
+    .album-card .album-cover .lucchetto { z-index: 5; }
     @keyframes bob { 0%,100% { transform: translateY(0) rotate(-1deg); } 50% { transform: translateY(-12px) rotate(1deg); } }
     @keyframes spin { to { transform: rotate(360deg); } }
     @media (prefers-reduced-motion: reduce) { .mascot .float, .mascot .sun, .ticker { animation: none !important; } }
@@ -337,6 +369,7 @@
       .nav-account { font-size: .9rem; padding: .3rem .5rem; }
       .nav-account .gga-txt { display: none; }          /* sul telefono resta solo 👤 */
       .nav-account.gga-dentro { background: rgba(228,179,60,.18); }
+      .nav-ggb { display: none !important; }            /* sul telefono il saldo sta sotto il gatto */
     }
   </style>
   <link rel="icon" href="favicon.ico" sizes="48x48">
@@ -353,6 +386,7 @@
     <a href="#giochi" class="nav-icona" aria-label="Giochi" title="Giochi"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 8h10a4.5 4.5 0 0 1 4.3 5.8l-1 3.3a2.3 2.3 0 0 1-3.9.9L14 15.5h-4L7.6 18a2.3 2.3 0 0 1-3.9-.9l-1-3.3A4.5 4.5 0 0 1 7 8z"/><path d="M7.5 10.5v3M6 12h3"/><circle cx="15.5" cy="11.3" r=".6" fill="currentColor" stroke="none"/><circle cx="17.3" cy="13" r=".6" fill="currentColor" stroke="none"/></svg></a>
     <a href="#musica" class="nav-icona" aria-label="Musica" title="Musica"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 17V5l11-2v12"/><circle cx="6.5" cy="17" r="2.5" fill="currentColor"/><circle cx="17.5" cy="15" r="2.5" fill="currentColor"/></svg></a>
     <button type="button" class="nav-icona nav-radio" data-gogobar-radio aria-label="Radio GoGoBar" title="Radio"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="8" width="18" height="12" rx="2.5"/><path d="M7 8l10-4"/><circle cx="15.5" cy="14" r="2.6"/><path d="M6.5 12.5h4M6.5 15.5h4"/></svg></button>
+    <a href="profilo/" class="nav-ggb" id="nav-ggb" hidden title="Le tue GoGoldBar: apri l'area personale"></a>
     <button type="button" class="nav-account" data-gogobar-account hidden>👤 Entra</button>
   </div>
 </nav>
@@ -368,12 +402,14 @@
   </div>
 
   <!-- mascotte: maneki neko sulla nuvoletta -->
-  <div class="mascot" aria-hidden="true">
-    <div class="sun"></div>
+  <!-- clic sul gatto = GoGoldBar (js/gogoldbar.js) -->
+  <div class="mascot" id="neko">
+    <div class="sun" aria-hidden="true"></div>
     <div class="float">
-      <img class="neko" src="img/maneki-neko.webp" alt="" width="689" height="900">
-      <img class="cloud" src="img/nuvola.svg" alt="" width="520" height="220">
+      <img class="neko" src="img/maneki-neko.webp" alt="Maneki neko: cliccalo per raccogliere GoGoldBar" width="689" height="900" draggable="false">
+      <img class="cloud" src="img/nuvola.svg" alt="" width="520" height="220" aria-hidden="true">
     </div>
+    <div class="ggb-banco" id="ggb-banco" aria-live="polite"></div>
   </div>
 </header>
 
@@ -421,11 +457,12 @@
 <noscript><p style="padding:2rem;font-family:monospace">Per vedere i contenuti serve JavaScript attivo.</p></noscript>
 
 <script src="contenuti.js?v=20"></script>
-<script src="js/radio.js?v=13"></script>
+<script src="js/radio.js?v=14"></script>
 <script src="js/copertina.js?v=1"></script>
 <!-- account GoGoBar senza password (👤 nel menu in alto) -->
-<script src="js/account.js?v=2"></script>
-<script src="js/account-ui.js?v=2"></script>
+<script src="js/account.js?v=4"></script>
+<script src="js/account-ui.js?v=3"></script>
+<script src="js/gogoldbar.js?v=1"></script>
 <script>
   // dai giochi (es. la bisca) si arriva con #account: apre subito il pannello 👤
   if (location.hash === '#account' && window.GoGoAccountUI && window.GoGoAccount && GoGoAccount.attivo) {
@@ -449,11 +486,18 @@
   // La striscia scorre di metà della sua lunghezza e poi ricomincia: ogni metà
   // deve essere più larga dello schermo, altrimenti per un attimo resta vuota.
   const ticker = document.getElementById('ticker');
+  let raro = null;   // il +1 raro delle GoGoldBar (vedi sotto): una sola volta per giro della striscia
   function riempiTicker() {
     ticker.replaceChildren();
     const meta = document.createDocumentFragment();
     const giro = () => frasi.forEach(f => meta.append(el('span', null, f), el('span', 'dot', '✦')));
     giro();
+    if (raro) {
+      const sp = el('span', 'ggb-raro'), b = el('button', null, '+1');
+      b.type = 'button'; b.title = 'Prendilo!';
+      sp.append(b, el('span', 'dot', '✦'));
+      meta.append(sp);
+    }
     ticker.append(meta);
     let volte = 0;
     while (ticker.scrollWidth < innerWidth * 1.25 && volte++ < 20) { giro(); ticker.append(meta); }
@@ -461,6 +505,8 @@
     ticker.style.animationDuration = Math.round(ticker.scrollWidth / 2 / 60) + 's'; // ~60 px al secondo
   }
   riempiTicker();
+  window.GoGoBarTicker = { raro: function (fn) { raro = fn; riempiTicker(); } };
+  ticker.addEventListener('click', e => { if (raro && e.target.closest('.ggb-raro button')) { const fn = raro; raro = null; riempiTicker(); fn(); } });
   if (document.fonts && document.fonts.ready) document.fonts.ready.then(riempiTicker);
   let tickerLarghezza = innerWidth;
   addEventListener('resize', () => { if (innerWidth > tickerLarghezza) { tickerLarghezza = innerWidth; riempiTicker(); } });
@@ -609,7 +655,7 @@
   function classifica() {
     const GIOCHI_CLASSIFICA = [
       { gioco: 'La Bisca der Tromba', titolo: '🏆 I più lerci di GoGoBar', api: 'BiscaClassifica',
-        link: BISCA, cta: 'Siediti al tavolo', punti: n => '€' + n.toLocaleString('it-IT') },
+        link: BISCA, cta: 'Siediti al tavolo', punti: n => n.toLocaleString('it-IT') + ' GGB' },
       { gioco: 'Corri Marf!', titolo: '💔 I peggio single', api: 'CorriMarfClassifica',
         link: 'giochi/corri-marf/', cta: 'Corri anche tu', punti: n => n.toLocaleString('it-IT') + ' m' },
     ];
@@ -670,6 +716,140 @@
     requestAnimationFrame(segna);
     return box;
   }
+})();
+</script>
+<script>
+/* ════════════════════════════════════════════════════════════════
+   GOGOLDBAR IN HOME: clicker sul maneki neko, saldo nel menu,
+   +1 raro nel banner, lucchetti su Corri Marf! e Re-edit 2026
+════════════════════════════════════════════════════════════════ */
+(function () {
+  const G = window.GoGoldBar;
+  if (!G) return;
+  const neko = document.querySelector('#neko .neko');
+  const mascot = document.getElementById('neko');
+  const banco = document.getElementById('ggb-banco');
+  const nav = document.getElementById('nav-ggb');
+  const contaMenu = document.createElement('span');
+  let fumetto = null;   // "senza account le GoGoldBar scappano"
+
+  nav.innerHTML = G.icona; nav.append(contaMenu);
+
+  function disegna(st) {
+    if (st.account && fumetto) { fumetto.remove(); fumetto = null; }
+    if (!window.GoGoAccount || !GoGoAccount.attivo) { banco.replaceChildren(); nav.hidden = true; return; }
+    if (!st.account) {
+      nav.hidden = true;
+      banco.innerHTML = '<small>Clicca il gatto per fare GoGoldBar</small><small><button type="button">👤 Crea il tuo account</button> per tenerle</small>';
+      banco.querySelector('button').onclick = () => window.GoGoAccountUI && GoGoAccountUI.apri();
+      return;
+    }
+    if (st.saldo == null) return;
+    nav.hidden = false;
+    contaMenu.textContent = G.formatta(st.saldo);
+    banco.innerHTML = '<b>' + G.icona + '<span></span></b><small></small>';
+    banco.querySelector('b span').textContent = G.formatta(st.saldo);
+    banco.querySelector('small').textContent = 'GoGoldBar · +' + st.perClick + ' a click';
+  }
+  G.suCambio(disegna);
+  disegna(G.stato());
+
+  // suono della moneta, sintetizzato (nessun file da scaricare)
+  let ac = null;
+  function tin() {
+    try {
+      ac = ac || new (window.AudioContext || window.webkitAudioContext)();
+      const t = ac.currentTime, o = ac.createOscillator(), g = ac.createGain();
+      o.type = 'triangle';
+      o.frequency.setValueAtTime(1320 + Math.random() * 160, t);
+      o.frequency.setValueAtTime(1980 + Math.random() * 160, t + .05);
+      g.gain.setValueAtTime(.0001, t);
+      g.gain.exponentialRampToValueAtTime(.09, t + .01);
+      g.gain.exponentialRampToValueAtTime(.0001, t + .22);
+      o.connect(g).connect(ac.destination); o.start(t); o.stop(t + .25);
+    } catch (e) {}
+  }
+
+  function senzaAccount() {
+    if (fumetto) return;
+    fumetto = document.createElement('div');
+    fumetto.className = 'ggb-fumetto';
+    fumetto.innerHTML = 'Miao! Senza account le GoGoldBar scappano.<br><button type="button">👤 Crea il tuo account</button>';
+    fumetto.querySelector('button').onclick = e => { e.stopPropagation(); window.GoGoAccountUI && GoGoAccountUI.apri(); };
+    mascot.append(fumetto);
+    setTimeout(() => { fumetto && fumetto.remove(); fumetto = null; }, 4500);
+  }
+
+  neko.addEventListener('pointerdown', function (e) {
+    if (e.button > 0) return;
+    e.preventDefault();
+    neko.classList.remove('tocco'); void neko.offsetWidth; neko.classList.add('tocco');
+    if (!window.GoGoAccount || !GoGoAccount.attivo) return;
+    const n = G.clic();
+    if (!n) { senzaAccount(); return; }
+    tin();
+    const r = mascot.getBoundingClientRect();
+    const p = document.createElement('span');
+    p.className = 'ggb-piu';
+    p.textContent = '+' + n;
+    p.style.left = (e.clientX - r.left) + 'px';
+    p.style.top = (e.clientY - r.top - 20) + 'px';
+    mascot.append(p);
+    setTimeout(() => p.remove(), 1000);
+  });
+  neko.addEventListener('contextmenu', e => e.preventDefault());
+
+  // +1 raro nel banner: 2% delle visite, finché non l'hai preso
+  G.pronto.then(function () {
+    const st = G.stato();
+    if (!st.account || st.trofei.banner || !window.GoGoBarTicker) return;
+    if (Math.random() < 0.02) GoGoBarTicker.raro(() => G.trofeo('banner'));
+  });
+
+  // lucchetti: Corri Marf! (gioco) e Re-edit 2026 (album)
+  const SOLDI = n => G.icona + ' ' + G.formatta(n);
+  function lucchetti() {
+    document.querySelectorAll('a[href*="giochi/corri-marf"]').forEach(a => {
+      const chiuso = !G.sbloccato('corrimarf');
+      a.classList.toggle('bloccato', chiuso);
+      let l = a.querySelector('.lucchetto');
+      if (chiuso && !l && a.querySelector('.card-media')) {
+        l = document.createElement('span'); l.className = 'lucchetto';
+        l.innerHTML = '🔒 ' + SOLDI(G.SBLOCCHI.corrimarf.prezzo);
+        a.querySelector('.card-media').append(l);
+      }
+      if (!chiuso && l) l.remove();
+    });
+    document.querySelectorAll('a.album-card').forEach(a => {
+      const nome = a.querySelector('h3') && a.querySelector('h3').textContent;
+      const chiuso = G.albumBloccato(nome);
+      a.classList.toggle('bloccato', chiuso);
+      a.dataset.sblocco = chiuso ? Object.keys(G.SBLOCCHI).find(k => G.SBLOCCHI[k].album === nome) : '';
+      let l = a.querySelector('.lucchetto');
+      if (chiuso && !l) {
+        l = document.createElement('span'); l.className = 'lucchetto';
+        l.innerHTML = '🔒 ' + SOLDI(G.SBLOCCHI[a.dataset.sblocco].prezzo);
+        a.querySelector('.album-cover').append(l);
+      }
+      if (!chiuso && l) l.remove();
+    });
+  }
+  G.suCambio(lucchetti);
+  G.pronto.then(lucchetti);
+  lucchetti();
+  // clic su un contenuto chiuso: prima si sblocca
+  document.addEventListener('click', function (e) {
+    const a = e.target.closest('a');
+    if (!a) return;
+    let id = null;
+    if (/giochi\/corri-marf/.test(a.getAttribute('href') || '') && !G.sbloccato('corrimarf')) id = 'corrimarf';
+    else if (a.classList.contains('album-card') && a.dataset.sblocco) id = a.dataset.sblocco;
+    if (!id) return;
+    e.preventDefault(); e.stopPropagation();
+    G.chiediSblocco(id).then(ok => { if (ok) location.href = a.href; });
+  }, true);
+
+  if (location.hash === '#neko') setTimeout(() => mascot.scrollIntoView({ behavior: 'smooth', block: 'center' }), 300);
 })();
 </script>
 </body>

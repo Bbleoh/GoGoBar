@@ -510,7 +510,8 @@
   <audio id="musicaMorte" data-musica src="musica-morte.mp3" loop preload="none"></audio>
   <audio id="musicaBoss" data-musica src="musica-boss.mp3" loop preload="none"></audio>
 
-<script src="../../js/account.js?v=3"></script>
+<script src="../../js/account.js?v=4"></script>
+<script src="../../js/gogoldbar.js?v=1"></script>
 <script src="classifica.js?v=4" onerror="window.CorriMarfClassifica = null"></script>
 <script>
 (function () {
@@ -889,9 +890,18 @@
       if (t.ev === ev && !haTrofeo(t.id) && (!t.ok || t.ok(val, c))) sbloccaTrofeo(t);
     }
   }
+  // platini GoGoldBar (+5 GGB a click ciascuno): fino agli epici, i leggendari, i nascosti. Solo per il proprio account
+  function controllaPlatino() {
+    if (PROVA || !window.GoGoldBar || !giocatore || chiaveNome(giocatore) !== chiaveNome(nomeAccount())) return;
+    function tutti(f) { return TROFEI.filter(f).every(function (t) { return haTrofeo(t.id); }); }
+    if (tutti(function (t) { return !t.segreto && t.r !== 'leggendario'; })) GoGoldBar.trofeo('cm_epico');
+    if (tutti(function (t) { return !t.segreto && t.r === 'leggendario'; })) GoGoldBar.trofeo('cm_leggendario');
+    if (tutti(function (t) { return t.segreto; })) GoGoldBar.trofeo('cm_nascosti');
+  }
   function aggiornaContoTrofei() {
     var str = document.getElementById('apriTrofei'); str.hidden = !giocatore;
     if (!giocatore) return;
+    controllaPlatino();
     var presi = TROFEI.filter(function (t) { return haTrofeo(t.id); }).length;
     document.getElementById('contoTrofei').textContent = presi + ' / ' + TROFEI.length;
   }
@@ -4818,6 +4828,75 @@
   requestAnimationFrame(ciclo);
 })();
 </script>
-<script src="../../js/radio.js?v=13"></script>
+<!-- GoGoldBar: Corri Marf! si sblocca con 5000 GGB (gratis per chi ci aveva già giocato) -->
+<div id="ggbBlocco" hidden>
+  <div class="ggbb-box">
+    <h2>🔒 Corri Marf!</h2>
+    <p id="ggbbTesto">Controllo il tuo portafogli...</p>
+    <div class="ggbb-prezzo" id="ggbbPrezzo"></div>
+    <div class="ggbb-btns">
+      <button type="button" id="ggbbVai" hidden></button>
+      <a href="../../" class="ggbb-ghost">← Torna alla home</a>
+    </div>
+  </div>
+</div>
+<style>
+  #ggbBlocco { position: fixed; inset: 0; z-index: 2147482000; display: grid; place-items: center; padding: 16px;
+    background: radial-gradient(circle at 50% 30%, rgba(30,24,10,.92), rgba(5,5,4,.97)); font-family: 'DM Sans', system-ui, sans-serif; color: #f4efe2; }
+  #ggbBlocco[hidden] { display: none; }
+  .ggbb-box { width: min(420px, 100%); background: #161614; border: 1px solid #e4b33c; border-radius: 18px; padding: 1.5rem 1.4rem; text-align: center; box-shadow: 0 30px 80px rgba(0,0,0,.6); }
+  .ggbb-box h2 { font: 700 1.8rem Fredoka, 'Chakra Petch', sans-serif; margin: 0 0 .6rem; color: #f6d77a; }
+  .ggbb-box p { margin: 0 0 .8rem; color: #c9c0a9; line-height: 1.45; }
+  .ggbb-prezzo { display: flex; align-items: center; justify-content: center; gap: .4rem; font: 700 2.2rem Fredoka, sans-serif; color: #f6d77a; margin: .2rem 0 1rem; }
+  .ggbb-prezzo:empty { display: none; }
+  .ggbb-btns { display: flex; flex-direction: column; gap: .5rem; }
+  .ggbb-btns button, .ggbb-btns a { display: block; border-radius: 999px; padding: .75rem 1rem; font: 600 1rem Fredoka, sans-serif; text-decoration: none; cursor: pointer; border: 1px solid #e4b33c; }
+  .ggbb-btns button { background: #e4b33c; color: #1a1408; }
+  .ggbb-ghost { background: none; color: #f6d77a; }
+</style>
+<script>
+(function () {
+  var G = window.GoGoldBar, A = window.GoGoAccount;
+  if (!G || !A || !A.attivo) return;   // senza il sistema di account (chiave spenta) il gioco resta libero
+  var box = document.getElementById('ggbBlocco'), testo = document.getElementById('ggbbTesto');
+  var prezzo = document.getElementById('ggbbPrezzo'), vai = document.getElementById('ggbbVai');
+  var P = G.SBLOCCHI.corrimarf.prezzo, deciso = false;
+  // finché è chiuso, i tasti non arrivano al gioco
+  document.addEventListener('keydown', function (e) { if (!box.hidden && e.target.tagName !== 'BUTTON') e.stopImmediatePropagation(); }, true);
+  function musicaZitta() { document.querySelectorAll('audio').forEach(function (a) { if (!box.hidden) a.pause(); }); }
+  function disegna() {
+    var st = G.stato();
+    if (G.sbloccato('corrimarf')) { box.hidden = true; return; }
+    if (!deciso) { box.hidden = false; return; }   // resta "Controllo il tuo portafogli..." finché non so
+    mostra(st);
+  }
+  function mostra(st) {
+    box.hidden = false; musicaZitta();
+    prezzo.innerHTML = G.icona + '<span>' + G.formatta(P) + '</span>';
+    vai.hidden = false;
+    if (!st.account) {
+      testo.textContent = 'Corri Marf! si sblocca con le GoGoldBar del tuo account GoGoBar. Crealo (o entra) dalla home con 👤, poi clicca il maneki neko.';
+      vai.textContent = '👤 Vai al tuo account';
+      vai.onclick = function () { location.href = '../../#account'; };
+    } else if ((st.saldo || 0) < P) {
+      testo.textContent = 'Per correre servono ' + G.formatta(P) + ' GoGoldBar. Ne hai ' + G.formatta(st.saldo) + ': te ne mancano ' + G.formatta(P - (st.saldo || 0)) + '.';
+      vai.textContent = '🐱 Vai a cliccare il maneki neko';
+      vai.onclick = function () { location.href = '../../#neko'; };
+    } else {
+      testo.textContent = 'Hai ' + G.formatta(st.saldo) + ' GoGoldBar. Sblocca Corri Marf! per sempre sul tuo account.';
+      vai.textContent = 'Sblocca';
+      vai.onclick = function () {
+        vai.disabled = true; vai.textContent = 'Pago...';
+        G.sblocca('corrimarf').then(function () { box.hidden = true; G.annuncia('🔓 Corri Marf! sbloccato. Corri!'); },
+          function (e) { vai.disabled = false; vai.textContent = 'Sblocca'; testo.textContent = (e && e.message) || 'Qualcosa è andato storto, riprova.'; });
+      };
+    }
+  }
+  box.hidden = G.sbloccato('corrimarf');
+  G.suCambio(disegna);
+  G.pronto.then(function () { deciso = true; disegna(); });
+})();
+</script>
+<script src="../../js/radio.js?v=14"></script>
 </body>
 </html>

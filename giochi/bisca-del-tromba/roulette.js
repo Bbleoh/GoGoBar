@@ -59,7 +59,7 @@ let rAutoOn = false;      // autobet in corso
 let rAuto = 0;            // giri automatici ancora da fare        // primo numero scelto per cavallo o quartina
 
 function rTotale(p) { return Object.values(p || rPuntate).reduce((a, b) => a + b, 0); }
-function rEuro(v) { return '€' + Number(v).toLocaleString('it-IT'); }
+function rEuro(v) { return ggb(v); }
 function rBreve(v) { return v >= 10000 ? Math.round(v / 1000) + 'k' : v >= 1000 ? (v / 1000).toFixed(1).replace('.0', '') + 'k' : String(v); }
 
 /* ── TAVOLO DELLE PUNTATE ─────────────────────────────────────── */
