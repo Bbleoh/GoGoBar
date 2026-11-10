@@ -1439,7 +1439,7 @@
   var CONSIGLI_BOSS = [
     'Le canne cariche le fanno più male: tieni premuto → (o swipe in su) e lascia quando la canna luccica.',
     'Le canne volano dritte: salta o sali sulle pedane per arrivare all\'altezza della sua testa.',
-    'Quando lancia i dischi d\'oro, colpiscine uno con una canna: torna indietro e la stordisce.',
+    'Attacco romano: quando lancia i supplì colpiscine uno con una canna. Contrattacco siculo: le torna indietro un arancino e la stordisce.',
     'Dopo lo schianto resta stordita per qualche secondo: stordita prende danno doppio.',
     'I Super Santos si saltano, oppure ci vai in scivolata e glieli rimandi.',
     'Attento all\'ultima fase.'
@@ -2585,7 +2585,7 @@
      compaiono pedane in aria. Le canne volano dritte: per colpirla devi stare alla sua altezza (salto, doppio salto, pedane).
      Si caricano tenendo premuto → (o swipe in su tenendo il dito) e partono lasciando: più carichi, più danno.
      Sfere: si saltano, o ci scivoli sopra e gliele rimandi. Dopo lo schianto resta stordita: doppio danno.
-     Una volta per fase fa l'attacco d'oro: se colpisci un disco con una canna torna indietro e la stordisce. La barra super si riempie
+     Una volta per fase fa l'attacco romano (supplì): se ne colpisci uno con una canna parte il contrattacco siculo, un arancino torna da lei e la stordisce. La barra super si riempie
      facendole male: piena, il prossimo tiro a carica piena è una canna super.
      Fase 3: vola via e ricompare dietro Marf; tornano gli ostacoli, che colpiscono anche lei: è una fase a tempo. */
   var BOSS_OGNI = 10000, BOSS_PRIMO = BOSS_OGNI, BOSS_H = 230, BOSS_X = 775, BOSS_Y = 195, LASER_Y = TERRA - 70, LASER_BASSO_Y = TERRA - 14;
@@ -2685,7 +2685,7 @@
       fx('urlo', 0.6); fx('esplosione', 0.5);
     }
   }
-  // un disco d'oro rimandato con una canna la colpisce: si stordisce (smette di attaccare, scende giù e prende danno doppio)
+  // l'arancino del contrattacco siculo la colpisce: si stordisce (smette di attaccare, scende giù e prende danno doppio)
   function stordisci(b, x, y) {
     feriscBoss(DANNO_SFERA, x, y);
     if (b.fase !== 'lotta') return;
@@ -2724,6 +2724,7 @@
     if (g.banner > 0) g.banner -= dt;
     if (g.bonusT > 0) g.bonusT -= dt;
     if (g.contro > 0) g.contro -= dt;
+    if (g.siculo > 0) g.siculo -= dt;
     if (g.scritta && (g.scritta.t -= dt) <= 0) g.scritta = null;
     if (g.tiro != null) {
       if (puoTirare()) { var tPrima = g.tiro; g.tiro += dt; if (tPrima < TIRO_MAX && g.tiro >= TIRO_MAX) fx('ding-carica', 0.55); }   // carica piena: ding
@@ -2959,7 +2960,7 @@
     }
     aggiornaSpeciali(dt, dx, hb);
   }
-  // canne lanciate (sempre, non solo col boss): volano dritte. Colpiscono i dischi d'oro, gli ostacoli umani e il boss
+  // canne lanciate (sempre, non solo col boss): volano dritte. Colpiscono i supplì dell'attacco romano, gli ostacoli umani e il boss
   var UMANI = { ragazza: 1, juve: 1, lazio: 1, carabiniere: 1, sgabello: 1 };
   function aggiornaLanci(dt) {
     for (var j = g.lanci.length - 1; j >= 0; j--) {
@@ -2969,7 +2970,7 @@
     }
   }
   function bersaglio(c) {
-    for (var i = 0; i < g.speciali.length; i++) {          // disco d'oro: torna indietro verso di lei
+    for (var i = 0; i < g.speciali.length; i++) {          // supplì: torna indietro verso di lei come arancino
       var o = g.speciali[i];
       if (o.tipo !== 'oro' || o.rimandato || o.preso) continue;
       var bo = boxSpeciale(o);
@@ -2991,7 +2992,8 @@
   }
   function rimanda(o) {
     var bo = boxSpeciale(o);
-    o.rimandato = true; o.y = bo.y + bo.h / 2; o.vx = -o.dir * 900; o.vy = -200;
+    o.rimandato = true; o.y = bo.y + bo.h / 2; o.vx = -o.dir * 900; o.vy = -200;   // contrattacco siculo: il supplì diventa un arancino
+    g.siculo = 1.8;
     if (!o.finito) { o.finito = true; o.az.finiti++; }
     stelline(o.x, o.y); fx('parata', 0.55);
   }
@@ -3111,13 +3113,28 @@
         continue;
       }
       if (o.tipo === 'onda') continue;                 // l'onda d'urto è una deformazione della strada: disegnaOnde()
-      if (o.tipo === 'oro') {                          // attacco d'oro: disco basso (salta) o lama alta (scivola)
+      if (o.tipo === 'oro') {                          // attacco romano: supplì basso (salta, rotola) o alto (scivola); rimandato = arancino
         ctx.save();
         var bb = boxSpeciale(o), cx = o.rimandato ? o.x : bb.x + bb.w / 2, cy = o.rimandato ? o.y : bb.y + bb.h / 2;
         var al = ctx.createRadialGradient(cx, cy, 4, cx, cy, 48);
-        al.addColorStop(0, 'rgba(255,214,90,.7)'); al.addColorStop(1, 'rgba(255,214,90,0)');
+        al.addColorStop(0, 'rgba(255,170,60,.6)'); al.addColorStop(1, 'rgba(255,170,60,0)');
         ctx.fillStyle = al; ctx.fillRect(cx - 48, cy - 48, 96, 96);
         ctx.translate(cx, cy);
+        var cibo = o.rimandato ? OGG.arancino : OGG.suppli;
+        if (pronta(cibo)) {
+          if (o.rimandato) {                           // arancino: la punta va dove vola (verso di lei)
+            var ah = 58, aw = ah * cibo.naturalWidth / cibo.naturalHeight;
+            ctx.rotate(Math.atan2(o.vy || 0, o.vx || 1) + Math.PI / 2);
+            ctx.drawImage(cache(cibo, aw, ah), -aw / 2, -ah * 0.45, aw, ah);
+          } else {
+            var sw = o.alto ? 70 : 46, sh = sw * cibo.naturalHeight / cibo.naturalWidth;
+            if (o.alto) ctx.rotate(Math.sin(g.t * 9 + o.x * 0.02) * 0.12);   // in volo: ondeggia
+            else ctx.rotate(o.dir * o.giro);                                  // a terra: rotola
+            if (o.dir > 0) ctx.scale(-1, 1);
+            ctx.drawImage(cache(cibo, sw, sh), -sw / 2, -sh / 2, sw, sh);
+          }
+          ctx.restore(); continue;
+        }
         if (o.alto) {
           ctx.fillStyle = '#000'; ctx.beginPath(); ctx.ellipse(0, 0, 33, 15, 0, 0, TAU); ctx.fill();
           ctx.fillStyle = '#e4a01c'; ctx.beginPath(); ctx.ellipse(0, 0, 32, 14, 0, 0, TAU); ctx.fill();
@@ -3494,10 +3511,11 @@
       scrittaGrande(g.boss.dietro ? 'MO TE VOJO VEDE!' : g.boss.fn === 3 ? 'MO BASTA!' : 'SI È INCAZZATA!', 140, '#ff3a6e', Math.min(1, kf * 2, (2 - kf) * 6));
     }
     if (g.boss && g.boss.az && g.boss.az.tipo === 'oro' && g.boss.az.t < 1.4) {
-      scrittaGrande('ATTACCO D\'ORO!', 140, '#e4b33c', Math.sin(g.t * 20) > -0.3 ? 1 : 0.5);
+      scrittaGrande('ATTACCO ROMANO!', 140, '#e4b33c', Math.sin(g.t * 20) > -0.3 ? 1 : 0.5);
     }
     if (g.scritta) scrittaGrande(g.scritta.testo, 150 - (1.6 - g.scritta.t) * 10, '#ff3a6e', Math.min(1, g.scritta.t * 2));
-    if (g.contro > 0) scrittaGrande('STORDITA!', 150 - (1.8 - g.contro) * 12, '#e4b33c', Math.min(1, g.contro * 2));
+    if (g.siculo > 0) scrittaGrande('CONTRATTACCO SICULO!', 140, '#ffb02e', Math.min(1, g.siculo * 2));
+    if (g.contro > 0) scrittaGrande('STORDITA!', g.siculo > 0 ? 184 : 150 - (1.8 - g.contro) * 12, '#e4b33c', Math.min(1, g.contro * 2));
     if (g.banner > 0) {                  // avviso d'arrivo
       var k = g.banner, al = Math.min(1, k * 2, (2.8 - k) * 4);
       ctx.globalAlpha = al; ctx.textAlign = 'center';
@@ -3968,7 +3986,7 @@
 
   // oggetti disegnati da Leo: la canna (al posto della birra) e la ragazza accovacciata (al posto della sedia)
   var OGG = {};
-  ['canna', 'bifase', 'trifase', 'pringles', 'ragazza-a-terra', 'durex', 'transenna', 'juve', 'lazio', 'carabiniere', 'pesce-spada', 'aygo', 'jet', 'quattro-quadri', 'super-santos', 'punto', 'punto-ruota', 'carrello', 'carrello-davanti', 'biscotto', 'pappagallo'].forEach(function (n) {
+  ['canna', 'bifase', 'trifase', 'pringles', 'ragazza-a-terra', 'durex', 'transenna', 'juve', 'lazio', 'carabiniere', 'pesce-spada', 'aygo', 'jet', 'quattro-quadri', 'super-santos', 'punto', 'punto-ruota', 'carrello', 'carrello-davanti', 'biscotto', 'pappagallo', 'suppli', 'arancino'].forEach(function (n) {
     var img = new Image(); img.src = (CANNE_GIAN.indexOf(n) >= 0 ? '' : 'ogg/') + n + '.webp?v=1'; OGG[n] = img;
   });
   // contorno nero sottile (BORDO px) attorno a ostacoli e nemici, per farli notare meglio:
