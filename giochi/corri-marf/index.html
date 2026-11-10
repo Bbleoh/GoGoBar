@@ -1014,7 +1014,7 @@
     { id: 'gian', nome: 'Benedizione der Gian', desc: 'Ti ha insegnato arti oscure...', prezzi: [780, 2340], val: [1, 2, 3],
       u: function (v) { return CANNE_GIAN[v - 1]; }, piu: function (v) { return v > 1 ? 'ogni canna vale ' + v + ' e fa ' + v + ' volte il danno' : 'ogni canna vale 1'; } },
     // a inizio corsa la Punto ti porta avanti di tanti metri: costi stralunati
-    { id: 'punto', nome: 'Punto bianca', desc: 'Crivo te da no strappo', prezzi: [650, 1625, 3900, 7800, 13000], val: [0, 1000, 2000, 4000, 6000, 8000],
+    { id: 'punto', nome: 'Punto bianca', desc: 'Crivo te da no strappo', prezzi: [650, 1625, 3000, 4800, 7000], val: [0, 1000, 2000, 4000, 6000, 8000],
       u: function (v) { return 'passaggio fino a ' + v.toLocaleString('it-IT') + ' m'; } }
   ];
   /* ── Officina di Vito: upgrade del carrello della spesa, stesse canne e stesso salvataggio (upg/car_*).
