@@ -151,9 +151,40 @@ const CONTENUTI = {
         { titolo: 'SECCO SLE (re-edit 2026)',        artisti: 'feat. Lil Criver, Fiskiabad, CiciLeo',           prod: 'StepLeo', file: 'secco-sle-re-edit-2026.mp3',        durata: '2:53' },
       ],
     },
+    {
+      // album segreto: compare solo a chi ha battuto il boss di Corri Marf! (vedi "sblocco" qui sotto)
+      album: 'Corri Marf! OST',
+      sblocco: 'corriMarfBoss',
+      copertina: '',
+      brani: [
+        { titolo: 'LOBBY',             artisti: 'Corri Marf! OST', file: 'corri-marf-lobby.mp3',  durata: '1:18' },
+        { titolo: 'CORRI MARF',        artisti: 'Corri Marf! OST', file: 'corri-marf-corsa.mp3',  durata: '4:27' },
+        { titolo: 'MARF CORRI JUNGLE', artisti: 'Corri Marf! OST', file: 'corri-marf-jungle.mp3', durata: '2:42' },
+        { titolo: 'MALEDOTTA MIOTTA',  artisti: 'Corri Marf! OST', file: 'corri-marf-boss.mp3',   durata: '2:17' },
+        { titolo: 'TI HANNO PRESO',    artisti: 'Corri Marf! OST', file: 'corri-marf-preso.mp3',  durata: '1:38' },
+      ],
+    },
   ],
 
 };
+
+/*
+ * Album segreti: un album con "sblocco" si vede solo se chi visita l'ha sbloccato su questo dispositivo.
+ * corriMarfBoss = il giocatore di Corri Marf! scelto ha battuto il boss (achievement, o record oltre i 10 km).
+ * Qui non serve toccare niente.
+ */
+function gogobarSbloccato(chiave) {
+  try {
+    if (chiave === 'corriMarfBoss') {
+      const nome = String(localStorage.getItem('corriMarf.nome') || '').trim().toLowerCase();
+      const tutti = JSON.parse(localStorage.getItem('corriMarf.giocatori') || '{}') || {};
+      const a = tutti[nome];
+      return !!(nome && a && ((a.upg && +a.upg.tr_boss > 0) || +a.record > 10000));
+    }
+  } catch (e) {}
+  return false;
+}
+CONTENUTI.musica = CONTENUTI.musica.filter(a => !a.sblocco || gogobarSbloccato(a.sblocco));
 
 /*
  * Lista piatta di tutti i video, con il nome della playlist su ognuno.

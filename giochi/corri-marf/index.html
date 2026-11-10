@@ -2662,6 +2662,14 @@
     else fx('swish', 0.45 + 0.25 * k, 1.25 - 0.35 * k);
   }
 
+  // premio per aver battuto MaDeLucata: la prima volta si sblocca l'album della soundtrack (sezione Musica del sito),
+  // le volte dopo 1000 canne in saccoccia
+  var PREMIO_BOSS = 1000;
+  function premioBoss() {
+    if (!corsettaSbloccata()) { avvisoMissione('Album sbloccato!', 'Corri Marf! OST nella sezione Musica', 'MaDeLucata battuta', 'r-leggendario'); return; }
+    if (!PROVA) salvaDati(giocatore, function (a) { a.canne += PREMIO_BOSS; });
+    avvisoMissione('MaDeLucata battuta', '+' + PREMIO_BOSS.toLocaleString('it-IT') + ' canne in saccoccia', 'Premio');
+  }
   function feriscBoss(danno, x, y, nonRiempie) {
     var b = g.boss; if (!b || b.fase !== 'lotta') return;
     if (b.rabbia > 0 || b.uscita) { fx('click', 0.4); return; }      // mentre si arrabbia non si fa niente
@@ -2671,7 +2679,7 @@
     stelline(x, y);
     fx(danno > 1 ? 'cazzotto' : 'pugno', 0.55); if (danno > 1 || Math.random() < 0.3) fx('lei', 0.4);
     if (b.hp <= 0) {
-      b.fase = 'sconfitta'; b.t = 0; evento('boss', 1); b.az = null; g.laser = null; g.allarme = 0; b.ombra = null; b.stira = 0; b.stordita = 0; b.oro = 0;
+      b.fase = 'sconfitta'; b.t = 0; premioBoss(); evento('boss', 1); b.az = null; g.laser = null; g.allarme = 0; b.ombra = null; b.stira = 0; b.stordita = 0; b.oro = 0;
       g.tiro = null; g.scuoti = 0.5;
       g.sfere.forEach(function (s) { s.via = true; }); g.speciali = [];
       fx('urlo', 0.6); fx('esplosione', 0.5);
