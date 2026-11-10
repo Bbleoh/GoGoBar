@@ -739,7 +739,7 @@
   // tre musiche: lobby (menu), corsa, morte (schermata finale); ne suona una alla volta
   var musica = document.getElementById('musica');
   var TRACCE = { gioco: musica, jungle: document.getElementById('musicaJungle'), lobby: document.getElementById('musicaLobby'), morte: document.getElementById('musicaMorte'), boss: document.getElementById('musicaBoss') };
-  Object.keys(TRACCE).forEach(function (k) { TRACCE[k].volume = 0.55; });
+  Object.keys(TRACCE).forEach(function (k) { TRACCE[k].volume = k === 'jungle' || k === 'boss' ? 0.87 : 0.55; });   // jungle e boss 4 dB sopra (Leo)
   var traccia = 'lobby';
   // in corsa le due tracce si alternano: parte sempre la prima (musica.mp3), finita quella la jungle, poi di nuovo la prima
   var DOPO = { gioco: 'jungle', jungle: 'gioco' };
@@ -1035,7 +1035,7 @@
   var CANNE_GIAN = ['canna', 'bifase', 'trifase'];
   var UPG_ID = {}; UPGRADE.concat(UPGRADE_VITO).forEach(function (u) { UPG_ID[u.id] = u; });
   var NEGOZI = { crivo: { titolo: 'Crivo Shop', lista: UPGRADE, voce: 'crivo', vol: 1.2 },
-                 vito: { titolo: 'Officina di Vito', lista: UPGRADE_VITO, voce: 'vito', vol: 1 } };
+                 vito: { titolo: 'Officina di Vito', lista: UPGRADE_VITO, voce: 'vito', vol: 2 } };
   var negozio = NEGOZI.crivo;
   // i negozianti si caricano e si decodificano subito, così aprendo lo shop compaiono all'istante
   var NEGOZIANTI_IMG = ['mercante.webp', 'vito.webp'].map(function (src) {
