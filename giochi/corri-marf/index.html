@@ -3,6 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
+  <link rel="preload" as="image" href="marf.webp">
   <link rel="preload" as="image" href="mercante.webp">
   <link rel="preload" as="image" href="vito.webp">
   <title>Corri Marf! · GoGoBar</title>
@@ -54,7 +55,7 @@
       display: grid; grid-template-columns: minmax(0, .8fr) minmax(0, 1.2fr); align-items: center;
     }
     .pannello[hidden] { display: none; }
-    .negoziante { height: 94%; align-self: end; background: url(mercante.webp) center bottom / contain no-repeat; filter: drop-shadow(0 10px 18px rgba(0,0,0,.5)); transform-origin: 50% 100%; }
+    .negoziante { height: 94%; align-self: end; background: url(data:image/webp;base64,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) center bottom / contain no-repeat; filter: drop-shadow(0 10px 18px rgba(0,0,0,.5)); transform-origin: 50% 100%; }
     /* reazioni del mercante quando compri (o non puoi) */
     .negoziante.contento { animation: contento .45s ease-out; }
     .negoziante.colpito { animation: colpito .7s ease-out; }
@@ -87,7 +88,9 @@
     .avviso-missione.r-comune small, .avviso-missione.r-raro small, .avviso-missione.r-epico small, .avviso-missione.r-leggendario small { color: var(--rc); }
     .avviso-missione.r-raro b, .avviso-missione.r-epico b, .avviso-missione.r-leggendario b { color: var(--rc); }
     /* Officina di Vito: stesso pannello del Crivo Shop, cambia il negoziante */
-    #market.vito .negoziante { background-image: url(vito.webp); }
+    #market.crivo-ok .negoziante { background-image: url(mercante.webp); }
+    #market.vito .negoziante { background-image: url(data:image/webp;base64,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); }
+    #market.vito.vito-ok .negoziante { background-image: url(vito.webp); }
     /* Crivo Shop: lista di nomi con "ora" e prezzo; cliccando un nome si apre la scheda fra mercante e lista */
     #market { grid-template-columns: minmax(0, .8fr) 0fr minmax(0, 1.2fr); transition: grid-template-columns .28s ease; }
     #market.aperta { grid-template-columns: minmax(0, .5fr) minmax(0, .46fr) minmax(0, 1.04fr); }
@@ -194,6 +197,7 @@
     /* schermata d'avvio: Marf scontornato con il logo davanti */
     #menu { background: radial-gradient(ellipse at 30% 60%, rgba(228,179,60,.14), transparent 60%), linear-gradient(100deg, rgba(9,9,11,.2) 40%, rgba(9,9,11,.82) 70%); grid-template-columns: minmax(0, 1.15fr) minmax(0, .85fr); }
     .poster { position: relative; height: 100%; }
+    .poster img.lq { filter: blur(5px) drop-shadow(0 14px 24px rgba(0,0,0,.55)); }   /* anteprima leggera finché arriva quella vera */
     .poster img { position: absolute; left: 50%; bottom: -4%; height: 104%; transform: translateX(-50%); filter: drop-shadow(0 14px 24px rgba(0,0,0,.55)); animation: respiro 2.4s ease-in-out infinite; }
     @keyframes respiro { 50% { transform: translateX(-50%) translateY(-1.5%); } }
     .logo {
@@ -348,7 +352,7 @@
 
       <div class="pannello" id="menu">
         <div class="poster">
-          <img src="marf.webp" alt="Marf che corre">
+          <img id="posterMarf" class="lq" src="data:image/webp;base64,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" data-vera="marf.webp" alt="Marf che corre">
           <div class="logo" aria-hidden="true"><span class="uno">Corri</span><span class="due">Marf!!</span></div>
         </div>
         <div class="testo">
@@ -1172,8 +1176,9 @@
     { id: 'car_telaio', nome: 'Telaio saldato', desc: 'Le botte gli tolgono meno tempo', sempre: true, prezzi: [420, 1050, 2250, 4200], val: [5, 3, 2, 1, 0],
       u: function (v) { return v ? 'ogni botta toglie ' + v + ' s' : 'le botte non tolgono niente'; } },
     { id: 'car_molle', nome: 'Molle', desc: 'Il carrello salta come si deve', prezzi: [600, 1650], val: [0, 1, 2], u: function (v) { return v > 1 ? 'doppio salto in carrello' : 'salto normale in carrello'; } },
-    { id: 'car_cestello', nome: 'Cestello pieno', desc: 'Quello che sfasci finisce nel cestello', prezzi: [540, 1350, 2850], val: [0, 3, 2, 1],
-      u: function (v) { return v > 1 ? '1 canna ogni ' + v + ' ostacoli sfasciati' : '1 canna a ostacolo sfasciato'; } },
+    // ultimo livello (-1): una canna a ostacolo come il terzo, e in più i carabinieri si mettono sotto e valgono una vita
+    { id: 'car_cestello', nome: 'Cestello pieno', desc: 'Quello che sfasci finisce nel cestello', prezzi: [540, 1350, 2850, 5400], val: [0, 3, 2, 1, -1],
+      u: function (v) { return v > 1 ? '1 canna ogni ' + v + ' ostacoli sfasciati' : v < 0 ? '1 canna a ostacolo, e una vita per ogni carabiniere messo sotto' : '1 canna a ostacolo sfasciato'; } },
     { id: 'car_partenza', nome: 'Carrello in partenza', desc: 'Parti già a bordo', prezzi: [4500], val: [0, 1], u: function () { return 'inizi ogni corsa nel carrello'; } }
   ];
   var CARRELLO_PRIMO = [800, 600, 400, 200];           // Fiuto der carrello: a quanti metri arriva il primo
@@ -1183,9 +1188,23 @@
                  vito: { titolo: 'Officina di Vito', lista: UPGRADE_VITO, voce: 'vito', vol: 2 } };
   var negozio = NEGOZI.crivo;
   // i negozianti si caricano e si decodificano subito, così aprendo lo shop compaiono all'istante
-  var NEGOZIANTI_IMG = ['mercante.webp', 'vito.webp'].map(function (src) {
-    var im = new Image(); im.src = src; if (im.decode) im.decode().catch(function () {}); return im;
+  // finché non sono pronti, il pannello mostra la loro anteprima leggera (nel CSS)
+  var NEGOZIANTI_IMG = [['mercante.webp', 'crivo-ok'], ['vito.webp', 'vito-ok']].map(function (x) {
+    var im = new Image();
+    im.onload = function () {
+      var ok = function () { document.getElementById('market').classList.add(x[1]); };
+      if (im.decode) im.decode().then(ok, ok); else ok();
+    };
+    im.src = x[0]; return im;
   });
+  (function () {                                     // lo stesso per Marf nella lobby
+    var el = document.getElementById('posterMarf'), vera = new Image();
+    vera.onload = function () {
+      var ok = function () { el.src = vera.src; el.classList.remove('lq'); };
+      if (vera.decode) vera.decode().then(ok, ok); else ok();
+    };
+    vera.src = el.getAttribute('data-vera');
+  })();
   function valore(id) { return UPG_ID[id].val[livello(id)]; }
   var market = document.getElementById('market'), negoziante = market.querySelector('.negoziante');
   /* il mercante reagisce: una voce a caso del tipo giusto, mai la stessa di prima, e la nuova taglia quella che sta ancora parlando */
@@ -1656,13 +1675,18 @@
   // un ostacolo preso col carrello: a terra si sfascia, gli altri rompono il carrello
   function urtoCarrello(o) {
     o.preso = true;
-    var sfascia = !o.t.aria && o.tipo !== 'aygo' && o.tipo !== 'carabiniere' && o.tipo !== 'palazzo';
+    var sotto = o.tipo === 'carabiniere' && valore('car_cestello') < 0;   // Cestello pieno al massimo: il carabiniere lo metti sotto
+    var sfascia = sotto || (!o.t.aria && o.tipo !== 'aygo' && o.tipo !== 'carabiniere' && o.tipo !== 'palazzo');
     if (!sfascia) { bottaCarrello(); return; }
+    if (sotto) {
+      if (3 - g.colpi < (g.maxVite || 5)) { g.colpi--; g.piuUno = 1.1; }   // una vita, se c'è posto
+      setTimeout(function () { fx('uomo', 0.5); }, 70);
+    }
     if (o.parti) crollaCastello(o); else { o.volo = 0; o.vx0 = o.x + o.w / 2; }
     stelline(o.x + o.w / 2, TERRA - 40); g.scuoti = Math.max(g.scuoti, 0.12);
     fx('mazzata', 0.5, 1.1 + Math.random() * 0.2);
     evento('sfascia', 1);
-    var ogni = valore('car_cestello');             // Cestello pieno: quello che sfasci ti lascia una canna
+    var ogni = Math.abs(valore('car_cestello'));   // Cestello pieno: quello che sfasci ti lascia una canna
     if (ogni && ++g.sfasciati % ogni === 0) { g.munizioni += 1; g.cannaCestello = 0.9; fx('ding', 0.35, 1.5); }
   }
   // il carrello disegnato a mano: cestello di filo con la griglia, maniglia rossa, quattro ruote (se ne vedono due)
@@ -3631,10 +3655,37 @@
      I monumenti stanno davanti a palazzi/colline, proprio sulla giuntura fra due tratti:
      torre Telecom a 2 km, centro idrico Acea a 4 km, poi di nuovo ogni 4 km.
      Tutte le strisce sono disegnate alla stessa scala (le originali sono alte 724 px). ── */
-  var SF = {};
-  ['cielo.jpg', 'colline.webp', 'palazzi.webp', 'eur.webp', 'garbatella.webp', 'strada.webp', 'torre-telecom.webp', 'centro-idrico.webp', 'bar-568.webp', 'metro-laurentina.webp', 'lupa.webp', 'pizzeria-kebab.webp'].forEach(function (n) {
-    var img = new Image(); img.src = 'sfondo/' + n + '?v=3'; SF[n.split('.')[0]] = img;
+  /* Le quattro strisce che si vedono subito (cielo, colline, palazzi, strada) partono da un'anteprima minuscola scritta qui dentro,
+     [immagine, larghezza vera, altezza vera]: lo sfondo compare intero e sfocato al primo istante, e quando le quattro vere
+     sono arrivate si scambiano tutte insieme, invece di comparire una alla volta. */
+  var SF = {}, SF_VERE = {}, SF_ATTESE = 0;
+  var SF_ANTEPRIME = {
+    cielo: ['data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDABALDA4MChAODQ4SERATGCgaGBYWGDEjJR0oOjM9PDkzODdASFxOQERXRTc4UG1RV19iZ2hnPk1xeXBkeFxlZ2P/2wBDARESEhgVGC8aGi9jQjhCY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2P/wAARCAA0AJwDASIAAhEBAxEB/8QAHwAAAQUBAQEBAQEAAAAAAAAAAAECAwQFBgcICQoL/8QAtRAAAgEDAwIEAwUFBAQAAAF9AQIDAAQRBRIhMUEGE1FhByJxFDKBkaEII0KxwRVS0fAkM2JyggkKFhcYGRolJicoKSo0NTY3ODk6Q0RFRkdISUpTVFVWV1hZWmNkZWZnaGlqc3R1dnd4eXqDhIWGh4iJipKTlJWWl5iZmqKjpKWmp6ipqrKztLW2t7i5usLDxMXGx8jJytLT1NXW19jZ2uHi4+Tl5ufo6erx8vP09fb3+Pn6/8QAHwEAAwEBAQEBAQEBAQAAAAAAAAECAwQFBgcICQoL/8QAtREAAgECBAQDBAcFBAQAAQJ3AAECAxEEBSExBhJBUQdhcRMiMoEIFEKRobHBCSMzUvAVYnLRChYkNOEl8RcYGRomJygpKjU2Nzg5OkNERUZHSElKU1RVVldYWVpjZGVmZ2hpanN0dXZ3eHl6goOEhYaHiImKkpOUlZaXmJmaoqOkpaanqKmqsrO0tba3uLm6wsPExcbHyMnK0tPU1dbX2Nna4uPk5ebn6Onq8vP09fb3+Pn6/9oADAMBAAIRAxEAPwDM8ujZWlFYNLgq8YXuznbj8+tatraWNnHIXeOeRsqNw4C/Q9DXrzqxh5s82FNyOY8ujy617mwiUloLiIg/wFuR/SoI4o13ebDK+P7rbQP0q1NNXRLi07Mz/Lo8utCOzebJiXIHYnmtC20u1jEcl3MrNnLRKQRj0yO9KdSMdwjCUtjn9lHl10OpQ2c5LRPHG6jAAG0Ee9ZhtW3EIDJjnKgmiE1JX2CcXF2KPl0eXV82rRSBZ4ZRnnaBgmh4YmY7P3QH8MjZP8qq6JKGyjy60GjiMXywyhh/HuyD+lIbOZVDNDIARkHaelF11AoeXRsrSgs4mZTNOqIeuOv6itZ4dOnskhOxCp4dF5Hr9c1nOqotaGkKbktzl9lHl1r3GlskzCB0lj6htwz+I9agjiiG5Xhkkb1RsY/SrU01dEOLTszP8ujy6vx2vmN95Y1PeQ4rWsLaytm/eNDPuGCxwQPoKmdRQXcqEHNnNeXR5dbdzpUYLNbTxsN3CM2Dj6nrVF4AhwWGe/BqozjJaClFx3JfLo8urnl+1Hle1PmM7FMIQcgkH2pSGPVmP1NWvKo8r2ougKnl0eXVvyqXyvajmCxT2EHIJp2ZM53vn/eNWfK9qPKoug1KpDnqzH8TSbDVvyqPKougKoVh0JH0NL+86eY//fRqz5XtS+VSuh6lQhyMFmP1NJ5dW/K9qPK9qdxFTy/agIR0Jq35VHlUcwWKpDkYLMR6Z4pPLq35XtS+VRcCn5fGKPL9qt+VS+V7UcwWLvlUeV7Vf8j2o8muH2yOv2LKHlUeVV/yfajyaPbIPYsoeVR5XtV/yfajyPaj2yD2LKHlUnlVoeRR5HtR7ZB7FlDyaTyq0PJ9qPI9qPbIPYsoeV7UeVV/yPajyPaj2yD2LKHlUeTV/wAijyPaj2yD2LKHlUeVV/yPajyPaj2yD2LKHlUeVV/yPajyfaj2yD2LKHlUeVV/yfajyPaj2yD2LLu0UbRRRXlXZ6Vg2ijaKKKLsLBtFG0UUUXYWDaKNoooouwsG0UbRRRRdhYNoo2iiii7CwbRRtFFFF2Fg2ijaKKKLsLBtFG0UUUXYWDaKNoooouwsf/Z', 2172, 724],
+    colline: ['data:image/webp;base64,UklGRnYFAABXRUJQVlA4WAoAAAAQAAAAkQAABwAAQUxQSNoCAAAFoETbtmnbGXPvi2/btm3btm3UYtu2bdvmt23bP3n37r2Cl2rKETEBeAVzREBY6aOx+KTuRba++C0ZGTSf0cKtf+arpAVvAYSBrM3IBjlfv3giRB+g3ayGOcseXZeMItt2bL3Tz78DHldyQqf0ry+vl4HAAG+4bOdhtU5+/tb5qGjk6Tam1sXvn9zNf8uZKcrAReQt4Np2vL3Qsmr8kf6yJ7LujR+6cm4skGb+QwBewShVrORPS28HuOVSKu7tOeGZrvMThaDzd8DC+zidXfF8nicjPDsJYPJLdU+kd4CcggFPTwFYfB8w8ciun4r9kYdzjY+X3P8n5kQWQNaz+Ouh2R8bgCL5bigzKN33QvXMzzU75rQ60aLCB2uyu5r+und7G/dVn50/QcFk9+pFLqnd+0yT73eU61q7y329Whz4fP2WJr/44y33V9y+p0WFEtvqznbXli26Yuvuau1WuU8O3LKh+IMFwmmg/R5XsXC1P1v9XtSnOzxY7TauO/Zbg8Krz/42psmaT48DuB7bdlbY+01nlh3vxg9vVelS4WQqtaHKkS/LNSlWHcAyKTgeP/90VH8OleGugz3rcWZd6a+PVC9U40L5+kmAnBS2Y8tTteaVB772VUqnFEIKyPx2LO/zoXixvstq0tj2fri9/9jDvsSTP3dsmVM7L8CfLhmWnV65uc6RdrWWH2xYfNvveQe1O7q/xk+dQ0wSceRqItcQEHIBJQAyJHMSjn/nJBy5xox8dLLoHcCfLvoEmAVPMFlS5H4uv8g1myB4AMsIIaJ35JrN5CXXTBL40xMsQTQkkyIYksAQuUbDgcgiCRcDwplkOBMGEcPJRETiv4MUwbwPJsxMzqQADskAE2YQwTsCGOacmUKa/5+rTYA5jOikiKJJJmHmQxTCkHz2X8JwBJEIJmcmk5mZEzITKGI+OBejJ+ucgcmc4YI5M8kkIs4MhxkELwVAJpxFBY8MVlA4IHYCAACwDACdASqSAAgAPslQoUunpKMhuZIMAPAZCWQAnTLVTM/IcO+jv/s7oDnjPQBvFu87V4ekVlgaY+aF5JQ3SmRXh9F4UDDqEqy7fnMkM8Zfbk0QSzb9o7GbOktN2JRRVW0gzJrXg2pnH1dWRpbMAAD+vDxNHlZy48wFuUGtvPJDQaJeUO/ebysWKCZ4dnZ3setg5CnVZ84+WNtjTohnkI879zqinL7jXcA6e6oPGL0W2W+rV0dWDwGAoLRzGw5CBSght6YJ2ioOqe+4bbHO062P0626fZyp1h4Sh04dj6fFzmeU/rjV2ed6WlNqv/GyV0ZSre3FO9llbspY9exJU21HqV/paLiDo/MnN5n8GyHdms7JmzlDni6rXFeLixzSiUe3cuWeHHqmqmUXe0E1mfDdriw/7rQGVljMM9OcWy60zS/5UgLme2N5ZI0xojNtDgw4ZFTaIbVLg73GD1lPK55Ns07ieTK55b/PFh38060p8umNAavV3V862twUmIc+5gdVc6dAOiI5+L3vXaEl6SHGksdcchQgnSWVg6gD/EbX/VqWwbP/KY9PCXfvTWH3WfHx27p7uED/WHo11v2vM/VrXneGl+ldyaAdrKg2LLhJ2T6DxX+KtucuSdel/EvOFJ1BmVcKMLtkmhopEQj8e28Cos967MnBUqtPwMACVALPvuG3q1Uk4GPpciXjFbhhzu2MLFGMlXaXc/tHn2YLIf9Z8tcuPFBE5dFVaEbGP6YXzgCLIMzYmarSmllulVae5eeGS6Z2e/XTvmnBnkwJ4pwq/vn3fq1GCCcjs17NghnFmV6j1hYxz+/xNVARpoU1ekIyYHaIAAA=', 2172, 119],
+    palazzi: ['data:image/webp;base64,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', 2172, 285],
+    strada: ['data:image/webp;base64,UklGRtwCAABXRUJQVlA4WAoAAAAQAAAAnwAACQAAQUxQSEYBAAABuYzof2goR5LkSJIWMrX8HwVHDUaVVYv3bSX3Nol/ihFQBMz9IyZgAn76hzf2a3+ad/yd8hfzrRkKn/0L/699b3LYgaEze9zTA3KnhgRZPW2e++VRIHLYNjKPN+JoPDPhTuHF51afuWfvPSGjwxhsPuBH94UkTxLIRUhesFUmhJ8vCRf5mQI/RZJsjrlIThNClsmXLi3APl1e+ITJ5eRzh19K5gEI+aR5Njs/3eVAIPCSXYPwJE/yI0KIhYcUcpVnSEK0AfJSngS4YhGhi5Cr+TEBrpC8cBogB8ALQEIgJ7IMryDhtUaWIYCHpIMBkgEYGHSQOEorIePcEz42EeJoEoAkSQASa8l8jx/dn7mJZ0Qr8QbjKcbd7O3Mf5PcG6snkTHiufedbGf2jgg3eCtj4cYWcqNtBkxIpu3NPkwbbWSPB3G6BVZQOCBwAQAAUAcAnQEqoAAKAD7FUKFLp6SjIbM1XfjwGIlnPX3+sgFVopQdS4VbR+PeLU6XESjcc3v8N2Pf3BZyCPxpz95WtMUFlADh63f2kH/RDGLGJzbOosytp5F6i+yMmeUT/+k0wkg15cqbl2X8u0dMzj3bHqwKGcNjDAhVczv/58SyLoWvH0ZjRM9/15MEaaHP3qyFVhf4CMEaqD/zq5AKUGqRY2y45i9aLulSdZVTPpdUZMpQ8vtxZPh/z0rPJ6YnL16din/GnKdcNNeitjZuhERlEKgpfmR5dOGtdiSkL1TL1675KWxBRwP+O7k1h8mllxByQBobxAxGVx+kwgiTMOZsh7wHtC51L7jDvyY1jqS2s8qrPPfzlySm/biD3X0RgQLKQiIs4+6115RCqfl3prfx5dn+zwHPRXzWZd/KSYwXmioUEmYvWCbCkxletv8vzhHjPRPMzQl6rYmPjpy5P2qmqXlbH6bBlibsOiCy4Y/QAAA=', 2172, 136]
+  };
+  function scambiaSfondo() { if (!SF_VERE) return; Object.keys(SF_VERE).forEach(function (k) { if (pronta(SF_VERE[k])) SF[k] = SF_VERE[k]; }); SF_VERE = null; }
+  Object.keys(SF_ANTEPRIME).forEach(function (k) {
+    var a = SF_ANTEPRIME[k], mini = new Image();
+    mini.onload = function () {
+      if (!SF_VERE) return;                          // le vere hanno già fatto prima
+      var c = document.createElement('canvas'); c.width = mini.naturalWidth; c.height = mini.naturalHeight;
+      c.getContext('2d').drawImage(mini, 0, 0);
+      c.naturalWidth = a[1]; c.naturalHeight = a[2]; c.complete = true;   // si fa passare per l'immagine vera: stesse misure
+      SF[k] = c;
+    };
+    mini.src = a[0];
   });
+  ['cielo.jpg', 'colline.webp', 'palazzi.webp', 'eur.webp', 'garbatella.webp', 'strada.webp', 'torre-telecom.webp', 'centro-idrico.webp', 'bar-568.webp', 'metro-laurentina.webp', 'lupa.webp', 'pizzeria-kebab.webp'].forEach(function (n) {
+    var img = new Image(), k = n.split('.')[0];
+    if (SF_ANTEPRIME[k]) {
+      SF_VERE[k] = img; SF_ATTESE++;
+      img.onload = img.onerror = function () { if (--SF_ATTESE <= 0) scambiaSfondo(); };
+    } else SF[k] = img;
+    img.src = 'sfondo/' + n + '?v=3';
+  });
+  setTimeout(scambiaSfondo, 15000);                  // se una non arriva mai, le altre non restano sfocate
   var SF_S = H / 724;                      // scala unica delle strisce: il cielo riempie lo schermo, niente zoom
   var STRADA_Y = H + 1 - 136 * SF_S;       // la striscia della strada (136 px) poggia sul fondo dello schermo
   var QUARTIERE_M = 1000;
