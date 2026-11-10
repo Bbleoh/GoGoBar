@@ -56,7 +56,12 @@
     // album spenti: lo shuffle non li pesca e "avanti/indietro" li salta (un brano si può sempre toccare a mano)
     const spenti = new Set(Array.isArray(leggi().spenti) ? leggi().spenti : []);
     const salva = () => scrivi({ i: corrente, casuale, spenti: [...spenti] });
-    const acceso = i => !spenti.has(brani[i].album || '');
+    // album a pagamento non ancora sbloccati (GoGoldBar): la radio li salta e non si possono accendere
+    const G = () => window.GoGoldBar;
+    // gogoldbar.js può arrivare dopo questo script: aspetto che la pagina abbia caricato gli script
+    const conG = fn => { if (G()) fn(G()); else if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', () => { if (G()) fn(G()); }); };
+    const chiuso = i => !!(G() && G().albumBloccato(brani[i].album));
+    const acceso = i => !spenti.has(brani[i].album || '') && !chiuso(i);
     let mazzo = [];          // ordine casuale ancora da suonare
     const storico = [];      // brani già suonati, per tornare indietro in casuale
 
@@ -125,6 +130,7 @@
   .album .tog::after { content: ''; position: absolute; top: 2px; left: 15px; width: 11px; height: 11px; border-radius: 50%; background: #1a1408; transition: left .2s, background .2s; }
   .album .tog[aria-checked="false"] { background: #22221e; }
   .album .tog[aria-checked="false"]::after { left: 2px; background: #77715f; }
+  .album .lucc { flex: none; background: none; border: 0; padding: 0 .1rem; font-size: 14px; cursor: pointer; }
   li.spento { opacity: .38; }
   a.tutto { color: #c8bfa8; font: 500 10.5px 'DM Mono', ui-monospace, monospace; letter-spacing: .12em; text-transform: uppercase; text-decoration: none; text-align: center; }
   a.tutto:hover { color: #e4b33c; }
@@ -168,7 +174,11 @@
         tog.dataset.album = album || '';
         tog.setAttribute('aria-label', 'Riproduci ' + (album || 'Brani') + ' nella radio');
         tog.onclick = () => cambiaAlbum(tog.dataset.album);
-        l.append(nome, tog); lista.append(l);
+        const lucc = document.createElement('button'); lucc.className = 'lucc'; lucc.textContent = '🔒'; lucc.hidden = true;
+        lucc.dataset.album = album || '';
+        lucc.title = 'Album bloccato: sbloccalo con le GoGoldBar';
+        lucc.onclick = () => { const g = G(); if (g) { apri(false); g.chiediSblocco(g.sbloccoDi(lucc.dataset.album)); } };
+        l.append(nome, tog, lucc); lista.append(l);
       }
       const li = document.createElement('li'); li.dataset.i = i; li.dataset.album = b.album || '';
       const bt = document.createElement('button');
@@ -208,7 +218,12 @@
 
     // ── riproduzione ──
     function carica(i, suona) {
-      corrente = (i + brani.length) % brani.length;
+      i = (i + brani.length) % brani.length;
+      if (chiuso(i)) {                       // brano di un album ancora da sbloccare
+        if (suona && i !== corrente) { const g = G(); apri(false); g.chiediSblocco(g.sbloccoDi(brani[i].album)); return; }
+        if (!brani.every((_, k) => chiuso(k))) i = passo(i, 1);
+      }
+      corrente = i;
       mazzo = mazzo.filter(x => x !== corrente);
       const b = brani[corrente];
       if (audio.dataset.i !== String(corrente)) {
@@ -241,9 +256,12 @@
     $('.play').onclick = () => { if (audio.paused) carica(corrente, true); else audio.pause(); };
     // ── ordine casuale: pesca da un mazzo mescolato, così non ripete finché non li ha suonati tutti ──
     function segnaAlbum() {
-      lista.querySelectorAll('.tog').forEach(t => t.setAttribute('aria-checked', String(!spenti.has(t.dataset.album))));
-      lista.querySelectorAll('li[data-i]').forEach(li => li.classList.toggle('spento', spenti.has(li.dataset.album)));
+      const g = G(), bloc = a => !!(g && g.albumBloccato(a));
+      lista.querySelectorAll('.tog').forEach(t => { t.setAttribute('aria-checked', String(!spenti.has(t.dataset.album))); t.hidden = bloc(t.dataset.album); });
+      lista.querySelectorAll('.lucc').forEach(t => { t.hidden = !bloc(t.dataset.album); });
+      lista.querySelectorAll('li[data-i]').forEach(li => li.classList.toggle('spento', spenti.has(li.dataset.album) || bloc(li.dataset.album)));
     }
+    conG(g => g.suCambio(() => { segnaAlbum(); mazzo = mazzo.filter(acceso); }));
     function cambiaAlbum(a) {
       if (spenti.has(a)) spenti.delete(a);
       else {
@@ -289,6 +307,7 @@
     audio.addEventListener('play', aggiornaStato);
     audio.addEventListener('pause', aggiornaStato);
     audio.addEventListener('ended', avanti);
+    conG(g => g.segui(audio, () => brani[corrente] && brani[corrente].file));   // trofei GoGoldBar degli album
     audio.addEventListener('loadedmetadata', () => { $('.tot').textContent = mmss(audio.duration); });
     let trascino = false;
     audio.addEventListener('timeupdate', () => {

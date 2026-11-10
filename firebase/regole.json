@@ -176,6 +176,50 @@
           ".validate": false
         }
       }
+    },
+    "ggb": {
+      "$id": {
+        ".read": "auth != null && root.child('account/' + $id + '/dispositivi/' + auth.uid).exists()",
+        ".write": "auth != null && root.child('account/' + $id + '/dispositivi/' + auth.uid).exists()",
+        "saldo": {
+          ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 1000000000"
+        },
+        "click": {
+          ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 1000000000"
+        },
+        "guadagnati": {
+          ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 100000000000"
+        },
+        "spesi": {
+          ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 100000000000"
+        },
+        "creato": {
+          ".validate": "newData.isNumber()"
+        },
+        "trofei": {
+          "$t": {
+            ".validate": "newData.isNumber() && $t.length <= 40"
+          }
+        },
+        "sbloccati": {
+          "$s": {
+            ".validate": "newData.isNumber() && $s.length <= 40"
+          }
+        },
+        "brani": {
+          "$b": {
+            ".validate": "newData.isNumber() && $b.length <= 80"
+          }
+        },
+        "video": {
+          "$v": {
+            ".validate": "newData.isNumber() && $v.length <= 40"
+          }
+        },
+        "$altro": {
+          ".validate": false
+        }
+      }
     }
   }
 }

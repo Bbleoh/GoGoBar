@@ -35,6 +35,8 @@
      GoGoAccount.nomeLibero(nome)      → Promise<boolean>: false se il nome è di un altro account
      GoGoAccount.nomePreso(nome)       → messaggio da mostrare in quel caso
      GoGoAccount.suCambio(fn)          → chiama fn(stato) a ogni cambio (anche da altre schede)
+    GoGoAccount.db(percorso, metodo, corpo, { keepalive }) → Promise: REST sul database con l'accesso di questo dispositivo
+    GoGoAccount.leggi(percorso)       → Promise: GET pubblico senza accesso (per i rami .read: true)
    Ogni errore è un Error con un messaggio in italiano da mostrare così com'è.
 ════════════════════════════════════════════════════════════════ */
 (function () {
@@ -152,10 +154,11 @@
   }
 
   /* ── Database ── */
-  function db(percorso, metodo, corpo) {
+  function db(percorso, metodo, corpo, extra) {
     return sessione().then(function (m) {
       var url = DB_URL + '/' + percorso + '.json?auth=' + encodeURIComponent(m.token) + (DB_QUERY ? '&' + DB_QUERY : '');
       var opz = { method: metodo || 'GET' };
+      if (extra && extra.keepalive) opz.keepalive = true;   // la richiesta arriva anche se intanto cambi pagina
       if (corpo !== undefined) { opz.headers = { 'Content-Type': 'application/json' }; opz.body = JSON.stringify(corpo); }
       return http(url, opz).catch(function (e) {
         if (e.status === 401 || e.status === 403) {
@@ -338,6 +341,7 @@
 
   window.GoGoAccount = {
     attivo: !!API_KEY, pronto: pronto, stato: stato, crea: crea, codice: codice, usaCodice: usaCodice,
+    db: db, leggi: function (p) { return http(DB_URL + '/' + p + '.json' + (DB_QUERY ? '?' + DB_QUERY : '')); },
     dispositivi: dispositivi, togli: togli, esci: esci, token: token, chiave: chiave, nomeLibero: nomeLibero, nomePreso: nomePreso, controlla: controlla,
     suCambio: function (fn) { if (typeof fn === 'function') ascoltatori.push(fn); }
   };

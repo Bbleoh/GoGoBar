@@ -9,6 +9,7 @@
   'use strict';
   var A = window.GoGoAccount;
   if (!A || !A.attivo) return;
+  var radice = document.currentScript ? new URL('../', document.currentScript.src).href : '/';
 
   var CSS = '' +
     '.gga{margin:auto;max-height:calc(100dvh - 32px);overflow:auto;border:1px solid #2a2a26;border-radius:18px;background:#161614;color:#f4efe2;padding:0;width:min(420px,calc(100vw - 32px));' +
@@ -138,6 +139,15 @@
     box.querySelector('h2 span').textContent = s.account.nome;
     if (appenaCreato) box.append(el('p', 'gga-ok', 'Account creato! Da ora i giochi usano questo nome.'));
     if (appenaEntrato) box.append(el('p', 'gga-ok', 'Dispositivo collegato. Bentornato!'));
+
+    // area personale: GoGoldBar, statistiche e trofei
+    var area = el('a', 'gga-btn', '📊 Area personale');
+    area.href = radice + 'profilo/'; area.style.textAlign = 'center'; area.style.textDecoration = 'none';
+    if (window.GoGoldBar) {
+      var st = window.GoGoldBar.stato();
+      if (st.saldo != null) area.textContent = '📊 Area personale · ' + window.GoGoldBar.formatta(st.saldo) + ' GGB';
+    }
+    box.append(area);
 
     var err = el('p', 'gga-err');
     var zona = el('div', 'gga-sez');

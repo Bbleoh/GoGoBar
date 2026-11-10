@@ -403,7 +403,7 @@
     <div class="modal-error" id="cashout-error" role="alert"></div>
     <div class="modal-btns">
       <button class="btn" onclick="closeCashoutModal()">Annulla</button>
-      <button class="btn safe" id="cashout-confirm-btn" onclick="executeCashout()">Incassa &amp; Salva</button>
+      <button class="btn safe" id="cashout-confirm-btn" onclick="executeCashout()">Salva in classifica</button>
     </div>
   </div>
 </div>
@@ -430,7 +430,7 @@
     <div class="tb-left">
       <button class="top-btn" id="lb-btn" onclick="toggleLeaderboard()" title="Classifica">🏆<span class="lbl">Classifica</span></button>
       <button class="top-btn" onclick="apriStats()" title="Utente: statistiche e trofei">📊<span class="lbl">Utente</span></button>
-      <button class="top-btn cashout" id="cashout-btn" onclick="openCashout()" disabled title="Incassa il saldo e salvalo in classifica (tra una mano e l'altra)">💰<span class="lbl">Cashout</span></button>
+      <button class="top-btn cashout" id="cashout-btn" onclick="openCashout()" disabled title="Metti il tuo saldo in classifica (tra una mano e l'altra): le GoGoldBar restano tue">💰<span class="lbl">Cashout</span></button>
     </div>
     <h1 id="title-bar">La Bisca der Tromba</h1>
     <div class="tb-right">
@@ -448,7 +448,7 @@
   <section id="lobby" aria-label="Lobby">
     <div id="lobby-msg" aria-live="polite"></div>
     <h2 class="lobby-title">Scegli il tavolo</h2>
-    <div class="lobby-saldo">Saldo<b id="lobby-saldo">€50</b></div>
+    <div class="lobby-saldo">Saldo<b id="lobby-saldo">0 GGB</b></div>
     <div id="tavoli">
       <button class="tavolo" onclick="vaiA('blackjack')">
         <div class="tavolo-img"><img src="assets/croupier-init.png" alt=""></div>
@@ -490,8 +490,8 @@
   <!-- ══ DOCK ══ -->
   <footer id="dock">
     <div id="hud">
-      <div class="hud-pill"><small>Saldo</small><span id="balance-display">€50</span></div>
-      <div class="hud-pill"><small>Puntata</small><span id="bet-display">€0</span></div>
+      <div class="hud-pill"><small>Saldo</small><span id="balance-display">0 GGB</span></div>
+      <div class="hud-pill"><small>Puntata</small><span id="bet-display">0 GGB</span></div>
     </div>
 
     <div id="dock-modes">
@@ -550,8 +550,8 @@
     </div>
     <footer id="r-dock">
       <div class="r-hud">
-        <div class="hud-pill"><small>Saldo</small><span id="r-saldo">€50</span></div>
-        <div class="hud-pill"><small>Puntata</small><span id="r-puntata">€0</span></div>
+        <div class="hud-pill"><small>Saldo</small><span id="r-saldo">0 GGB</span></div>
+        <div class="hud-pill"><small>Puntata</small><span id="r-puntata">0 GGB</span></div>
       </div>
       <div id="r-chips" role="group" aria-label="Scegli la fiche">
         <button class="chip chip-1"   id="r-chip-1"   onclick="rScegliFiche(1)"   aria-label="Fiche da 1 euro" title="Tasto 1">1</button>
@@ -601,14 +601,15 @@
 <div id="overlay">
   <div class="modal-box">
     <h2>💸 Senza un soldo!</h2>
-    <p>Hai finito i gettoni, <span id="overlay-name"></span>. Il Tromba ringrazia.</p>
-    <button class="btn primary wide" onclick="resetGame()">Riprova con €50</button>
+    <p>Hai finito le GoGoldBar, <span id="overlay-name"></span>. Il Tromba ringrazia.<br>Vai in home a cliccare il maneki neko: appena ne hai di nuovo, ti risiedi al tavolo.</p>
+    <a class="btn primary wide" href="../../#neko" style="text-decoration:none;text-align:center">🐱 Vai al maneki neko</a>
   </div>
 </div>
 
 <audio id="musica" preload="auto"></audio>
 
-<script src="../../js/account.js?v=3"></script>
+<script src="../../js/account.js?v=4"></script>
+<script src="../../js/gogoldbar.js?v=1"></script>
 <script src="classifica.js?v=7"></script>
 <script>
 /* Tavolo in uso: 'lobby' | 'blackjack' | 'roulette' (la roulette è in roulette.js) */
@@ -626,7 +627,7 @@ function vaiA(dove) {
   gioco = dove;
   document.body.dataset.gioco = dove;
   if (dove === 'lobby') {
-    document.getElementById('lobby-saldo').textContent = '€' + balance.toLocaleString('it-IT');
+    document.getElementById('lobby-saldo').textContent = ggb(balance);
   } else if (dove === 'roulette') {
     rEntra();
   } else {
@@ -636,7 +637,7 @@ function vaiA(dove) {
 }
 function lobbyMsg(t) {
   document.getElementById('lobby-msg').textContent = t;
-  document.getElementById('lobby-saldo').textContent = '€' + balance.toLocaleString('it-IT');
+  document.getElementById('lobby-saldo').textContent = ggb(balance);
 }
 
 /* ════════════════════════════════════════════════════════════════
@@ -661,8 +662,51 @@ function datiAccount() {
   return { nome: playerName, saldo: balance, ultimaPuntata: lastBet, stats: stats, trofei: trofei,
            aggiornato: new Date().toISOString() };
 }
+/* ════════════════════════════════════════════════════════════════
+   GOGOLDBAR: il saldo della bisca è il portafogli GGB dell'account,
+   lo stesso di tutto il sito (js/gogoldbar.js).
+   balance resta la copia locale per il tavolo; ogni volta che si salva,
+   la differenza dall'ultima spedizione va al portafogli come incremento.
+   Le GGB arrivate da fuori (clic sul gatto in home, altre schede) entrano
+   appena il tavolo è libero.
+════════════════════════════════════════════════════════════════ */
+const ggb = n => Math.floor(Number(n) || 0).toLocaleString('it-IT') + ' GGB';
+let ggbBase = null, ggbInVolo = 0, ggbCoda = Promise.resolve();
+function ggbSync() {
+  if (!playerName || ggbBase === null || !window.GoGoldBar) return;
+  const delta = balance - ggbBase;
+  if (!delta) return;
+  ggbBase = balance; ggbInVolo++;
+  ggbCoda = ggbCoda.then(() => GoGoldBar.aggiungi(delta)).catch(e => {
+    ggbBase = null;   // rifiutato (saldo cambiato altrove) o offline: riallineo dal saldo vero del portafogli
+  }).then(() => { ggbInVolo--; ggbAllinea(); });
+}
+function ggbAllinea() {
+  if (!playerName || ggbInVolo || !window.GoGoldBar || !tavoloLibero() || currentBet) return;
+  const vero = GoGoldBar.saldo();
+  if (vero == null) return;
+  if (ggbBase === null) { balance = vero; ggbBase = vero; }
+  else if (vero !== ggbBase) { balance = Math.max(0, balance + vero - ggbBase); ggbBase = vero; }
+  else return;
+  if (balance > 0) document.getElementById('overlay').classList.remove('show');
+  controllaSaldo();
+  updateHUD();
+  if (gioco === 'lobby') document.getElementById('lobby-saldo').textContent = ggb(balance);
+}
+if (window.GoGoldBar) GoGoldBar.suCambio(() => ggbAllinea());
+setInterval(ggbAllinea, 1500);
+
+// platino: tutti i trofei fino agli epici (+5 GGB a click) e poi tutti i leggendari (+5)
+function controllaPlatino() {
+  if (!window.GoGoldBar || !playerName) return;
+  const fatti = r => TROFEI.filter(t => r.includes(t.r)).every(t => trofei[t.id]);
+  if (fatti(['comune', 'raro', 'epico'])) GoGoldBar.trofeo('bisca_epico');
+  if (fatti(['leggendario'])) GoGoldBar.trofeo('bisca_leggendario');
+}
+
 function memScrivi() {
   if (!playerName) return;
+  ggbSync();
   const m = memTutto();
   m.ultimo = playerName;
   m.account[chiaveNome(playerName)] = datiAccount();
@@ -741,7 +785,7 @@ function renderLeaderboard(entries) {
     return `<tr>
       <td class="lb-rank ${rc}">${medal}</td>
       <td class="lb-name">${escHtml(r.nome)}</td>
-      <td class="lb-score">€${r.punti.toLocaleString('it-IT')}</td>
+      <td class="lb-score">${ggb(r.punti)}</td>
       <td class="lb-date">${dataBreve(r.data)}</td>
     </tr>`;
   }).join('');
@@ -809,6 +853,11 @@ async function confirmName() {
 
   playerName = (remoto && remoto.nome) || (locale && locale.nome) || val; // tiene le maiuscole originali
   applicaAccount(unisciAccount(locale, remoto));
+  // il saldo viene dal portafogli GoGoldBar dell'account
+  ggbBase = null; balance = 0;
+  if (window.GoGoldBar) { try { await GoGoldBar.pronto; } catch (e) {} }
+  const vero = window.GoGoldBar ? GoGoldBar.saldo() : null;
+  if (vero != null) { balance = vero; ggbBase = vero; }
   syncOnline = online;
   document.getElementById('overlay-name').textContent = playerName;
   document.getElementById('name-modal').style.display = 'none';
@@ -820,7 +869,9 @@ async function confirmName() {
   else if (online) lobbyMsg('Benvenuto, ' + playerName + '! Account creato.');
   else             lobbyMsg('Benvenuto, ' + playerName + '! Sei offline: per ora salvo su questo browser.');
   statoAccount(online ? (remoto ? 'Account online' : 'Account creato online') : 'Offline: salvo solo su questo browser', !online);
+  if (balance <= 0) lobbyMsg('Ciao ' + playerName + ', non hai GoGoldBar: vai in home a cliccare il maneki neko e torna a giocare.');
   controllaSaldo();
+  controllaPlatino();
   memScrivi();
   updateHUD();
 }
@@ -897,11 +948,11 @@ function updateCashoutBtn() {
 function openCashout() {
   if (!playerName || !tavoloLibero() || balance <= 0) return;
   document.getElementById('cashout-msg').textContent =
-    `Incassa €${balance} come "${playerName}" e salva in classifica globale? Poi si riparte da €50.`;
+    `Metti i tuoi ${ggb(balance)} nella classifica globale come "${playerName}"? Le GoGoldBar restano tue.`;
   document.getElementById('cashout-error').textContent = '';
   const btn = document.getElementById('cashout-confirm-btn');
   btn.disabled = false;
-  btn.textContent = 'Incassa & Salva';
+  btn.textContent = 'Salva in classifica';
   document.getElementById('cashout-modal').classList.add('show');
 }
 
@@ -925,11 +976,11 @@ async function executeCashout() {
     closeCashoutModal();
     document.getElementById('lb-panel').classList.add('open');
     await refreshLeaderboard();
-    setTimeout(() => resetGame(), 600);
+    memScrivi();
   } catch(e) {
     errEl.textContent = e.message;
     btn.disabled = false;
-    btn.textContent = 'Incassa & Salva';
+    btn.textContent = 'Salva in classifica';
   }
 }
 
@@ -1128,7 +1179,7 @@ function isBust(h) { return total(h)>21; }
 /* ════════════════════════════════════════════════════════════════
    GAME STATE
 ════════════════════════════════════════════════════════════════ */
-const SALDO_INIZIALE = 50;
+const SALDO_INIZIALE = 0;   // il saldo vero arriva dal portafogli GoGoldBar
 let deck=[], balance=SALDO_INIZIALE, currentBet=0, lastBet=0;
 let dealerHand=[], playerHands=[[]], curHand=0, handBets=[0], handDoubled=[false], handResults=[], insBet=0;
 let phase = 'bet';
@@ -1163,13 +1214,13 @@ const TROFEI = [
   { id:'tripletta',   r:'comune', icona:'🔥', nome:'Tripletta',           desc:'Vinci 3 mani di fila' },
   { id:'raddoppio',   r:'comune', icona:'✌️', nome:'Raddoppio d\'oro',    desc:'Vinci una mano raddoppiata' },
   { id:'raddoppio11', r:'comune', icona:'📐', nome:'Da manuale',          desc:'Raddoppia su 11 e vinci' },
-  { id:'cento',       r:'comune', icona:'💶', nome:'Centone',             desc:'Arriva a €100 di saldo' },
+  { id:'cento',       r:'comune', icona:'💶', nome:'Centone',             desc:'Arriva a 100 GGB di saldo' },
   { id:'incasso',     r:'comune', icona:'🏦', nome:'Incassatore',         desc:'Fai il primo cashout' },
   { id:'rovina',      r:'comune', icona:'💸', nome:'Rovinato',            desc:'Perdi tutto il saldo' },
   { id:'pareggio',    r:'comune', icona:'🤝', nome:'Patta',               desc:'Pareggia una mano col banco' },
   { id:'bancobj',     r:'comune', icona:'😈', nome:'Il Tromba ride',      desc:'Il banco ti fa blackjack' },
   { id:'ingordo',     r:'comune', icona:'💥', nome:'Ingordo',             desc:'Sballa con 22 esatti' },
-  { id:'spilorcio',   r:'comune', icona:'🪙', nome:'Spilorcio',           desc:'Vinci una mano puntando €1' },
+  { id:'spilorcio',   r:'comune', icona:'🪙', nome:'Spilorcio',           desc:'Vinci una mano puntando 1 GGB' },
   { id:'ventuno',     r:'comune', icona:'🎯', nome:'Ventuno sudato',      desc:'Fai 21 con 3 o più carte' },
   { id:'sedici',      r:'comune', icona:'😬', nome:'Stare sul 16',        desc:'Stai su 16 e vinci' },
   { id:'buttati',     r:'comune', icona:'🙃', nome:'Soldi buttati',       desc:'Prendi l\'assicurazione e il banco non ha blackjack' },
@@ -1188,12 +1239,12 @@ const TROFEI = [
   { id:'maledetto',   r:'raro', icona:'🌧️', nome:'Maledetto',             desc:'Perdi 10 mani di fila' },
   { id:'lumaca',      r:'raro', icona:'🐢', nome:'Lumaca',                desc:'Vinci con 12 o meno (il banco sballa)' },
   { id:'colpogrosso', r:'raro', icona:'💎', nome:'Colpo grosso',          desc:'Raddoppia e fai 21' },
-  { id:'balena',      r:'raro', icona:'🐋', nome:'Balena',                desc:'Punta €500 o più in una mano' },
+  { id:'balena',      r:'raro', icona:'🐋', nome:'Balena',                desc:'Punta 500 GGB o più in una mano' },
   { id:'pendolare',   r:'raro', icona:'💼', nome:'Pendolare',             desc:'Fai 10 cashout' },
   { id:'affezionato', r:'raro', icona:'🩹', nome:'Cliente affezionato',   desc:'Vai in bancarotta 5 volte' },
   { id:'nottambulo',  r:'raro', icona:'🦉', nome:'Nottambulo',            desc:'Gioca una mano tra le 3 e le 5 di notte' },
   // ── epici
-  { id:'mille',       r:'epico', icona:'💰', nome:'Il Tromba trema',      desc:'Arriva a €1.000 di saldo' },
+  { id:'mille',       r:'epico', icona:'💰', nome:'Il Tromba trema',      desc:'Arriva a 1.000 GGB di saldo' },
   { id:'bj50',        r:'epico', icona:'🃁', nome:'Asso nella manica',    desc:'Fai 50 blackjack' },
   { id:'specchio',    r:'epico', icona:'🪞', nome:'Specchio',             desc:'Pareggia 3 mani di fila' },
   { id:'gattonero',   r:'epico', icona:'🐈‍⬛', nome:'Gatto nero',          desc:'Il banco fa blackjack 3 mani di fila' },
@@ -1202,20 +1253,20 @@ const TROFEI = [
   { id:'seicarte',    r:'epico', icona:'🖖', nome:'Mano infinita',        desc:'Vinci con 6 o più carte' },
   { id:'cinque21',    r:'epico', icona:'✋', nome:'Cinque per ventuno',   desc:'Fai 21 con 5 carte' },
   { id:'sfacciato',   r:'epico', icona:'🍀', nome:'Sfacciato',            desc:'Chiedi carta su 17 o più e fai 21' },
-  { id:'jackpot',     r:'epico', icona:'🎰', nome:'Jackpot',              desc:'Vinci €1.000 in una sola mano' },
-  { id:'rimonta',     r:'epico', icona:'📈', nome:'Rimonta',              desc:'Torna a €100 dopo essere sceso a €5 o meno' },
+  { id:'jackpot',     r:'epico', icona:'🎰', nome:'Jackpot',              desc:'Vinci 1.000 GGB in una sola mano' },
+  { id:'rimonta',     r:'epico', icona:'📈', nome:'Rimonta',              desc:'Torna a 100 GGB dopo essere sceso a 5 GGB o meno' },
   { id:'habitue',     r:'epico', icona:'🪑', nome:'Habitué',              desc:'Gioca 500 mani' },
-  { id:'banchiere',   r:'epico', icona:'🏛️', nome:'Banchiere',            desc:'Fai un cashout da €1.000 o più' },
+  { id:'banchiere',   r:'epico', icona:'🏛️', nome:'Banchiere',            desc:'Fai un cashout da 1.000 GGB o più' },
   { id:'collezione',  r:'epico', icona:'🏅', nome:'Bacheca piena',        desc:'Sblocca 25 trofei' },
   // ── leggendari
-  { id:'diecimila',   r:'leggendario', icona:'👑', nome:'Padrone della bisca', desc:'Arriva a €10.000 di saldo' },
-  { id:'centomila',   r:'leggendario', icona:'🏰', nome:'La bisca è tua',      desc:'Arriva a €100.000 di saldo' },
+  { id:'diecimila',   r:'leggendario', icona:'👑', nome:'Padrone della bisca', desc:'Arriva a 10.000 GGB di saldo' },
+  { id:'centomila',   r:'leggendario', icona:'🏰', nome:'La bisca è tua',      desc:'Arriva a 100.000 GGB di saldo' },
   { id:'bj3',         r:'leggendario', icona:'🌩️', nome:'Fulmine a ciel sereno', desc:'Blackjack in 3 mani di fila' },
   { id:'infiamme',    r:'leggendario', icona:'☄️', nome:'In fiamme',           desc:'Vinci 10 mani di fila' },
   { id:'quattro',     r:'leggendario', icona:'🔱', nome:'Quattro su quattro',  desc:'Vinci tutte e 4 le mani di uno split' },
   { id:'settebello',  r:'leggendario', icona:'7️⃣', nome:'Tre sette',           desc:'Fai 21 con 7, 7 e 7' },
   { id:'pokerassi',   r:'leggendario', icona:'🂱', nome:'Poker d\'assi',       desc:'Tieni 4 Assi nella stessa mano' },
-  { id:'sbancata',    r:'leggendario', icona:'🏆', nome:'Sbancata',            desc:'Vinci €10.000 in una sola mano' },
+  { id:'sbancata',    r:'leggendario', icona:'🏆', nome:'Sbancata',            desc:'Vinci 10.000 GGB in una sola mano' },
   { id:'senzapaura',  r:'leggendario', icona:'🦁', nome:'Senza paura',         desc:'Vinci 3 all in di fila' },
   { id:'civive',      r:'leggendario', icona:'🛋️', nome:'Ci vive qui',         desc:'Gioca 1.000 mani' },
   // ── roulette
@@ -1227,8 +1278,8 @@ const TROFEI = [
   { id:'r_giri100',   r:'raro', icona:'🌀', nome:'Mal di ruota',           desc:'Gira la roulette 100 volte' },
   { id:'r_tutto',     r:'epico', icona:'🛡️', nome:'Copro tutto',          desc:'Copri tutti i 37 numeri in un solo giro' },
   { id:'r_rossofisso',r:'epico', icona:'🌹', nome:'Rosso fisso',          desc:'Esce il rosso 7 volte di fila' },
-  { id:'r_pieno100',  r:'epico', icona:'💣', nome:'Pieno da paura',       desc:'Prendi un numero pieno con €100 o più sopra' },
-  { id:'r_sbanca',    r:'leggendario', icona:'🎆', nome:'Sbanca la ruota', desc:'Vinci €5.000 in un solo giro' },
+  { id:'r_pieno100',  r:'epico', icona:'💣', nome:'Pieno da paura',       desc:'Prendi un numero pieno con 100 GGB o più sopra' },
+  { id:'r_sbanca',    r:'leggendario', icona:'🎆', nome:'Sbanca la ruota', desc:'Vinci 5.000 GGB in un solo giro' },
   { id:'r_bis',       r:'leggendario', icona:'🔮', nome:'Il bis',          desc:'Prendi lo stesso numero pieno due giri di fila' },
   { id:'leggenda',    r:'leggendario', icona:'🌟', nome:'Leggenda della bisca', desc:'Sblocca tutti gli altri trofei' },
 ];
@@ -1242,6 +1293,7 @@ function sblocca(id) {
   const n = Object.keys(trofei).length;
   if (n >= 25) sblocca('collezione');
   if (TROFEI.every(x => x.id === 'leggenda' || trofei[x.id])) sblocca('leggenda');
+  controllaPlatino();
   memScrivi();
 }
 
@@ -1269,7 +1321,7 @@ function controllaSaldo() {
 function apriStats() {
   const s = stats;
   const perc = s.mani ? Math.round(s.vinte / s.mani * 100) : 0;
-  const euro = v => '€' + Number(v).toLocaleString('it-IT');
+  const euro = ggb;
   const righe = [
     ['Mani giocate', s.mani], ['Vinte', s.vinte + (s.mani ? ` (${perc}%)` : '')],
     ['Perse', s.perse], ['Pareggi', s.pari], ['Blackjack', s.blackjack], ['Sballate', s.sballate],
@@ -1319,13 +1371,13 @@ function azzeraStats() {
    UI HELPERS
 ════════════════════════════════════════════════════════════════ */
 function updateHUD() {
-  document.getElementById('balance-display').textContent = '€' + balance.toLocaleString('it-IT');
-  document.getElementById('bet-display').textContent     = '€' + currentBet.toLocaleString('it-IT');
+  document.getElementById('balance-display').textContent = ggb(balance);
+  document.getElementById('bet-display').textContent     = ggb(currentBet);
   updateCashoutBtn();
   updateChipStates();
   updateBetTools();
   if (gioco === 'roulette' && typeof rAggiorna === 'function') rAggiorna();
-  if (gioco === 'lobby') document.getElementById('lobby-saldo').textContent = '€' + balance.toLocaleString('it-IT');
+  if (gioco === 'lobby') document.getElementById('lobby-saldo').textContent = ggb(balance);
 }
 
 function updateChipStates() {
@@ -1426,7 +1478,7 @@ function addBet(v) {
       el.classList.add('chip-shake');
       setTimeout(() => el.classList.remove('chip-shake'), 400);
     }
-    msg('Saldo insufficiente per questa puntata! (disponibili: €' + (balance - currentBet) + ')', 'lose');
+    msg('Saldo insufficiente per questa puntata! (disponibili: ' + ggb(balance - currentBet) + ')', 'lose');
     setTimeout(() => { if (phase==='bet' && !currentBet) msg(''); }, 2500);
     return;
   }
@@ -1446,7 +1498,7 @@ function repeatBet() {
   if (phase !== 'bet' || lastBet <= 0) return;
   currentBet = Math.min(lastBet, balance);
   sfxChip();
-  if (currentBet < lastBet) msg('Saldo basso: punto tutto quello che hai (€' + currentBet + ').', 'push');
+  if (currentBet < lastBet) msg('Saldo basso: punto tutto quello che hai (' + ggb(currentBet) + ').', 'push');
   updateHUD();
 }
 
@@ -1617,7 +1669,7 @@ function finishRound() {
 
   // L'assicurazione paga 2:1: torna la posta più il doppio
   if(insBet>0) {
-    if(dBJ) { balance+=insBet*3; guadagno+=insBet*2; messages.push('Assicurazione pagata! +€'+(insBet*2)); sblocca('assicurato'); }
+    if(dBJ) { balance+=insBet*3; guadagno+=insBet*2; messages.push('Assicurazione pagata! +'+ggb(insBet*2)); sblocca('assicurato'); }
     else { guadagno-=insBet; sblocca('buttati'); }
   }
 
@@ -1628,12 +1680,12 @@ function finishRound() {
           lbl=playerHands.length>1?'Mano '+(i+1)+': ':'';
     let vinta = false;
     let esito='lose';
-    if(isBust(h))          { guadagno-=bet; stats.sballate++; messages.push(lbl+'Sballato! -€'+bet); }
-    else if(dBJ&&!pBJ)     { guadagno-=bet; messages.push(lbl+'Banco fa Blackjack! -€'+bet); }
-    else if(pBJ&&!dBJ)     { const w=Math.floor(bet*2.5);balance+=w;guadagno+=w-bet;result='bj';vinta=true;esito='win';stats.blackjack++;messages.push(lbl+'BLACKJACK! +€'+(w-bet)); }
-    else if(isBust(dealerHand)||pT>dT) { balance+=bet*2;guadagno+=bet;if(result!=='bj')result='win';vinta=true;esito='win';messages.push(lbl+'Hai vinto! +€'+bet); }
-    else if(pT===dT)       { balance+=bet;if(result==='lose')result='push';esito='push';messages.push(lbl+'Pareggio. €'+bet+' rimborsati.'); }
-    else                   { guadagno-=bet; messages.push(lbl+'Banco vince! -€'+bet); }
+    if(isBust(h))          { guadagno-=bet; stats.sballate++; messages.push(lbl+'Sballato! -'+ggb(bet)); }
+    else if(dBJ&&!pBJ)     { guadagno-=bet; messages.push(lbl+'Banco fa Blackjack! -'+ggb(bet)); }
+    else if(pBJ&&!dBJ)     { const w=Math.floor(bet*2.5);balance+=w;guadagno+=w-bet;result='bj';vinta=true;esito='win';stats.blackjack++;messages.push(lbl+'BLACKJACK! +'+ggb(w-bet)); }
+    else if(isBust(dealerHand)||pT>dT) { balance+=bet*2;guadagno+=bet;if(result!=='bj')result='win';vinta=true;esito='win';messages.push(lbl+'Hai vinto! +'+ggb(bet)); }
+    else if(pT===dT)       { balance+=bet;if(result==='lose')result='push';esito='push';messages.push(lbl+'Pareggio. '+ggb(bet)+' rimborsati.'); }
+    else                   { guadagno-=bet; messages.push(lbl+'Banco vince! -'+ggb(bet)); }
     handResults[i]=esito;
     if (esito==='push') sblocca('pareggio');
     if (pT===22) sblocca('ingordo');
@@ -1736,12 +1788,10 @@ function resetTavolo() {
   closeCashoutModal();
   if (typeof rReset === 'function') rReset();
 }
+// niente più ripartenze da 50: le GGB si rifanno cliccando il maneki neko in home
 function resetGame() {
-  balance=SALDO_INIZIALE;
   resetTavolo();
   msg(playerName ? 'Buona fortuna, '+playerName+'!' : '');
-  if (gioco === 'roulette') rMsg('Si riparte da €' + SALDO_INIZIALE + '. Buona fortuna, ' + playerName + '!');
-  if (gioco === 'lobby') lobbyMsg('Si riparte da €' + SALDO_INIZIALE + '. Buona fortuna, ' + playerName + '!');
   memScrivi();
 }
 
@@ -1864,9 +1914,6 @@ setInterval(() => {
     document.getElementById('name-input').addEventListener('input', () => {
       document.getElementById('name-btn').textContent = 'Siediti al tavolo';
     }, { once: true });
-    if (acc && acc.saldo > 0 && acc.saldo !== SALDO_INIZIALE)
-      document.getElementById('name-intro').textContent =
-        'Bentornato! I tuoi €' + Math.floor(acc.saldo).toLocaleString('it-IT') + ' sono ancora sul tavolo.';
   }
   // account GoGoBar: si gioca solo con quello con cui sei entrato dalla home
   if (contoAttivo()) {
@@ -1881,7 +1928,7 @@ deck = newDeck(6);
 betArea(true);
 setCroupier('init');
 </script>
-<script src="../../js/radio.js?v=13"></script>
-<script src="roulette.js?v=6"></script>
+<script src="../../js/radio.js?v=14"></script>
+<script src="roulette.js?v=7"></script>
 </body>
 </html>
