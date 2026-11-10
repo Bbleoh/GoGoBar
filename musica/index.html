@@ -294,7 +294,7 @@
         scena.append(retro);
         inclina(scena, retro);
         const nota = document.createElement('p');
-        nota.className = 'retro-nota'; nota.textContent = matchMedia('(hover: none)').matches ? 'Tocca la copertina per girarla, poi tocca un titolo' : 'Passa sul disco e clicca un titolo per ascoltarlo';
+        nota.className = 'retro-nota'; nota.textContent = matchMedia('(hover: none)').matches ? 'Tocca la copertina per girarla, tocca un titolo per ascoltarlo' : 'Passa sul disco e clicca un titolo per ascoltarlo';
         ol.replaceWith(scena);
         scena.after(nota);
         ol = null; ultimo = b.album;
@@ -360,9 +360,11 @@
       }, 750);
     }
     if (touch) {
+      // tap sulla copertina = gira sul retro; sul retro, tap su un titolo = suona, tap altrove = torna al fronte
       scena.addEventListener('click', function (e) {
-        if (scena.classList.contains('girata')) return;
-        e.stopPropagation(); e.preventDefault(); gira(true);
+        const girata = scena.classList.contains('girata');
+        if (girata && e.target.closest('.hot')) return;
+        e.stopPropagation(); e.preventDefault(); gira(!girata);
       }, true);
       return;
     }
