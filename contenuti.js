@@ -111,7 +111,7 @@ const CONTENUTI = {
       // copertina e retro del vinile (facoltativi). "mappa" dice dove sta ogni brano
       // sul retro, in percentuale: [sinistra, alto, larghezza, altezza], nell'ordine dei brani.
       copertina: 'musica/copertine/og-tracks-fronte.jpg?v=2',
-      retro: 'musica/copertine/og-tracks-retro.jpg?v=3',
+      retro: 'musica/copertine/og-tracks-retro.jpg?v=4',
       mappa: [
         [42.78, 33.06, 27.96, 5.05], [42.78, 38.1, 27.96, 5.28], [42.78, 43.38, 27.96, 9.35],
         [42.78, 52.73, 27.96, 5.23], [42.78, 57.96, 27.96, 5.23], [42.78, 63.19, 27.96, 9.35],
