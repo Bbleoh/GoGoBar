@@ -511,7 +511,7 @@
   <audio id="musicaBoss" data-musica src="musica-boss.mp3" loop preload="none"></audio>
 
 <script src="../../js/account.js?v=4"></script>
-<script src="../../js/gogoldbar.js?v=1"></script>
+<script src="../../js/gogoldbar.js?v=2"></script>
 <script src="classifica.js?v=4" onerror="window.CorriMarfClassifica = null"></script>
 <script>
 (function () {
@@ -4872,18 +4872,18 @@
   }
   function mostra(st) {
     box.hidden = false; musicaZitta();
-    prezzo.innerHTML = G.icona + '<span>' + G.formatta(P) + '</span>';
+    prezzo.innerHTML = '<span>' + G.formatta(P) + '</span>' + G.icona;
     vai.hidden = false;
     if (!st.account) {
       testo.textContent = 'Corri Marf! si sblocca con le GoGoldBar del tuo account GoGoBar. Crealo (o entra) dalla home con 👤, poi clicca il maneki neko.';
       vai.textContent = '👤 Vai al tuo account';
       vai.onclick = function () { location.href = '../../#account'; };
     } else if ((st.saldo || 0) < P) {
-      testo.textContent = 'Per correre servono ' + G.formatta(P) + ' GoGoldBar. Ne hai ' + G.formatta(st.saldo) + ': te ne mancano ' + G.formatta(P - (st.saldo || 0)) + '.';
+      testo.textContent = 'Per correre servono ' + G.valuta(P) + '. Ne hai ' + G.valuta(st.saldo) + ': te ne mancano ' + G.valuta(P - (st.saldo || 0)) + '.';
       vai.textContent = '🐱 Vai a cliccare il maneki neko';
       vai.onclick = function () { location.href = '../../#neko'; };
     } else {
-      testo.textContent = 'Hai ' + G.formatta(st.saldo) + ' GoGoldBar. Sblocca Corri Marf! per sempre sul tuo account.';
+      testo.textContent = 'Hai ' + G.valuta(st.saldo) + '. Sblocca Corri Marf! per sempre sul tuo account.';
       vai.textContent = 'Sblocca';
       vai.onclick = function () {
         vai.disabled = true; vai.textContent = 'Pago...';

@@ -145,7 +145,7 @@
     area.href = radice + 'profilo/'; area.style.textAlign = 'center'; area.style.textDecoration = 'none';
     if (window.GoGoldBar) {
       var st = window.GoGoldBar.stato();
-      if (st.saldo != null) area.textContent = '📊 Area personale · ' + window.GoGoldBar.formatta(st.saldo) + ' GGB';
+      if (st.saldo != null) area.textContent = '📊 Area personale · ' + window.GoGoldBar.valuta(st.saldo);
     }
     box.append(area);
 
