@@ -124,6 +124,33 @@
     .scheda .foto .citazione p::before { content: '«'; } .scheda .foto .citazione p::after { content: '»'; }
     .scheda .foto .citazione footer { margin-top: .6em; font-family: var(--mono); font-size: calc(.8em + 0.2 * var(--piu)); color: var(--muted); }
     .scheda .foto .manca { font-family: var(--mono); font-size: calc(.7em + 0.3 * var(--piu)); color: var(--muted); text-align: center; padding: 1em; }
+    /* Officina di Vito: al posto delle foto uno schermo col carrello, che zooma sul pezzo dell'articolo scelto */
+    .scheda .foto .schermo { position: absolute; inset: 3%; overflow: hidden; container-type: size;
+      background: radial-gradient(ellipse at 50% 45%, #14262a 0%, #0a1416 55%, #040708 100%);
+      box-shadow: inset 0 0 0 1px rgba(120,230,215,.28), inset 0 0 36px rgba(0,0,0,.85);
+      clip-path: polygon(8px 0, 100% 0, 100% calc(100% - 8px), calc(100% - 8px) 100%, 0 100%, 0 8px); }
+    .schermo .griglia { position: absolute; inset: 0; opacity: .5; transition: transform .8s cubic-bezier(.6,0,.2,1);
+      background: linear-gradient(rgba(120,230,215,.09) 1px, transparent 1px) 0 0 / 100% 12.5%, linear-gradient(90deg, rgba(120,230,215,.09) 1px, transparent 1px) 0 0 / 10% 100%; }
+    .schermo.zoom .griglia { transform: scale(1.6); }
+    .schermo .vista { position: absolute; inset: 0; display: grid; place-items: center; }
+    .schermo .inquadra { position: relative; width: min(84cqw, 70cqh * 320 / 241); aspect-ratio: 320 / 241; transform-origin: 0 0;
+      transition: transform .8s cubic-bezier(.6,0,.2,1); will-change: transform; }
+    .schermo .inquadra img { position: absolute; inset: 0; width: 100%; height: 100%; filter: drop-shadow(0 0 6px rgba(120,230,215,.35)) saturate(.9); }
+    .schermo .mirino { position: absolute; left: 50%; top: 50%; width: 34cqmin; height: 34cqmin; transform: translate(-50%, -50%) scale(1.5); opacity: 0;
+      transition: opacity .25s ease, transform .35s ease; pointer-events: none;
+      background: linear-gradient(var(--c), var(--c)) 0 0 / 22% 2px, linear-gradient(var(--c), var(--c)) 0 0 / 2px 22%,
+        linear-gradient(var(--c), var(--c)) 100% 0 / 22% 2px, linear-gradient(var(--c), var(--c)) 100% 0 / 2px 22%,
+        linear-gradient(var(--c), var(--c)) 0 100% / 22% 2px, linear-gradient(var(--c), var(--c)) 0 100% / 2px 22%,
+        linear-gradient(var(--c), var(--c)) 100% 100% / 22% 2px, linear-gradient(var(--c), var(--c)) 100% 100% / 2px 22%; background-repeat: no-repeat; --c: var(--gold); }
+    .schermo.zoom .mirino { opacity: .9; transform: translate(-50%, -50%) scale(1); transition-delay: .55s; }
+    .schermo .etichetta, .schermo .dida { position: absolute; left: 4%; right: 4%; font-family: var(--mono); letter-spacing: .14em; text-transform: uppercase; pointer-events: none; }
+    .schermo .etichetta { top: 4%; font-size: calc(.56em + 0.3 * var(--piu)); color: rgba(150,235,222,.75); display: flex; justify-content: space-between; }
+    .schermo .etichetta i { font-style: normal; color: var(--red); animation: rec 1.1s steps(2) infinite; }
+    @keyframes rec { 50% { opacity: .15; } }
+    .schermo .dida { bottom: 4%; font-size: calc(.66em + 0.3 * var(--piu)); color: var(--gold); display: flex; justify-content: space-between; align-items: baseline; }
+    .schermo .dida small { color: rgba(150,235,222,.75); font-size: .85em; }
+    .schermo::after { content: ''; position: absolute; inset: 0; pointer-events: none;
+      background: repeating-linear-gradient(rgba(0,0,0,.22) 0 1px, transparent 1px 3px), radial-gradient(ellipse at 50% 50%, transparent 55%, rgba(0,0,0,.55) 100%); }
     .scheda h3 { font-family: var(--display); font-style: italic; font-weight: 700; font-size: calc(1.35em - 0.35 * var(--piu)); line-height: 1; color: var(--gold); text-transform: uppercase; }
     .scheda .desc { font-size: calc(.85em + 0.15 * var(--piu)); color: var(--ivory); }
     .scheda .prossimo { font-family: var(--mono); font-size: calc(.7em + 0.3 * var(--piu)); color: var(--cream); }
@@ -1250,14 +1277,49 @@
     reazioneCrivo('apre');                          // Vito ti accoglie (Crivo non ha una voce per questo)
   }
   function chiudiMarket() { market.hidden = true; menu.hidden = false; aggiornaChi(); }
+  // Officina di Vito: lo schermo col carrello. Per ogni articolo il punto da inquadrare (frazioni dell'immagine) e lo zoom
+  var PEZZI_CARRELLO = {
+    car_durata:   { x: 0.235, y: 0.885, z: 3,   nome: 'Ruote' },
+    car_fiuto:    { x: 0.935, y: 0.29,  z: 3.2, nome: 'Muso' },
+    car_telaio:   { x: 0.5,   y: 0.79,  z: 2.4, nome: 'Telaio' },
+    car_molle:    { x: 0.87,  y: 0.84,  z: 3,   nome: 'Sospensioni' },
+    car_cestello: { x: 0.56,  y: 0.4,   z: 1.65, nome: 'Cestello' },
+    car_partenza: { x: 0.11,  y: 0.1,   z: 3,   nome: 'Manico' }
+  };
+  var schermo = null;
+  function schermoCarrello() {
+    if (schermo) return schermo;
+    schermo = document.createElement('div'); schermo.className = 'schermo';
+    schermo.innerHTML = '<div class="griglia"></div><div class="vista"><div class="inquadra">' +
+      '<img alt="" src="ogg/carrello.webp?v=1"><img alt="" src="ogg/carrello-davanti.webp?v=1"></div></div>' +
+      '<div class="mirino"></div><div class="etichetta"><span>Officina · diagnosi</span><i>● rec</i></div><div class="dida"><b></b><small></small></div>';
+    return schermo;
+  }
+  function inquadraCarrello(id, lv, max) {
+    var sc = schermoCarrello(), q = PEZZI_CARRELLO[id], box = sc.querySelector('.inquadra');
+    sc.classList.toggle('zoom', !!q);
+    // origine in alto a sinistra: il punto (x, y) finisce al centro dello schermo
+    box.style.transform = q ? 'translate(' + (50 - q.z * q.x * 100) + '%, ' + (50 - q.z * q.y * 100) + '%) scale(' + q.z + ')' : 'none';
+    sc.querySelector('.dida b').textContent = q ? q.nome : 'Carrello';
+    sc.querySelector('.dida small').textContent = q ? 'liv ' + lv + '/' + max : '';
+  }
   function disegnaScheda(d) {
     var u = negozio.lista.filter(function (x) { return x.id === scelto; })[0];
     market.classList.toggle('aperta', !!u);
-    if (!u) return;
+    if (!u) { if (schermo) inquadraCarrello(null); return; }   // chiusa: la prossima volta si riparte dal carrello intero
     var lv = +d.upg[u.id] || 0, max = u.prezzi.length;
-    var foto = document.getElementById('schedaFoto'); foto.textContent = '';
-    var src = immagineArticolo(u, lv);
-    if (src && src.citazione) {                          // al posto della foto una citazione
+    var foto = document.getElementById('schedaFoto');
+    if (negozio === NEGOZI.vito) {                       // Vito: schermo col carrello che zooma sul pezzo
+      var sc = schermoCarrello();
+      if (sc.parentNode !== foto) {                      // appena aperto: si parte dal carrello intero e poi si stringe
+        foto.textContent = ''; foto.append(sc); inquadraCarrello(null);
+        void sc.offsetWidth;
+        setTimeout(function () { if (scelto) inquadraCarrello(scelto, +datiDi(giocatore).upg[scelto] || 0, (negozio.lista.filter(function (x) { return x.id === scelto; })[0] || u).prezzi.length); }, 220);
+      } else inquadraCarrello(u.id, lv, max);
+    } else foto.textContent = '';
+    var src = negozio === NEGOZI.vito ? null : immagineArticolo(u, lv);
+    if (negozio === NEGOZI.vito) { /* lo schermo è già lì */ }
+    else if (src && src.citazione) {                          // al posto della foto una citazione
       var cit = document.createElement('blockquote'); cit.className = 'citazione';
       var fo = document.createElement('footer'); fo.textContent = '— ' + src.autore;
       cit.append(testo('p', src.citazione), fo); foto.append(cit);
@@ -1402,7 +1464,7 @@
   // aprendo la pagina con #prova le ragazze non ti prendono mai (utile per provare le animazioni)
   var PROVA = location.hash === '#prova';
   if (PROVA) window.corriMarfProva = { salta: function () { salta(); }, giu: function (v) { giu(v); }, stato: function () { return g; }, vai: function (m) { scorrimento = m * 40; g.metri = m; },
-    metti: function (tipo, x, quante) { var o = { tipo: tipo, t: TIPI[tipo], x: x, w: TIPI[tipo].w, h: TIPI[tipo].h * (quante || 1), quante: quante || 1 }; g.ostacoli.push(o); return o; },
+    metti: function (tipo, x, quante) { var o = nuovoOstacolo(tipo, x); if (quante) { o.quante = quante; o.h = TIPI[tipo].h * quante; } g.ostacoli.push(o); return o; },
     jet: function () { g.prossimoJet = 0; }, palazzo: function (v) { g.ostacoli.length = 0; g.prossimoPalazzo = g.metri; g.variante = v; }, pal: function () { return palazzo; },
     boss: function () { g.ostacoli.length = 0; g.prossimoBoss = g.metri + 1; g.munizioni = arguments.length ? arguments[0] : 12; },
     lancia: function (k) { iniziaTiro(); if (g.tiro != null) g.tiro = (k == null ? 1 : k) * TIRO_MAX; lancia(); },
@@ -1431,7 +1493,7 @@
       fx: [], detriti: [], colpi: 0, scudo: 0,
       jets: [], fumo: [], jetAvviso: 0, prossimoJet: 700 + Math.random() * 500, prossimoPalazzo: PALAZZO_OGNI,
       vetri: [], fumoGomme: [], sgommate: [], volo: null, auto: null,
-      munizioni: 0, bonus: 0, boss: null, prossimoBoss: BOSS_PRIMO, bless: 0, pedane: [], super: 0, tiro: null, livelloBoss: 1, sfere: [], lanci: [], speciali: [], laser: null
+      munizioni: 0, bonus: 0, boss: null, prossimoBoss: BOSS_PRIMO, bless: 0, blessPausa: 0, pedane: [], super: 0, tiro: null, livelloBoss: 1, sfere: [], lanci: [], speciali: [], laser: null
     };
   }
   nuovaPartita();
@@ -1538,7 +1600,8 @@
     var u = Math.min(1, q.t / RISORGE_T), e = u * u * (3 - 2 * u), su = Math.min(1, u / 0.7), es = su * su * (3 - 2 * su);
     var suolo = palazzo && palazzo.dentro ? palazzo.pav : TERRA;
     rg.vx = rg.vy = rg.vrot = 0;
-    rg.x = q.x0 * (1 - es); rg.y = q.y0 + (suolo - RISORGE_SU + a.anca - q.y0) * es + Math.sin(g.t * 5) * 3 * es;
+    var alza = palazzo && palazzo.dentro ? 4 : RISORGE_SU;   // nel corridoio il soffitto è basso
+    rg.x = q.x0 * (1 - es); rg.y = q.y0 + (suolo - alza + a.anca - q.y0) * es + Math.sin(g.t * 5) * 3 * es;
     rg.rot = q.rot0 + (q.rot1 - q.rot0) * es;
     CHIAVI.forEach(function (k) {                 // gli arti tornano alla posa di corsa
       var d = Math.atan2(Math.sin(a.posa[k] - q.po0[k]), Math.cos(a.posa[k] - q.po0[k]));
@@ -1814,6 +1877,7 @@
     durex:       { img: 'durex', dh: 26, w: 84, h: 26 },          // impilabili: h × quante
     transenna:   { img: 'transenna', dh: 68, w: 104, h: 62 },
     pila:        { img: 'transenna', dh: 68, w: 90, h: 146 },     // tre transenne una sopra l'altra: serve il doppio salto
+    sgabello:    { img: 'ragazza-a-terra', dh: 46, w: 96, h: 132 }, // calciatore in piedi sulla schiena della ragazza accovacciata
     juve:        { img: 'juve', dh: 106, w: 28, h: 100 },
     lazio:       { img: 'lazio', dh: 106, w: 28, h: 100 },
     carabiniere: { img: 'carabiniere', dh: 110, w: 22, h: 104 },
@@ -1856,7 +1920,7 @@
   function scegliTipo(fase) {
     var r = Math.random(), tipo;
     if (g.metri > 400 && r < 0.07) tipo = fase === 'normale' ? 'aygo' : 'transenna';   // l'Aygo corre più del mondo: nelle ondate niente
-    else if (r < 0.25) tipo = 'ragazza';
+    else if (r < 0.25) tipo = g.metri > SGABELLO_DA && fase !== 'fitta' && Math.random() < 0.3 ? 'sgabello' : 'ragazza';   // ogni tanto col calciatore sopra
     else if (r < 0.42) tipo = 'durex';
     else if (r < 0.56) tipo = g.metri > PILA_DA && fase !== 'fitta' && Math.random() < 0.45 ? 'pila' : 'transenna';   // ogni tanto impilate
     else if (r < 0.79) { var q = Math.random(); tipo = q < 0.16 ? 'carabiniere' : q < 0.58 ? 'juve' : 'lazio'; }   // il carabiniere è una variante rara
@@ -1907,7 +1971,14 @@
   }
 
   var PILA_DA = 500, PILA_PASSO = 44;                  // da quanti metri compaiono le transenne impilate; quanto sale ogni transenna
-  function nuovoOstacolo(tipo, x) { var t = TIPI[tipo]; return { tipo: tipo, t: t, x: x, w: t.w, h: t.h, quante: tipo === 'pila' ? 3 : 1 }; }
+  // calciatore sopra la ragazza: dove poggia i piedi (sulla schiena) e i due pezzi della hitbox [x, da terra, larghezza, altezza]
+  var SGABELLO_DA = 700, SGABELLO_DX = 10, SGABELLO_PIEDI = 38;
+  var SGABELLO_PEZZI = [[0, 0, 96, 36], [48 + SGABELLO_DX - 13, SGABELLO_PIEDI, 26, 94]];
+  function nuovoOstacolo(tipo, x) {
+    var t = TIPI[tipo], o = { tipo: tipo, t: t, x: x, w: t.w, h: t.h, quante: tipo === 'pila' ? 3 : 1 };
+    if (tipo === 'sgabello') { o.pezzi = SGABELLO_PEZZI; o.squadra = Math.random() < 0.5 ? 'juve' : 'lazio'; }
+    return o;
+  }
 
   /* ── Conformazioni rare: più rare degli ostacoli normali, mai durante il boss ──
      pesci: tre pesci spada uno sopra l'altro, si passa solo scivolando
@@ -2251,6 +2322,7 @@
     if (g.scatto > 0) g.scatto -= dt;
     if (g.scudo > 0) g.scudo -= dt;
     if (g.bless > 0) g.bless -= dt;
+    if (g.blessPausa > 0) g.blessPausa -= dt;
 
     // le inseguitrici restano indietro piano piano, molto di più durante lo scatto
     g.distacco = g.distacco > 260 ? Math.max(260, g.distacco - 110 * dt)   // dopo il passaggio in Punto le ragazze rientrano da sinistra
@@ -2351,7 +2423,10 @@
           if (g.distacco >= 255) g.birre++;
           g.munizioni += g.valCanna || 1;                    // le canne raccolte si possono lanciare al boss (bifase e trifase valgono 2 e 3)
           g.distacco = Math.min(g.distacco + 55, 260); g.scatto = 1.2;
-          g.bless = valore('scatto');                        // Bless: un attimo di invincibilità dopo ogni canna
+          if (g.blessPausa <= 0 && valore('scatto') > 0) {   // Bless: un attimo di invincibilità dopo una canna,
+            g.bless = Math.max(g.bless, valore('scatto'));   // poi una pausa: con 5 canne di fila non si riaccende a ogni canna
+            g.blessPausa = valore('scatto') + BLESS_PAUSA;
+          }
           evento('canne', 1);
           if (b.gruppo && ++b.gruppo.presi === b.gruppo.n) { evento('canneTutte', 1); if (b.gruppo.n === 7) evento('canne7', 1); }
           fx('canna', 0.45, 1.2); fx('brace', 0.55, 0.9 + Math.random() * 0.2); fx('campanella', 0.45, 1.05 + Math.random() * 0.1);
@@ -2398,6 +2473,13 @@
         conContorno(img, -dwd / 2, -dhd / 2, dwd, dhd);
         ctx.restore();
       }
+    } else if (o.tipo === 'sgabello' && u < 1 && pronta(img) && pronta(OGG[o.squadra])) {   // ragazza e calciatore volano ognuno per conto suo
+      [[img, o.t.dh, -1], [OGG[o.squadra], TIPI[o.squadra].dh, 1]].forEach(function (pz) {
+        var im = pz[0], dhp = pz[1], dwp = dhp * im.naturalWidth / im.naturalHeight;
+        ctx.save(); ctx.translate(x + pz[2] * e * 90, y - (pz[2] > 0 ? 60 * (1 - e) + 50 * e : 0)); ctx.rotate(t * (pz[2] > 0 ? 15 : -10)); ctx.scale(sc, sc);
+        conContorno(im, -dwp / 2, -dhp / 2, dwp, dhp);
+        ctx.restore();
+      });
     } else if (u < 1 && pronta(img)) {
       ctx.save(); ctx.translate(x, y); ctx.rotate(t * 13); ctx.scale(sc, sc);
       var dh = o.t.dh, dw = dh * img.naturalWidth / img.naturalHeight;
@@ -2822,7 +2904,7 @@
     aggiornaSpeciali(dt, dx, hb);
   }
   // canne lanciate (sempre, non solo col boss): volano dritte. Colpiscono i dischi d'oro, gli ostacoli umani e il boss
-  var UMANI = { ragazza: 1, juve: 1, lazio: 1, carabiniere: 1 };
+  var UMANI = { ragazza: 1, juve: 1, lazio: 1, carabiniere: 1, sgabello: 1 };
   function aggiornaLanci(dt) {
     for (var j = g.lanci.length - 1; j >= 0; j--) {
       var c = g.lanci[j];
@@ -2859,7 +2941,7 @@
   }
   function abbatti(o, c) {
     o.preso = true; o.volo = 0; o.vx0 = o.x + o.w / 2;
-    if (o.tipo === 'juve' || o.tipo === 'lazio') evento('abbatti', 1);
+    if (o.tipo === 'juve' || o.tipo === 'lazio' || o.tipo === 'sgabello') evento('abbatti', 1);
     stelline(c.x, c.y); g.scuoti = Math.max(g.scuoti, 0.12);
     fx('calcio', 0.6); setTimeout(function () { fx(o.tipo === 'ragazza' ? 'lei' : 'uomo', 0.45, 1.1); }, 60);
   }
@@ -3388,6 +3470,7 @@
   function punteggio() { return Math.floor(g.metri); }   // il punteggio sono solo i metri
 
   var MARF_X = 300;
+  var BLESS_PAUSA = 3;                 // secondi dopo la fine del Bless prima che una canna lo riaccenda
   function hitboxMarf() {
     var m = g.marf;
     if (g.carrello) { var hc = m.giu ? 60 : 112; return { x: MARF_X - 34, y: m.y - hc, w: 70, h: hc }; }   // carrello: più largo, e ti abbassi nel cestello
@@ -3398,9 +3481,10 @@
     if (o.t.aria) return { x: o.x, y: TERRA - (o.aria || o.t.aria) - o.h / 2, w: o.w, h: o.h };
     return { x: o.x, y: TERRA - o.h, w: o.w, h: o.h };
   }
-  function toccaOstacolo(hb, o) {                   // il castello di carte ha più pezzi, gli altri un rettangolo solo
-    if (!o.parti) return tocca(hb, boxOstacolo(o));
-    for (var i = 0; i < o.parti.length; i++) { var p = o.parti[i]; if (tocca(hb, { x: o.x + p[0], y: TERRA - p[1] - p[3], w: p[2], h: p[3] })) return true; }
+  function toccaOstacolo(hb, o) {                   // il castello di carte e il calciatore sopra la ragazza hanno più pezzi, gli altri un rettangolo solo
+    var parti = o.parti || o.pezzi;
+    if (!parti) return tocca(hb, boxOstacolo(o));
+    for (var i = 0; i < parti.length; i++) { var p = parti[i]; if (tocca(hb, { x: o.x + p[0], y: TERRA - p[1] - p[3], w: p[2], h: p[3] })) return true; }
     return false;
   }
   function tocca(a, b) { return a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y; }
@@ -3888,8 +3972,11 @@
       ok = true;
       for (var i = 0; i < o.quante; i++) ok = disegnaOgg('durex', cx + (i % 2 ? 3 : -2), TERRA + 1 - i * t.h, t.dh, true) && ok;
     } else if (o.tipo === 'pila') {
-      ok = true;
-      for (var ip = 0; ip < 3; ip++) ok = disegnaOgg('transenna', cx + (ip === 1 ? 4 : -2), TERRA + 2 - ip * PILA_PASSO, t.dh, true) && ok;
+      ok = true;                                   // dall'alto in giù: quelle sopra restano dietro a quelle sotto
+      for (var ip = 2; ip >= 0; ip--) ok = disegnaOgg('transenna', cx + (ip === 1 ? 4 : -2), TERRA + 2 - ip * PILA_PASSO, t.dh, true) && ok;
+    } else if (o.tipo === 'sgabello') {
+      ok = disegnaOgg('ragazza-a-terra', cx, TERRA + 2, t.dh, true);
+      ok = disegnaOgg(o.squadra, cx + SGABELLO_DX, TERRA + 2 - SGABELLO_PIEDI, TIPI[o.squadra].dh, true) && ok;
     } else if (o.tipo === 'castello') {
       ok = disegnaCastello(o);
     } else if (t.aria) {
@@ -4286,18 +4373,30 @@
     var v = {}; CHIAVI.forEach(function (k) { v[k] = (Math.random() - .5) * 14; });
     g.rag = { x: 0, y: m.y + a.anca, vx: 160 + Math.random() * 80, vy: -620 - Math.random() * 120,
       rot: a.scivola > 0.5 ? ROT_SCIVOLA : 0, vrot: 7 + Math.random() * 4, po: po, v: v, fermo: false };
+    if (palazzo && palazzo.dentro) {           // nel corridoio: soffitto basso, quindi un salto piccolo, e resta dentro (pavimento e muri del palazzo)
+      g.rag.corr = true; g.rag.vy = -300 - Math.random() * 60; g.rag.vx = 120 + Math.random() * 60; g.rag.vrot = 5 + Math.random() * 3;
+    }
   }
   function aggiornaRagdoll(dt) {
     var r = g.rag, R = PEZZI, alto = -R.gamba * R.K;              // quanto sta l'anca sopra i piedi da in piedi
     r.vy += 2100 * dt; r.x += r.vx * dt; r.y += r.vy * dt; r.rot += r.vrot * dt;
     // per terra: da sdraiato l'anca sta bassa, da dritto sta all'altezza delle gambe
-    var suolo = TERRA - 10 + alto * 0.8 * Math.abs(Math.cos(r.rot));
+    var piano = TERRA, p = r.corr && palazzo;
+    if (p) {                                   // nel corridoio del palazzo: pavimento del corridoio, rimbalza sul soffitto e non esce dai lati
+      piano = p.pav;
+      var cielo = p.soff + 26;
+      if (r.y < cielo) { r.y = cielo; if (r.vy < 0) r.vy *= -0.3; }
+      var xa = p.x + p.bw + 34 - MARF_X, xb = p.x + p.bw + p.cw - 40 - MARF_X;
+      if (r.x > xb) { r.x = xb; r.vx = -Math.abs(r.vx) * 0.3; }
+      if (r.x < xa) r.x += (xa - r.x) * (1 - Math.exp(-dt * 5));   // appena entrato è ancora dietro il lato: scivola dentro piano
+    }
+    var suolo = piano - 10 + alto * 0.8 * Math.abs(Math.cos(r.rot));
     if (r.y > suolo) {
       r.y = suolo;
       if (r.vy > 120) {
         r.vy *= -0.38; r.vx *= 0.55; r.vrot *= 0.45;
         CHIAVI.forEach(function (k) { r.v[k] += (Math.random() - .5) * 10; });
-        polvere(MARF_X + r.x, TERRA, 6, 1.2);
+        polvere(MARF_X + r.x, piano, 6, 1.2);
       } else {
         r.vy = 0; r.vx *= Math.exp(-dt * 6);
         // si adagia sul fianco più vicino
