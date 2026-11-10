@@ -187,6 +187,7 @@
     </div>
 
     <div class="controls">
+      <button class="ctrl" id="loop" aria-label="Ripeti il brano" aria-pressed="false" title="Ripeti il brano"><svg viewBox="0 0 24 24"><path d="M7 7h10v3l4-4-4-4v3H5v6h2zM17 17H7v-3l-4 4 4 4v-3h12v-6h-2z"/></svg></button>
       <button class="ctrl" id="prev" aria-label="Brano precedente"><svg viewBox="0 0 24 24"><path d="M6 5h2v14H6zM20 5v14L9 12z"/></svg></button>
       <button class="ctrl play" id="play" aria-label="Play"><svg viewBox="0 0 24 24" id="icona"><path d="M7 4v16l13-8z"/></svg></button>
       <button class="ctrl" id="next" aria-label="Brano successivo"><svg viewBox="0 0 24 24"><path d="M16 5h2v14h-2zM4 5l11 7-11 7z"/></svg></button>
@@ -445,6 +446,12 @@
   $('play').onclick = () => { if (corrente < 0) carica(0); audio.paused ? audio.play().catch(() => {}) : audio.pause(); };
   $('next').onclick = () => prossimo(1);
   $('prev').onclick = () => { if (audio.currentTime > 3) audio.currentTime = 0; else prossimo(-1); };
+  // loop: ripete il brano corrente all'infinito (resta attivo anche se cambi brano)
+  $('loop').onclick = function () {
+    audio.loop = !audio.loop;
+    this.classList.toggle('on', audio.loop);
+    this.setAttribute('aria-pressed', audio.loop);
+  };
   $('shuffle').onclick = function () {
     casuale = !casuale;
     this.classList.toggle('on', casuale);
