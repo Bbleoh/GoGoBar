@@ -426,6 +426,13 @@
 <!-- account GoGoBar senza password (👤 nel menu in alto) -->
 <script src="js/account.js?v=2"></script>
 <script src="js/account-ui.js?v=2"></script>
+<script>
+  // dai giochi (es. la bisca) si arriva con #account: apre subito il pannello 👤
+  if (location.hash === '#account' && window.GoGoAccountUI && window.GoGoAccount && GoGoAccount.attivo) {
+    GoGoAccountUI.apri();
+    history.replaceState(null, '', location.pathname + location.search);
+  }
+</script>
 <!-- classifiche dei giochi: se un file non c'è ancora, la sua scheda invita a giocare -->
 <script src="giochi/bisca-del-tromba/classifica.js?v=4" onerror="window.BiscaClassifica = null"></script>
 <script src="giochi/corri-marf/classifica.js?v=2" onerror="window.CorriMarfClassifica = null"></script>

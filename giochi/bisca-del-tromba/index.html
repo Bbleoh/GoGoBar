@@ -259,9 +259,8 @@
   #account-bar{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin:4px 0 14px;
     padding:10px 12px;border-radius:12px;background:rgba(0,0,0,.3);border:1px solid rgba(212,175,90,.15);text-align:left;}
   #account-bar b{color:#fff;}
-  #gg-riga{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin:-6px 0 14px;
-    font-size:.85rem;color:var(--gold-light);opacity:.9;}
-  #gg-riga[hidden]{display:none;}
+  /* con gli account GoGoBar si gioca solo col proprio: niente nome da scrivere né cambio giocatore */
+  body.con-account #name-input,body.con-account #giocatori-box,body.con-account #cambia-btn,body.con-account #name-nota{display:none;}
   #account-stato{display:block;font-size:.75rem;color:var(--win);opacity:.85;}
   #account-stato.err{color:var(--push);}
   .rarita-head{grid-column:1/-1;font-family:var(--ui);font-weight:700;font-size:.75rem;letter-spacing:2px;text-transform:uppercase;
@@ -384,7 +383,7 @@
 <div class="modal-overlay" id="name-modal">
   <div class="modal-box" role="dialog" aria-labelledby="name-title">
     <h2 id="name-title">♠ La Bisca der Tromba ♠</h2>
-    <p><span id="name-intro">Benvenuto! Come ti chiami?</span><br>Il nome è il tuo account: saldo, statistiche e trofei restano salvati e li ritrovi su qualsiasi dispositivo.</p>
+    <p><span id="name-intro">Benvenuto! Come ti chiami?</span><br><span id="name-nota">Il nome è il tuo account: saldo, statistiche e trofei restano salvati e li ritrovi su qualsiasi dispositivo.</span></p>
     <label for="name-input" class="sr-only" style="position:absolute;left:-9999px">Il tuo nome</label>
     <input class="modal-input" id="name-input" type="text" maxlength="20" placeholder="Il tuo nome" autocomplete="nickname">
     <div class="modal-error" id="name-error" role="alert"></div>
@@ -440,7 +439,7 @@
       <button class="top-btn icon-btn" id="sfx-btn" onclick="toggleSfx()" title="Effetti sonori" aria-label="Effetti sonori">🎵</button>
       <div class="gg-sito">
         <button type="button" class="gg-icona" data-gogobar-radio aria-label="Radio GoGoBar" title="Radio GoGoBar: i brani della sezione Musica"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="8" width="18" height="12" rx="2.5"/><path d="M7 8l10-4"/><circle cx="15.5" cy="14" r="2.6"/><path d="M6.5 12.5h4M6.5 15.5h4"/></svg></button>
-        <button type="button" class="gg-account" data-gogobar-account hidden>👤 Entra</button>
+        <button type="button" class="gg-account" id="gg-account" hidden onclick="vaiAllAccount()"><span class="gga-ico">👤 </span><span class="gga-txt">Entra</span></button>
       </div>
     </div>
   </header>
@@ -588,9 +587,8 @@
     <h2 id="stats-title">👤 Utente</h2>
     <div id="account-bar">
       <span><b id="account-nome">—</b> <small id="account-stato"></small></span>
-      <button class="bet-tool" onclick="cambiaGiocatore()">Cambia giocatore</button>
+      <button class="bet-tool" id="cambia-btn" onclick="cambiaGiocatore()">Cambia giocatore</button>
     </div>
-    <div id="gg-riga" hidden><span id="gg-riga-testo"></span><button class="bet-tool" id="gg-riga-btn" type="button"></button></div>
     <h3>📊 Statistiche</h3>
     <div id="stats-list"></div>
     <h3>🏆 Trofei <span id="trofei-count"></span></h3>
@@ -780,6 +778,10 @@ async function confirmName() {
   const input = document.getElementById('name-input');
   const errEl = document.getElementById('name-error');
   const btn   = document.getElementById('name-btn');
+  if (contoAttivo()) {                      // si gioca solo col proprio account GoGoBar
+    if (!nomeGoGo()) { vaiAllAccount(); return; }
+    input.value = nomeGoGo();
+  }
   const val   = input.value.trim();
   errEl.textContent = '';
   if (!val)           { errEl.textContent = 'Inserisci un nome.'; return; }
@@ -1265,7 +1267,6 @@ function controllaSaldo() {
 }
 
 function apriStats() {
-  aggiornaRigaAccount();
   const s = stats;
   const perc = s.mani ? Math.round(s.vinte / s.mani * 100) : 0;
   const euro = v => '€' + Number(v).toLocaleString('it-IT');
@@ -1790,58 +1791,65 @@ function statoGoGo() {
 }
 function nomeGoGo() { const st = statoGoGo(); return st && st.account ? st.account.nome : ''; }
 
-// finestra del nome: con un account il nome proposto è quello dell'account
-function proponiAccount() {
+function avvisoAccount(t) { if (gioco === 'lobby') lobbyMsg(t); else msg(t); }
+function contoAttivo() { return !!statoGoGo(); }
+
+// l'account si crea e si gestisce dalla home (👤): da qui ci si va e basta
+function vaiAllAccount() {
+  if (playerName && !tavoloLibero()) return avvisoAccount('Finisci prima la giocata.');
+  if (playerName) { clearTimeout(syncTimer); memScrivi(); syncRemoto(true); }
+  location.href = '../../#account';
+}
+function aggiornaPillola() {
+  const b = document.getElementById('gg-account');
+  if (!contoAttivo()) { b.hidden = true; return; }
   const n = nomeGoGo();
-  if (!n || playerName) return;
-  document.getElementById('name-input').value = n;
-  document.getElementById('name-btn').textContent = 'Continua come ' + n;
-  document.getElementById('name-intro').textContent = 'Sei entrato con il tuo account GoGoBar, ' + n + '.';
+  b.hidden = false;
+  b.querySelector('.gga-txt').textContent = n || 'Entra';
+  b.classList.toggle('gga-dentro', !!n);
+  b.title = n ? 'Giochi come ' + n + ' (account GoGoBar, si gestisce dalla home)' : 'Entra con il tuo account GoGoBar dalla home';
 }
 
-// riga nella finestra Utente: account collegato, da usare o da creare
-function aggiornaRigaAccount() {
-  const riga = document.getElementById('gg-riga');
-  const st = statoGoGo();
-  if (!st || !window.GoGoAccountUI) { riga.hidden = true; return; }
-  const testo = document.getElementById('gg-riga-testo'), btn = document.getElementById('gg-riga-btn');
-  riga.hidden = false;
-  const n = st.account ? st.account.nome : '';
-  if (n && chiaveNome(n) === chiaveNome(playerName)) {
-    testo.textContent = '👤 Account GoGoBar: il nome ' + n + ' è tuo su tutto il sito.';
-    btn.textContent = 'Account';
-    btn.onclick = () => GoGoAccountUI.apri();
-  } else if (n) {
-    testo.textContent = '👤 Il tuo account GoGoBar è ' + n + '.';
-    btn.textContent = 'Gioca come ' + n;
-    btn.onclick = () => { if (!tavoloLibero()) return mostraToast('Finisci prima la giocata.'); chiudiStats(); scegliGiocatore(n); };
+// finestra d'ingresso: col tuo account ti siedi e basta, senza account si passa dalla home
+function modaleAccount() {
+  if (!contoAttivo()) return;
+  const n = nomeGoGo(), btn = document.getElementById('name-btn'), intro = document.getElementById('name-intro');
+  document.getElementById('name-error').textContent = '';
+  if (n) {
+    document.getElementById('name-input').value = n;
+    intro.textContent = 'Giochi come ' + n + ', con il tuo account GoGoBar. Saldo, statistiche e trofei restano tuoi su ogni dispositivo.';
+    btn.textContent = 'Siediti al tavolo';
   } else {
-    testo.textContent = '👤 Con un account GoGoBar il tuo nome lo usi solo tu, anche dagli altri dispositivi.';
-    btn.textContent = 'Crea account';
-    btn.onclick = () => GoGoAccountUI.apri();
+    intro.textContent = 'Per giocare alla bisca serve il tuo account GoGoBar: entra o crealo dalla home (👤 in alto) e torna qui.';
+    btn.textContent = '👤 Entra dalla home';
   }
 }
 
-// entri, crei o esci dall'account (anche dalla home in un'altra scheda): la bisca si adegua
+// entri o esci dall'account (dalla home, anche in un'altra scheda): la bisca si adegua
 let ultimoGoGo = null;
 function suCambioAccount(st) {
   const n = st && st.account ? st.account.nome : '';
   const prima = ultimoGoGo;
+  aggiornaPillola();
   if (n === prima) return;
   ultimoGoGo = n;
-  if (document.getElementById('stats-modal').classList.contains('show')) aggiornaRigaAccount();
-  if (prima === null) return;                       // primo giro: ci pensa init
-  if (n) {
-    if (!playerName) { proponiAccount(); return; }
-    if (chiaveNome(n) === chiaveNome(playerName)) return;
-    if (tavoloLibero()) { chiudiStats(); scegliGiocatore(n); }
-    else mostraToast('Account ' + n + ' collegato: a fine giocata cambia giocatore da 📊 Utente.');
-  } else if (prima && playerName && chiaveNome(prima) === chiaveNome(playerName)) {
-    // sei uscito: quel nome resta dell'account, scegline un altro
-    if (tavoloLibero()) cambiaGiocatore();
-    else mostraToast('Sei uscito dall\'account GoGoBar: a fine giocata scegli un altro nome.');
+  if (!playerName) { modaleAccount(); return; }
+  if (n && chiaveNome(n) === chiaveNome(playerName)) return;
+  if (!tavoloLibero()) {
+    avvisoAccount(n ? 'Account cambiato: a fine giocata giochi come ' + n + '.' : 'Sei uscito dall\'account GoGoBar.');
+    return;
   }
+  if (n) { chiudiStats(); scegliGiocatore(n); }
+  else { chiudiStats(); modaleAccount(); document.getElementById('name-modal').style.display = 'flex'; }
 }
+// se l'account cambia mentre una mano è in corso, il cambio avviene al primo tavolo libero
+setInterval(() => {
+  if (!contoAttivo() || !playerName || !tavoloLibero()) return;
+  const n = nomeGoGo();
+  if (document.getElementById('name-modal').style.display !== 'none') return;
+  if (!n) { chiudiStats(); modaleAccount(); document.getElementById('name-modal').style.display = 'flex'; }
+  else if (chiaveNome(n) !== chiaveNome(playerName)) { chiudiStats(); scegliGiocatore(n); }
+}, 1500);
 
 /* ════════════════════════════════════════════════════════════════
    INIT — riprende saldo, nome e statistiche salvati
@@ -1860,11 +1868,12 @@ function suCambioAccount(st) {
       document.getElementById('name-intro').textContent =
         'Bentornato! I tuoi €' + Math.floor(acc.saldo).toLocaleString('it-IT') + ' sono ancora sul tavolo.';
   }
-  // con un account GoGoBar (👤 in alto, lo stesso della home) il nome proposto è quello dell'account
-  if (window.GoGoAccount && GoGoAccount.attivo) {
+  // account GoGoBar: si gioca solo con quello con cui sei entrato dalla home
+  if (contoAttivo()) {
+    document.body.classList.add('con-account');
     ultimoGoGo = nomeGoGo();
-    proponiAccount();
-    GoGoAccount.pronto.then(() => { proponiAccount(); suCambioAccount(GoGoAccount.stato()); });
+    modaleAccount(); aggiornaPillola();
+    GoGoAccount.pronto.then(() => suCambioAccount(GoGoAccount.stato()));
     GoGoAccount.suCambio(suCambioAccount);
   }
 })();
@@ -1873,7 +1882,6 @@ betArea(true);
 setCroupier('init');
 </script>
 <script src="../../js/radio.js?v=13"></script>
-<script src="../../js/account-ui.js?v=2"></script>
 <script src="roulette.js?v=6"></script>
 </body>
 </html>
