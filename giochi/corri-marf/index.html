@@ -1294,7 +1294,7 @@
 
   function preso() {
     stato = 'preso';
-    avviaRagdoll();
+    if (!g.rag) avviaRagdoll();                     // dopo una seconda possibilità rifiutata è già a terra
     var fr = MARF_X - 30 - Math.max(g.distacco, 0);   // le ragazze si tuffano addosso a Marf da dove sono
     g.tuffo = { t: 0, x0: RAGAZZE.map(function (r, i) { return fr - i * 46; }) };
     setTimeout(function () { if (stato === 'preso') { fx('lei', 0.45, 1.15); fx('swish', 0.4, 0.8); } }, 120);
@@ -1329,6 +1329,8 @@
   var secondaTimer = null;
   function secondaPossibilita() {
     g.seconda = 0; stato = 'scelta';
+    avviaRagdoll();                                 // intanto che scegli Marf cade a peso morto
+    fx('mazzata', 0.6); fx('ahi', 0.55, 0.9); setTimeout(function () { if (stato === 'scelta') fx('tonfo', 0.5, 0.8); }, 260);
     var pan = document.getElementById('seconda'), prezzo = prezzoSeconda(), ok = canneDisponibili() >= prezzo;
     var si = document.getElementById('secondaSi');
     si.textContent = 'Riparti · ' + prezzo + ' canne'; si.disabled = !ok;
@@ -1356,9 +1358,49 @@
     g.colpi = 0; g.distacco = 230; g.bless = 2; g.marf.botta = 0;
     g.ostacoli = g.ostacoli.filter(function (o) { return o.x > MARF_X + 420 || o.volo !== undefined; });
     g.jets.length = 0; g.jetAvviso = 0; g.prossimo = Math.max(g.prossimo, 1.2);
-    stato = 'gioco';
     avvisoMissione('Seconda possibilità', '-' + prezzo + ' canne', 'Pensiero');
-    fx('potere', 0.55); stelline(MARF_X, g.marf.y - 40);
+    fx('potere', 0.55);
+    if (!g.rag) { stato = 'gioco'; stelline(MARF_X, g.marf.y - 40); return; }
+    // Marf si solleva da terra avvolto da una luce radiosa, si raddrizza e riparte a correre
+    var rg = g.rag, giro = Math.PI * 2;
+    stato = 'risorge';
+    g.risorge = { t: 0, x0: rg.x, y0: rg.y, rot0: rg.rot, rot1: Math.round(rg.rot / giro) * giro, po0: rg.po };
+    rg.po = {}; CHIAVI.forEach(function (k) { rg.po[k] = g.risorge.po0[k]; });
+  }
+  var RISORGE_T = 1.5, RISORGE_SU = 120;
+  function aggiornaRisorge(dt) {
+    var q = g.risorge, rg = g.rag, m = g.marf, a = g.anim;
+    q.t += dt;
+    var u = Math.min(1, q.t / RISORGE_T), e = u * u * (3 - 2 * u), su = Math.min(1, u / 0.7), es = su * su * (3 - 2 * su);
+    var suolo = palazzo && palazzo.dentro ? palazzo.pav : TERRA;
+    rg.vx = rg.vy = rg.vrot = 0;
+    rg.x = q.x0 * (1 - es); rg.y = q.y0 + (suolo - RISORGE_SU + a.anca - q.y0) * es + Math.sin(g.t * 5) * 3 * es;
+    rg.rot = q.rot0 + (q.rot1 - q.rot0) * es;
+    CHIAVI.forEach(function (k) {                 // gli arti tornano alla posa di corsa
+      var d = Math.atan2(Math.sin(a.posa[k] - q.po0[k]), Math.cos(a.posa[k] - q.po0[k]));
+      rg.po[k] = q.po0[k] + d * e;
+    });
+    if (Math.random() < dt * 5) stelline(MARF_X + rg.x + (Math.random() - .5) * 60, rg.y + (Math.random() - .5) * 80);
+    if (u >= 1) {                                  // pronto: cade in piedi e riparte, con un attimo di invincibilità
+      m.y = rg.y - a.anca; m.vy = 0; m.aTerra = false; m.salti = 1; m.giu = false; m.picchiata = false;
+      g.rag = null; g.risorge = null; g.bless = Math.max(g.bless, 2); stato = 'gioco';
+      fx('spada-accesa', 0.45, 1.2);
+    }
+  }
+  // la luce radiosa: alone caldo e raggi che girano dietro a Marf
+  function luceRadiosa(x, y, k) {
+    ctx.save(); ctx.translate(x, y); ctx.globalCompositeOperation = 'lighter';
+    var R0 = 150 * k, gr = ctx.createRadialGradient(0, 0, 4, 0, 0, R0);
+    gr.addColorStop(0, 'rgba(255,250,220,' + (0.95 * k) + ')'); gr.addColorStop(0.35, 'rgba(255,224,130,' + (0.5 * k) + ')'); gr.addColorStop(1, 'rgba(255,200,80,0)');
+    ctx.fillStyle = gr; ctx.beginPath(); ctx.arc(0, 0, R0, 0, Math.PI * 2); ctx.fill();
+    ctx.rotate(g.t * 0.9);
+    for (var i = 0; i < 12; i++) {
+      ctx.rotate(Math.PI / 6);
+      var lung = (170 + 60 * Math.sin(g.t * 3 + i * 1.7)) * k, lg = ctx.createLinearGradient(0, 0, lung, 0);
+      lg.addColorStop(0, 'rgba(255,244,200,' + (0.55 * k) + ')'); lg.addColorStop(1, 'rgba(255,230,150,0)');
+      ctx.fillStyle = lg; ctx.beginPath(); ctx.moveTo(10, -3); ctx.lineTo(lung, -12 * k); ctx.lineTo(lung, 12 * k); ctx.lineTo(10, 3); ctx.closePath(); ctx.fill();
+    }
+    ctx.restore();
   }
   document.getElementById('secondaSi').addEventListener('click', riparti);
   document.getElementById('secondaNo').addEventListener('click', rinuncia);
@@ -3966,7 +4008,8 @@
     aggiornaDetriti(dt);
     aggiornaLinee(dt);
     aggiornaStelle(dt);
-    if (g.rag) aggiornaRagdoll(dt);
+    if (g.risorge) aggiornaRisorge(dt);
+    else if (g.rag) aggiornaRagdoll(dt);
     if (g.scuoti > 0) g.scuoti -= dt;   // qui e non in aggiorna: così si ferma anche a partita finita
   }
 
@@ -4071,6 +4114,7 @@
     var a = g.anim, m = g.marf, R = PEZZI;
     if (a.anca === null) return;
     if (g.rag) {
+      if (g.risorge) { var ur = g.risorge.t / RISORGE_T; luceRadiosa(MARF_X + g.rag.x, g.rag.y - 20, Math.min(1, ur * 4, (1 - ur) * 5 + 0.25)); }
       ctx.save(); ctx.translate(MARF_X + g.rag.x, g.rag.y); ctx.rotate(g.rag.rot);
       personaggio(R, 0, g.rag.po); ctx.restore();
       return;
