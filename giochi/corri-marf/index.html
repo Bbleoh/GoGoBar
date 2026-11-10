@@ -253,17 +253,21 @@
     .btn.secondario { background: var(--surface); color: var(--ivory); box-shadow: inset 0 0 0 1px var(--line); font-size: calc(.9em + 0.1 * var(--piu)); }
     .btn:disabled { opacity: .5; cursor: default; }
     /* switch Corri / Corsetta (dopo aver battuto il boss): spento a sinistra, acceso a destra */
-    .switch-corsa { all: unset; position: relative; width: 2.9em; height: 1.5em; flex: none; cursor: pointer; background: var(--surface); box-shadow: inset 0 0 0 1px var(--line);
-      clip-path: polygon(6px 0, 100% 0, calc(100% - 6px) 100%, 0 100%); transition: background .2s ease; }
-    .switch-corsa i { position: absolute; top: 3px; bottom: 3px; left: 5px; width: 1.05em; background: var(--muted);
-      clip-path: polygon(4px 0, 100% 0, calc(100% - 4px) 100%, 0 100%); transition: left .2s ease, background .2s ease; }
+    /* lobby: Corri, switch, Crivo Shop e Officina sempre sulla stessa riga */
+    .azioni { flex-wrap: nowrap; gap: .4em; min-width: 0; }            /* se non ci stanno, adattaAzioni() rimpicciolisce il testo */
+    .azioni .btn { flex: none; white-space: nowrap; padding: .55em .95em; }
+    .azioni .btn.secondario { font-size: .9em; }
+    #gioca { min-width: 6.3em; }
+    /* switch Corri / Corsetta (dopo aver battuto il boss), verticale: giù spento, su acceso */
+    .switch-corsa { all: unset; position: relative; width: 1.35em; height: 2.3em; flex: none; cursor: pointer; background: var(--surface); box-shadow: inset 0 0 0 1px var(--line);
+      clip-path: polygon(0 5px, 5px 0, 100% 0, 100% calc(100% - 5px), calc(100% - 5px) 100%, 0 100%); transition: background .2s ease; }
+    .switch-corsa i { position: absolute; left: 3px; right: 3px; height: 1em; top: calc(100% - 1em - 3px); background: var(--muted);
+      clip-path: polygon(0 3px, 3px 0, 100% 0, 100% calc(100% - 3px), calc(100% - 3px) 100%, 0 100%); transition: top .2s ease, background .2s ease; }
     .switch-corsa[aria-checked="true"] { background: rgba(98,200,255,.22); box-shadow: inset 0 0 0 1px rgba(98,200,255,.55); }
-    .switch-corsa[aria-checked="true"] i { left: calc(100% - 1.05em - 5px); background: #62c8ff; }
+    .switch-corsa[aria-checked="true"] i { top: 3px; background: #62c8ff; }
     .switch-corsa[hidden] { display: none; }
     .switch-corsa:focus-visible { outline: 1px solid var(--gold); outline-offset: 2px; }
-    .coppia { display: inline-flex; gap: .5em; align-items: center; }
-    #gioca { min-width: 7.4em; }
-    #gioca.corsetta { background: #62c8ff; padding-left: .9em; padding-right: .9em; }
+    #gioca.corsetta { background: #62c8ff; }
     input.nome {
       font-family: var(--display); font-weight: 600; font-size: 1em; color: var(--ivory); background: var(--surface);
       border: 0; border-bottom: 2px solid var(--line); border-radius: 0; padding: .45em .8em; width: 11em; -webkit-user-select: text; user-select: text;
@@ -398,9 +402,10 @@
           <p class="gira">Tocca ⛶ in basso a destra per giocare a schermo intero, in orizzontale</p>
           <p class="chi" id="chiCorre"></p>
           <div class="giocatori" id="giocatori" hidden></div>
-          <div class="riga">
-            <input class="nome" id="nomeMenu" maxlength="20" placeholder="Nuovo nome" autocomplete="nickname">
-            <span class="coppia"><button class="btn" id="gioca" type="button">Corri!</button><button class="switch-corsa" id="corsetta" type="button" role="switch" aria-checked="false" title="Corsetta: niente boss, corsa libera infinita" hidden><i></i></button></span>
+          <input class="nome" id="nomeMenu" maxlength="20" placeholder="Nuovo nome" autocomplete="nickname">
+          <div class="riga azioni">
+            <button class="btn" id="gioca" type="button">Corri!</button>
+            <button class="switch-corsa" id="corsetta" type="button" role="switch" aria-checked="false" title="Corsetta: niente boss, corsa libera infinita" hidden><i></i></button>
             <button class="btn secondario" id="apriMarket" type="button">Crivo Shop</button>
             <button class="btn secondario" id="apriOfficina" type="button">Officina di Vito</button>
           </div>
@@ -1063,7 +1068,23 @@
     var su = corsettaSbloccata(), on = corsettaAttiva(), swCorsetta = document.getElementById('corsetta'), btnGioca = document.getElementById('gioca');
     swCorsetta.hidden = !su; swCorsetta.setAttribute('aria-checked', on ? 'true' : 'false');
     btnGioca.textContent = on ? 'Corsetta' : 'Corri!'; btnGioca.classList.toggle('corsetta', on);
+    adattaAzioni();
   }
+  // Corri, switch, Crivo Shop e Officina stanno sempre su una riga: se non ci stanno si rimpicciolisce il testo
+  function adattaAzioni() {
+    var r = document.querySelector('.azioni'); if (!r || !r.offsetParent) return;
+    var corti = [['apriMarket', 'Crivo Shop', 'Crivo'], ['apriOfficina', 'Officina di Vito', 'Officina']];
+    function prova(corto, min) {
+      corti.forEach(function (c) { document.getElementById(c[0]).textContent = c[corto ? 2 : 1]; });
+      var f = 1; r.style.fontSize = '';
+      while (r.scrollWidth > r.clientWidth + 1 && f > min) { f -= 0.03; r.style.fontSize = f.toFixed(2) + 'em'; }
+      return f;
+    }
+    if (prova(false, 0.78) <= 0.78 && r.scrollWidth > r.clientWidth + 1) prova(true, 0.5);   // sui telefoni: nomi corti
+  }
+  if (window.ResizeObserver) { var azW = 0; new ResizeObserver(function (e) { var w = Math.round(e[0].contentRect.width); if (w && w !== azW) { azW = w; adattaAzioni(); } }).observe(document.querySelector('.azioni')); }
+  else window.addEventListener('resize', function () { setTimeout(adattaAzioni, 60); });
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(adattaAzioni);
   document.getElementById('corsetta').addEventListener('click', function () {
     scrivi('corsetta', corsettaAttiva() ? '' : '1'); fx('click', 0.4, 1.3); aggiornaCorsetta();
   });
