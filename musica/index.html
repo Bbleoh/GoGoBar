@@ -80,6 +80,8 @@
     .ctrl.play:hover { background: var(--gold-2); color: #1a1408; transform: scale(1.05); }
     .ctrl.play svg { width: 1.5rem; height: 1.5rem; }
     .ctrl.on { color: var(--gold); border-color: var(--gold); }
+    .ctrl.play.riprendi { animation: riprendi 1.4s ease-in-out infinite; }
+    @keyframes riprendi { 0%, 100% { box-shadow: 0 0 0 0 rgba(228,179,60,.7); } 50% { box-shadow: 0 0 0 12px rgba(228,179,60,0); } }
     .vol { display: flex; align-items: center; gap: .5rem; margin-left: auto; color: var(--muted); }
     .vol input { width: 110px; }
 
@@ -497,6 +499,33 @@
   // apertura da un link con #brano
   const iniziale = brani.findIndex(b => slug(b) === location.hash.slice(1));
   carica(iniziale >= 0 ? iniziale : 0, false);
+
+  // ── staffetta con la radio delle altre pagine: la musica continua quando cambi pagina ──
+  const STAFFETTA = 'gogobarSuona.v1';
+  let inAttesa = false;
+  addEventListener('pagehide', function () {
+    if (corrente < 0) return;
+    try {
+      localStorage.setItem(STAFFETTA, JSON.stringify({
+        file: brani[corrente].file, t: audio.currentTime || 0, suona: inAttesa || !audio.paused, ts: Date.now()
+      }));
+    } catch (e) {}
+  });
+  (function () {
+    if (iniziale >= 0) return;               // hai scelto un brano col link: vince quello
+    let st; try { st = JSON.parse(localStorage.getItem(STAFFETTA)); } catch (e) {}
+    if (!st || !st.suona || Date.now() - st.ts > 120000) return;
+    const k = brani.findIndex(b => b.file === st.file);
+    if (k < 0) return;
+    carica(k, false);
+    audio.preload = 'auto';
+    audio.addEventListener('loadedmetadata', function () {
+      audio.currentTime = Math.min(st.t || 0, Math.max(0, audio.duration - 1));
+      audio.play().catch(function () { inAttesa = true; $('play').classList.add('riprendi'); });
+    }, { once: true });
+    audio.load();
+  })();
+  audio.addEventListener('play', () => { inAttesa = false; $('play').classList.remove('riprendi'); });
 })();
 </script>
 </body>

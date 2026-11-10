@@ -53,6 +53,10 @@
     audio.preload = 'none';
     let corrente = Math.min(Math.max(leggi().i | 0, 0), brani.length - 1);
     let casuale = !!leggi().casuale;
+    // album spenti: lo shuffle non li pesca e "avanti/indietro" li salta (un brano si può sempre toccare a mano)
+    const spenti = new Set(Array.isArray(leggi().spenti) ? leggi().spenti : []);
+    const salva = () => scrivi({ i: corrente, casuale, spenti: [...spenti] });
+    const acceso = i => !spenti.has(brani[i].album || '');
     let mazzo = [];          // ordine casuale ancora da suonare
     const storico = [];      // brani già suonati, per tornare indietro in casuale
 
@@ -75,6 +79,8 @@
   .fab:hover { transform: scale(1.06); border-color: #e4b33c; }
   .fab svg { width: 22px; height: 22px; }
   .fab.on svg { animation: gira 3s linear infinite; }
+  .fab.riprendi { animation: pulsa 1.4s ease-in-out infinite; }
+  @keyframes pulsa { 0%, 100% { box-shadow: 0 0 0 0 rgba(228,179,60,.7); } 50% { box-shadow: 0 0 0 10px rgba(228,179,60,0); } }
   @keyframes gira { to { transform: rotate(360deg); } }
   .pannello {
     position: fixed; width: min(320px, calc(100vw - 24px)); max-height: min(70vh, 460px);
@@ -114,7 +120,12 @@
   li .d { font: 11px 'DM Mono', ui-monospace, monospace; color: #77715f; }
   li.attivo button { background: #22221e; }
   li.attivo .t, li.attivo .n { color: #f6d77a; }
-  .album { font: 500 10.5px 'DM Mono', ui-monospace, monospace; letter-spacing: .12em; text-transform: uppercase; color: #77715f; padding: 8px 6px 4px; }
+  .album { font: 500 10.5px 'DM Mono', ui-monospace, monospace; letter-spacing: .12em; text-transform: uppercase; color: #77715f; padding: 8px 6px 4px; display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+  .album .tog { flex: none; width: 30px; height: 17px; border-radius: 999px; border: 1px solid #3a3a33; background: #e4b33c; position: relative; cursor: pointer; padding: 0; transition: background .2s; }
+  .album .tog::after { content: ''; position: absolute; top: 2px; left: 15px; width: 11px; height: 11px; border-radius: 50%; background: #1a1408; transition: left .2s, background .2s; }
+  .album .tog[aria-checked="false"] { background: #22221e; }
+  .album .tog[aria-checked="false"]::after { left: 2px; background: #77715f; }
+  li.spento { opacity: .38; }
   a.tutto { color: #c8bfa8; font: 500 10.5px 'DM Mono', ui-monospace, monospace; letter-spacing: .12em; text-transform: uppercase; text-decoration: none; text-align: center; }
   a.tutto:hover { color: #e4b33c; }
 </style>
@@ -151,9 +162,15 @@
     brani.forEach(function (b, i) {
       if (b.album !== album) {
         album = b.album;
-        const l = document.createElement('li'); l.className = 'album'; l.textContent = album || 'Brani'; lista.append(l);
+        const l = document.createElement('li'); l.className = 'album';
+        const nome = document.createElement('span'); nome.textContent = album || 'Brani';
+        const tog = document.createElement('button'); tog.className = 'tog'; tog.setAttribute('role', 'switch');
+        tog.dataset.album = album || '';
+        tog.setAttribute('aria-label', 'Riproduci ' + (album || 'Brani') + ' nella radio');
+        tog.onclick = () => cambiaAlbum(tog.dataset.album);
+        l.append(nome, tog); lista.append(l);
       }
-      const li = document.createElement('li'); li.dataset.i = i;
+      const li = document.createElement('li'); li.dataset.i = i; li.dataset.album = b.album || '';
       const bt = document.createElement('button');
       const n = document.createElement('span'); n.className = 'n'; n.textContent = brani.slice(0, i + 1).filter(x => x.album === b.album).length;
       const t = document.createElement('span'); t.className = 't'; t.textContent = b.titolo;
@@ -175,7 +192,11 @@
       pulsante.setAttribute('aria-expanded', String(si));
       if (si) { posiziona(); const a = lista.querySelector('li.attivo'); if (a) a.scrollIntoView({ block: 'nearest' }); }
     }
-    pulsante.addEventListener('click', e => { e.preventDefault(); e.stopPropagation(); apri(!pannello.classList.contains('aperto')); });
+    pulsante.addEventListener('click', e => {
+      e.preventDefault(); e.stopPropagation();
+      if (inAttesa) riprendi();            // musica rimasta in sospeso dalla pagina prima: un tocco e riparte
+      apri(!pannello.classList.contains('aperto'));
+    });
     $('.chiudi').onclick = () => apri(false);
     addEventListener('resize', () => { if (pannello.classList.contains('aperto')) posiziona(); });
     document.addEventListener('pointerdown', e => {
@@ -198,7 +219,7 @@
         $('.ora').textContent = '0:00';
         barra.value = 0; barra.style.setProperty('--p', '0%');
         lista.querySelectorAll('li[data-i]').forEach(li => li.classList.toggle('attivo', +li.dataset.i === corrente));
-        scrivi({ i: corrente, casuale });
+        salva();
         if ('mediaSession' in navigator) {
           navigator.mediaSession.metadata = new MediaMetadata({
             title: b.titolo, artist: b.artisti || 'Collettivo M.I.A.O.', album: b.album || 'GoGoBar',
@@ -219,27 +240,50 @@
     }
     $('.play').onclick = () => { if (audio.paused) carica(corrente, true); else audio.pause(); };
     // ── ordine casuale: pesca da un mazzo mescolato, così non ripete finché non li ha suonati tutti ──
+    function segnaAlbum() {
+      lista.querySelectorAll('.tog').forEach(t => t.setAttribute('aria-checked', String(!spenti.has(t.dataset.album))));
+      lista.querySelectorAll('li[data-i]').forEach(li => li.classList.toggle('spento', spenti.has(li.dataset.album)));
+    }
+    function cambiaAlbum(a) {
+      if (spenti.has(a)) spenti.delete(a);
+      else {
+        spenti.add(a);
+        if (!brani.some((_, i) => acceso(i))) spenti.delete(a);   // almeno un album deve restare acceso
+      }
+      mazzo = mazzo.filter(acceso);
+      segnaAlbum(); salva();
+    }
+    // prossimo brano acceso nella direzione dir (se sono tutti spenti, quello subito dopo)
+    function passo(da, dir) {
+      for (let k = 1; k <= brani.length; k++) {
+        const j = ((da + dir * k) % brani.length + brani.length) % brani.length;
+        if (acceso(j)) return j;
+      }
+      return (da + dir + brani.length) % brani.length;
+    }
     function mescola() {
-      mazzo = brani.map((_, i) => i).filter(i => i !== corrente);
+      mazzo = brani.map((_, i) => i).filter(i => i !== corrente && acceso(i));
       for (let k = mazzo.length - 1; k > 0; k--) { const j = Math.floor(Math.random() * (k + 1)); [mazzo[k], mazzo[j]] = [mazzo[j], mazzo[k]]; }
     }
     function avanti() {
-      if (!casuale || brani.length < 2) return carica(corrente + 1, true);
+      if (!casuale || brani.length < 2) return carica(passo(corrente, 1), true);
       if (!mazzo.length) mescola();
+      if (!mazzo.length) return carica(passo(corrente, 1), true);
       storico.push(corrente);
       carica(mazzo.shift(), true);
     }
     function indietro() {
       if (audio.currentTime > 3) { audio.currentTime = 0; return; }
       if (casuale && storico.length) return carica(storico.pop(), true);
-      carica(corrente - 1, true);
+      carica(passo(corrente, -1), true);
     }
     function segnaCasuale() {
       $('.shuffle').setAttribute('aria-pressed', String(casuale));
-      scrivi({ i: corrente, casuale });
+      salva();
     }
     $('.shuffle').onclick = () => { casuale = !casuale; mazzo = []; storico.length = 0; segnaCasuale(); };
     segnaCasuale();
+    segnaAlbum();
     $('.next').onclick = avanti;
     $('.prev').onclick = indietro;
     audio.addEventListener('play', aggiornaStato);
@@ -279,6 +323,46 @@
     document.addEventListener('play', e => { if (!audio.paused && e.target !== audio) silenziaGioco(true); }, true);
 
     carica(corrente, false);
+    // ── staffetta: la musica continua quando cambi pagina (musica ⇄ home ⇄ giochi) ──
+    // Prima di lasciare la pagina si salva brano, secondo e se stava suonando; la pagina dopo riparte da lì.
+    // Se il browser blocca l'autoplay, il pulsante radio pulsa e basta un tocco.
+    const STAFFETTA = 'gogobarSuona.v1';
+    const stile = document.createElement('style');
+    stile.textContent = '[data-gogobar-radio].radio-riprendi{animation:gogobarPulsa 1.4s ease-in-out infinite}' +
+      '@keyframes gogobarPulsa{0%,100%{box-shadow:0 0 0 0 rgba(228,179,60,.7)}50%{box-shadow:0 0 0 9px rgba(228,179,60,0)}}';
+    document.head.appendChild(stile);
+    let inAttesa = false;
+    function riprendi() {
+      inAttesa = false;
+      pulsante.classList.remove('radio-riprendi'); fab.classList.remove('riprendi');
+      audio.play().catch(() => {});
+    }
+    addEventListener('pagehide', function () {
+      if (!audio.src) return;
+      try {
+        localStorage.setItem(STAFFETTA, JSON.stringify({
+          file: brani[corrente].file, t: audio.currentTime || 0, suona: inAttesa || !audio.paused, ts: Date.now()
+        }));
+      } catch (e) {}
+    });
+    (function () {
+      let s; try { s = JSON.parse(localStorage.getItem(STAFFETTA)); } catch (e) {}
+      if (!s || !s.suona || Date.now() - s.ts > 120000) return;
+      const k = brani.findIndex(b => b.file === s.file);
+      if (k < 0) return;
+      carica(k, false);
+      audio.preload = 'auto';
+      audio.addEventListener('loadedmetadata', function () {
+        audio.currentTime = Math.min(s.t || 0, Math.max(0, audio.duration - 1));
+        audio.play().catch(function () {
+          inAttesa = true;
+          pulsante.classList.add('radio-riprendi'); fab.classList.add('riprendi'); fab.hidden = !!pagina;
+        });
+      }, { once: true });
+      audio.load();
+    })();
+    audio.addEventListener('play', () => { if (inAttesa) { inAttesa = false; pulsante.classList.remove('radio-riprendi'); fab.classList.remove('riprendi'); } });
+
     window.GoGoBarRadio = { play: () => carica(corrente, true), pausa: () => audio.pause(), apri: () => apri(true), audio };
   }
 })();
