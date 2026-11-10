@@ -110,8 +110,8 @@ const CONTENUTI = {
       album: 'OG Tracks',
       // copertina e retro del vinile (facoltativi). "mappa" dice dove sta ogni brano
       // sul retro, in percentuale: [sinistra, alto, larghezza, altezza], nell'ordine dei brani.
-      copertina: 'musica/copertine/og-tracks-fronte.jpg',
-      retro: 'musica/copertine/og-tracks-retro.jpg?v=2',
+      copertina: 'musica/copertine/og-tracks-fronte.jpg?v=2',
+      retro: 'musica/copertine/og-tracks-retro.jpg?v=3',
       mappa: [
         [42.78, 33.06, 27.96, 5.05], [42.78, 38.1, 27.96, 5.28], [42.78, 43.38, 27.96, 9.35],
         [42.78, 52.73, 27.96, 5.23], [42.78, 57.96, 27.96, 5.23], [42.78, 63.19, 27.96, 9.35],
@@ -129,12 +129,16 @@ const CONTENUTI = {
       ],
     },
     {
-      album: 'Collab',
-      copertina: '', // copertina vera in arrivo: per ora quella provvisoria
+      album: 'MSF EP',
+      copertina: 'musica/copertine/msf-ep-fronte.jpg',
+      retro: 'musica/copertine/msf-ep-retro.jpg',
+      mappa: [
+        [36.57, 40.56, 28.7, 5.56], [36.57, 46.11, 28.7, 5.56], [36.57, 64.63, 28.7, 5.46],
+      ],
       brani: [
         { titolo: 'GARDALAND', artisti: 'Skedaz & P-Boy',                                              file: 'gardaland.mp3', durata: '2:11' },
-        { titolo: 'PEDOPORNO', artisti: 'CiciLeo feat. MalevolentKing Lo Slev', prod: 'Ignazio Laroossa', file: 'pedoporno.mp3', durata: '3:37' },
         { titolo: 'CANNONE',   artisti: 'The Marfalorian & Leo Gewurztraminer feat. Skedaz & P-Boy', prod: 'CiciLeo', file: 'cannone.mp3',   durata: '2:15' },
+        { titolo: 'PEDOPORNO', artisti: 'CiciLeo feat. MalevolentKing, Lo Slev', prod: 'Ignazio Laroossa', file: 'pedoporno.mp3', durata: '3:37' },
       ],
     },
     {
