@@ -129,6 +129,15 @@ const CONTENUTI = {
       ],
     },
     {
+      album: 'Collab',
+      copertina: '', // copertina vera in arrivo: per ora quella provvisoria
+      brani: [
+        { titolo: 'GARDALAND', artisti: 'Skedaz & P-Boy',                                              file: 'gardaland.mp3', durata: '2:11' },
+        { titolo: 'PEDOPORNO', artisti: 'CiciLeo feat. MalevolentKing Lo Slev', prod: 'Ignazio Laroossa', file: 'pedoporno.mp3', durata: '3:37' },
+        { titolo: 'CANNONE',   artisti: 'The Marfalorian & Leo Gewurztraminer feat. Skedaz & P-Boy', prod: 'CiciLeo', file: 'cannone.mp3',   durata: '2:15' },
+      ],
+    },
+    {
       album: 'Re-edit 2026',
       copertina: '',
       brani: [
@@ -136,15 +145,6 @@ const CONTENUTI = {
         { titolo: 'FUOCO E FARFALLE (re-edit 2026)', artisti: 'feat. C-Rischio, Celeperù, MarkyMarko, CiciLeo', prod: 'StepLeo', file: 'fuoco-e-farfalle-re-edit-2026.mp3', durata: '2:46' },
         { titolo: 'REGINA CRIVI (re-edit 2026)',     artisti: 'feat. C-Rischio, Malevolent Marf, VickyDicky',   prod: 'StepLeo', file: 'regina-crivi-re-edit-2026.mp3',     durata: '2:54' },
         { titolo: 'SECCO SLE (re-edit 2026)',        artisti: 'feat. Lil Criver, Fiskiabad, CiciLeo',           prod: 'StepLeo', file: 'secco-sle-re-edit-2026.mp3',        durata: '2:53' },
-      ],
-    },
-    {
-      album: 'Collab',
-      copertina: '', // copertina vera in arrivo: per ora quella provvisoria
-      brani: [
-        { titolo: 'GARDALAND', artisti: 'Skedaz & P-Boy',                                              file: 'gardaland.mp3', durata: '2:11' },
-        { titolo: 'PEDOPORNO', artisti: 'CiciLeo feat. MalevolentKing Lo Slev', prod: 'Ignazio Laroossa', file: 'pedoporno.mp3', durata: '3:37' },
-        { titolo: 'CANNONE',   artisti: 'The Marfalorian & Leo Gewurztraminer feat. Skedaz & P-Boy', prod: 'CiciLeo', file: 'cannone.mp3',   durata: '2:15' },
       ],
     },
   ],
