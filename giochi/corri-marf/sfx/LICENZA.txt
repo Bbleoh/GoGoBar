@@ -17,3 +17,4 @@ tranne le voci del mercante del Crivo Shop (crivo-*), che sono registrazioni ori
   presa dalla raccolta https://github.com/EternityForest/Free-SFX
 
 Convertiti in mp3 mono 64 kbps, con il silenzio iniziale e finale tolto.
+- Le voci di Vito all'officina (vito-*) sono registrate da Leo, come quelle di Crivo (crivo-*).
