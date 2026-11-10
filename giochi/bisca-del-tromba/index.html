@@ -7,7 +7,7 @@
 <title>La Bisca der Tromba</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700;900&family=Cinzel+Decorative:wght@700&family=Playfair+Display:wght@600;800;900&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700;900&family=Cinzel+Decorative:wght@700&family=Playfair+Display:wght@600;800;900&family=Fredoka:wght@500;600;700&family=DM+Mono&family=DM+Sans:wght@400;600&display=swap" rel="stylesheet">
 
 <link rel="stylesheet" href="roulette.css?v=6">
 <style>
@@ -55,6 +55,18 @@
   .tb-right .icon-btn{width:52px;height:52px;padding:0;justify-content:center;font-size:1.5rem;}
   .top-btn .lbl{font-size:.88rem;}
   .icon-btn.off{opacity:.5;}
+  /* Pulsanti condivisi con la home (radio e account GoGoBar): stesso aspetto della barra del sito */
+  .gg-sito{display:flex;align-items:center;gap:6px;padding-left:10px;margin-left:2px;border-left:1px solid rgba(212,175,90,.25);}
+  .gg-icona{display:grid;place-items:center;width:46px;height:46px;padding:0;border-radius:999px;border:0;
+    background:none;color:#c9c0a9;cursor:pointer;transition:background .2s,color .2s;}
+  .gg-icona:hover{background:#1d1d1a;color:#f6d77a;}
+  .gg-icona.radio-on{color:#e4b33c;}
+  .gg-icona svg{width:1.6rem;height:1.6rem;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round;}
+  .gg-account{font-family:'DM Mono',monospace;font-size:.8rem;letter-spacing:.06em;color:#f6d77a;background:none;cursor:pointer;
+    border:1px solid rgba(228,179,60,.45);border-radius:999px;padding:0 .9rem;height:40px;
+    max-width:11rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:none;transition:background .2s;}
+  .gg-account:hover{background:rgba(228,179,60,.1);}
+  .gg-account[hidden]{display:none;}
 
   /* PALCO: il croupier sta dietro al tavolo centrato e se ne vede solo la metà di sopra.
      --ch è l'altezza visibile; l'immagine è alta il doppio e la parte sotto finisce dietro al tavolo. */
@@ -247,6 +259,9 @@
   #account-bar{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin:4px 0 14px;
     padding:10px 12px;border-radius:12px;background:rgba(0,0,0,.3);border:1px solid rgba(212,175,90,.15);text-align:left;}
   #account-bar b{color:#fff;}
+  #gg-riga{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin:-6px 0 14px;
+    font-size:.85rem;color:var(--gold-light);opacity:.9;}
+  #gg-riga[hidden]{display:none;}
   #account-stato{display:block;font-size:.75rem;color:var(--win);opacity:.85;}
   #account-stato.err{color:var(--push);}
   .rarita-head{grid-column:1/-1;font-family:var(--ui);font-weight:700;font-size:.75rem;letter-spacing:2px;text-transform:uppercase;
@@ -287,6 +302,9 @@
   @media (max-width:1100px){
     .top-btn .lbl{display:none;}
     .top-btn{width:52px;padding:0;justify-content:center;}
+    .gg-account .gga-txt{display:none;}
+    .gg-account{width:46px;height:46px;padding:0;font-size:1.15rem;text-align:center;}
+    .gg-account.gga-dentro{background:rgba(228,179,60,.18);}
   }
   /* TELEFONO */
   @media (max-width:640px){
@@ -297,6 +315,10 @@
     .top-btn .lbl{display:none;}
     .top-btn,.tb-right .icon-btn{width:44px;height:44px;padding:0;justify-content:center;font-size:1.25rem;}
     .tb-left,.tb-right{gap:6px;}
+    .gg-sito{gap:4px;padding-left:6px;margin-left:0;}
+    .gg-icona,.gg-account{width:40px;height:40px;}
+    .gg-icona svg{width:1.35rem;height:1.35rem;}
+    .gg-account{font-size:1rem;}
     #stage{--ch:clamp(80px,16vh,150px);padding:0 8px 4px;}
     #table{border-radius:20px;padding:12px 8px;}
     #dock{padding:8px 10px 12px;gap:8px;}
@@ -313,10 +335,16 @@
     #topbar{padding-left:8px;padding-right:8px;}
     .top-btn,.tb-right .icon-btn{width:40px;height:40px;font-size:1.1rem;}
     .tb-left,.tb-right{gap:4px;}
+    .gg-sito{gap:2px;padding-left:4px;}
+    .gg-icona,.gg-account{width:34px;height:34px;}
+    .gg-icona svg{width:1.2rem;height:1.2rem;}
+    .gg-account{font-size:.9rem;}
   }
   @media (max-width:370px){
     .top-btn,.tb-right .icon-btn{width:36px;height:36px;font-size:1rem;}
     .tb-left,.tb-right{gap:3px;}
+    .gg-sito{padding-left:3px;}
+    .gg-icona,.gg-account{width:31px;height:31px;}
   }
   /* ORIZZONTALE BASSO (telefono girato) */
   @media (max-height:480px){
@@ -402,15 +430,18 @@
   <header id="topbar">
     <div class="tb-left">
       <button class="top-btn" id="lb-btn" onclick="toggleLeaderboard()" title="Classifica">🏆<span class="lbl">Classifica</span></button>
-      <button class="top-btn" onclick="apriStats()" title="Utente: statistiche e trofei">👤<span class="lbl">Utente</span></button>
+      <button class="top-btn" onclick="apriStats()" title="Utente: statistiche e trofei">📊<span class="lbl">Utente</span></button>
       <button class="top-btn cashout" id="cashout-btn" onclick="openCashout()" disabled title="Incassa il saldo e salvalo in classifica (tra una mano e l'altra)">💰<span class="lbl">Cashout</span></button>
     </div>
     <h1 id="title-bar">La Bisca der Tromba</h1>
     <div class="tb-right">
-      <button class="top-btn icon-btn" data-gogobar-radio title="Radio GoGoBar: i brani della sezione Musica" aria-label="Radio GoGoBar">📻</button>
       <button class="top-btn" id="tavoli-btn" onclick="vaiA('lobby')" disabled title="Torna alla lobby e cambia tavolo">🎲<span class="lbl">Tavoli</span></button>
       <button class="top-btn icon-btn" id="mute-btn" onclick="toggleMute()" title="Musica" aria-label="Musica">🔊</button>
       <button class="top-btn icon-btn" id="sfx-btn" onclick="toggleSfx()" title="Effetti sonori" aria-label="Effetti sonori">🎵</button>
+      <div class="gg-sito">
+        <button type="button" class="gg-icona" data-gogobar-radio aria-label="Radio GoGoBar" title="Radio GoGoBar: i brani della sezione Musica"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="8" width="18" height="12" rx="2.5"/><path d="M7 8l10-4"/><circle cx="15.5" cy="14" r="2.6"/><path d="M6.5 12.5h4M6.5 15.5h4"/></svg></button>
+        <button type="button" class="gg-account" data-gogobar-account hidden>👤 Entra</button>
+      </div>
     </div>
   </header>
 
@@ -559,6 +590,7 @@
       <span><b id="account-nome">—</b> <small id="account-stato"></small></span>
       <button class="bet-tool" onclick="cambiaGiocatore()">Cambia giocatore</button>
     </div>
+    <div id="gg-riga" hidden><span id="gg-riga-testo"></span><button class="bet-tool" id="gg-riga-btn" type="button"></button></div>
     <h3>📊 Statistiche</h3>
     <div id="stats-list"></div>
     <h3>🏆 Trofei <span id="trofei-count"></span></h3>
@@ -814,7 +846,7 @@ async function mostraGiocatori() {
       b.type = 'button';
       b.className = 'giocatore-chip' + (chiaveNome(g.nome) === chiaveNome(playerName) ? ' attuale' : '');
       b.title = 'Gioca come ' + g.nome;
-      b.textContent = g.nome + ' ';
+      b.textContent = (chiaveNome(g.nome) === chiaveNome(nomeGoGo()) ? '👤 ' : '') + g.nome + ' ';
       const sm = document.createElement('small');
       sm.textContent = '🏆 ' + g.trofei;
       b.appendChild(sm);
@@ -1233,6 +1265,7 @@ function controllaSaldo() {
 }
 
 function apriStats() {
+  aggiornaRigaAccount();
   const s = stats;
   const perc = s.mani ? Math.round(s.vinte / s.mani * 100) : 0;
   const euro = v => '€' + Number(v).toLocaleString('it-IT');
@@ -1721,6 +1754,7 @@ document.addEventListener('keydown', e => {
   if (e.ctrlKey || e.metaKey || e.altKey) return;
   if (e.target.tagName === 'INPUT') return;
   if (document.getElementById('name-modal').style.display !== 'none') return;
+  if (document.querySelector('dialog.gga[open]') || e.target.closest('input, textarea')) return; // pannello account aperto
   if (document.getElementById('cashout-modal').classList.contains('show')) {
     if (e.key === 'Escape') closeCashoutModal();
     return;
@@ -1749,6 +1783,67 @@ document.addEventListener('keydown', e => {
 });
 
 /* ════════════════════════════════════════════════════════════════
+   ACCOUNT GOGOBAR — lo stesso 👤 della home: se sei entrato, giochi con quel nome
+════════════════════════════════════════════════════════════════ */
+function statoGoGo() {
+  return (window.GoGoAccount && GoGoAccount.attivo) ? GoGoAccount.stato() : null;
+}
+function nomeGoGo() { const st = statoGoGo(); return st && st.account ? st.account.nome : ''; }
+
+// finestra del nome: con un account il nome proposto è quello dell'account
+function proponiAccount() {
+  const n = nomeGoGo();
+  if (!n || playerName) return;
+  document.getElementById('name-input').value = n;
+  document.getElementById('name-btn').textContent = 'Continua come ' + n;
+  document.getElementById('name-intro').textContent = 'Sei entrato con il tuo account GoGoBar, ' + n + '.';
+}
+
+// riga nella finestra Utente: account collegato, da usare o da creare
+function aggiornaRigaAccount() {
+  const riga = document.getElementById('gg-riga');
+  const st = statoGoGo();
+  if (!st || !window.GoGoAccountUI) { riga.hidden = true; return; }
+  const testo = document.getElementById('gg-riga-testo'), btn = document.getElementById('gg-riga-btn');
+  riga.hidden = false;
+  const n = st.account ? st.account.nome : '';
+  if (n && chiaveNome(n) === chiaveNome(playerName)) {
+    testo.textContent = '👤 Account GoGoBar: il nome ' + n + ' è tuo su tutto il sito.';
+    btn.textContent = 'Account';
+    btn.onclick = () => GoGoAccountUI.apri();
+  } else if (n) {
+    testo.textContent = '👤 Il tuo account GoGoBar è ' + n + '.';
+    btn.textContent = 'Gioca come ' + n;
+    btn.onclick = () => { if (!tavoloLibero()) return mostraToast('Finisci prima la giocata.'); chiudiStats(); scegliGiocatore(n); };
+  } else {
+    testo.textContent = '👤 Con un account GoGoBar il tuo nome lo usi solo tu, anche dagli altri dispositivi.';
+    btn.textContent = 'Crea account';
+    btn.onclick = () => GoGoAccountUI.apri();
+  }
+}
+
+// entri, crei o esci dall'account (anche dalla home in un'altra scheda): la bisca si adegua
+let ultimoGoGo = null;
+function suCambioAccount(st) {
+  const n = st && st.account ? st.account.nome : '';
+  const prima = ultimoGoGo;
+  if (n === prima) return;
+  ultimoGoGo = n;
+  if (document.getElementById('stats-modal').classList.contains('show')) aggiornaRigaAccount();
+  if (prima === null) return;                       // primo giro: ci pensa init
+  if (n) {
+    if (!playerName) { proponiAccount(); return; }
+    if (chiaveNome(n) === chiaveNome(playerName)) return;
+    if (tavoloLibero()) { chiudiStats(); scegliGiocatore(n); }
+    else mostraToast('Account ' + n + ' collegato: a fine giocata cambia giocatore da 📊 Utente.');
+  } else if (prima && playerName && chiaveNome(prima) === chiaveNome(playerName)) {
+    // sei uscito: quel nome resta dell'account, scegline un altro
+    if (tavoloLibero()) cambiaGiocatore();
+    else mostraToast('Sei uscito dall\'account GoGoBar: a fine giocata scegli un altro nome.');
+  }
+}
+
+/* ════════════════════════════════════════════════════════════════
    INIT — riprende saldo, nome e statistiche salvati
 ════════════════════════════════════════════════════════════════ */
 (function init() {
@@ -1765,17 +1860,12 @@ document.addEventListener('keydown', e => {
       document.getElementById('name-intro').textContent =
         'Bentornato! I tuoi €' + Math.floor(acc.saldo).toLocaleString('it-IT') + ' sono ancora sul tavolo.';
   }
-  // con un account GoGoBar (👤 nella home) il nome proposto è quello dell'account
-  function conAccount(st) {
-    if (!st || !st.account || playerName) return;
-    const n = st.account.nome;
-    document.getElementById('name-input').value = n;
-    document.getElementById('name-btn').textContent = 'Continua come ' + n;
-    document.getElementById('name-intro').textContent = 'Sei entrato con il tuo account GoGoBar, ' + n + '.';
-  }
+  // con un account GoGoBar (👤 in alto, lo stesso della home) il nome proposto è quello dell'account
   if (window.GoGoAccount && GoGoAccount.attivo) {
-    conAccount(GoGoAccount.stato());
-    GoGoAccount.pronto.then(conAccount);
+    ultimoGoGo = nomeGoGo();
+    proponiAccount();
+    GoGoAccount.pronto.then(() => { proponiAccount(); suCambioAccount(GoGoAccount.stato()); });
+    GoGoAccount.suCambio(suCambioAccount);
   }
 })();
 deck = newDeck(6);
@@ -1783,6 +1873,7 @@ betArea(true);
 setCroupier('init');
 </script>
 <script src="../../js/radio.js?v=13"></script>
+<script src="../../js/account-ui.js?v=2"></script>
 <script src="roulette.js?v=6"></script>
 </body>
 </html>
