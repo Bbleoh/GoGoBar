@@ -113,8 +113,8 @@
 
 <script src="../contenuti.js?v=20"></script>
 <script src="../js/account.js?v=4"></script>
-<script src="../js/account-ui.js?v=3"></script>
-<script src="../js/gogoldbar.js?v=1"></script>
+<script src="../js/account-ui.js?v=4"></script>
+<script src="../js/gogoldbar.js?v=2"></script>
 <script>
 /*
  * Area personale: GoGoldBar, statistiche dell'account, sblocchi e trofei
@@ -163,8 +163,8 @@
     sx.append(el('span', 'kicker', 'Area personale'), el('h1', null, st.account.nome));
     sx.append(el('p', null, st.creato ? 'Nel portafogli dal ' + data(st.creato) : 'Il tuo portafogli GoGoBar'));
     const dx = el('div', 'saldo');
-    const b = el('b'); b.innerHTML = G.icona; b.append(el('span', null, F(st.saldo)));
-    dx.append(b, el('small', null, 'GoGoldBar · +' + st.perClick + ' a click'));
+    const b = el('b'); b.append(el('span', null, F(st.saldo))); b.insertAdjacentHTML('beforeend', G.icona);
+    dx.append(b, el('small', null, 'GoGoldBar · +' + st.perClick + ' ' + G.simbolo + ' a click'));
     const vai = el('a', null, '🐱 Clicca il maneki neko'); vai.href = '../#neko';
     dx.append(vai);
     testa.append(sx, dx);
@@ -179,8 +179,8 @@
     const sez1 = el('section'); sez1.append(el('h2', null, 'Statistiche'));
     const numeri = el('div', 'numeri');
     [
-      [F(st.click), 'click sul gatto'], [F(st.guadagnati), 'GGB guadagnate'], [F(st.spesi), 'GGB spese'],
-      ['+' + st.perClick, 'GGB a click'], [presi + ' / ' + cat.length, 'trofei'],
+      [F(st.click), 'click sul gatto'], [F(st.guadagnati), G.simbolo + ' guadagnate'], [F(st.spesi), G.simbolo + ' spese'],
+      ['+' + st.perClick, G.simbolo + ' a click'], [presi + ' / ' + cat.length, 'trofei'],
       [braniFatti + ' / ' + braniTot, 'brani ascoltati'], [videoFatti + ' / ' + videoTot, 'video visti']
     ].forEach(([v, l]) => { const n = el('div', 'num'); n.append(el('b', null, v), el('small', null, l)); numeri.append(n); });
     sez1.append(numeri);
@@ -193,7 +193,7 @@
       const s = G.SBLOCCHI[id], ok = G.sbloccato(id);
       const c = el('div', 'sbl' + (ok ? ' ok' : ''));
       const t = el('div'); t.append(el('b', null, (ok ? '🔓 ' : '🔒 ') + s.nome));
-      const sm = el('small'); sm.textContent = ok ? 'Sbloccato il ' + data(st.sbloccati[id]) : F(s.prezzo) + ' GGB' + (s.album ? ' · album' : ' · gioco');
+      const sm = el('small'); sm.textContent = ok ? 'Sbloccato il ' + data(st.sbloccati[id]) : G.valuta(s.prezzo) + (s.album ? ' · album' : ' · gioco');
       t.append(sm); c.append(t);
       if (!ok) { const bt = el('button', null, 'Sblocca'); bt.type = 'button'; bt.onclick = () => G.chiediSblocco(id); c.append(bt); }
       sbl.append(c);
@@ -203,7 +203,7 @@
 
     // trofei
     const sez3 = el('section');
-    const h = el('h2', null, 'Trofei'); h.append(el('small', null, presi + ' di ' + cat.length + ' · ogni trofeo aumenta le GGB a click'));
+    const h = el('h2', null, 'Trofei'); h.append(el('small', null, presi + ' di ' + cat.length + ' · ogni trofeo aumenta le ' + G.simbolo + ' a click'));
     sez3.append(h);
     ['Musica', 'Video', 'Home', 'Giochi'].forEach(function (gr) {
       const lista = cat.filter(t => t.gruppo === gr);
@@ -238,7 +238,7 @@
       const bs = giochi.bisca.stats || {}, bt = Object.keys(giochi.bisca.trofei || {}).length;
       scheda('🃏 La Bisca der Tromba', [
         ['Mani giocate', F(bs.mani || 0)], ['Giri di roulette', F(bs.rGiri || 0)],
-        ['Record di saldo', F(bs.recordSaldo || 0) + ' GGB'], ['Vincita più alta', F(Math.max(bs.vincitaMax || 0, bs.rVincitaMax || 0)) + ' GGB'],
+        ['Record di saldo', G.valuta(bs.recordSaldo || 0)], ['Vincita più alta', G.valuta(Math.max(bs.vincitaMax || 0, bs.rVincitaMax || 0))],
         ['Trofei', String(bt)]
       ]);
       const cm = giochi.cm, upg = cm.upg || {};

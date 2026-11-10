@@ -34,6 +34,7 @@
      catalogo()             → [{ id, nome, desc, valore, gruppo, ok, data, fatti, totale }]
      SBLOCCHI               → { id: { nome, prezzo, album? } }
      formatta(n)            → '1.234'
+     valuta(n)              → '1.234 ' + simbolo (il glifo GoGoldBar, carattere U+E000 col mini font del glifo)
      icona                  → <svg> del lingotto, da mettere in innerHTML
      suCambio(fn)           → fn(stato) a ogni cambio, anche da altre schede
      aggiorna()             → ricarica dal database
@@ -63,11 +64,11 @@
   function formatta(n) { var x = Math.floor(Number(n) || 0); return (x < 0 ? '-' : '') + String(Math.abs(x)).replace(/\B(?=(\d{3})+(?!\d))/g, '.'); }
   function contenuti() { return (typeof CONTENUTI !== 'undefined' && CONTENUTI) || null; }
 
-  var ICONA = '<svg class="ggb-ico" viewBox="0 0 24 24" aria-hidden="true">' +
-    '<path d="M2.5 18.5 6.4 9.3h11.2l3.9 9.2z" fill="#e4b33c"/>' +
-    '<path d="M6.4 9.3 8 5.5h8l1.6 3.8z" fill="#f6d77a"/>' +
-    '<path d="M2.5 18.5 6.4 9.3h11.2l3.9 9.2z M6.4 9.3 8 5.5h8l1.6 3.8" fill="none" stroke="#7a5512" stroke-width="1.1" stroke-linejoin="round"/>' +
-    '<path d="M9.2 14.6h5.6" stroke="#9c6f1b" stroke-width="1.3" stroke-linecap="round"/></svg>';
+  // il glifo della GoGoldBar (disegnato da Leo): come <svg> da mettere in innerHTML...
+  var ICONA = '<svg class="ggb-ico" viewBox="205 237 649 616" aria-hidden="true"><path fill="currentColor" fill-rule="evenodd" d="M 453 237 L 453 428 L 452 429 L 432 425 L 380 426 L 355 431 L 323 442 L 297 456 L 273 474 L 257 490 L 245 505 L 235 520 L 225 539 L 217 559 L 211 580 L 205 618 L 205 662 L 206 663 L 208 688 L 214 715 L 224 742 L 235 763 L 250 784 L 264 799 L 285 816 L 303 827 L 322 836 L 346 844 L 369 849 L 394 851 L 395 852 L 426 852 L 427 851 L 436 851 L 457 848 L 474 844 L 497 836 L 520 825 L 534 816 L 553 829 L 578 841 L 606 849 L 625 852 L 658 853 L 659 852 L 680 851 L 708 845 L 736 835 L 752 827 L 776 811 L 787 802 L 806 782 L 818 766 L 827 751 L 837 730 L 845 707 L 850 686 L 853 665 L 854 622 L 853 621 L 852 599 L 845 564 L 834 534 L 824 515 L 804 488 L 780 466 L 767 457 L 747 446 L 718 435 L 699 430 L 681 427 L 657 426 L 656 425 L 636 425 L 635 426 L 614 427 L 607 429 L 602 428 L 602 237 Z M 621 519 L 641 518 L 642 519 L 654 519 L 666 521 L 688 528 L 703 537 L 717 550 L 728 566 L 735 582 L 740 601 L 742 614 L 742 625 L 743 626 L 743 654 L 742 655 L 741 670 L 737 687 L 730 705 L 719 723 L 705 738 L 691 748 L 683 752 L 664 758 L 626 759 L 611 756 L 602 752 L 602 673 L 603 672 L 663 672 L 663 584 L 603 584 L 602 583 L 602 527 L 607 523 Z M 403 518 L 428 518 L 450 522 L 453 524 L 453 604 L 452 605 L 396 605 L 395 606 L 395 693 L 452 693 L 453 694 L 453 752 L 449 755 L 432 759 L 411 759 L 383 754 L 361 744 L 354 739 L 343 729 L 332 714 L 327 704 L 321 687 L 317 667 L 316 632 L 315 631 L 316 630 L 317 610 L 324 583 L 333 564 L 342 551 L 355 538 L 368 529 L 384 522 Z"/></svg>';
+  // ...e come carattere U+E000 per i testi: un mini font con solo quel glifo, agganciato alle famiglie del sito
+  var G = '\uE000';
+  function valuta(n) { return formatta(n) + ' ' + G; }
 
   /* ── trofei ── */
   // valore in GGB per click, deciso dall'id: così vale anche nelle pagine senza contenuti.js
@@ -283,7 +284,7 @@
     if (d.trofei[tid]) return Promise.resolve(false);
     d.trofei[tid] = Date.now(); memorizza(); avvisa();
     var x = catalogo().find(function (c) { return c.id === tid; });
-    annuncia('🏆 ' + (x ? x.nome : 'Nuovo trofeo') + ' · ora guadagni ' + perClick() + ' GGB a click');
+    annuncia('🏆 ' + (x ? x.nome : 'Nuovo trofeo') + ' · ora guadagni ' + perClick() + ' ' + G + ' a click');
     var corpo = {}; corpo['trofei/' + tid] = ORA;
     return db('ggb/' + id, 'PATCH', corpo).then(function () { return true; }, function () { return false; });
   }
@@ -313,8 +314,46 @@
   function chiaveVideo(yt) { return String(yt || '').replace(/[.$#\[\]\/]/g, '_'); }
 
   /* ── annunci (trofei) ── */
+  var FONT = 'data:font/woff2;base64,d09GMgABAAAAAAJ8AAoAAAAAA9QAAAIzAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAABmAAPAqCaIJbATYCJAMMCwgABCAFZgcsGw4DIL4VN66X2iNjIDYpQwLrVLcrTLDtpIS5z6E//ltRENVY2bP7hKwQWBO5Z8uOIJGpUwEWJnHkSD3B8v4upFDCgKYwGvmAIuz4+3m3SHpRP1OL10BpE5voCOfSHnBMOtHlRJnhGAeLwKI3nW+jr5O7Xw7nJMZvRRBpKdBFnABD4W5wXKZJqpmGmG98O0hY4UkmqLpCcP+/m3qn2WEUR9PlsLF4bPvYFh/LqDA+wF6EAXNQ7Woe91y2DpeUr3wRrdzwwRgjLIgdgDOuAPy+i5U1pV4DZvUZ/ABQgAac0IiIEWHYJBDUJuU+UEs3EOA0jome3wWHAMAIAABd0f53nF1ztRRpmrapKEvjukYEmpOCF0nTJLzLgmRJAgu+kBl+ZUEBS6Jv+7au8z4/BLvi1ThbgkWiB88FStXroFCirB9mmVzI5BbkZKQHXLjGCCOa3y5DhHKBrks9S3/605QFXLmp12v0d+bPDcOOFOetl0dfm904mVRljdmHwsUNOkIQhr5sKl3+o/4mokgaGVx7vP3s4zTDt5XVZkn+5Evrq2evPGOP7DAA69jjlOHkh1NW6j/n8yaCWX5KXu0a62adS06TrT1XCgAIIOBgu0qHbeoL9E/gh9pOIQF0+F3yaFQJwn0jRksBSjgAwW0t/+G5SCuAZpceUfCWESkIAII5IAAoTDFHI0bmCA7YDasKGwIKJp7hxdld099slRSY6CyjemXrMq1anwFzRjVDYUsfHZQe2G4A';
+  var FAMIGLIE = ['GoGoldBar', 'Fredoka', 'DM Sans', 'DM Mono', 'Chakra Petch', 'Cinzel', 'Cinzel Decorative', 'Playfair Display'];
+  // Il glifo entra nelle famiglie già usate dalla pagina: il browser unisce due font della stessa famiglia
+  // solo se hanno peso e stile identici, quindi copio esattamente i pesi che la pagina ha caricato
+  // (es. Fredoka 500/600/700). Le famiglie che la pagina non carica ricevono il glifo per tutti i pesi.
+  var fontDati = null, fontFatti = {};
+  function agganciaFont() {
+    if (!window.FontFace || !document.fonts) return;
+    try {
+      if (!fontDati) {
+        var bin = atob(FONT.split(',')[1]); fontDati = new Uint8Array(bin.length);
+        for (var bi = 0; bi < bin.length; bi++) fontDati[bi] = bin.charCodeAt(bi);
+      }
+      var combo = {}, presenti = {};
+      document.fonts.forEach(function (f) {
+        if (/^U\+E000$/i.test(f.unicodeRange)) return;
+        var fam = String(f.family).replace(/^["']|["']$/g, '');
+        presenti[fam] = 1;
+        combo[fam + '|' + f.weight + '|' + f.style] = [fam, f.weight, f.style];
+      });
+      FAMIGLIE.forEach(function (fam) {
+        if (!presenti[fam]) ['normal', 'italic'].forEach(function (st) { combo[fam + '|1 1000|' + st] = [fam, '1 1000', st]; });
+      });
+      Object.keys(combo).forEach(function (k) {
+        if (fontFatti[k]) return;
+        // se la famiglia arriva dopo (pesi veri), la regola "tutti i pesi" va tolta: altrimenti ruberebbe il peso 400
+        var c = combo[k], ff = new FontFace(c[0], fontDati.buffer.slice(0), { weight: c[1], style: c[2], unicodeRange: 'U+E000', display: 'block' });
+        fontFatti[k] = ff; document.fonts.add(ff); ff.load().catch(function () {});
+      });
+      Object.keys(fontFatti).forEach(function (k) {
+        var fam = k.split('|')[0];
+        if (k.indexOf('|1 1000|') > 0 && presenti[fam]) { document.fonts.delete(fontFatti[k]); delete fontFatti[k]; }
+      });
+    } catch (e) {}
+  }
+  agganciaFont();
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', agganciaFont);
+  window.addEventListener('load', agganciaFont);
   var CSS = '' +
-    '.ggb-ico{width:1em;height:1em;vertical-align:-.12em;display:inline-block}' +
+    '.ggb-ico{width:.95em;height:.9em;vertical-align:-.08em;display:inline-block}' +
     '.ggb-toast{position:fixed;left:50%;bottom:22px;transform:translate(-50%,140%);z-index:2147483000;background:#161614;color:#f4efe2;' +
     'border:1px solid #e4b33c;border-radius:999px;padding:.7rem 1.2rem;font:600 .95rem Fredoka,"DM Sans",system-ui,sans-serif;' +
     'box-shadow:0 14px 40px rgba(0,0,0,.55);transition:transform .45s cubic-bezier(.2,1.4,.4,1);max-width:calc(100vw - 32px);text-align:center}' +
@@ -354,7 +393,7 @@
       var dlg = document.createElement('dialog'); dlg.className = 'ggb-dlg';
       var h = document.createElement('h2'); h.innerHTML = '🔒 <span></span>'; h.querySelector('span').textContent = s.nome;
       var p = document.createElement('p');
-      var prezzo = document.createElement('div'); prezzo.className = 'ggb-prezzo'; prezzo.innerHTML = ICONA + '<span></span>';
+      var prezzo = document.createElement('div'); prezzo.className = 'ggb-prezzo'; prezzo.innerHTML = '<span></span>' + ICONA;
       prezzo.querySelector('span').textContent = formatta(s.prezzo);
       var err = document.createElement('p'); err.className = 'ggb-err';
       var btns = document.createElement('div'); btns.className = 'ggb-btns';
@@ -370,9 +409,9 @@
         };
       } else {
         var manca = s.prezzo - (st.saldo || 0);
-        p.textContent = (s.album ? 'L\'album ' : '') + s.nome + ' costa ' + formatta(s.prezzo) + ' GoGoldBar. Ne hai ' + formatta(st.saldo) + '.';
+        p.textContent = (s.album ? 'L\'album ' : '') + s.nome + ' costa ' + valuta(s.prezzo) + '. Ne hai ' + valuta(st.saldo) + '.';
         if (manca > 0) {
-          err.textContent = 'Te ne mancano ' + formatta(manca) + ': clicca il maneki neko in home per raccoglierle.';
+          err.textContent = 'Te ne mancano ' + valuta(manca) + ': clicca il maneki neko in home per raccoglierle.';
           vai.textContent = 'Vai al maneki neko';
           vai.onclick = function () { location.href = radice + '#neko'; };
         } else {
@@ -424,7 +463,7 @@
     trofeo: trofeo, catalogo: catalogo, annuncia: annuncia,
     ascoltato: function (file) { segna('brani', slugBrano(file)); },
     visto: function (yt) { segna('video', chiaveVideo(yt)); },
-    SBLOCCHI: SBLOCCHI, formatta: formatta, icona: ICONA,
+    SBLOCCHI: SBLOCCHI, formatta: formatta, valuta: valuta, simbolo: G, icona: ICONA,
     suCambio: function (fn) { if (typeof fn === 'function') ascoltatori.push(fn); },
     aggiorna: carica
   };

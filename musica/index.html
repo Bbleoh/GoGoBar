@@ -221,7 +221,7 @@
 <script src="../contenuti.js?v=20"></script>
 <script src="../js/copertina.js?v=1"></script>
 <script src="../js/account.js?v=4"></script>
-<script src="../js/gogoldbar.js?v=1"></script>
+<script src="../js/gogoldbar.js?v=2"></script>
 <script>
 /*
  * Player musicale: legge i brani da contenuti.js (sezione musica).
@@ -482,7 +482,7 @@
       let l = btn.querySelector('.lucchetto');
       if (c && !l) {
         l = document.createElement('span'); l.className = 'lucchetto';
-        l.innerHTML = '🔒 ' + G.icona + ' ' + G.formatta(G.SBLOCCHI[G.sbloccoDi(nome)].prezzo);
+        l.innerHTML = '🔒 ' + G.formatta(G.SBLOCCHI[G.sbloccoDi(nome)].prezzo) + ' ' + G.icona;
         btn.append(l);
       }
       if (!c && l) l.remove();
@@ -494,7 +494,7 @@
       if (c && !s) {
         s = document.createElement('div'); s.className = 'sblocca';
         const t = document.createElement('span');
-        t.innerHTML = '🔒 Album bloccato · ' + G.icona + ' ' + G.formatta(G.SBLOCCHI[G.sbloccoDi(nome)].prezzo) + ' GoGoldBar';
+        t.innerHTML = '🔒 Album bloccato · ' + G.formatta(G.SBLOCCHI[G.sbloccoDi(nome)].prezzo) + ' ' + G.icona;
         const b = document.createElement('button'); b.type = 'button'; b.textContent = 'Sblocca';
         b.onclick = () => chiediAlbum(nome);
         s.append(t, b);
