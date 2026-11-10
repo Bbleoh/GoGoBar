@@ -257,12 +257,11 @@
     .azioni { flex-wrap: nowrap; gap: .4em; min-width: 0; }            /* se non ci stanno, adattaAzioni() rimpicciolisce il testo */
     .azioni .btn { flex: none; white-space: nowrap; padding: .55em .95em; }
     .azioni .btn.secondario { font-size: .9em; }
-    #gioca { min-width: 6.3em; }
+    #gioca { width: 7.4em; padding-left: 0; padding-right: 0; text-align: center; }   /* stessa larghezza con Corri! e con Corsetta */
     /* switch Corri / Corsetta (dopo aver battuto il boss), verticale: giù spento, su acceso */
     .switch-corsa { all: unset; position: relative; width: 1.35em; height: 2.3em; flex: none; cursor: pointer; background: var(--surface); box-shadow: inset 0 0 0 1px var(--line);
-      clip-path: polygon(0 5px, 5px 0, 100% 0, 100% calc(100% - 5px), calc(100% - 5px) 100%, 0 100%); transition: background .2s ease; }
-    .switch-corsa i { position: absolute; left: 3px; right: 3px; height: 1em; top: calc(100% - 1em - 3px); background: var(--muted);
-      clip-path: polygon(0 3px, 3px 0, 100% 0, 100% calc(100% - 3px), calc(100% - 3px) 100%, 0 100%); transition: top .2s ease, background .2s ease; }
+      transform: skewX(-12deg); transition: background .2s ease; }              /* inclinato come i bottoni */
+    .switch-corsa i { position: absolute; left: 3px; right: 3px; height: 1em; top: calc(100% - 1em - 3px); background: var(--muted); transition: top .2s ease, background .2s ease; }
     .switch-corsa[aria-checked="true"] { background: rgba(98,200,255,.22); box-shadow: inset 0 0 0 1px rgba(98,200,255,.55); }
     .switch-corsa[aria-checked="true"] i { top: 3px; background: #62c8ff; }
     .switch-corsa[hidden] { display: none; }
@@ -3023,6 +3022,7 @@
   function boxSpeciale(o) {
     if (o.tipo === 'muro') return { x: o.x, y: o.y0, w: o.s, h: o.y1 - o.y0 };
     if (o.tipo === 'onda') return { x: o.x - 13, y: TERRA - 30, w: 26, h: 30 };
+    if (o.tipo === 'boomerang') return { x: o.x - 32, y: o.y - 14, w: 64, h: 28 };   // il pappagallo: lungo e basso
     if (o.tipo === 'oro') return o.alto ? { x: o.x - 30, y: TERRA - 112, w: 60, h: 52 } : { x: o.x - 15, y: TERRA - 30, w: 30, h: 30 };
     return { x: o.x - o.s / 2 + 3, y: o.y - o.s / 2 + 3, w: o.s - 6, h: o.s - 6 };
   }
@@ -3139,6 +3139,14 @@
         }
         continue;
       }
+      if (o.tipo === 'boomerang' && pronta(OGG.pappagallo)) {    // boomerang = pappagallo di Leo: in picchiata, girato verso dove vola
+        var pp = OGG.pappagallo, pw = 112, ph = pw * pp.naturalHeight / pp.naturalWidth;
+        ctx.save(); ctx.translate(o.x, o.y + Math.sin(g.t * 18) * 2);
+        if (o.vx < 0) ctx.scale(-1, 1);
+        ctx.rotate(-0.42); ctx.scale(1, 1 + Math.sin(g.t * 26) * 0.05);
+        ctx.drawImage(cache(pp, pw, ph), -pw * 0.55, -ph * 0.5, pw, ph);
+        ctx.restore(); continue;
+      }
       ctx.save(); ctx.translate(o.x, o.y); if (o.giro) ctx.rotate(o.giro);
       var h = o.s / 2;
       ctx.fillRect(-h - 1, -h - 1, o.s + 2, o.s + 2);
@@ -3148,12 +3156,18 @@
     }
     ctx.restore();
   }
-  // pedane: blocchi neutri finché non arrivano gli asset
+  // pedane: biscotti (blocchi neutri finché l'immagine non è carica)
   function disegnaPedane() {
     if (!g.pedane || !g.pedane.length) return;
     ctx.save();
     for (var i = 0; i < g.pedane.length; i++) {
       var p = g.pedane[i];
+      if (pronta(OGG.biscotto)) {                       // pedana = biscotto di Leo, coricato: si sta in piedi a metà della faccia di sopra
+        var bk = OGG.biscotto, bh = p.w * bk.naturalHeight / bk.naturalWidth;
+        ctx.fillStyle = 'rgba(0,0,0,.16)'; ctx.beginPath(); ctx.ellipse(p.x + p.w / 2, p.y + bh * 0.85, p.w * 0.42, 6, 0, 0, TAU); ctx.fill();
+        ctx.drawImage(cache(bk, p.w, bh), p.x, p.y - bh * 0.3, p.w, bh);
+        continue;
+      }
       ctx.fillStyle = 'rgba(0,0,0,.18)'; ctx.fillRect(p.x + 8, p.y + 22, p.w - 16, 6);
       ctx.fillStyle = '#000'; ctx.fillRect(p.x - 1, p.y - 1, p.w + 2, 18);
       ctx.fillStyle = '#5a5a66'; ctx.fillRect(p.x, p.y, p.w, 16);
@@ -3946,7 +3960,7 @@
 
   // oggetti disegnati da Leo: la canna (al posto della birra) e la ragazza accovacciata (al posto della sedia)
   var OGG = {};
-  ['canna', 'bifase', 'trifase', 'pringles', 'ragazza-a-terra', 'durex', 'transenna', 'juve', 'lazio', 'carabiniere', 'pesce-spada', 'aygo', 'jet', 'quattro-quadri', 'super-santos', 'punto', 'punto-ruota', 'carrello', 'carrello-davanti'].forEach(function (n) {
+  ['canna', 'bifase', 'trifase', 'pringles', 'ragazza-a-terra', 'durex', 'transenna', 'juve', 'lazio', 'carabiniere', 'pesce-spada', 'aygo', 'jet', 'quattro-quadri', 'super-santos', 'punto', 'punto-ruota', 'carrello', 'carrello-davanti', 'biscotto', 'pappagallo'].forEach(function (n) {
     var img = new Image(); img.src = (CANNE_GIAN.indexOf(n) >= 0 ? '' : 'ogg/') + n + '.webp?v=1'; OGG[n] = img;
   });
   // contorno nero sottile (BORDO px) attorno a ostacoli e nemici, per farli notare meglio:
