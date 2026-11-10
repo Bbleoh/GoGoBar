@@ -105,7 +105,7 @@ const CONTENUTI = {
   // copertina: immagine quadrata in img/copertine/ (es. 'img/copertine/og-tracks.jpg').
   // Se la lasci vuota ('') il sito disegna una copertina provvisoria col nome dell'album.
   // (Se hai un WAV, mandalo in chat: lo converto io in MP3.)
-  musica: [
+  musica: [ // l'ordine qui è l'ordine degli album sul sito
     {
       album: 'OG Tracks',
       // copertina e retro del vinile (facoltativi). "mappa" dice dove sta ogni brano
