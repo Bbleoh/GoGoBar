@@ -972,7 +972,7 @@
   /* ── Effetti sonori: foley e sound design royalty free (Oculus Audio Pack di Meta e Kenney, CC0: sfx/LICENZA.txt), in Web Audio ──
      fx(nome, volume, velocità): la velocità cambia anche l'intonazione (0.5 = un'ottava sotto).
      I suoni con più varianti (salto-1, salto-2…) ne pescano una a caso, così i colpi ripetuti non suonano tutti uguali. */
-  var SFX = {}, SFX_VARIANTI = { salto: 3, atterra: 2, swish: 3, fruscio: 2, whoosh: 2, pugno: 3, cazzotto: 3, calcio: 2, ahi: 3, uomo: 2, lei: 4,
+  var SFX = {}, SFX_VARIANTI = { salto: 3, atterra: 2, swish: 3, fruscio: 2, whoosh: 2, pugno: 3, cazzotto: 3, calcio: 2, uomo: 2, lei: 4,
     sforzo: 2, campanella: 2, strega: 3, sputo: 2, ding: 2, disco: 2, passo: 5, thump: 2,
     'crivo-costosa': 5, 'crivo-riuscita': 6, 'crivo-fallita': 7,
     'vito-apre': 3, 'vito-guarda': 2, 'vito-riuscita': 6, 'vito-costosa': 1, 'vito-fallita': 1,
@@ -980,7 +980,7 @@
     'marf-partenza': 4, 'marf-frenata': 5, 'marf-salto': 3, 'marf-scivolata': 4, 'marf-lancio': 7, 'marf-morte': 10,
     'marf-danno': 8, 'marf-jesus': 12, 'marf-crivo': 11, 'marf-vito': 7 };   // e di Vito, all'officina   // voci del mercante del Crivo Shop
   var SFX_NOMI = ['canna', 'brace', 'morso', 'monete', 'mazzata', 'urlo', 'boato', 'tonfo', 'parata', 'click', 'errore', 'allarme', 'potere',
-    'laser', 'carica-laser', 'jet', 'esplosione', 'oro', 'umpf', 'ding-carica', 'spada-accesa', 'spada-colpo', 'fruscio-scivolata', 'scivolata-loop',
+    'laser', 'carica-laser', 'jet', 'esplosione', 'oro', 'ding-carica', 'spada-accesa', 'spada-colpo', 'fruscio-scivolata', 'scivolata-loop',
     'motore-loop', 'frenata', 'vetro'];
   var VOLUME_FX = 0.5;   // tutti gli effetti 6 dB sotto
   Object.keys(SFX_VARIANTI).forEach(function (n) { for (var i = 1; i <= SFX_VARIANTI[n]; i++) SFX_NOMI.push(n + '-' + i); });
@@ -1624,7 +1624,7 @@
     if (!g.urlato) voceMorte();                     // (e ha già urlato)
     var fr = MARF_X - 30 - Math.max(g.distacco, 0);   // le ragazze si tuffano addosso a Marf da dove sono
     g.tuffo = { t: 0, x0: RAGAZZE.map(function (r, i) { return fr - i * 46; }) };
-    setTimeout(function () { if (stato === 'preso') { fx('lei', 0.45, 1.15); fx('swish', 0.4, 0.8); } }, 120);
+    setTimeout(function () { if (stato === 'preso') fx('swish', 0.4, 0.8); }, 120);
     setTimeout(function () { if (stato === 'preso') fx('tonfo', 0.45, 1.1); }, 650);
     var punti = punteggio(), nuovo = punti > record;
     var incassate = PROVA ? 0 : g.munizioni;        // le canne rimaste in tasca vanno nel portafoglio per il Crivo Shop
@@ -1645,7 +1645,7 @@
     }, 2600);   // prima si gode il ragdoll e il mucchio di ragazze
     setTimeout(function () { if (stato === 'preso') suona('morte'); }, 900);
     TRACCE[traccia].pause();
-    fx('mazzata', 0.6); fx('ahi', 0.55, 0.9); setTimeout(function () { fx('tonfo', 0.5, 0.8); }, 260);
+    fx('mazzata', 0.6); setTimeout(function () { fx('tonfo', 0.5, 0.8); }, 260);
   }
 
   // l'ultimo urlo: le 8-10 solo quando lo prendono le pischelle, non contro un palazzo o durante il boss
@@ -1660,7 +1660,7 @@
   function secondaPossibilita() {
     g.seconda = 0; stato = 'scelta';
     avviaRagdoll(); voceMorte();                    // intanto che scegli Marf cade a peso morto
-    fx('mazzata', 0.6); fx('ahi', 0.55, 0.9); setTimeout(function () { if (stato === 'scelta') fx('tonfo', 0.5, 0.8); }, 260);
+    fx('mazzata', 0.6); setTimeout(function () { if (stato === 'scelta') fx('tonfo', 0.5, 0.8); }, 260);
     var pan = document.getElementById('seconda'), prezzo = prezzoSeconda(), ok = canneDisponibili() >= prezzo;
     var si = document.getElementById('secondaSi');
     si.textContent = 'Riparti · ' + prezzo + ' canne'; si.disabled = !ok;
@@ -2275,7 +2275,7 @@
         r: Math.random() * TAU, vr: (Math.random() - .5) * 24, s: 1.5 + Math.random() * 3.2, terra: TERRA + 6 + Math.random() * 46, t: 0,
         c: Math.random() < 0.25 ? '#eaf8ff' : Math.random() < 0.5 ? '#a9dcf5' : '#7fc4e8' });
     }
-    fx('vetro', 0.8); fx('whoosh', 0.5, 1.1); fx('sforzo', 0.45); voceMarf('frenata', 1, 2);
+    fx('vetro', 0.8); fx('whoosh', 0.5, 1.1); voceMarf('frenata', 1, 2);
     g.volo = { fase: 'aria', t: 0, y: vy0 - 6, vy: -430, rot: Math.PI / 2 - 0.15 };
     g.vel = Math.max(p.v, 540);
     m.aTerra = false; m.giu = false; m.salti = 2; g.anim.giro = 0;
@@ -3067,7 +3067,7 @@
     var m = g.marf;
     g.colpi += 1; m.botta = 1.1; g.scuoti = 0.3; g.scritta = { testo: 'OLTRAGGIO!', t: 1.6 }; eventoTrofei('oltraggio'); g.ultimoColpoM = g.metri;
     g.distacco = Math.max(g.distacco - 85, 25);
-    fx('errore', 0.55); fx('pugno', 0.55); setTimeout(function () { fx('ahi', 0.55); }, 90);
+    fx('errore', 0.55); fx('pugno', 0.55);
     if (g.colpi < 3) voceMarf('danno');
   }
   function sputa(b) {
@@ -3611,7 +3611,7 @@
     g.colpi += danno; m.botta = 1.1; g.scuoti = danno > 1 ? 0.4 : 0.25; eventoTrofei('colpo');
     rallenta(VEL_BOTTA);
     g.distacco = Math.max(g.distacco - 85, 25);
-    fx('pugno', 0.6); fx('ahi', 0.5);
+    fx('pugno', 0.6);
     if (g.colpi < 3) voceMarf('danno');                // al colpo che lo stende parla la morte
   }
 
@@ -3773,7 +3773,7 @@
         else m.vy = Math.max(m.vy, 420);
         g.bless = 0; g.scudo = 0; m.botta = 0; eventoTrofei('facciata'); g.causa = 'facciata';
         g.ultimoColpoM = g.metri; g.colpi = Math.max(g.colpi, 3);
-        fx('pugno', 0.6); fx('ahi', 0.5);
+        fx('pugno', 0.6);
         fx('tonfo', 0.8); g.scuoti = Math.max(g.scuoti || 0, 0.5);
       }
     }
@@ -4439,7 +4439,7 @@
     a.atterra = Math.min(1, 0.45 + vy / 1600);
     a.ripresa = 0; a.giro = 0;
     polvere(MARF_X, g.marf.y, 7 + Math.floor(vy / 200), 1.4);
-    if (g.marf.picchiata) { g.marf.picchiata = false; fx('thump', 0.8); fx('umpf', 0.45, 0.95 + Math.random() * 0.1); }   // giù in aria: tonfo sordo
+    if (g.marf.picchiata) { g.marf.picchiata = false; fx('thump', 0.8); }   // giù in aria: tonfo sordo
     else fx('atterra', Math.min(0.6, 0.2 + vy / 2400));
   }
 
