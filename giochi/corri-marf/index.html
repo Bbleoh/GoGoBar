@@ -1359,16 +1359,18 @@
     return o;
   }
   var scelto = null;                                   // id dell'articolo aperto nella scheda
-  var apreTimer = null;
+  // all'Officina, a ogni acquisto Vito risponde col suo saluto o con le battute da acquisto (all'ultimo livello quella da "costosa")
+  function compraDaVito(ultimo) {
+    if (ultimo) reazioneCrivo('costosa', 'colpito');
+    else reazioneCrivo(Math.random() < 1 / 3 ? 'apre' : 'riuscita', 'contento');
+  }
   function apriMarket(quale) {
     if (!giocatore) { notaMenu.textContent = 'Scrivi prima il tuo nome: il portafoglio è del giocatore.'; nomeMenu.focus(); return; }
     negozio = NEGOZI[quale] || NEGOZI.crivo;
     market.classList.toggle('vito', negozio === NEGOZI.vito);
     document.getElementById('titoloMarket').textContent = negozio.titolo;
     scelto = null; menu.hidden = true; market.hidden = false; disegnaMarket();
-    var dura = voceMarf(negozio.voce);              // Marf saluta entrando, poi Vito ti accoglie (Crivo non ha una voce per questo)
-    var chi = negozio; clearTimeout(apreTimer);
-    apreTimer = setTimeout(function () { if (!market.hidden && negozio === chi) reazioneCrivo('apre'); }, dura * 1000 + 120);
+    voceMarf(negozio.voce);                         // Marf saluta entrando (Vito parla solo quando compri)
   }
   function chiudiMarket() { market.hidden = true; menu.hidden = false; aggiornaChi(); }
   // Officina di Vito: lo schermo col carrello. Per ogni articolo il punto da inquadrare (frazioni dell'immagine) e lo zoom
@@ -1456,7 +1458,8 @@
           salvaDati(giocatore, function (a) { if (a.canne >= prezzo && (+a.upg[u.id] || 0) === lv) { a.canne -= prezzo; a.upg[u.id] = lv + 1; } });
           fx('monete', 0.6);
           evento('compra', 1);
-          if (lv + 1 >= max) reazioneCrivo('costosa', 'colpito'); else reazioneCrivo('riuscita', 'contento');
+          if (negozio === NEGOZI.vito) compraDaVito(lv + 1 >= max);
+          else if (lv + 1 >= max) reazioneCrivo('costosa', 'colpito'); else reazioneCrivo('riuscita', 'contento');
           disegnaMarket();
         });
       }
