@@ -975,7 +975,10 @@
   var SFX = {}, SFX_VARIANTI = { salto: 3, atterra: 2, swish: 3, fruscio: 2, whoosh: 2, pugno: 3, cazzotto: 3, calcio: 2, ahi: 3, uomo: 2, lei: 4,
     sforzo: 2, campanella: 2, strega: 3, sputo: 2, ding: 2, disco: 2, passo: 5, thump: 2,
     'crivo-costosa': 5, 'crivo-riuscita': 6, 'crivo-fallita': 7,
-    'vito-apre': 3, 'vito-guarda': 2, 'vito-riuscita': 6, 'vito-costosa': 1, 'vito-fallita': 1 };   // e di Vito, all'officina   // voci del mercante del Crivo Shop
+    'vito-apre': 3, 'vito-guarda': 2, 'vito-riuscita': 6, 'vito-costosa': 1, 'vito-fallita': 1,
+    // la voce di Marf (registrata da Leo)
+    'marf-partenza': 4, 'marf-frenata': 5, 'marf-salto': 3, 'marf-scivolata': 4, 'marf-lancio': 7, 'marf-morte': 10,
+    'marf-danno': 8, 'marf-jesus': 12, 'marf-crivo': 11, 'marf-vito': 7 };   // e di Vito, all'officina   // voci del mercante del Crivo Shop
   var SFX_NOMI = ['canna', 'brace', 'morso', 'monete', 'mazzata', 'urlo', 'boato', 'tonfo', 'parata', 'click', 'errore', 'allarme', 'potere',
     'laser', 'carica-laser', 'jet', 'esplosione', 'oro', 'umpf', 'ding-carica', 'spada-accesa', 'spada-colpo', 'fruscio-scivolata', 'scivolata-loop',
     'motore-loop', 'frenata', 'vetro'];
@@ -1005,6 +1008,39 @@
       s.connect(gn); gn.connect(c.destination); s.start();
       return s;
     } catch (e) {}
+  }
+
+  /* la voce di Marf: per ogni tipo le registrazioni girano a sacchetto (tutte prima di ripeterne una, mai la stessa due volte di fila);
+     da/a scelgono un sottoinsieme (frenata 1-2 al parabrezza, 3-5 all'atterraggio; morte 8-10 solo se lo prendono le pischelle).
+     Una battuta nuova taglia quella che sta ancora dicendo; con coda aspetta che finisca. Torna i secondi che dura. */
+  var VOL_MARF = 1, voceM = null, fineVoceM = 0, sacchiMarf = {};
+  function voceMarf(tipo, da, a, coda) {
+    var n = SFX_VARIANTI['marf-' + tipo]; if (!n || !audioOn) return 0;
+    da = da || 1; a = Math.min(a || n, n);
+    var chiave = tipo + da + '-' + a, sac = sacchiMarf[chiave] || (sacchiMarf[chiave] = { pesca: [], ultima: 0 });
+    if (!sac.pesca.length) {
+      for (var i = da; i <= a; i++) sac.pesca.push(i);
+      for (var j = sac.pesca.length - 1; j > 0; j--) { var r = Math.floor(Math.random() * (j + 1)), t = sac.pesca[j]; sac.pesca[j] = sac.pesca[r]; sac.pesca[r] = t; }
+      if (sac.pesca.length > 1 && sac.pesca[sac.pesca.length - 1] === sac.ultima) sac.pesca.unshift(sac.pesca.pop());
+    }
+    var k = sac.pesca.pop(); sac.ultima = k;
+    try {
+      var c = contestoAudio(), buf = SFX['marf-' + tipo + '-' + k]; if (!c || !buf) return 0;
+      var quando = coda ? Math.max(c.currentTime, fineVoceM) : c.currentTime;
+      if (!coda && voceM) { try { voceM.stop(); } catch (e) {} }
+      var s = c.createBufferSource(), gn = c.createGain();
+      s.buffer = buf; gn.gain.value = VOL_MARF * VOLUME_FX;
+      s.connect(gn); gn.connect(c.destination); s.start(quando);
+      voceM = s; fineVoceM = quando + buf.duration;
+      return fineVoceM - c.currentTime;
+    } catch (e) { return 0; }
+  }
+  // salti e scivolate: la battuta scappa ogni tanto, più o meno una volta ogni 20
+  var contaVoce = { salto: 8 + Math.floor(Math.random() * 12), scivolata: 8 + Math.floor(Math.random() * 12) };
+  function voceOgniTanto(tipo) {
+    if (--contaVoce[tipo] > 0) return;
+    contaVoce[tipo] = 14 + Math.floor(Math.random() * 13);
+    voceMarf(tipo);
   }
 
   // fruscio continuo mentre Marf scivola a terra: un loop che parte e si spegne con una piccola dissolvenza
@@ -1323,13 +1359,16 @@
     return o;
   }
   var scelto = null;                                   // id dell'articolo aperto nella scheda
+  var apreTimer = null;
   function apriMarket(quale) {
     if (!giocatore) { notaMenu.textContent = 'Scrivi prima il tuo nome: il portafoglio è del giocatore.'; nomeMenu.focus(); return; }
     negozio = NEGOZI[quale] || NEGOZI.crivo;
     market.classList.toggle('vito', negozio === NEGOZI.vito);
     document.getElementById('titoloMarket').textContent = negozio.titolo;
     scelto = null; menu.hidden = true; market.hidden = false; disegnaMarket();
-    reazioneCrivo('apre');                          // Vito ti accoglie (Crivo non ha una voce per questo)
+    var dura = voceMarf(negozio.voce);              // Marf saluta entrando, poi Vito ti accoglie (Crivo non ha una voce per questo)
+    var chi = negozio; clearTimeout(apreTimer);
+    apreTimer = setTimeout(function () { if (!market.hidden && negozio === chi) reazioneCrivo('apre'); }, dura * 1000 + 120);
   }
   function chiudiMarket() { market.hidden = true; menu.hidden = false; aggiornaChi(); }
   // Officina di Vito: lo schermo col carrello. Per ogni articolo il punto da inquadrare (frazioni dell'immagine) e lo zoom
@@ -1573,11 +1612,13 @@
     menu.hidden = true; fine.hidden = true;
     iniziaMissioni();
     traccia = ''; suona('gioco');
+    voceMarf('partenza');
   }
 
   function preso() {
     stato = 'preso';
     if (!g.rag) avviaRagdoll();                     // dopo una seconda possibilità rifiutata è già a terra
+    if (!g.urlato) voceMorte();                     // (e ha già urlato)
     var fr = MARF_X - 30 - Math.max(g.distacco, 0);   // le ragazze si tuffano addosso a Marf da dove sono
     g.tuffo = { t: 0, x0: RAGAZZE.map(function (r, i) { return fr - i * 46; }) };
     setTimeout(function () { if (stato === 'preso') { fx('lei', 0.45, 1.15); fx('swish', 0.4, 0.8); } }, 120);
@@ -1604,6 +1645,9 @@
     fx('mazzata', 0.6); fx('ahi', 0.55, 0.9); setTimeout(function () { fx('tonfo', 0.5, 0.8); }, 260);
   }
 
+  // l'ultimo urlo: le 8-10 solo quando lo prendono le pischelle, non contro un palazzo o durante il boss
+  function voceMorte() { g.urlato = true; voceMarf('morte', 1, g.boss || g.causa === 'facciata' ? 7 : 10); }
+
   /* ── Seconda possibilità (ultimo livello di Pensiero): quando ti prendono il gioco si ferma,
      paghi canne (prima quelle in tasca, poi il portafoglio) e riparti con tutte le vite. Una volta a corsa. ── */
   var SECONDA_T = 5;
@@ -1612,7 +1656,7 @@
   var secondaTimer = null;
   function secondaPossibilita() {
     g.seconda = 0; stato = 'scelta';
-    avviaRagdoll();                                 // intanto che scegli Marf cade a peso morto
+    avviaRagdoll(); voceMorte();                    // intanto che scegli Marf cade a peso morto
     fx('mazzata', 0.6); fx('ahi', 0.55, 0.9); setTimeout(function () { if (stato === 'scelta') fx('tonfo', 0.5, 0.8); }, 260);
     var pan = document.getElementById('seconda'), prezzo = prezzoSeconda(), ok = canneDisponibili() >= prezzo;
     var si = document.getElementById('secondaSi');
@@ -1638,11 +1682,11 @@
     if (prezzo > daTasca && !PROVA) salvaDati(giocatore, function (a) { a.canne = Math.max(0, a.canne - (prezzo - daTasca)); });
     document.getElementById('seconda').hidden = true; eventoTrofei('seconda');
     // si riparte puliti: vite piene, niente ostacoli addosso, ragazze lontane, un attimo di invincibilità
-    g.colpi = 0; g.distacco = 230; g.bless = 2; g.marf.botta = 0;
+    g.colpi = 0; g.distacco = 230; g.bless = 2; g.marf.botta = 0; g.causa = null; g.urlato = false;
     g.ostacoli = g.ostacoli.filter(function (o) { return o.x > MARF_X + 420 || o.volo !== undefined; });
     g.jets.length = 0; g.jetAvviso = 0; g.prossimo = Math.max(g.prossimo, 1.2);
     avvisoMissione('Seconda possibilità', '-' + prezzo + ' canne', 'Pensiero');
-    fx('potere', 0.55);
+    fx('potere', 0.55); voceMarf('jesus');
     if (!g.rag) { stato = 'gioco'; stelline(MARF_X, g.marf.y - 40); return; }
     // Marf si solleva da terra avvolto da una luce radiosa, si raddrizza e riparte a correre
     var rg = g.rag, giro = Math.PI * 2;
@@ -1855,13 +1899,14 @@
     if (m.corridoio) return;                        // nel corridoio il soffitto è basso: niente salti
     if (g.carrello) {                               // nel carrello: un salto solo, più pesante
       var molle = valore('car_molle');               // Molle di Vito: salto normale, poi anche il doppio
-      if (m.aTerra) { m.vy = molle ? -720 : -680; m.salti = 1; m.giu = false; fx('salto', 0.5, molle ? 1 : 0.85); }
-      else if (molle > 1 && m.salti < 2) { m.vy = -620; m.salti = 2; fx('fruscio', 0.5, 0.9); }
+      if (m.aTerra) { m.vy = molle ? -720 : -680; m.salti = 1; m.giu = false; fx('salto', 0.5, molle ? 1 : 0.85); voceOgniTanto('salto'); }
+      else if (molle > 1 && m.salti < 2) { m.vy = -620; m.salti = 2; fx('fruscio', 0.5, 0.9); voceOgniTanto('salto'); }
       return;
     }
     if (m.salti < 2) {
       m.vy = m.salti === 0 ? -720 : -620; m.salti++; m.giu = false; m.picchiata = false;
       if (m.salti === 1) fx('salto', 0.6); else fx('fruscio', 0.5, 0.9);
+      voceOgniTanto('salto');
       if (m.salti === 1) polvere(MARF_X - 4, m.y, 5, 1);
       else { g.anim.giro = 1; evento('doppio', 1); }   // secondo salto: capriola
     }
@@ -1871,7 +1916,7 @@
     var m = g.marf;
     if (attivo) {
       if (!m.aTerra) { m.vy = Math.max(m.vy, 900); if (!m.giu) { m.picchiata = true; fx('fruscio', 0.5, 0.7); } }   // a terra in fretta
-      else if (!m.giu && !g.carrello) fx('fruscio-scivolata', 0.6, 1 + Math.random() * 0.15);
+      else if (!m.giu && !g.carrello) { fx('fruscio-scivolata', 0.6, 1 + Math.random() * 0.15); voceOgniTanto('scivolata'); }
     }
     m.giu = attivo;
   }
@@ -2227,7 +2272,7 @@
         r: Math.random() * TAU, vr: (Math.random() - .5) * 24, s: 1.5 + Math.random() * 3.2, terra: TERRA + 6 + Math.random() * 46, t: 0,
         c: Math.random() < 0.25 ? '#eaf8ff' : Math.random() < 0.5 ? '#a9dcf5' : '#7fc4e8' });
     }
-    fx('vetro', 0.8); fx('whoosh', 0.5, 1.1); fx('sforzo', 0.45);
+    fx('vetro', 0.8); fx('whoosh', 0.5, 1.1); fx('sforzo', 0.45); voceMarf('frenata', 1, 2);
     g.volo = { fase: 'aria', t: 0, y: vy0 - 6, vy: -430, rot: Math.PI / 2 - 0.15 };
     g.vel = Math.max(p.v, 540);
     m.aTerra = false; m.giu = false; m.salti = 2; g.anim.giro = 0;
@@ -2242,6 +2287,7 @@
       if (v.y >= TERRA - 20 && v.vy > 0) {
         v.fase = 'rotola'; v.t = 0; v.rot0 = v.rot; v.y = TERRA - 20;
         fx('thump', 0.55); fx('fruscio', 0.5, 0.9); polvere(MARF_X + 10, TERRA, 6, 1.2); g.scuoti = 0.12;
+        voceMarf('frenata', 3, 5, true);                   // atterrato: si lamenta appena finisce la battuta del parabrezza
       }
     } else {
       var u = Math.min(1, v.t / 0.45);
@@ -2670,6 +2716,7 @@
       danno: (sup ? g.boss.hpMax * DANNO_SUPER : DANNO_MIN + (DANNO_MAX - DANNO_MIN) * k) * (g.valCanna || 1) });   // bifase x2, trifase x3 (anche la super)
     if (sup) { fx('whoosh', 0.7, 0.7); fx('potere', 0.4); }
     else fx('swish', 0.45 + 0.25 * k, 1.25 - 0.35 * k);
+    if (k >= 1) voceMarf('lancio');                   // carica piena: Marf la scaglia urlando
   }
 
   // premio per aver battuto MaDeLucata: la prima volta si sblocca l'album della soundtrack (sezione Musica del sito),
@@ -3018,6 +3065,7 @@
     g.colpi += 1; m.botta = 1.1; g.scuoti = 0.3; g.scritta = { testo: 'OLTRAGGIO!', t: 1.6 }; eventoTrofei('oltraggio'); g.ultimoColpoM = g.metri;
     g.distacco = Math.max(g.distacco - 85, 25);
     fx('errore', 0.55); fx('pugno', 0.55); setTimeout(function () { fx('ahi', 0.55); }, 90);
+    if (g.colpi < 3) voceMarf('danno');
   }
   function sputa(b) {
     b.tSfera = 0; var d = b.dietro ? 1 : -1;
@@ -3561,6 +3609,7 @@
     rallenta(VEL_BOTTA);
     g.distacco = Math.max(g.distacco - 85, 25);
     fx('pugno', 0.6); fx('ahi', 0.5);
+    if (g.colpi < 3) voceMarf('danno');                // al colpo che lo stende parla la morte
   }
 
   // la velocità sale di 9 px/s al secondo fino a 820: rallentare = riportare indietro quel tempo
@@ -3719,7 +3768,7 @@
         p.dentro = true; p.preso = true;
         if (m.y > p.pav) { m.vy = -Math.sqrt(2 * 2100 * (m.y - p.pav + 14)); m.salti = 1; }
         else m.vy = Math.max(m.vy, 420);
-        g.bless = 0; g.scudo = 0; m.botta = 0; eventoTrofei('facciata');
+        g.bless = 0; g.scudo = 0; m.botta = 0; eventoTrofei('facciata'); g.causa = 'facciata';
         g.ultimoColpoM = g.metri; g.colpi = Math.max(g.colpi, 3);
         fx('pugno', 0.6); fx('ahi', 0.5);
         fx('tonfo', 0.8); g.scuoti = Math.max(g.scuoti || 0, 0.5);
