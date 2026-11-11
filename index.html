@@ -151,7 +151,7 @@
     @keyframes piu { from { transform: translate(-50%, 0) scale(.7); opacity: 1; } to { transform: translate(-50%, -90px) scale(1.15); opacity: 0; } }
     .ggb-banco { position: absolute; left: 50%; bottom: -3.2rem; transform: translateX(-50%); z-index: 2; text-align: center; white-space: nowrap; }
     .ggb-banco b { display: inline-flex; align-items: center; gap: .35rem; font-family: var(--display); font-size: 1.9rem; font-weight: 700; color: var(--gold-2); line-height: 1; }
-    .ggb-banco b .ggb-lingotto { width: 1.35em; height: 1.35em; }
+    .ggb-banco b .ggb-ico { width: .8em; height: .76em; }
     .ggb-banco small { display: block; margin-top: .25rem; font-family: var(--mono); font-size: .66rem; letter-spacing: .14em; text-transform: uppercase; color: var(--muted); }
     .ggb-banco button { background: none; border: 0; color: var(--gold-2); font: inherit; text-decoration: underline; cursor: pointer; padding: 0; }
     .ggb-fumetto { position: absolute; left: 50%; top: 2%; transform: translateX(-50%); z-index: 4; width: max-content; max-width: 90%;
@@ -162,7 +162,7 @@
     .nav-ggb { display: inline-flex !important; align-items: center; gap: .3rem; font-family: var(--display) !important; font-weight: 700; font-size: .95rem !important;
       color: var(--gold-2) !important; padding: .4rem .7rem !important; white-space: nowrap; }
     .nav-ggb[hidden] { display: none !important; }
-    .nav-ggb .ggb-lingotto { width: 1.5em; height: 1.5em; margin: -.3em 0; }
+    .nav-ggb .ggb-ico { width: .85em; height: .8em; }
     /* +1 raro nel banner */
     .ticker span.ggb-raro { padding: 0 .6rem; }
     .ticker span.ggb-raro button { pointer-events: auto; cursor: pointer; font: inherit; color: #fff3c4; background: #1a1408; border: 2px solid #fff3c4; border-radius: 999px;
@@ -462,7 +462,7 @@
 <!-- account GoGoBar senza password (👤 nel menu in alto) -->
 <script src="js/account.js?v=4"></script>
 <script src="js/account-ui.js?v=4"></script>
-<script src="js/gogoldbar.js?v=3"></script>
+<script src="js/gogoldbar.js?v=4"></script>
 <script>
   // dai giochi (es. la bisca) si arriva con #account: apre subito il pannello 👤
   if (location.hash === '#account' && window.GoGoAccountUI && window.GoGoAccount && GoGoAccount.attivo) {
