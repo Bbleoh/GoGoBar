@@ -35,8 +35,7 @@
      SBLOCCHI               → { id: { nome, prezzo, album? } }
      formatta(n)            → '1.234'
      valuta(n)              → '1.234 ' + simbolo (il glifo GoGoldBar, carattere U+E000 col mini font del glifo)
-     icona                  → <img> del lingotto (asset di Leo), da mettere in innerHTML
-     glifo                  → <svg> del glifo GoGoldBar
+     icona, glifo           → <svg> del glifo GoGoldBar, da mettere in innerHTML
      suCambio(fn)           → fn(stato) a ogni cambio, anche da altre schede
      aggiorna()             → ricarica dal database
 ════════════════════════════════════════════════════════════════ */
@@ -69,9 +68,6 @@
   var ICONA = '<svg class="ggb-ico" viewBox="205 237 649 616" aria-hidden="true"><path fill="currentColor" fill-rule="evenodd" d="M 453 237 L 453 428 L 452 429 L 432 425 L 380 426 L 355 431 L 323 442 L 297 456 L 273 474 L 257 490 L 245 505 L 235 520 L 225 539 L 217 559 L 211 580 L 205 618 L 205 662 L 206 663 L 208 688 L 214 715 L 224 742 L 235 763 L 250 784 L 264 799 L 285 816 L 303 827 L 322 836 L 346 844 L 369 849 L 394 851 L 395 852 L 426 852 L 427 851 L 436 851 L 457 848 L 474 844 L 497 836 L 520 825 L 534 816 L 553 829 L 578 841 L 606 849 L 625 852 L 658 853 L 659 852 L 680 851 L 708 845 L 736 835 L 752 827 L 776 811 L 787 802 L 806 782 L 818 766 L 827 751 L 837 730 L 845 707 L 850 686 L 853 665 L 854 622 L 853 621 L 852 599 L 845 564 L 834 534 L 824 515 L 804 488 L 780 466 L 767 457 L 747 446 L 718 435 L 699 430 L 681 427 L 657 426 L 656 425 L 636 425 L 635 426 L 614 427 L 607 429 L 602 428 L 602 237 Z M 621 519 L 641 518 L 642 519 L 654 519 L 666 521 L 688 528 L 703 537 L 717 550 L 728 566 L 735 582 L 740 601 L 742 614 L 742 625 L 743 626 L 743 654 L 742 655 L 741 670 L 737 687 L 730 705 L 719 723 L 705 738 L 691 748 L 683 752 L 664 758 L 626 759 L 611 756 L 602 752 L 602 673 L 603 672 L 663 672 L 663 584 L 603 584 L 602 583 L 602 527 L 607 523 Z M 403 518 L 428 518 L 450 522 L 453 524 L 453 604 L 452 605 L 396 605 L 395 606 L 395 693 L 452 693 L 453 694 L 453 752 L 449 755 L 432 759 L 411 759 L 383 754 L 361 744 L 354 739 L 343 729 L 332 714 L 327 704 L 321 687 L 317 667 L 316 632 L 315 631 L 316 630 L 317 610 L 324 583 L 333 564 L 342 551 L 355 538 L 368 529 L 384 522 Z"/></svg>';
   // ...e come carattere U+E000 per i testi: un mini font con solo quel glifo, agganciato alle famiglie del sito
   var G = '\uE000';
-  // il lingotto (asset di Leo) per saldi e prezzi in evidenza
-  var LINGOTTO = '<img class="ggb-lingotto" src="' + radice + 'img/ggb-lingotto-64.webp" srcset="' + radice + 'img/ggb-lingotto-64.webp 1x, ' +
-    radice + 'img/ggb-lingotto-192.webp 3x" alt="" aria-hidden="true" draggable="false">';
   function valuta(n) { return formatta(n) + ' ' + G; }
 
   /* ── trofei ── */
@@ -357,7 +353,6 @@
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', agganciaFont);
   window.addEventListener('load', agganciaFont);
   var CSS = '' +
-    '.ggb-lingotto{width:1.3em;height:1.3em;object-fit:contain;vertical-align:-.32em;display:inline-block;filter:drop-shadow(0 2px 3px rgba(0,0,0,.45))}' +
     '.ggb-ico{width:.95em;height:.9em;vertical-align:-.08em;display:inline-block}' +
     '.ggb-toast{position:fixed;left:50%;bottom:22px;transform:translate(-50%,140%);z-index:2147483000;background:#161614;color:#f4efe2;' +
     'border:1px solid #e4b33c;border-radius:999px;padding:.7rem 1.2rem;font:600 .95rem Fredoka,"DM Sans",system-ui,sans-serif;' +
@@ -398,7 +393,7 @@
       var dlg = document.createElement('dialog'); dlg.className = 'ggb-dlg';
       var h = document.createElement('h2'); h.innerHTML = '🔒 <span></span>'; h.querySelector('span').textContent = s.nome;
       var p = document.createElement('p');
-      var prezzo = document.createElement('div'); prezzo.className = 'ggb-prezzo'; prezzo.innerHTML = '<span></span>' + LINGOTTO;
+      var prezzo = document.createElement('div'); prezzo.className = 'ggb-prezzo'; prezzo.innerHTML = '<span></span>' + ICONA;
       prezzo.querySelector('span').textContent = formatta(s.prezzo);
       var err = document.createElement('p'); err.className = 'ggb-err';
       var btns = document.createElement('div'); btns.className = 'ggb-btns';
@@ -468,7 +463,7 @@
     trofeo: trofeo, catalogo: catalogo, annuncia: annuncia,
     ascoltato: function (file) { segna('brani', slugBrano(file)); },
     visto: function (yt) { segna('video', chiaveVideo(yt)); },
-    SBLOCCHI: SBLOCCHI, formatta: formatta, valuta: valuta, simbolo: G, icona: LINGOTTO, glifo: ICONA,
+    SBLOCCHI: SBLOCCHI, formatta: formatta, valuta: valuta, simbolo: G, icona: ICONA, glifo: ICONA,
     suCambio: function (fn) { if (typeof fn === 'function') ascoltatori.push(fn); },
     aggiorna: carica
   };
