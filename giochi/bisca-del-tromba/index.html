@@ -9,10 +9,11 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700;900&family=Cinzel+Decorative:wght@700&family=Playfair+Display:wght@600;800;900&family=Fredoka:wght@500;600;700&family=DM+Mono&family=DM+Sans:wght@400;600&display=swap" rel="stylesheet">
 
-<link rel="stylesheet" href="roulette.css?v=7">
+<link rel="stylesheet" href="roulette.css?v=8">
 <link rel="stylesheet" href="slot.css?v=2">
 <link rel="stylesheet" href="plinko.css?v=3">
 <link rel="stylesheet" href="portiere.css?v=2">
+<link rel="stylesheet" href="mine.css?v=1">
 <style>
   :root{
     --gold:#d4af5a; --gold-light:#f3dc9a; --gold-dim:rgba(212,175,90,.35);
@@ -544,7 +545,7 @@
     <div class="lobby-info" id="lobby-info"></div>
     <div id="tavoli">
       <button class="tavolo" onclick="vaiA('blackjack')">
-        <div class="tavolo-img"><img src="assets/croupier-init.png" alt=""></div>
+        <div class="tavolo-img bj-img"><img src="assets/slot/j.webp?v=3" alt=""></div>
         <div class="tavolo-testo"><b>Blackjack</b><small>Batti il Tromba a 21. Il blackjack paga 3 a 2.</small></div>
         <kbd>B</kbd>
       </button>
@@ -567,6 +568,11 @@
         <div class="tavolo-img pt-img"><div class="mini-porta"><div class="mini-palla"></div></div></div>
         <div class="tavolo-testo"><b>Il Portiere</b><small>Rigori contro il Tromba: sinistra, centro o destra. Ogni gol fa salire il moltiplicatore e incassi quando vuoi. Se para, perdi tutto.</small></div>
         <kbd>G</kbd>
+      </button>
+      <button class="tavolo" onclick="vaiA('mine')">
+        <div class="tavolo-img mn-img"><div class="mini-mine"><i></i><i class="g"><img src="assets/slot/ggb.webp?v=3" alt=""></i><i></i><i class="b"><svg viewBox="0 0 64 64"><circle cx="29" cy="37" r="20" fill="#161616"/><path d="M40 15c4-5 8-4 11-8" fill="none" stroke="#c9a15a" stroke-width="3" stroke-linecap="round"/><circle cx="53" cy="7" r="6" fill="#ffd84a"/></svg></i><i class="g"><img src="assets/slot/ggb.webp?v=3" alt=""></i><i></i><i></i><i></i><i class="g"><img src="assets/slot/ggb.webp?v=3" alt=""></i></div></div>
+        <div class="tavolo-testo"><b>Mine</b><small>Scopri le caselle senza beccare una mina: ogni GoGoldBar alza il moltiplicatore, incassi quando vuoi.</small></div>
+        <kbd>M</kbd>
       </button>
     </div>
     </div>
@@ -693,6 +699,36 @@
     </div>
   </section>
 
+  <!-- ══ MINE (logica in mine.js) ══ -->
+  <section id="mine" aria-label="Mine">
+    <div class="mn">
+      <h2 class="mn-titolo">Mine</h2>
+      <div id="mn-head"><img id="mn-croupier" src="assets/croupier-init.png" alt="Il Tromba"><div id="mn-msg" aria-live="polite"></div></div>
+      <div class="mn-gioco">
+        <div class="mn-sx">
+          <div id="mn-striscia" aria-label="Moltiplicatori"></div>
+          <div class="mn-campo-wrap"><div id="mn-campo" role="group" aria-label="Campo minato"></div></div>
+        </div>
+        <div class="mn-dx">
+          <div class="mn-riga"><span class="mn-lbl">Mine</span><div class="mn-seg" id="mn-preset"></div><select id="mn-mine-sel" class="mn-scelta" aria-label="Numero di mine"></select></div>
+          <div class="mn-riga"><span class="mn-lbl">Griglia</span><div class="mn-seg" id="mn-griglie"></div></div>
+          <div class="mn-riga" id="mn-riga-auto" hidden><span class="mn-lbl">Auto</span><span id="mn-auto-info"></span><div id="mn-giri" role="group" aria-label="Quante puntate automatiche"></div></div>
+          <div class="mn-pannello vlt-pannello">
+            <div class="s-info"><small>Stack</small><span id="mn-saldo">0 &#xE000;</span></div>
+            <div class="s-info s-puntata"><small>Puntata</small><div><button type="button" id="mn-meno" onclick="mnCambiaPuntata(-1)" aria-label="Abbassa la puntata" title="Freccia giù">−</button><span id="mn-puntata">10 &#xE000;</span><button type="button" id="mn-piu" onclick="mnCambiaPuntata(1)" aria-label="Alza la puntata" title="Freccia su">+</button></div></div>
+            <div class="s-info"><small>Ultima</small><span id="mn-vincita">—</span></div>
+          </div>
+          <div class="mn-azioni">
+            <button class="bet-tool" type="button" id="mn-caso" onclick="mnACaso()" title="Tasto R">Casella<br>a caso</button>
+            <button class="btn s-gioca" type="button" id="mn-gioca" onclick="mnGioca()" title="Spazio o Invio">Gioca</button>
+            <button class="bet-tool auto" type="button" id="mn-auto" onclick="mnTastoAuto()" title="Tasto A: scegli le caselle e quante puntate automatiche">⟳ Auto</button>
+          </div>
+          <div id="mn-keys">Tasti: Spazio/Invio gioca o incassa · R casella a caso · ↑↓ puntata · A auto · Esc ferma l'auto</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
   <!-- ══ IL PORTIERE (logica in portiere.js) ══ -->
   <section id="portiere" aria-label="Il Portiere">
     <div class="pt">
@@ -757,6 +793,7 @@
       <div id="r-side">
         <div id="r-head"><img id="r-croupier" src="assets/croupier-init.png" alt="Il Tromba"><div id="r-msg" aria-live="polite"></div></div>
         <div id="r-storia" aria-label="Ultimi numeri usciti"></div>
+        <div id="r-croupier-panel" aria-hidden="true"><img id="r-croupier-big" src="assets/croupier-init.png" alt=""></div>
         <div id="r-modi" role="group" aria-label="Tipo di puntata sui numeri">
           <button class="bet-tool attivo" data-modo="pieno" aria-pressed="true" onclick="rScegliModo('pieno')" title="Tasto P: un numero solo, paga ×36">Pieno <small>×36</small></button>
           <button class="bet-tool" data-modo="cavallo" aria-pressed="false" onclick="rScegliModo('cavallo')" title="Tasto C: due numeri vicini, paga ×18">Cavallo <small>×18</small></button>
@@ -832,7 +869,8 @@ function rouletteOccupata() { return typeof rGirando !== 'undefined' && (rGirand
 function slotOccupata() { return typeof sOccupata === 'function' && sOccupata(); }
 function plinkoOccupato() { return typeof pOccupata === 'function' && pOccupata(); }
 function portiereOccupato() { return typeof ptOccupato === 'function' && ptOccupato(); }
-function tavoloLibero() { return phase === 'bet' && !rouletteOccupata() && !slotOccupata() && !plinkoOccupato() && !portiereOccupato(); }
+function mineOccupato() { return typeof mnOccupato === 'function' && mnOccupato(); }
+function tavoloLibero() { return phase === 'bet' && !rouletteOccupata() && !slotOccupata() && !plinkoOccupato() && !portiereOccupato() && !mineOccupato(); }
 function aggiornaTavoliBtn() {
   const b = document.getElementById('tavoli-btn');
   if (b) b.disabled = gioco === 'lobby' || !playerName || !tavoloLibero();
@@ -857,6 +895,8 @@ function vaiA(dove) {
     pEntra();
   } else if (dove === 'portiere') {
     ptEntra();
+  } else if (dove === 'mine') {
+    mnEntra();
   } else {
     if (!document.getElementById('message').textContent) msg('Buona fortuna, ' + playerName + '!');
   }
@@ -940,13 +980,15 @@ function fineRun(macchinette) {
     if (typeof sPuntI !== 'undefined') sPuntI = 0;   // nuovo tavolo: si riparte dalla puntata più bassa
     if (typeof pPuntI !== 'undefined') pPuntI = 0;
     if (typeof ptPuntI !== 'undefined') ptPuntI = 0;
+    if (typeof mnPuntI !== 'undefined') mnPuntI = 0;
+    if (typeof mnAutoFerma === 'function') mnAutoFerma();
     if (typeof sAutoStop === 'function' && sAutoOn) sAutoStop('Auto fermato: sei salito di tavolo.');
     if (typeof pAutoStop === 'function' && pAutoOn) pAutoStop('Auto fermato: sei salito di tavolo.');
     const f = puntateFisse();
     const b = document.getElementById('salto');
     b.querySelector('b').textContent = 'Il Tromba sbaraglia tutto!';
     b.querySelector('span').textContent = 'Passi al tavolo da ' + numero(prossimo) + ': ' +
-      (macchinette ? 'slot, plinko e portiere da ' + ggb(f[0]) + ' a ' + ggb(f[f.length - 1]) : 'puntata max ' + ggb(puntataMax()));
+      (macchinette ? 'slot, plinko, portiere e mine da ' + ggb(f[0]) + ' a ' + ggb(f[f.length - 1]) : 'puntata max ' + ggb(puntataMax()));
     b.className = ''; void b.offsetWidth; b.className = 'show';
     sfxTrofeo();
     memScrivi();
@@ -1034,7 +1076,8 @@ function memTutto() {
 }
 function datiAccount() {
   const serie = !run ? null : typeof ptStato === 'function' ? ptStato() : (window.ptRoundSalvato || null);   // rigori a metà
-  const st = Object.assign({}, stats, { runTavolo: run ? run.tavolo : 0, runPartenza: run ? run.partenza : 0, runGiocate: run ? run.giocate : 0, runPortiere: serie });
+  const mano = run && typeof mnStato === 'function' ? mnStato() : null;   // mano di Mine a metà
+  const st = Object.assign({}, stats, { runTavolo: run ? run.tavolo : 0, runPartenza: run ? run.partenza : 0, runGiocate: run ? run.giocate : 0, runPortiere: serie, runMine: mano });
   return { nome: playerName, saldo: run ? balance : 0, ultimaPuntata: lastBet, stats: st, trofei: trofei,
            aggiornato: new Date().toISOString() };
 }
@@ -1102,16 +1145,27 @@ function unisciAccount(loc, rem) {
   });
   return out;
 }
+function mineValida(r) { return !!r && typeof r === 'object' && [3, 5, 7].includes(r.griglia) && r.mine >= 1 && r.mine < r.griglia * r.griglia && r.puntata > 0 && Number.isInteger(r.k) && r.k >= 0; }
+function mineIncassoSospeso(r) {   // stessa formula di mnMolt in mine.js
+  if (!r.k) return Math.floor(r.puntata);
+  const N = r.griglia * r.griglia; let p = 1;
+  for (let i = 0; i < Math.min(r.k, N - r.mine); i++) p *= (N - i) / (N - r.mine - i);
+  return Math.floor(r.puntata * Math.min(Math.floor(0.94 * p * 100 + 1e-9) / 100, 1000));
+}
 function applicaAccount(d) {
   d = d || {};
   const st = d.stats || {};
-  run = TAVOLI.includes(st.runTavolo) && Number(d.saldo) > 0
+  const sospesa = !!(st.runPortiere && typeof st.runPortiere === 'object') || mineValida(st.runMine);   // puntata ancora in gioco
+  run = TAVOLI.includes(st.runTavolo) && (Number(d.saldo) > 0 || sospesa)
     ? { tavolo: st.runTavolo, partenza: TAVOLI.includes(st.runPartenza) ? st.runPartenza : st.runTavolo, giocate: Math.max(0, Math.floor(st.runGiocate) || 0) }
     : null;
-  balance = run ? Math.floor(d.saldo) : 0;
+  balance = run ? Math.max(0, Math.floor(d.saldo)) : 0;
+  // una mano di Mine lasciata a metà: incassata al moltiplicatore raggiunto (rimborsata se non avevi scoperto niente)
+  window.mineRecuperata = 0;
+  if (run && mineValida(st.runMine)) { window.mineRecuperata = mineIncassoSospeso(st.runMine); balance += window.mineRecuperata; }
   lastBet = Number.isFinite(d.ultimaPuntata) ? d.ultimaPuntata : 0;
   stats = Object.assign({}, STATS_ZERO, d.stats);
-  delete stats.runTavolo; delete stats.runPartenza; delete stats.runGiocate; delete stats.runPortiere;
+  delete stats.runTavolo; delete stats.runPartenza; delete stats.runGiocate; delete stats.runPortiere; delete stats.runMine;
   window.ptRoundSalvato = run && st.runPortiere && typeof st.runPortiere === 'object' ? st.runPortiere : null;
   if (typeof ptRipristina === 'function') ptRipristina(window.ptRoundSalvato);
   trofei = Object.assign({}, d.trofei);
@@ -1248,7 +1302,8 @@ async function confirmName() {
   else if (online) lobbyMsg('Benvenuto, ' + playerName + '! Account creato.');
   else             lobbyMsg('Benvenuto, ' + playerName + '! Sei offline: per ora salvo su questo browser.');
   statoAccount(online ? (remoto ? 'Account online' : 'Account creato online') : 'Offline: salvo solo su questo browser', !online);
-  if (run) lobbyMsg('Bentornato, ' + playerName + '! Sei al tavolo da ' + numero(run.tavolo) + ' con ' + ggb(balance) + '.');
+  if (run) lobbyMsg('Bentornato, ' + playerName + '! Sei al tavolo da ' + numero(run.tavolo) + ' con ' + ggb(balance) + '.' +
+    (window.mineRecuperata ? ' La mano di Mine lasciata a metà è stata incassata: ' + ggb(window.mineRecuperata) + '.' : ''));
   else if ((window.GoGoldBar && GoGoldBar.saldo()) < TAVOLI[0]) lobbyMsg('Ciao ' + playerName + ', per il buy-in minimo servono ' + ggb(TAVOLI[0]) + ': clicca il maneki neko in home e torna.');
   else lobbyMsg('Ciao ' + playerName + '! Scegli il buy-in.');
   controllaSaldo();
@@ -1547,6 +1602,8 @@ function setCroupier(s) {
     document.getElementById('s-croupier').src = img.src;
     document.getElementById('p-croupier').src = img.src;
     document.getElementById('pt-croupier').src = img.src;
+    document.getElementById('mn-croupier').src = img.src;
+    document.getElementById('r-croupier-big').src = img.src;
   }, 270);
 }
 
@@ -1606,7 +1663,9 @@ const STATS_ZERO = {
   // plinko
   pPalline:0, pVinte:0, pVincitaMax:0, pMoltMax:0,
   // il portiere
-  ptPartite:0, ptGol:0, ptParate:0, ptIncassi:0, ptVincitaMax:0, ptMoltMax:0, ptSerieMax:0
+  ptPartite:0, ptGol:0, ptParate:0, ptIncassi:0, ptVincitaMax:0, ptMoltMax:0, ptSerieMax:0,
+  // mine
+  mnPartite:0, mnVinte:0, mnBoom:0, mnVincitaMax:0, mnMoltMax:0
 };
 let stats  = Object.assign({}, STATS_ZERO);
 let trofei = {}; // id → data ISO di sblocco
@@ -1774,6 +1833,10 @@ function apriStats() {
     ['Serie incassate', s.ptIncassi || 0], ['Gol di fila migliore', s.ptSerieMax || 0],
     ['Moltiplicatore più alto incassato', Number(s.ptMoltMax || 0).toLocaleString('it-IT') + '×'], ['Vincita più alta', euro(s.ptVincitaMax || 0)],
   ];
+  const mineRighe = [
+    ['Mani a Mine', s.mnPartite || 0], ['Incassate / mine prese', (s.mnVinte || 0) + ' / ' + (s.mnBoom || 0)],
+    ['Moltiplicatore più alto', Number(s.mnMoltMax || 0).toLocaleString('it-IT') + '×'], ['Vincita più alta', euro(s.mnVincitaMax || 0)],
+  ];
   document.getElementById('account-nome').textContent = playerName || '—';
   const riga = ([k,v]) => `<div class="stat-row"><span>${k}</span><b>${v}</b></div>`;
   document.getElementById('stats-list').innerHTML =
@@ -1781,7 +1844,8 @@ function apriStats() {
     '<div class="rarita-head stat-sub">🎡 Roulette</div>' + rouletteRighe.map(riga).join('') +
     '<div class="rarita-head stat-sub">🎰 Cinquegirelli</div>' + slotRighe.map(riga).join('') +
     '<div class="rarita-head stat-sub">🔻 Plinko</div>' + plinkoRighe.map(riga).join('') +
-    '<div class="rarita-head stat-sub">🧤 Il Portiere</div>' + portiereRighe.map(riga).join('');
+    '<div class="rarita-head stat-sub">🧤 Il Portiere</div>' + portiereRighe.map(riga).join('') +
+    '<div class="rarita-head stat-sub">💣 Mine</div>' + mineRighe.map(riga).join('');
   const n = TROFEI.filter(t => trofei[t.id]).length;
   document.getElementById('trofei-count').textContent = `${n} / ${TROFEI.length}`;
   document.getElementById('trofei-grid').innerHTML = Object.keys(RARITA).map(r => {
@@ -1825,6 +1889,7 @@ function updateHUD() {
   if (gioco === 'slot' && typeof sAggiorna === 'function') sAggiorna();
   if (gioco === 'plinko' && typeof pAggiorna === 'function') pAggiorna();
   if (gioco === 'portiere' && typeof ptAggiorna === 'function') ptAggiorna();
+  if (gioco === 'mine' && typeof mnAggiorna === 'function') mnAggiorna();
   if (gioco === 'lobby') aggiornaLobby();
   aggiornaMoneta();
 }
@@ -2362,6 +2427,7 @@ function resetTavolo() {
   if (typeof sReset === 'function') sReset();
   if (typeof pReset === 'function') pReset();
   if (typeof ptReset === 'function') ptReset();
+  if (typeof mnReset === 'function') mnReset();
 }
 // dopo una bancarotta si riparte con un nuovo buy-in (nuovoBuyIn, sopra)
 
@@ -2393,7 +2459,7 @@ document.addEventListener('keydown', e => {
   if (e.key === 'Escape' && document.getElementById('lb-panel').classList.contains('open')) { toggleLeaderboard(); return; }
   if (document.getElementById('overlay').classList.contains('show')) return;
   if (gioco === 'lobby') {
-    const t = { b: 'blackjack', r: 'roulette', s: 'slot', p: 'plinko', g: 'portiere' }[e.key.toLowerCase()];
+    const t = { b: 'blackjack', r: 'roulette', s: 'slot', p: 'plinko', g: 'portiere', m: 'mine' }[e.key.toLowerCase()];
     if (t && run) { e.preventDefault(); vaiA(t); }
     return;
   }
@@ -2401,6 +2467,7 @@ document.addEventListener('keydown', e => {
   if (gioco === 'slot') { sTasti(e); return; }
   if (gioco === 'plinko') { pTasti(e); return; }
   if (gioco === 'portiere') { ptTasti(e); return; }
+  if (gioco === 'mine') { mnTasti(e); return; }
   const k = e.key.toLowerCase();
   const azioni = {
     player:    { c: hit, s: stand, d: doubleDown, p: splitHand },
@@ -2513,5 +2580,6 @@ setCroupier('init');
 <script src="slot.js?v=6"></script>
 <script src="plinko.js?v=5"></script>
 <script src="portiere.js?v=3"></script>
+<script src="mine.js?v=1"></script>
 </body>
 </html>
