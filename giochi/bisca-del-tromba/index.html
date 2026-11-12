@@ -253,8 +253,22 @@
   /* MODALI */
   .modal-overlay,#cashout-modal,#stats-modal,#overlay{position:fixed;inset:0;z-index:50;background:rgba(0,0,0,.78);
     backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);display:flex;align-items:center;justify-content:center;padding:16px;}
-  #cashout-modal,#stats-modal,#overlay{display:none;}
-  #cashout-modal.show,#stats-modal.show,#overlay.show{display:flex;}
+  #cashout-modal,#stats-modal,#overlay,#moneta-modal{display:none;}
+  #cashout-modal.show,#stats-modal.show,#overlay.show,#moneta-modal.show{display:flex;}
+  #moneta-modal{position:fixed;inset:0;z-index:50;background:rgba(0,0,0,.7);align-items:center;justify-content:center;padding:16px;}
+  #moneta-modal .modal-box{text-align:center;max-width:420px;}
+  #moneta-scena{perspective:700px;height:150px;display:flex;align-items:center;justify-content:center;margin:4px 0 6px;}
+  #moneta{position:relative;width:120px;height:120px;transform-style:preserve-3d;}
+  #moneta.lancio{animation:monetaSu 1.8s cubic-bezier(.3,.6,.4,1);}
+  @keyframes monetaSu{0%{translate:0 0;}45%{translate:0 -28px;}100%{translate:0 0;}}
+  #moneta .faccia{position:absolute;inset:0;border-radius:50%;backface-visibility:hidden;display:flex;align-items:center;justify-content:center;
+    background:radial-gradient(circle at 35% 30%,#fff3b0,#e2b13c 45%,#a8761a 80%);border:5px solid #f6d36b;box-shadow:inset 0 0 0 4px #b8862a,0 6px 18px rgba(0,0,0,.6);}
+  #moneta .testa img{width:70%;height:70%;object-fit:contain;filter:drop-shadow(0 2px 2px rgba(0,0,0,.4));}
+  #moneta .croce{transform:rotateY(180deg);}
+  #moneta .croce span{font-size:64px;color:#5a3a06;text-shadow:0 1px 0 #fff3b0;line-height:1;}
+  #moneta-esito{min-height:1.5em;font-family:var(--ui);color:var(--gold-light);margin-bottom:12px;}
+  #moneta-esito.win{color:#7dff9c;} #moneta-esito.lose{color:#ff8a8a;}
+  #moneta-btns kbd{font-size:.7em;opacity:.7;margin-left:4px;}
   .modal-box{position:relative;background:linear-gradient(180deg,#0c2215,#06140b);border:1px solid var(--gold);border-radius:22px;
     padding:32px 28px;text-align:center;max-width:420px;width:100%;box-shadow:0 0 60px rgba(212,175,90,.25),0 30px 60px rgba(0,0,0,.6);
     animation:modalIn .25s ease;}
@@ -441,6 +455,20 @@
   </div>
 </div>
 
+<!-- ══ TESTA O CROCE (spiccioli dopo una mano di blackjack) ══ -->
+<div id="moneta-modal">
+  <div class="modal-box" role="dialog" aria-labelledby="moneta-title">
+    <h2 id="moneta-title">🪙 Testa o croce?</h2>
+    <p id="moneta-msg"></p>
+    <div id="moneta-scena"><div id="moneta"><div class="faccia testa"><img src="../../img/maneki-neko.webp" alt="Testa"></div><div class="faccia croce"><span>&#xE000;</span></div></div></div>
+    <p id="moneta-esito" aria-live="polite"></p>
+    <div class="modal-btns" id="moneta-btns">
+      <button class="btn" onclick="sceltaMoneta('testa')">🐱 Testa <kbd>T</kbd></button>
+      <button class="btn" onclick="sceltaMoneta('croce')">✚ Croce <kbd>C</kbd></button>
+    </div>
+  </div>
+</div>
+
 <!-- ══ CLASSIFICA ══ -->
 <div id="lb-panel" aria-label="Classifica">
   <div id="lb-header">
@@ -485,7 +513,7 @@
       <h2 class="lobby-title">Scegli il buy-in</h2>
       <div class="lobby-saldo">Portafogli<b id="lobby-portafogli">0 &#xE000;</b></div>
       <div id="buyin-tavoli"></div>
-      <p class="buyin-regole">Il buy-in esce dal portafogli e diventa il tuo stack. Le fiches valgono il 10, 25, 50 e 100% dello stack, contato a scaglioni del buy-in (al tavolo da 100: da 100 a 199 contano 100, da 200 a 299 contano 200...); la puntata massima è 30 volte il buy-in. Il cash-out si sblocca dopo 20 giocate; se scendi sotto la puntata minima la run finisce e gli spiccioli tornano nel portafogli.</p>
+      <p class="buyin-regole">Il buy-in esce dal portafogli e diventa il tuo stack. Le fiches valgono il 10, 25, 50 e 100% dello stack, contato a scaglioni del buy-in (al tavolo da 100: da 100 a 199 contano 100, da 200 a 299 contano 200...) e arrotondato per difetto ai multipli del 10% del buy-in; la puntata massima è 30 volte il buy-in. Il cash-out si sblocca dopo 20 giocate; se scendi sotto la puntata minima la run finisce e gli spiccioli tornano nel portafogli.</p>
     </div>
     <div id="in-run">
     <h2 class="lobby-title" id="lobby-tavolo">Scegli il gioco</h2>
@@ -739,7 +767,7 @@ function chips() {
   const t = run.tavolo, max = puntataMax(), out = [];
   const base = Math.min(Math.max(t, Math.floor(balance / t) * t), t * 60);
   PERC_FICHES.forEach(f => {
-    const v = Math.min(max, Math.round(base * f));
+    const v = Math.min(max, Math.max(passo(), Math.floor(base * f / passo()) * passo())); // per difetto a multipli del 10% del buy-in (25% di 100 → 20)
     if (!out.includes(v)) out.push(v);
   });
   return out;
@@ -1995,9 +2023,52 @@ function finishRound() {
   else                     setCroupier('init');
 
   currentBet=0; updateHUD();
-  if (fineRun()) return;
-  memScrivi();
-  setTimeout(() => { phase='bet'; betArea(true); }, 1050);
+  const chiudi = () => { if (fineRun()) return; memScrivi(); setTimeout(() => { phase='bet'; betArea(true); }, 1050); };
+  // spiccioli (es. 75 su 30 col blackjack → un 5 di troppo): testa o croce per arrotondare
+  if (run && balance > 0 && balance % passo()) { memScrivi(); setTimeout(() => lanciaMoneta(chiudi), 1300); }
+  else chiudi();
+}
+
+/* ════════════════════════════════════════════════════════════════
+   TESTA O CROCE: se dopo una mano lo stack non è un multiplo della
+   puntata minima del tavolo (al tavolo da 100: 75, 135...), si lancia
+   una moneta. Indovini → arrotondato per eccesso, sbagli → per difetto.
+════════════════════════════════════════════════════════════════ */
+let _moneta = null;
+function lanciaMoneta(poi) {
+  const u = passo(), r = balance % u;
+  if (!run || !r) { poi(); return; }
+  _moneta = { poi, su: balance - r + u, giu: balance - r, lanciata: false };
+  document.getElementById('moneta-msg').innerHTML =
+    'Hai ' + ggb(r) + ' di spiccioli. Indovina e il Tromba arrotonda a <b>' + ggb(_moneta.su) + '</b>, sbagli e scendi a <b>' + ggb(_moneta.giu) + '</b>.';
+  const m = document.getElementById('moneta');
+  m.classList.remove('lancio'); m.style.transition = 'none'; m.style.transform = 'rotateY(0deg)';
+  const e = document.getElementById('moneta-esito'); e.textContent = ''; e.className = '';
+  document.querySelectorAll('#moneta-btns button').forEach(b => b.disabled = false);
+  document.getElementById('moneta-modal').classList.add('show');
+}
+function sceltaMoneta(scelta) {
+  if (!_moneta || _moneta.lanciata) return;
+  _moneta.lanciata = true;
+  document.querySelectorAll('#moneta-btns button').forEach(b => b.disabled = true);
+  const uscita = Math.random() < 0.5 ? 'testa' : 'croce', vinto = uscita === scelta;
+  const m = document.getElementById('moneta');
+  void m.offsetWidth;
+  m.style.transition = 'transform 1.8s cubic-bezier(.2,.7,.25,1)';
+  m.style.transform = 'rotateY(' + (360 * 6 + (uscita === 'croce' ? 180 : 0)) + 'deg)';
+  m.classList.add('lancio');
+  sfxChip();
+  setTimeout(() => {
+    const prima = balance;
+    balance = vinto ? _moneta.su : _moneta.giu;
+    const e = document.getElementById('moneta-esito');
+    e.className = vinto ? 'win' : 'lose';
+    e.textContent = 'È uscito ' + uscita + '! ' + (vinto ? 'Indovinato: +' : 'Sbagliato: -') + ggb(Math.abs(balance - prima));
+    if (vinto) sfxWin(); else sfxLose();
+    updateHUD();
+    const poi = _moneta.poi;
+    setTimeout(() => { document.getElementById('moneta-modal').classList.remove('show'); _moneta = null; poi(); }, 1500);
+  }, 1850);
 }
 
 /* ════════════════════════════════════════════════════════════════
@@ -2046,6 +2117,11 @@ document.addEventListener('keydown', e => {
   if (document.querySelector('dialog.gga[open]') || e.target.closest('input, textarea')) return; // pannello account aperto
   if (document.getElementById('cashout-modal').classList.contains('show')) {
     if (e.key === 'Escape') closeCashoutModal();
+    return;
+  }
+  if (document.getElementById('moneta-modal').classList.contains('show')) {
+    const sc = { t: 'testa', c: 'croce' }[e.key.toLowerCase()];
+    if (sc) { e.preventDefault(); sceltaMoneta(sc); }
     return;
   }
   if (document.getElementById('stats-modal').classList.contains('show')) {
