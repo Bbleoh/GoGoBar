@@ -9,9 +9,10 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700;900&family=Cinzel+Decorative:wght@700&family=Playfair+Display:wght@600;800;900&family=Fredoka:wght@500;600;700&family=DM+Mono&family=DM+Sans:wght@400;600&display=swap" rel="stylesheet">
 
-<link rel="stylesheet" href="roulette.css?v=6">
+<link rel="stylesheet" href="roulette.css?v=7">
 <link rel="stylesheet" href="slot.css?v=2">
 <link rel="stylesheet" href="plinko.css?v=3">
+<link rel="stylesheet" href="portiere.css?v=1">
 <style>
   :root{
     --gold:#d4af5a; --gold-light:#f3dc9a; --gold-dim:rgba(212,175,90,.35);
@@ -537,6 +538,11 @@
         <div class="tavolo-testo"><b>Plinko</b><small>Lascia cadere la moneta tra i chiodi: da 8 a 18 file, in fondo le buche moltiplicano la puntata fino a 1.000 volte.</small></div>
         <kbd>P</kbd>
       </button>
+      <button class="tavolo" onclick="vaiA('portiere')">
+        <div class="tavolo-img pt-img"><div class="mini-porta"><div class="mini-palla"></div></div></div>
+        <div class="tavolo-testo"><b>Il Portiere</b><small>Rigori contro il Tromba: ogni gol fa salire il moltiplicatore e incassi quando vuoi. Se para, perdi tutto.</small></div>
+        <kbd>G</kbd>
+      </button>
     </div>
     </div>
   </section>
@@ -662,6 +668,62 @@
     </div>
   </section>
 
+  <!-- ══ IL PORTIERE (logica in portiere.js) ══ -->
+  <section id="portiere" aria-label="Il Portiere">
+    <div class="pt">
+      <h2 class="pt-titolo">Il Portiere</h2>
+      <div id="pt-head"><img id="pt-croupier" src="assets/croupier-init.png" alt="Il Tromba"><div id="pt-msg" aria-live="polite"></div></div>
+      <div class="pt-gioco">
+        <div id="pt-campo">
+          <div class="pt-stadio"></div>
+          <div class="pt-erba"></div>
+          <div class="pt-dischetto"></div>
+          <div class="pt-porta"><div class="pt-rete"></div><div id="pt-zone"></div></div>
+          <div id="pt-portiere">
+            <svg viewBox="0 0 100 160" preserveAspectRatio="none" aria-hidden="true">
+              <path d="M40 114 L36 134 M60 114 L64 134" stroke="#d9a77f" stroke-width="10" stroke-linecap="round" fill="none"/>
+              <path d="M36 134 L34 150 M64 134 L66 150" stroke="#ff7a1a" stroke-width="10" stroke-linecap="round" fill="none"/>
+              <ellipse cx="31" cy="153" rx="8" ry="4.5" fill="#151515"/><ellipse cx="69" cy="153" rx="8" ry="4.5" fill="#151515"/>
+              <path d="M29 98 H71 L73 121 H54 L50 113 L46 121 H27 Z" fill="#151515"/>
+              <path d="M32 56 L16 40 L12 22 M68 56 L84 40 L88 22" stroke="#ff7a1a" stroke-width="11" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+              <rect x="44" y="38" width="12" height="14" rx="3" fill="#c99470"/>
+              <path d="M28 54 Q50 45 72 54 L73 101 H27 Z" fill="#ff7a1a"/>
+              <path d="M28 54 Q50 45 72 54 L72 60 Q50 52 28 60 Z" fill="#e05f00"/>
+              <path d="M42 49 L50 58 L58 49" stroke="#151515" stroke-width="3" fill="none" stroke-linejoin="round"/>
+              <text x="50" y="88" text-anchor="middle" font-family="Arial Black, Arial, sans-serif" font-weight="900" font-size="24" fill="#151515">1</text>
+              <circle cx="11" cy="17" r="8.5" fill="#f4f4f4" stroke="#2bb24c" stroke-width="2.5"/><circle cx="89" cy="17" r="8.5" fill="#f4f4f4" stroke="#2bb24c" stroke-width="2.5"/>
+            </svg>
+            <div class="pt-testa"><img id="pt-testa" src="assets/portiere/testa-init.webp" alt="Il Tromba in porta"></div>
+          </div>
+          <div id="pt-palla"><svg viewBox="0 0 40 40" aria-hidden="true">
+            <defs><clipPath id="pt-clip-palla"><circle cx="20" cy="20" r="18.5"/></clipPath></defs>
+            <circle cx="20" cy="20" r="18.5" fill="#fafafa"/>
+            <g clip-path="url(#pt-clip-palla)" fill="#1e1e1e" stroke="#1e1e1e" stroke-width="1.2">
+              <path d="M20 12.5 L27.1 17.7 L24.4 26 H15.6 L12.9 17.7 Z"/>
+              <path d="M20 12.5 V5 M27.1 17.7 L34.5 15.3 M24.4 26 L29 32.3 M15.6 26 L11 32.3 M12.9 17.7 L5.5 15.3" fill="none"/>
+              <path d="M14 0 L26 0 L24 5 L16 5 Z"/><path d="M40 10 L40 22 L34.5 15.3 Z"/><path d="M36 38 L26 40 L29 32.3 Z"/><path d="M4 38 L14 40 L11 32.3 Z"/><path d="M0 10 L0 22 L5.5 15.3 Z"/>
+            </g>
+            <circle cx="20" cy="20" r="18.5" fill="none" stroke="#222" stroke-width="1.4"/>
+            <ellipse cx="14" cy="11" rx="6" ry="3.5" fill="#fff" opacity=".55"/>
+          </svg></div>
+          <div id="pt-banner" aria-live="polite"></div>
+        </div>
+        <ol id="pt-torre" aria-label="Moltiplicatori per numero di gol"></ol>
+      </div>
+      <div class="pt-pannello vlt-pannello">
+        <div class="s-info"><small>Stack</small><span id="pt-saldo">0 &#xE000;</span></div>
+        <div class="s-info s-puntata"><small>Puntata</small><div><button type="button" id="pt-meno" onclick="ptCambiaPuntata(-1)" aria-label="Abbassa la puntata" title="Freccia giù">−</button><span id="pt-puntata">10 &#xE000;</span><button type="button" id="pt-piu" onclick="ptCambiaPuntata(1)" aria-label="Alza la puntata" title="Freccia su">+</button></div></div>
+        <div class="s-info"><small>Tiro</small><span id="pt-tiri">—</span></div>
+      </div>
+      <div class="pt-comandi">
+        <div id="pt-camp" role="group" aria-label="Campionato" title="Tasto C"></div>
+        <button class="btn s-gioca" type="button" id="pt-incassa" onclick="ptIncassa()" title="Invio o I">Incassa</button>
+        <div id="pt-campionato-info"></div>
+      </div>
+      <div id="pt-keys">Tasti: 1 2 3 tiri in alto, 4 5 6 in basso · Invio incassa · ↑↓ puntata · C campionato</div>
+    </div>
+  </section>
+
   <!-- ══ ROULETTE (logica in roulette.js) ══ -->
   <section id="roulette" aria-label="Roulette">
     <div id="r-main">
@@ -743,13 +805,17 @@ let gioco = 'lobby';
 function rouletteOccupata() { return typeof rGirando !== 'undefined' && (rGirando || rAutoOn); }
 function slotOccupata() { return typeof sOccupata === 'function' && sOccupata(); }
 function plinkoOccupato() { return typeof pOccupata === 'function' && pOccupata(); }
-function tavoloLibero() { return phase === 'bet' && !rouletteOccupata() && !slotOccupata() && !plinkoOccupato(); }
+function portiereOccupato() { return typeof ptOccupato === 'function' && ptOccupato(); }
+function tavoloLibero() { return phase === 'bet' && !rouletteOccupata() && !slotOccupata() && !plinkoOccupato() && !portiereOccupato(); }
 function aggiornaTavoliBtn() {
   const b = document.getElementById('tavoli-btn');
   if (b) b.disabled = gioco === 'lobby' || !playerName || !tavoloLibero();
 }
+// una serie di rigori lasciata a metà (pagina ricaricata) tiene occupato il tavolo: dalla lobby si può solo tornare in porta
+function serieSospesa() { return gioco === 'lobby' && phase === 'bet' && typeof ptRound !== 'undefined' && !!ptRound && !ptTirando; }
 function vaiA(dove) {
-  if (!playerName || !tavoloLibero()) return;
+  if (!playerName) return;
+  if (!tavoloLibero() && !(dove === 'portiere' && serieSospesa())) return;
   if (dove !== 'lobby' && !run) { lobbyMsg('Prima scegli il buy-in.'); return; }
   if (dove !== 'blackjack' && currentBet) { currentBet = 0; msg(''); } // le fiche non giocate tornano nel saldo
   if (gioco === 'roulette' && dove !== 'roulette' && typeof rAnnulla === 'function') rAnnulla();
@@ -763,6 +829,8 @@ function vaiA(dove) {
     sEntra();
   } else if (dove === 'plinko') {
     pEntra();
+  } else if (dove === 'portiere') {
+    ptEntra();
   } else {
     if (!document.getElementById('message').textContent) msg('Buona fortuna, ' + playerName + '!');
   }
@@ -882,7 +950,8 @@ function aggiornaLobby() {
   if (dopo) parti.push('con slot o plinko a ' + ggb(dopo) + ' sali al tavolo da ' + numero(dopo));
   if (TAVOLI.includes(prossimo)) parti.push('con blackjack o roulette a ' + ggb(prossimo) + ' sali al tavolo da ' + numero(prossimo));
   if (run.partenza !== run.tavolo) parti.push('run partita dal tavolo da ' + numero(run.partenza));
-  document.getElementById('lobby-info').innerHTML = parti.join(' · ');
+  document.getElementById('lobby-info').innerHTML = parti.join(' · ') +
+    (serieSospesa() ? '<br><b>Hai una serie di rigori a metà: entra nel Portiere per incassare o tirare ancora.</b>' : '');
 }
 if (window.GoGoldBar) GoGoldBar.suCambio(() => aggiornaLobby());
 
@@ -933,7 +1002,8 @@ function memTutto() {
   return out;
 }
 function datiAccount() {
-  const st = Object.assign({}, stats, { runTavolo: run ? run.tavolo : 0, runPartenza: run ? run.partenza : 0, runGiocate: run ? run.giocate : 0 });
+  const serie = !run ? null : typeof ptStato === 'function' ? ptStato() : (window.ptRoundSalvato || null);   // rigori a metà
+  const st = Object.assign({}, stats, { runTavolo: run ? run.tavolo : 0, runPartenza: run ? run.partenza : 0, runGiocate: run ? run.giocate : 0, runPortiere: serie });
   return { nome: playerName, saldo: run ? balance : 0, ultimaPuntata: lastBet, stats: st, trofei: trofei,
            aggiornato: new Date().toISOString() };
 }
@@ -1010,7 +1080,9 @@ function applicaAccount(d) {
   balance = run ? Math.floor(d.saldo) : 0;
   lastBet = Number.isFinite(d.ultimaPuntata) ? d.ultimaPuntata : 0;
   stats = Object.assign({}, STATS_ZERO, d.stats);
-  delete stats.runTavolo; delete stats.runPartenza; delete stats.runGiocate;
+  delete stats.runTavolo; delete stats.runPartenza; delete stats.runGiocate; delete stats.runPortiere;
+  window.ptRoundSalvato = run && st.runPortiere && typeof st.runPortiere === 'object' ? st.runPortiere : null;
+  if (typeof ptRipristina === 'function') ptRipristina(window.ptRoundSalvato);
   trofei = Object.assign({}, d.trofei);
 }
 
@@ -1443,6 +1515,7 @@ function setCroupier(s) {
     document.getElementById('r-croupier').src = img.src;
     document.getElementById('s-croupier').src = img.src;
     document.getElementById('p-croupier').src = img.src;
+    document.getElementById('pt-croupier').src = img.src;
   }, 270);
 }
 
@@ -1499,7 +1572,9 @@ const STATS_ZERO = {
   // slot
   sGiri:0, sVinti:0, sVincitaMax:0, sBonus:0,
   // plinko
-  pPalline:0, pVinte:0, pVincitaMax:0, pMoltMax:0
+  pPalline:0, pVinte:0, pVincitaMax:0, pMoltMax:0,
+  // il portiere
+  ptPartite:0, ptGol:0, ptParate:0, ptIncassi:0, ptVincitaMax:0, ptMoltMax:0, ptSerieMax:0
 };
 let stats  = Object.assign({}, STATS_ZERO);
 let trofei = {}; // id → data ISO di sblocco
@@ -1655,13 +1730,19 @@ function apriStats() {
     ['Monete lanciate', s.pPalline || 0], ['Monete in guadagno', (s.pVinte || 0) + (s.pPalline ? ` (${Math.round((s.pVinte || 0) / s.pPalline * 100)}%)` : '')],
     ['Moltiplicatore più alto', (s.pMoltMax || 0) + '×'], ['Vincita più alta', euro(s.pVincitaMax || 0)],
   ];
+  const portiereRighe = [
+    ['Serie di rigori', s.ptPartite || 0], ['Gol / parate', (s.ptGol || 0) + ' / ' + (s.ptParate || 0)],
+    ['Serie incassate', s.ptIncassi || 0], ['Gol di fila migliore', s.ptSerieMax || 0],
+    ['Moltiplicatore più alto incassato', String(s.ptMoltMax || 0).replace('.', ',') + '×'], ['Vincita più alta', euro(s.ptVincitaMax || 0)],
+  ];
   document.getElementById('account-nome').textContent = playerName || '—';
   const riga = ([k,v]) => `<div class="stat-row"><span>${k}</span><b>${v}</b></div>`;
   document.getElementById('stats-list').innerHTML =
     '<div class="rarita-head stat-sub">🃏 Blackjack e saldo</div>' + righe.map(riga).join('') +
     '<div class="rarita-head stat-sub">🎡 Roulette</div>' + rouletteRighe.map(riga).join('') +
     '<div class="rarita-head stat-sub">🎰 Cinquegirelli</div>' + slotRighe.map(riga).join('') +
-    '<div class="rarita-head stat-sub">🔻 Plinko</div>' + plinkoRighe.map(riga).join('');
+    '<div class="rarita-head stat-sub">🔻 Plinko</div>' + plinkoRighe.map(riga).join('') +
+    '<div class="rarita-head stat-sub">🧤 Il Portiere</div>' + portiereRighe.map(riga).join('');
   const n = TROFEI.filter(t => trofei[t.id]).length;
   document.getElementById('trofei-count').textContent = `${n} / ${TROFEI.length}`;
   document.getElementById('trofei-grid').innerHTML = Object.keys(RARITA).map(r => {
@@ -1704,6 +1785,7 @@ function updateHUD() {
   if (gioco === 'roulette' && typeof rAggiorna === 'function') rAggiorna();
   if (gioco === 'slot' && typeof sAggiorna === 'function') sAggiorna();
   if (gioco === 'plinko' && typeof pAggiorna === 'function') pAggiorna();
+  if (gioco === 'portiere' && typeof ptAggiorna === 'function') ptAggiorna();
   if (gioco === 'lobby') aggiornaLobby();
 }
 
@@ -2174,6 +2256,7 @@ function resetTavolo() {
   if (typeof rReset === 'function') rReset();
   if (typeof sReset === 'function') sReset();
   if (typeof pReset === 'function') pReset();
+  if (typeof ptReset === 'function') ptReset();
 }
 // dopo una bancarotta si riparte con un nuovo buy-in (nuovoBuyIn, sopra)
 
@@ -2204,13 +2287,14 @@ document.addEventListener('keydown', e => {
   if (e.key === 'Escape' && document.getElementById('lb-panel').classList.contains('open')) { toggleLeaderboard(); return; }
   if (document.getElementById('overlay').classList.contains('show')) return;
   if (gioco === 'lobby') {
-    const t = { b: 'blackjack', r: 'roulette', s: 'slot', p: 'plinko' }[e.key.toLowerCase()];
+    const t = { b: 'blackjack', r: 'roulette', s: 'slot', p: 'plinko', g: 'portiere' }[e.key.toLowerCase()];
     if (t && run) { e.preventDefault(); vaiA(t); }
     return;
   }
   if (gioco === 'roulette') { rTasti(e); return; }
   if (gioco === 'slot') { sTasti(e); return; }
   if (gioco === 'plinko') { pTasti(e); return; }
+  if (gioco === 'portiere') { ptTasti(e); return; }
   const k = e.key.toLowerCase();
   const azioni = {
     player:    { c: hit, s: stand, d: doubleDown, p: splitHand },
@@ -2321,5 +2405,6 @@ setCroupier('init');
 <script src="roulette.js?v=8"></script>
 <script src="slot.js?v=6"></script>
 <script src="plinko.js?v=5"></script>
+<script src="portiere.js?v=1"></script>
 </body>
 </html>
