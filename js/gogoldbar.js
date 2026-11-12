@@ -77,7 +77,7 @@
     { id: 'cm_epico',          gruppo: 'Giochi', nome: 'Corri Marf! · Platino',     desc: 'Completa tutti gli achievement comuni, rari ed epici di Corri Marf!' },
     { id: 'cm_leggendario',    gruppo: 'Giochi', nome: 'Corri Marf! · Leggenda',    desc: 'Completa tutti gli achievement leggendari di Corri Marf!' },
     { id: 'cm_nascosti',       gruppo: 'Giochi', nome: 'Corri Marf! · Segreti',     desc: 'Trova tutti gli achievement nascosti di Corri Marf!' },
-    { id: 'bisca_epico',       gruppo: 'Giochi', nome: 'Bisca · Platino',           desc: 'Completa tutti i trofei comuni, rari ed epici della Bisca der Tromba' },
+    { id: 'bisca_epico',       gruppo: 'Giochi', nome: 'Bisca · Platino',           desc: 'Completa tutti i trofei comuni, rari ed epici della Bisca der Tromba. Sblocca l\'album La Bisca der Tromba OST' },
     { id: 'bisca_leggendario', gruppo: 'Giochi', nome: 'Bisca · Leggenda',          desc: 'Completa tutti i trofei leggendari della Bisca der Tromba' },
     { id: 'rc_fogli',          gruppo: 'Giochi', nome: 'Resident Crevil · Fuori dal greppo', desc: 'Raccogli tutti e 10 i fogli nei boschi di Capricchia' }
   ];
@@ -85,7 +85,8 @@
   function albumBase() {   // gli album che si hanno da subito: danno un trofeo ciascuno
     var c = contenuti(); if (!c) return [];
     return (c.musica || []).filter(function (a) {
-      return !albumAPagamento(a.album) && (a.brani || []).some(function (b) { return b.file; });
+      // niente trofeo per gli album a pagamento né per quelli segreti ("sblocco" in contenuti.js: OST di Corri Marf e della Bisca)
+      return !albumAPagamento(a.album) && !a.sblocco && (a.brani || []).some(function (b) { return b.file; });
     });
   }
   function albumAPagamento(nome) {
@@ -286,6 +287,8 @@
     d.trofei[tid] = Date.now(); memorizza(); avvisa();
     var x = catalogo().find(function (c) { return c.id === tid; });
     annuncia('🏆 ' + (x ? x.nome : 'Nuovo trofeo') + ' · ora guadagni ' + perClick() + ' ' + G + ' a click');
+    // il platino della Bisca apre anche l'album segreto in Musica (contenuti.js, sblocco 'biscaEpico')
+    if (tid === 'bisca_epico') setTimeout(function () { annuncia('🎵 Album sbloccato: La Bisca der Tromba OST, lo trovi in Musica'); }, 4000);
     var corpo = {}; corpo['trofei/' + tid] = ORA;
     return db('ggb/' + id, 'PATCH', corpo).then(function () { return true; }, function () { return false; });
   }

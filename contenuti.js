@@ -171,6 +171,17 @@ const CONTENUTI = {
         { titolo: 'TI HANNO PRESO',    artisti: 'Corri Marf! OST', file: 'corri-marf-preso.mp3',  durata: '1:38' },
       ],
     },
+    {
+      // album segreto: compare a chi ha preso nella Bisca tutti i trofei comuni, rari ed epici
+      // (il trofeo GoGoldBar "bisca_epico", vedi "sblocco" qui sotto). Titoli e copertina provvisori.
+      album: 'La Bisca der Tromba OST',
+      sblocco: 'biscaEpico',
+      copertina: '',
+      brani: [
+        { titolo: 'TROMBA BOTTATA',    artisti: 'La Bisca der Tromba OST', file: 'bisca-tromba-bottata.mp3',   durata: '3:20' },
+        { titolo: 'TROMBA BOTTATA II', artisti: 'La Bisca der Tromba OST', file: 'bisca-tromba-bottata-2.mp3', durata: '3:45' },
+      ],
+    },
   ],
 
 };
@@ -178,6 +189,8 @@ const CONTENUTI = {
 /*
  * Album segreti: un album con "sblocco" si vede solo se chi visita l'ha sbloccato su questo dispositivo.
  * corriMarfBoss = il giocatore di Corri Marf! scelto ha battuto il boss (achievement, o record oltre i 10 km).
+ * biscaEpico    = l'account GoGoBar ha il trofeo "bisca_epico" (tutti i trofei della Bisca fino a epico).
+ *                 Si legge dalla copia del portafogli GoGoldBar salvata sul dispositivo (gogoldbar.v1).
  * Qui non serve toccare niente.
  */
 function gogobarSbloccato(chiave) {
@@ -187,6 +200,10 @@ function gogobarSbloccato(chiave) {
       const tutti = JSON.parse(localStorage.getItem('corriMarf.giocatori') || '{}') || {};
       const a = tutti[nome];
       return !!(nome && a && ((a.upg && +a.upg.tr_boss > 0) || +a.record > 10000));
+    }
+    if (chiave === 'biscaEpico') {
+      const c = JSON.parse(localStorage.getItem('gogoldbar.v1') || 'null');
+      return !!(c && c.d && c.d.trofei && c.d.trofei.bisca_epico);
     }
   } catch (e) {}
   return false;
