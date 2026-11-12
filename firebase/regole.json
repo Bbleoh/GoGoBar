@@ -41,13 +41,11 @@
           }
         }
       },
-      "classifiche": {
+      "profitti": {
         ".read": true,
-        "$t": {
-          "$k": {
-            ".write": "newData.exists() && (!root.child('nomi/' + $k).exists() || (auth != null && root.child('account/' + root.child('nomi/' + $k).val() + '/dispositivi/' + auth.uid).exists()))",
-            ".validate": "($t === 't100' || $t === 't1000' || $t === 't10000' || $t === 't100000') && newData.hasChildren(['nome','punti','data']) && newData.child('nome').isString() && newData.child('nome').val().length <= 20 && newData.child('punti').isNumber() && newData.child('punti').val() >= 0 && newData.child('punti').val() <= 1000000000000 && (!data.exists() || newData.child('punti').val() > data.child('punti').val())"
-          }
+        "$k": {
+          ".write": "newData.exists() && (!root.child('nomi/' + $k).exists() || (auth != null && root.child('account/' + root.child('nomi/' + $k).val() + '/dispositivi/' + auth.uid).exists()))",
+          ".validate": "newData.hasChildren(['nome','punti','data']) && newData.child('nome').isString() && newData.child('nome').val().length <= 20 && newData.child('punti').isNumber() && newData.child('punti').val() >= -1000000000000 && newData.child('punti').val() <= 1000000000000 && (!newData.child('tavolo').exists() || newData.child('tavolo').isNumber()) && (!data.exists() || newData.child('punti').val() > data.child('punti').val())"
         }
       }
     },
