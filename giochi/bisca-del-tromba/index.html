@@ -11,6 +11,7 @@
 
 <link rel="stylesheet" href="roulette.css?v=6">
 <link rel="stylesheet" href="slot.css?v=2">
+<link rel="stylesheet" href="plinko.css?v=1">
 <style>
   :root{
     --gold:#d4af5a; --gold-light:#f3dc9a; --gold-dim:rgba(212,175,90,.35);
@@ -535,6 +536,11 @@
         <div class="tavolo-testo"><b>Cinquegirelli</b><small>La slot del Tromba: 10 linee, il maneki neko è il jolly, giri gratis col BONUS.</small></div>
         <kbd>S</kbd>
       </button>
+      <button class="tavolo" onclick="vaiA('plinko')">
+        <div class="tavolo-img pl"><div class="mini-plinko-wrap"><div class="mini-plinko"></div><div class="mini-plinko-moneta"></div></div></div>
+        <div class="tavolo-testo"><b>Plinko</b><small>Lascia cadere la moneta tra i chiodi: in fondo le buche moltiplicano la puntata, fino a 150 volte.</small></div>
+        <kbd>P</kbd>
+      </button>
     </div>
     </div>
   </section>
@@ -632,6 +638,26 @@
     </div>
   </section>
 
+  <!-- ══ PLINKO (logica in plinko.js) ══ -->
+  <section id="plinko" aria-label="Plinko">
+    <div class="pk">
+      <h2 class="pk-titolo">Plinko</h2>
+      <div id="p-head"><img id="p-croupier" src="assets/croupier-init.png" alt="Il Tromba"><div id="p-msg" aria-live="polite"></div></div>
+      <canvas id="p-board" aria-label="Tabellone del plinko: 12 file di chiodi e 13 buche"></canvas>
+      <div id="p-storia" aria-label="Ultimi moltiplicatori"></div>
+      <div class="pk-pannello vlt-pannello">
+        <div class="s-info"><small>Stack</small><span id="p-saldo">0 &#xE000;</span></div>
+        <div class="s-info s-puntata"><small>Puntata</small><div><button type="button" id="p-meno" onclick="pCambiaPuntata(-1)" aria-label="Abbassa la puntata" title="Freccia giù">−</button><span id="p-puntata">10 &#xE000;</span><button type="button" id="p-piu" onclick="pCambiaPuntata(1)" aria-label="Alza la puntata" title="Freccia su">+</button></div></div>
+        <div class="s-info"><small>Ultima</small><span id="p-vincita">—</span></div>
+      </div>
+      <div class="pk-tasti">
+        <div id="p-rischi" role="group" aria-label="Rischio"></div>
+        <button class="btn s-gioca" type="button" id="p-gioca" onclick="pLancia()" title="Spazio o Invio">Lancia</button>
+      </div>
+      <div id="p-keys">Tasti: Spazio/Invio lancia · ↑↓ puntata · 1 2 3 rischio</div>
+    </div>
+  </section>
+
   <!-- ══ ROULETTE (logica in roulette.js) ══ -->
   <section id="roulette" aria-label="Roulette">
     <div id="r-main">
@@ -712,7 +738,8 @@
 let gioco = 'lobby';
 function rouletteOccupata() { return typeof rGirando !== 'undefined' && (rGirando || rAutoOn); }
 function slotOccupata() { return typeof sOccupata === 'function' && sOccupata(); }
-function tavoloLibero() { return phase === 'bet' && !rouletteOccupata() && !slotOccupata(); }
+function plinkoOccupato() { return typeof pOccupata === 'function' && pOccupata(); }
+function tavoloLibero() { return phase === 'bet' && !rouletteOccupata() && !slotOccupata() && !plinkoOccupato(); }
 function aggiornaTavoliBtn() {
   const b = document.getElementById('tavoli-btn');
   if (b) b.disabled = gioco === 'lobby' || !playerName || !tavoloLibero();
@@ -730,6 +757,8 @@ function vaiA(dove) {
     rEntra();
   } else if (dove === 'slot') {
     sEntra();
+  } else if (dove === 'plinko') {
+    pEntra();
   } else {
     if (!document.getElementById('message').textContent) msg('Buona fortuna, ' + playerName + '!');
   }
@@ -1379,6 +1408,7 @@ function setCroupier(s) {
     document.getElementById('croupier-avatar').src = img.src;
     document.getElementById('r-croupier').src = img.src;
     document.getElementById('s-croupier').src = img.src;
+    document.getElementById('p-croupier').src = img.src;
   }, 270);
 }
 
@@ -1433,7 +1463,9 @@ const STATS_ZERO = {
   // roulette
   rGiri:0, rVinti:0, rPieni:0, rVincitaMax:0, rSerieRosso:0, rUltimoPieno:0,
   // slot
-  sGiri:0, sVinti:0, sVincitaMax:0, sBonus:0
+  sGiri:0, sVinti:0, sVincitaMax:0, sBonus:0,
+  // plinko
+  pPalline:0, pVinte:0, pVincitaMax:0, pMoltMax:0
 };
 let stats  = Object.assign({}, STATS_ZERO);
 let trofei = {}; // id → data ISO di sblocco
@@ -1585,12 +1617,17 @@ function apriStats() {
     ['Giri di slot', s.sGiri || 0], ['Giri vincenti', (s.sVinti || 0) + (s.sGiri ? ` (${Math.round((s.sVinti || 0) / s.sGiri * 100)}%)` : '')],
     ['Bonus presi', s.sBonus || 0], ['Vincita più alta in un giro', euro(s.sVincitaMax || 0)],
   ];
+  const plinkoRighe = [
+    ['Monete lanciate', s.pPalline || 0], ['Monete in guadagno', (s.pVinte || 0) + (s.pPalline ? ` (${Math.round((s.pVinte || 0) / s.pPalline * 100)}%)` : '')],
+    ['Moltiplicatore più alto', (s.pMoltMax || 0) + '×'], ['Vincita più alta', euro(s.pVincitaMax || 0)],
+  ];
   document.getElementById('account-nome').textContent = playerName || '—';
   const riga = ([k,v]) => `<div class="stat-row"><span>${k}</span><b>${v}</b></div>`;
   document.getElementById('stats-list').innerHTML =
     '<div class="rarita-head stat-sub">🃏 Blackjack e saldo</div>' + righe.map(riga).join('') +
     '<div class="rarita-head stat-sub">🎡 Roulette</div>' + rouletteRighe.map(riga).join('') +
-    '<div class="rarita-head stat-sub">🎰 Cinquegirelli</div>' + slotRighe.map(riga).join('');
+    '<div class="rarita-head stat-sub">🎰 Cinquegirelli</div>' + slotRighe.map(riga).join('') +
+    '<div class="rarita-head stat-sub">🔻 Plinko</div>' + plinkoRighe.map(riga).join('');
   const n = TROFEI.filter(t => trofei[t.id]).length;
   document.getElementById('trofei-count').textContent = `${n} / ${TROFEI.length}`;
   document.getElementById('trofei-grid').innerHTML = Object.keys(RARITA).map(r => {
@@ -1632,6 +1669,7 @@ function updateHUD() {
   updateBetTools();
   if (gioco === 'roulette' && typeof rAggiorna === 'function') rAggiorna();
   if (gioco === 'slot' && typeof sAggiorna === 'function') sAggiorna();
+  if (gioco === 'plinko' && typeof pAggiorna === 'function') pAggiorna();
   if (gioco === 'lobby') aggiornaLobby();
 }
 
@@ -2101,6 +2139,7 @@ function resetTavolo() {
   closeCashoutModal();
   if (typeof rReset === 'function') rReset();
   if (typeof sReset === 'function') sReset();
+  if (typeof pReset === 'function') pReset();
 }
 // dopo una bancarotta si riparte con un nuovo buy-in (nuovoBuyIn, sopra)
 
@@ -2131,12 +2170,13 @@ document.addEventListener('keydown', e => {
   if (e.key === 'Escape' && document.getElementById('lb-panel').classList.contains('open')) { toggleLeaderboard(); return; }
   if (document.getElementById('overlay').classList.contains('show')) return;
   if (gioco === 'lobby') {
-    const t = { b: 'blackjack', r: 'roulette', s: 'slot' }[e.key.toLowerCase()];
+    const t = { b: 'blackjack', r: 'roulette', s: 'slot', p: 'plinko' }[e.key.toLowerCase()];
     if (t && run) { e.preventDefault(); vaiA(t); }
     return;
   }
   if (gioco === 'roulette') { rTasti(e); return; }
   if (gioco === 'slot') { sTasti(e); return; }
+  if (gioco === 'plinko') { pTasti(e); return; }
   const k = e.key.toLowerCase();
   const azioni = {
     player:    { c: hit, s: stand, d: doubleDown, p: splitHand },
@@ -2245,6 +2285,7 @@ setCroupier('init');
 </script>
 <script src="../../js/radio.js?v=14"></script>
 <script src="roulette.js?v=8"></script>
-<script src="slot.js?v=3"></script>
+<script src="slot.js?v=4"></script>
+<script src="plinko.js?v=1"></script>
 </body>
 </html>

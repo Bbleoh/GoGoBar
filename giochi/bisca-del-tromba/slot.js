@@ -110,7 +110,7 @@ let sGiroLinee = null;         // timer che fa scorrere le linee vincenti
 let sPronta = false;
 
 function sOccupata() { return sGirando || sAutoOn || sGratis > 0; }
-function sImg(id) { return 'assets/slot/' + id + '.webp?v=2'; }
+function sImg(id) { return 'assets/slot/' + id + '.webp?v=3'; }
 function sCella(id) {
   const d = document.createElement('div');
   d.className = 's-sim s-' + id;
