@@ -10,7 +10,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700;900&family=Cinzel+Decorative:wght@700&family=Playfair+Display:wght@600;800;900&family=Fredoka:wght@500;600;700&family=DM+Mono&family=DM+Sans:wght@400;600&display=swap" rel="stylesheet">
 
 <link rel="stylesheet" href="roulette.css?v=6">
-<link rel="stylesheet" href="slot.css?v=1">
+<link rel="stylesheet" href="slot.css?v=2">
 <style>
   :root{
     --gold:#d4af5a; --gold-light:#f3dc9a; --gold-dim:rgba(212,175,90,.35);
@@ -463,7 +463,7 @@
       </button>
       <button class="tavolo" onclick="vaiA('slot')">
         <div class="tavolo-img sl"><img src="assets/slot/neko.webp" alt=""><img src="assets/slot/ggb.webp" alt=""><img src="assets/slot/canna.webp" alt=""></div>
-        <div class="tavolo-testo"><b>Tromba VLT</b><small>La slot del Tromba: 10 linee, il maneki neko è il jolly, giri gratis col BONUS.</small></div>
+        <div class="tavolo-testo"><b>Cinquegirelli</b><small>La slot del Tromba: 10 linee, il maneki neko è il jolly, giri gratis col BONUS.</small></div>
         <kbd>S</kbd>
       </button>
     </div>
@@ -534,10 +534,10 @@
     <div id="keys-hint">Tasti: 1-6 fiches · 7 all in · R ripeti · X ×2 · Esc annulla · Invio distribuisci</div>
   </footer>
 
-  <!-- ══ SLOT TROMBA VLT (logica in slot.js) ══ -->
-  <section id="slot" aria-label="Slot Tromba VLT">
+  <!-- ══ SLOT CINQUEGIRELLI (logica in slot.js) ══ -->
+  <section id="slot" aria-label="Slot Cinquegirelli">
     <div class="vlt">
-      <div class="vlt-top"><div class="vlt-luci"></div><h2 class="vlt-titolo">Tromba <span>VLT</span></h2></div>
+      <div class="vlt-top"><div class="vlt-luci"></div><h2 class="vlt-titolo">Cinque<span>girelli</span></h2></div>
       <div id="s-head"><img id="s-croupier" src="assets/croupier-init.png" alt="Il Tromba"><div id="s-msg" aria-live="polite"></div></div>
       <div class="vlt-schermo">
         <div id="s-rulli" aria-label="Rulli"></div>
@@ -1324,8 +1324,8 @@ const TROFEI = [
   { id:'r_pieno100',  r:'epico', icona:'💣', nome:'Pieno da paura',       desc:'Prendi un numero pieno con 100 \uE000 o più sopra' },
   { id:'r_sbanca',    r:'leggendario', icona:'🎆', nome:'Sbanca la ruota', desc:'Vinci 5.000 \uE000 in un solo giro' },
   { id:'r_bis',       r:'leggendario', icona:'🔮', nome:'Il bis',          desc:'Prendi lo stesso numero pieno due giri di fila' },
-  // slot Tromba VLT
-  { id:'s_primo',     r:'comune', icona:'🎰', nome:'Prima leva',            desc:'Gioca alla Tromba VLT per la prima volta' },
+  // slot Cinquegirelli
+  { id:'s_primo',     r:'comune', icona:'🎰', nome:'Prima leva',            desc:'Gioca alla Cinquegirelli per la prima volta' },
   { id:'s_canne',     r:'comune', icona:'🌿', nome:'Giro di canne',         desc:'Fai una linea con 3 o più canne' },
   { id:'s_neko',      r:'raro', icona:'🐱', nome:'Gatto fortunato',         desc:'Fai una linea di soli maneki neko' },
   { id:'s_gratis',    r:'raro', icona:'🎁', nome:'Offre il Tromba',         desc:'Prendi i giri gratis con 3 BONUS' },
@@ -1396,7 +1396,7 @@ function apriStats() {
   document.getElementById('stats-list').innerHTML =
     '<div class="rarita-head stat-sub">🃏 Blackjack e saldo</div>' + righe.map(riga).join('') +
     '<div class="rarita-head stat-sub">🎡 Roulette</div>' + rouletteRighe.map(riga).join('') +
-    '<div class="rarita-head stat-sub">🎰 Tromba VLT</div>' + slotRighe.map(riga).join('');
+    '<div class="rarita-head stat-sub">🎰 Cinquegirelli</div>' + slotRighe.map(riga).join('');
   const n = TROFEI.filter(t => trofei[t.id]).length;
   document.getElementById('trofei-count').textContent = `${n} / ${TROFEI.length}`;
   document.getElementById('trofei-grid').innerHTML = Object.keys(RARITA).map(r => {
@@ -1992,6 +1992,6 @@ setCroupier('init');
 </script>
 <script src="../../js/radio.js?v=14"></script>
 <script src="roulette.js?v=7"></script>
-<script src="slot.js?v=1"></script>
+<script src="slot.js?v=2"></script>
 </body>
 </html>
