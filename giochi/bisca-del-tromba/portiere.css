@@ -56,13 +56,12 @@ body[data-gioco="portiere"] #portiere{display:flex;}
 @keyframes ptPali{0%,100%{transform:none;}25%{transform:translateX(-3px);}50%{transform:translateX(3px);}75%{transform:translateX(-1px);}}
 
 /* le sei zone di tiro: bottoni trasparenti sopra al portiere */
-#pt-zone{position:absolute;inset:0;z-index:3;display:grid;grid-template-columns:repeat(3,1fr);grid-template-rows:repeat(2,1fr);}
+#pt-zone{position:absolute;inset:0;z-index:3;display:grid;grid-template-columns:repeat(3,1fr);}
 .pt-zona{position:relative;background:none;border:none;padding:0;cursor:crosshair;-webkit-tap-highlight-color:transparent;}
 .pt-zona span{position:absolute;left:50%;top:50%;width:min(46%,64px);aspect-ratio:1;transform:translate(-50%,-50%) scale(.85);border-radius:50%;
   border:3px dashed rgba(255,216,74,.75);opacity:.8;transition:transform .15s,opacity .15s,border-color .15s,background .15s;}
-.pt-zona:nth-child(-n+3) span{top:46%;}
-.pt-zona:nth-child(1) span,.pt-zona:nth-child(4) span{left:40%;}
-.pt-zona:nth-child(3) span,.pt-zona:nth-child(6) span{left:60%;}
+.pt-zona:nth-child(1) span{left:40%;}
+.pt-zona:nth-child(3) span{left:60%;}
 .pt-zona:hover:not(:disabled) span,.pt-zona:focus-visible span{opacity:1;transform:translate(-50%,-50%) scale(1);border-style:solid;border-color:#ffd84a;background:rgba(255,216,74,.18);}
 .pt-zona.mirata span{opacity:1;border-style:solid;border-color:#ffd84a;transform:translate(-50%,-50%) scale(1);}
 .pt-zona:disabled{cursor:default;}
@@ -76,17 +75,30 @@ body[data-gioco="portiere"] #portiere{display:flex;}
   box-shadow:0 0 0 2px #1d1d1d;}
 .pt-testa img{display:block;width:100%;height:100%;object-fit:cover;}
 /* tuffi: si ruota attorno ai piedi, i guanti arrivano sull'angolo scelto */
-#pt-portiere.tuffo-0{transform:translate(-78%,-16%) rotate(-40deg);}
-#pt-portiere.tuffo-1{transform:translateY(-16%) scale(1.04);}
-#pt-portiere.tuffo-2{transform:translate(78%,-16%) rotate(40deg);}
-#pt-portiere.tuffo-3{transform:translate(-22%,-2%) rotate(-76deg);}
-#pt-portiere.tuffo-4{transform:scale(1.22,.8);}
-#pt-portiere.tuffo-5{transform:translate(22%,-2%) rotate(76deg);}
+#pt-portiere.tuffo-0{transform:translate(-30%,-6%) rotate(-56deg);}
+#pt-portiere.tuffo-1{transform:translateY(-8%) scale(1.08);}
+#pt-portiere.tuffo-2{transform:translate(30%,-6%) rotate(56deg);}
 
 /* ── il pallone ── */
 #pt-palla{position:absolute;left:50%;top:84%;width:7.5%;aspect-ratio:1;margin-left:-3.75%;transform-origin:50% 50%;z-index:4;pointer-events:none;
   filter:drop-shadow(0 4px 3px rgba(0,0,0,.5));}
 #pt-palla svg{display:block;width:100%;height:100%;}
+
+/* ── le tre frecce davanti al pallone ── */
+#pt-frecce{position:absolute;left:50%;top:66%;width:34%;height:15%;transform:translateX(-50%);z-index:4;display:flex;justify-content:space-between;align-items:flex-end;pointer-events:none;}
+.pt-freccia{pointer-events:auto;width:30%;height:100%;padding:0;background:none;border:none;cursor:pointer;-webkit-tap-highlight-color:transparent;display:flex;align-items:center;justify-content:center;}
+.pt-freccia svg{width:min(100%,46px);height:auto;fill:#ffd84a;stroke:#3a2a05;stroke-width:2.5;stroke-linejoin:round;
+  filter:drop-shadow(0 3px 3px rgba(0,0,0,.6));transition:transform .15s,fill .15s,opacity .2s;animation:ptFreccia 1.4s ease-in-out infinite;}
+.pt-freccia:nth-child(1) svg{transform:rotate(-38deg);animation-name:ptFrecciaSx;}
+.pt-freccia:nth-child(3) svg{transform:rotate(38deg);animation-name:ptFrecciaDx;}
+.pt-freccia:nth-child(2){align-self:flex-start;height:85%;}
+.pt-freccia:hover:not(:disabled) svg,.pt-freccia:focus-visible svg,.pt-freccia.mirata svg{fill:#fff3c4;}
+.pt-freccia:disabled{cursor:default;}
+.pt-freccia:disabled svg{animation:none;opacity:.25;}
+.pt-freccia.mirata svg{opacity:1;}
+@keyframes ptFreccia{0%,100%{transform:translateY(0);}50%{transform:translateY(-12%);}}
+@keyframes ptFrecciaSx{0%,100%{transform:rotate(-38deg) translateY(0);}50%{transform:rotate(-38deg) translateY(-12%);}}
+@keyframes ptFrecciaDx{0%,100%{transform:rotate(38deg) translateY(0);}50%{transform:rotate(38deg) translateY(-12%);}}
 
 /* ── scritta di esito ── */
 #pt-banner{position:absolute;left:50%;top:79%;z-index:5;transform:translate(-50%,-50%) scale(.4);opacity:0;pointer-events:none;text-align:center;
