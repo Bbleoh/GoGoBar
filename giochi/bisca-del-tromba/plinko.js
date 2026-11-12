@@ -213,7 +213,7 @@ function pArriva(b, ora) {
   pAggiorna();
   document.getElementById('balance-display').textContent = ggb(balance);
   memScrivi();
-  if (!pOccupata()) fineRun();     // a monete ferme: bancarotta o salto di tavolo
+  if (!pOccupata()) fineRun(true);     // a monete ferme: bancarotta o salto di tavolo
 }
 
 /* ── tenere premuto LANCIA ── */
@@ -254,7 +254,7 @@ function pAutoStop(testo) {
   pAutoOn = false; pAuto = 0;
   if (testo) pMsg(testo);
   pAggiorna();
-  if (era && !pPalle.length) fineRun();
+  if (era && !pPalle.length) fineRun(true);
 }
 
 /* ── interfaccia ── */

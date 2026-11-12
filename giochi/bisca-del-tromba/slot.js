@@ -361,7 +361,7 @@ function sRisultato(g, gratis) {
 
   const pausa = v.scatter ? 2600 : grande ? 2400 : vincita ? 1300 : 650;
   if (sGratis > 0) { setTimeout(sGioca, pausa + (fineGratis ? 0 : 400)); return; }
-  if (fineRun()) { sAutoStop(); return; }
+  if (fineRun(true)) { sAutoStop(); return; }
   if (sAutoOn) {
     if (sAuto > 0 && balance >= sBet()) setTimeout(sAutoGiro, pausa + (fineGratis ? 2200 : 0));
     else sAutoStop(sAuto > 0 ? 'Auto fermato: stack insufficiente.' : '');
