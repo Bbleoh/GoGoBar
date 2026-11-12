@@ -5,13 +5,12 @@
 
    window.BiscaClassifica.attiva          → true se il servizio è configurato
    window.BiscaClassifica.carica(limite)  → Promise<[{ nome, punti, data, tavolo }]>
-       classifica generale: il cash-out migliore di ogni giocatore su tutti i tavoli,
+       classifica unica: il miglior profitto (cash-out − buy-in, anche negativo) di ogni giocatore,
        ordinata dal più alto; [] se qualcosa va storto (non lancia mai).
-   window.BiscaClassifica.caricaTavolo(tavolo, limite) → come sopra, solo le run partite da quel tavolo
-   window.BiscaClassifica.salvaTavolo(tavolo, nome, punti) → Promise<void>
-       tiene il cash-out più alto per ogni nome su quel tavolo; lancia un Error se fallisce.
-   Tavoli (buy-in): 100, 1000, 10000, 100000 → bisca/classifiche/t<buy-in>/<chiave>.
-   (bisca/classifica è la vecchia classifica a saldo unico, non più usata.)
+   window.BiscaClassifica.salvaProfitto(nome, profitto, tavolo) → Promise<void>
+       classifica unica bisca/profitti/<chiave> = {nome, punti, tavolo, data}: punti = cash-out − buy-in
+       (anche negativo), tiene il migliore per nome; lancia un Error se fallisce.
+   (bisca/classifica e bisca/classifiche sono le vecchie classifiche, non più usate.)
    window.BiscaClassifica.caricaGiocatore(nome) / salvaGiocatore(nome, dati) / caricaGiocatori()
        account per nome con saldo, statistiche e trofei (vedi sotto).
 
@@ -63,10 +62,11 @@
     });
   }
 
-  var CLASSIFICHE = 'bisca/classifiche';
+  // classifica unica: per ogni giocatore il miglior profitto di un cash-out (cash-out − buy-in), anche negativo
+  var PROFITTI = 'bisca/profitti';
   var TAVOLI = [100, 1000, 10000, 100000];
 
-  function righe(dati, tavolo) {
+  function righe(dati) {
     if (!dati || typeof dati !== 'object') return [];
     return Object.keys(dati).map(function (k) {
       var r = dati[k] || {};
@@ -74,42 +74,38 @@
         chiave: k,
         nome: String(r.nome || k).slice(0, 20),
         punti: Math.floor(Number(r.punti)) || 0,
-        data: typeof r.data === 'string' ? r.data : null,
-        tavolo: tavolo
+        tavolo: Number(r.tavolo) || null,
+        data: typeof r.data === 'string' ? r.data : null
       };
     });
   }
-  function ordina(lista, limite) {
-    return lista.sort(function (a, b) { return b.punti - a.punti; }).slice(0, limite);
-  }
 
-  // generale: il cash-out migliore di ogni giocatore, da qualsiasi tavolo
   function carica(limite) {
     limite = limite || 10;
     if (!DB_URL) return Promise.resolve([]);
-    return richiesta(base() + '/' + CLASSIFICHE + '.json').then(function (tutte) {
-      var migliori = {};
-      TAVOLI.forEach(function (t) {
-        righe(tutte && tutte['t' + t], t).forEach(function (r) {
-          if (!migliori[r.chiave] || r.punti > migliori[r.chiave].punti) migliori[r.chiave] = r;
-        });
-      });
-      return ordina(Object.keys(migliori).map(function (k) { return migliori[k]; }), limite);
-    }).catch(function () { return []; });
-  }
-
-  function caricaTavolo(tavolo, limite) {
-    limite = limite || 10;
-    if (!DB_URL || TAVOLI.indexOf(Number(tavolo)) < 0) return Promise.resolve([]);
-    return richiesta(base() + '/' + CLASSIFICHE + '/t' + Number(tavolo) + '.json')
-      .then(function (d) { return ordina(righe(d, Number(tavolo)), limite); })
+    return richiesta(base() + '/' + PROFITTI + '.json')
+      .then(function (d) { return righe(d).sort(function (a, b) { return b.punti - a.punti; }).slice(0, limite); })
       .catch(function () { return []; });
   }
 
-  function salvaTavolo(tavolo, nome, punti) {
-    if (TAVOLI.indexOf(Number(tavolo)) < 0) return Promise.reject(new Error('Tavolo sconosciuto.'));
-    return salvaIn(CLASSIFICHE + '/t' + Number(tavolo), nome, punti);
+  // profitto = cash-out − buy-in del tavolo di partenza; tiene il migliore per nome
+  function salvaProfitto(nome, profitto, tavolo) {
+    nome = String(nome || '').trim();
+    profitto = Math.floor(Number(profitto));
+    if (!DB_URL) return Promise.reject(new Error('La classifica online non è ancora attiva.'));
+    if (!nome) return Promise.reject(new Error('Nome vuoto.'));
+    if (!isFinite(profitto)) return Promise.reject(new Error('Punteggio non valido.'));
+    var url = base() + '/' + PROFITTI + '/' + encodeURIComponent(chiaveDa(nome)) + '.json';
+    return richiesta(url).then(function (attuale) {
+      if (attuale && Number(attuale.punti) >= profitto) return;
+      return richiesta(url, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ nome: nome, punti: profitto, tavolo: Number(tavolo) || 0, data: new Date().toISOString() })
+      });
+    }).then(function () {});
   }
+
   function salva(nome, punti) { return salvaIn(PERCORSO, nome, punti); }
 
   function salvaIn(percorso, nome, punti) {
@@ -187,7 +183,7 @@
   }
 
   window.BiscaClassifica = {
-    attiva: !!DB_URL, carica: carica, caricaTavolo: caricaTavolo, salva: salva, salvaTavolo: salvaTavolo, TAVOLI: TAVOLI,
+    attiva: !!DB_URL, carica: carica, salva: salva, salvaProfitto: salvaProfitto, TAVOLI: TAVOLI,
     caricaGiocatore: caricaGiocatore, salvaGiocatore: salvaGiocatore, caricaGiocatori: caricaGiocatori
   };
 })();

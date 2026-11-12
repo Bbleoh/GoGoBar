@@ -75,10 +75,6 @@
   .lobby-info{font-size:.9rem;color:var(--muted);max-width:640px;line-height:1.4;}
   .lobby-info b{color:var(--gold-light);font-weight:700;}
   @media (max-width:760px){ #buyin-tavoli{grid-template-columns:repeat(2,minmax(0,1fr));max-width:420px;} }
-  #lb-tabs{display:flex;gap:6px;flex-wrap:wrap;margin:0 0 8px;}
-  #lb-tabs button{font-family:var(--ui);font-weight:700;font-size:.72rem;letter-spacing:1px;padding:5px 10px;border-radius:999px;cursor:pointer;
-    background:var(--panel);border:1px solid var(--gold-dim);color:var(--gold-light);}
-  #lb-tabs button.on{background:var(--gold);color:#1a1205;border-color:var(--gold);}
   .lb-tav{display:block;font-size:.68rem;color:var(--muted);}
   #salto{position:fixed;left:50%;top:42%;transform:translate(-50%,-50%) scale(.4);opacity:0;pointer-events:none;z-index:60;text-align:center;
     padding:18px 30px;border-radius:20px;background:radial-gradient(ellipse,#6a0f0a,#2a0504);border:3px solid #ffd86b;
@@ -237,6 +233,7 @@
   #lb-header h2{font-family:'Cinzel Decorative',serif;color:var(--gold);font-size:1.1rem;letter-spacing:1px;}
   .close-x{background:none;border:none;color:var(--gold);font-size:1.3rem;cursor:pointer;width:36px;height:36px;border-radius:50%;}
   .close-x:hover{background:rgba(212,175,90,.15);}
+  .lb-score.neg{color:var(--lose);}
   #lb-subtitle{font-size:.8rem;color:var(--muted);padding:8px 18px;}
   #lb-table-wrap{flex:1;overflow-y:auto;padding:4px 0;}
   #lb-table{width:100%;border-collapse:collapse;}
@@ -476,11 +473,10 @@
     <h2>🏆 Classifica</h2>
     <button class="close-x" onclick="toggleLeaderboard()" aria-label="Chiudi">✕</button>
   </div>
-  <div id="lb-tabs" role="tablist"></div>
-  <div id="lb-subtitle">I 10 cash-out migliori di sempre</div>
+  <div id="lb-subtitle">Il miglior profitto di ogni giocatore: cash-out meno buy-in</div>
   <div id="lb-table-wrap">
     <table id="lb-table">
-      <thead><tr><th>#</th><th>Giocatore</th><th style="text-align:right">Cashout</th><th style="text-align:right">Data</th></tr></thead>
+      <thead><tr><th>#</th><th>Giocatore</th><th style="text-align:right">Profitto</th><th style="text-align:right">Data</th></tr></thead>
       <tbody id="lb-body"><tr><td colspan="4" id="lb-empty">Caricamento...</td></tr></tbody>
     </table>
   </div>
@@ -732,7 +728,7 @@
 
 <script src="../../js/account.js?v=4"></script>
 <script src="../../js/gogoldbar.js?v=4"></script>
-<script src="classifica.js?v=8"></script>
+<script src="classifica.js?v=9"></script>
 <script>
 /* Tavolo in uso: 'lobby' | 'blackjack' | 'roulette' | 'slot' (roulette.js e slot.js) */
 let gioco = 'lobby';
@@ -1021,23 +1017,14 @@ function renderLeaderboard(entries) {
     const rc    = i===0?'gold':i===1?'silver':i===2?'bronze':'';
     return `<tr>
       <td class="lb-rank ${rc}">${medal}</td>
-      <td class="lb-name">${escHtml(r.nome)}${lbScheda === 'g' && r.tavolo ? `<span class="lb-tav">tavolo da ${numero(r.tavolo)}</span>` : ''}</td>
-      <td class="lb-score">${ggb(r.punti)}</td>
+      <td class="lb-name">${escHtml(r.nome)}${r.tavolo ? `<span class="lb-tav">tavolo da ${numero(r.tavolo)}</span>` : ''}</td>
+      <td class="lb-score${r.punti < 0 ? ' neg' : ''}">${(r.punti > 0 ? '+' : '') + ggb(r.punti)}</td>
       <td class="lb-date">${dataBreve(r.data)}</td>
     </tr>`;
   }).join('');
 }
 
 let _lbLoaded = false;
-let lbScheda = 'g';   // 'g' = generale, altrimenti il buy-in del tavolo
-function disegnaSchede() {
-  const box = document.getElementById('lb-tabs');
-  box.innerHTML = [['g', 'Generale']].concat(TAVOLI.map(t => [t, numero(t)])).map(([k, n]) =>
-    `<button type="button" role="tab" class="${String(k) === String(lbScheda) ? 'on' : ''}" onclick="lbScheda=${k === 'g' ? "'g'" : k};refreshLeaderboard()">${n}</button>`).join('');
-  document.getElementById('lb-subtitle').textContent = lbScheda === 'g'
-    ? 'I 10 cash-out migliori di sempre, da tutti i tavoli'
-    : 'I 10 cash-out migliori delle run partite dal tavolo da ' + numero(lbScheda);
-}
 /* cash-out che la classifica non ha preso (rete, regole Firebase): restano qui finché non entrano */
 const PENDENTI_KEY = 'biscaClassificaPendenti.v1';
 function pendentiLeggi() { try { return JSON.parse(localStorage.getItem(PENDENTI_KEY)) || []; } catch (e) { return []; } }
@@ -1051,7 +1038,9 @@ function pendentiRiprova() {
   _pendentiInCorso = (async () => {
     const restano = [];
     for (const x of lista) {
-      try { await BiscaClassifica.salvaTavolo(x.t, x.nome, x.punti); } catch (e) { restano.push(x); }
+      // le voci vecchie (prima della classifica a profitto) avevano il cash-out intero in "punti"
+      const profitto = x.profitto !== undefined ? x.profitto : x.punti - x.t;
+      try { await BiscaClassifica.salvaProfitto(x.nome, profitto, x.t); } catch (e) { restano.push(x); }
     }
     pendentiScrivi(restano.concat(pendentiLeggi().slice(lista.length)));
     _pendentiInCorso = null;
@@ -1062,10 +1051,7 @@ async function refreshLeaderboard() {
   const st = document.getElementById('lb-status');
   st.textContent = 'Caricamento...';
   await pendentiRiprova();
-  disegnaSchede();
-  const scheda = lbScheda;
-  const entries = !window.BiscaClassifica ? [] : scheda === 'g' ? await BiscaClassifica.carica(10) : await BiscaClassifica.caricaTavolo(scheda, 10);
-  if (scheda !== lbScheda) return;
+  const entries = !window.BiscaClassifica ? [] : await BiscaClassifica.carica(10);
   renderLeaderboard(entries);
   _lbLoaded = true;
   st.textContent = 'Aggiornato: ' + new Date().toLocaleTimeString('it-IT');
@@ -1222,7 +1208,7 @@ function updateCashoutBtn() {
 function openCashout() {
   if (!cashoutPossibile()) return;
   document.getElementById('cashout-msg').textContent =
-    `Incassi ${ggb(balance)} nel portafogli e chiudi la run. Il cash-out va nella classifica del tavolo da ${numero(run.partenza)} come "${playerName}".`;
+    `Incassi ${ggb(balance)} nel portafogli e chiudi la run. In classifica va il profitto: ${(balance - run.partenza > 0 ? '+' : '') + ggb(balance - run.partenza)} (buy-in ${ggb(run.partenza)}), come "${playerName}".`;
   document.getElementById('cashout-error').textContent = '';
   const btn = document.getElementById('cashout-confirm-btn');
   btn.disabled = false;
@@ -1257,10 +1243,11 @@ async function executeCashout() {
   if (somma >= 1000) sblocca('banchiere');
   memScrivi(); syncRemoto(true);
   let nota = '';
-  try { await BiscaClassifica.salvaTavolo(partenza, playerName, somma); }
+  const profitto = somma - partenza;   // in classifica va il profitto della run, anche negativo
+  try { await BiscaClassifica.salvaProfitto(playerName, profitto, partenza); }
   catch (e) {
     // non si perde: resta in coda e si riprova all'apertura della classifica e al prossimo ingresso
-    pendenteAggiungi({ t: partenza, nome: playerName, punti: somma });
+    pendenteAggiungi({ t: partenza, nome: playerName, profitto });
     nota = ' La classifica non ha salvato (' + ((e && e.message) || 'errore') + '): riprovo da solo appena possibile.';
   }
   closeCashoutModal();
@@ -1268,7 +1255,6 @@ async function executeCashout() {
   gioco = 'lobby'; document.body.dataset.gioco = 'lobby';
   lobbyMsg('Incassati ' + ggb(somma) + ' nel portafogli!' + nota);
   updateHUD();
-  lbScheda = partenza;
   document.getElementById('lb-panel').classList.add('open');
   refreshLeaderboard();
 }
