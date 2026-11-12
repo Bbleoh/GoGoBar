@@ -1038,9 +1038,30 @@ function disegnaSchede() {
     ? 'I 10 cash-out migliori di sempre, da tutti i tavoli'
     : 'I 10 cash-out migliori delle run partite dal tavolo da ' + numero(lbScheda);
 }
+/* cash-out che la classifica non ha preso (rete, regole Firebase): restano qui finché non entrano */
+const PENDENTI_KEY = 'biscaClassificaPendenti.v1';
+function pendentiLeggi() { try { return JSON.parse(localStorage.getItem(PENDENTI_KEY)) || []; } catch (e) { return []; } }
+function pendentiScrivi(l) { try { l.length ? localStorage.setItem(PENDENTI_KEY, JSON.stringify(l)) : localStorage.removeItem(PENDENTI_KEY); } catch (e) {} }
+function pendenteAggiungi(x) { pendentiScrivi(pendentiLeggi().concat([x])); }
+let _pendentiInCorso = null;
+function pendentiRiprova() {
+  if (_pendentiInCorso || !window.BiscaClassifica) return _pendentiInCorso || Promise.resolve();
+  const lista = pendentiLeggi();
+  if (!lista.length) return Promise.resolve();
+  _pendentiInCorso = (async () => {
+    const restano = [];
+    for (const x of lista) {
+      try { await BiscaClassifica.salvaTavolo(x.t, x.nome, x.punti); } catch (e) { restano.push(x); }
+    }
+    pendentiScrivi(restano.concat(pendentiLeggi().slice(lista.length)));
+    _pendentiInCorso = null;
+  })();
+  return _pendentiInCorso;
+}
 async function refreshLeaderboard() {
   const st = document.getElementById('lb-status');
   st.textContent = 'Caricamento...';
+  await pendentiRiprova();
   disegnaSchede();
   const scheda = lbScheda;
   const entries = !window.BiscaClassifica ? [] : scheda === 'g' ? await BiscaClassifica.carica(10) : await BiscaClassifica.caricaTavolo(scheda, 10);
@@ -1121,7 +1142,7 @@ async function confirmName() {
   controllaSaldo();
   controllaPlatino();
   memScrivi();
-  updateHUD();
+  updateHUD();  pendentiRiprova();
 }
 
 /* Lista dei giocatori già registrati (Firebase + questo browser): un clic e sei dentro */
@@ -1237,7 +1258,11 @@ async function executeCashout() {
   memScrivi(); syncRemoto(true);
   let nota = '';
   try { await BiscaClassifica.salvaTavolo(partenza, playerName, somma); }
-  catch (e) { nota = ' La classifica però non ha salvato: ' + ((e && e.message) || 'errore') + '.'; }
+  catch (e) {
+    // non si perde: resta in coda e si riprova all'apertura della classifica e al prossimo ingresso
+    pendenteAggiungi({ t: partenza, nome: playerName, punti: somma });
+    nota = ' La classifica non ha salvato (' + ((e && e.message) || 'errore') + '): riprovo da solo appena possibile.';
+  }
   closeCashoutModal();
   resetTavolo();
   gioco = 'lobby'; document.body.dataset.gioco = 'lobby';
