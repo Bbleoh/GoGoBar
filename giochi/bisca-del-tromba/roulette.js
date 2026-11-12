@@ -49,7 +49,8 @@ const R_INTERNE = /^[nsq]/; // pieni, cavalli e quartine; il resto sono puntate 
 let rPuntate = {};        // chiave → euro sul tavolo
 let rStoriaPuntate = [];  // per "togli l'ultima"
 let rUltime = null;       // puntate del giro precedente, per "ripeti"
-let rFiche = 5;           // fiche selezionata
+let rFicheI = 0;          // fiche selezionata (posizione tra le fiches del tavolo)
+function rFicheV() { const c = chips(); return c[Math.min(rFicheI, c.length - 1)] || 0; }
 let rGirando = false;
 let rStoria = [];         // ultimi numeri usciti
 let rUltimo = null;
@@ -190,19 +191,20 @@ function rAggiorna() {
   document.getElementById('r-saldo').textContent = rEuro(balance);
   document.getElementById('r-puntata').textContent = rEuro(tot);
   const libero = !rGirando && !rAutoOn;
-  CHIP_VALUES.forEach(v => {
-    const el = document.getElementById('r-chip-' + v);
-    el.classList.toggle('scelta', v === rFiche);
-    el.classList.toggle('chip-disabled', !libero || balance - tot < v);
-    el.setAttribute('aria-pressed', v === rFiche);
+  const sel = Math.min(rFicheI, Math.max(0, chips().length - 1));
+  disegnaChips('r-chips', i => 'rScegliFiche(' + i + ')', sel);
+  document.querySelectorAll('#r-chips .chip').forEach((el, i) => {
+    el.classList.toggle('scelta', i === sel);
+    el.classList.toggle('chip-disabled', !libero || puntataTetto() - tot < Number(el.dataset.v));
+    el.setAttribute('aria-pressed', i === sel);
   });
   document.getElementById('r-clear').disabled = !libero || !tot;
   document.getElementById('r-undo').disabled = !libero || !rStoriaPuntate.length;
-  document.getElementById('r-repeat').disabled = !libero || !rUltime || tot > 0 || rTotale(rUltime) > balance;
-  document.getElementById('r-double').disabled = !libero || !tot || tot * 2 > balance;
-  document.getElementById('r-spin').disabled = !libero || !tot;
+  document.getElementById('r-repeat').disabled = !libero || !rUltime || tot > 0 || rTotale(rUltime) > puntataTetto();
+  document.getElementById('r-double').disabled = !libero || !tot || tot * 2 > puntataTetto();
+  document.getElementById('r-spin').disabled = !libero || !tot || tot < puntataMin();
   const auto = document.getElementById('r-auto');
-  auto.disabled = !rAutoOn && (!libero || !(tot > 0 || (rUltime && rTotale(rUltime) <= balance)));
+  auto.disabled = !rAutoOn && (!libero || !(tot >= puntataMin() || (rUltime && rTotale(rUltime) <= puntataTetto())));
   auto.classList.toggle('attivo', rAutoOn);
   auto.innerHTML = rAutoOn ? '■ Stop <small>' + rAuto + '</small>' : '⟳ Auto';
   auto.title = rAutoOn ? 'Ferma i giri automatici (Esc)' : 'Giri automatici con l\'ultima puntata (tasto A)';
@@ -212,19 +214,21 @@ function rAggiorna() {
   aggiornaTavoliBtn();
 }
 
-function rScegliFiche(v) {
+function rScegliFiche(i) {
   if (rGirando) return;
-  rFiche = v;
+  rFicheI = i;
   sfxChip();
   rAggiorna();
 }
 
 function rPunta(chiave) {
   if (rGirando || !R_PUNTATE[chiave]) return;
-  const v = rFiche;
-  if (rTotale() + v > balance) {
+  const v = rFicheV();
+  if (!v) return;
+  if (rTotale() + v > puntataTetto()) {
     sfxError();
-    rMsg('Saldo insufficiente per questa fiche! (disponibili: ' + rEuro(balance - rTotale()) + ')', 'lose');
+    rMsg(rTotale() + v > balance ? 'Stack insufficiente per questa fiche! (disponibili: ' + rEuro(balance - rTotale()) + ')'
+                                 : 'Puntata massima del tavolo: ' + rEuro(puntataMax()) + '.', 'lose');
     return;
   }
   rPuntate[chiave] = (rPuntate[chiave] || 0) + v;
@@ -261,7 +265,7 @@ function rAnnulla() {
 }
 function rRipeti() {
   if (rGirando || !rUltime || rTotale() > 0) return;
-  if (rTotale(rUltime) > balance) { sfxError(); rMsg('Non hai abbastanza per ripetere le puntate.', 'lose'); return; }
+  if (rTotale(rUltime) > puntataTetto()) { sfxError(); rMsg('Non puoi ripetere: supera lo stack o la puntata massima.', 'lose'); return; }
   rPuntate = Object.assign({}, rUltime);
   rStoriaPuntate = Object.entries(rPuntate).map(([k, v]) => [k, v]);
   sfxChip();
@@ -271,7 +275,7 @@ function rRipeti() {
 function rRaddoppia() {
   const tot = rTotale();
   if (rGirando || !tot) return;
-  if (tot * 2 > balance) { sfxError(); rMsg('Non hai abbastanza per raddoppiare.', 'lose'); return; }
+  if (tot * 2 > puntataTetto()) { sfxError(); rMsg(tot * 2 > balance ? 'Non hai abbastanza per raddoppiare.' : 'Oltre la puntata massima del tavolo.', 'lose'); return; }
   Object.keys(rPuntate).forEach(k => { rStoriaPuntate.push([k, rPuntate[k]]); rPuntate[k] *= 2; });
   sfxChip();
   rAggiorna();
@@ -399,9 +403,12 @@ function rTick(forte) {
 function rGira() {
   const tot = rTotale();
   if (rGirando || !tot) return;
-  if (tot > balance) { sfxError(); rMsg('Saldo insufficiente!', 'lose'); return; }
+  if (tot > balance) { sfxError(); rMsg('Stack insufficiente!', 'lose'); return; }
+  if (tot < puntataMin()) { sfxError(); rMsg('Puntata minima: ' + rEuro(puntataMin()) + '.', 'lose'); return; }
+  if (tot > puntataMax()) { sfxError(); rMsg('Puntata massima: ' + rEuro(puntataMax()) + '.', 'lose'); return; }
   if (!rPreparaRuota()) return;
   startMusic();
+  contaGiocata();
   rGirando = true;
   rPrimo = null; rSegnaScelta();
   balance -= tot;
@@ -507,7 +514,7 @@ function rRisultato(n) {
   rAggiorna();
   document.getElementById('balance-display').textContent = rEuro(balance);
 
-  if (balance <= 0) { rAutoStop(); bancarotta(); return; }
+  if (fineRun()) { rAutoStop(); return; }
   memScrivi();
   if (rAutoOn) {
     if (rAuto > 0) setTimeout(rAutoGiro, 1500);
@@ -529,7 +536,7 @@ function rAutoAvvia(giri) {
     if (!rUltime) { rMsg('Punta qualcosa prima di avviare l\'autobet.', 'lose'); return; }
     rPuntate = Object.assign({}, rUltime);
   }
-  if (rTotale() > balance) { sfxError(); rMsg('Saldo insufficiente per l\'autobet.', 'lose'); return; }
+  if (rTotale() > puntataTetto() || rTotale() < puntataMin()) { sfxError(); rMsg('Puntata fuori dai limiti del tavolo per l\'autobet.', 'lose'); return; }
   rUltime = Object.assign({}, rPuntate); // la puntata da ripetere è quella sul tavolo adesso
   rAutoOn = true;
   rAuto = giri;
@@ -538,7 +545,7 @@ function rAutoAvvia(giri) {
 function rAutoGiro() {
   if (!rAutoOn || rGirando) return;
   if (!rTotale()) {
-    if (!rUltime || rTotale(rUltime) > balance) { rAutoStop('Autobet fermato: saldo insufficiente per ripetere la puntata.'); return; }
+    if (!rUltime || rTotale(rUltime) > puntataTetto() || rTotale(rUltime) < puntataMin()) { rAutoStop('Autobet fermato: la puntata non sta più nei limiti del tavolo.'); return; }
     rPuntate = Object.assign({}, rUltime);
   }
   rStoriaPuntate = [];
@@ -592,7 +599,7 @@ window.addEventListener('resize', () => {
   if (rPreparaRuota()) rDisegna();
 });
 
-// tasti: 1-6 fiche · Invio/Spazio gira · Esc annulla · Backspace/Z togli l'ultima · R ripeti · X ×2
+// tasti: 1-4 fiche · Invio/Spazio gira · Esc annulla · Backspace/Z togli l'ultima · R ripeti · X ×2
 function rTasti(e) {
   const k = e.key.toLowerCase();
   const menu = document.getElementById('r-auto-menu');
@@ -603,7 +610,7 @@ function rTasti(e) {
     if (k === 'escape' || k === 'a') { e.preventDefault(); menu.hidden = true; return; }
   }
   if (k === 'a') { e.preventDefault(); rAutoMenu(); return; }
-  if (/^[1-6]$/.test(e.key)) { e.preventDefault(); rScegliFiche(CHIP_VALUES[+e.key - 1]); return; }
+  if (/^[1-4]$/.test(e.key)) { e.preventDefault(); if (+e.key <= chips().length) rScegliFiche(+e.key - 1); return; }
   const modi = { p: 'pieno', c: 'cavallo', q: 'quartina' };
   if (modi[k]) { e.preventDefault(); rScegliModo(modi[k]); return; }
   const azioni = { enter: rGira, ' ': rGira, escape: rAnnulla, backspace: rAnnullaUltima, z: rAnnullaUltima, r: rRipeti, x: rRaddoppia };

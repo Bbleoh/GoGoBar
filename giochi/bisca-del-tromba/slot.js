@@ -43,7 +43,7 @@ const S_LINEE = [
   [1, 0, 0, 0, 1], [1, 2, 2, 2, 1], [1, 0, 1, 2, 1],
 ];
 const S_COLORI_LINEE = ['#ffd84a', '#ff5a4a', '#4ad7ff', '#7dff6a', '#ff7ae6', '#ffa63d', '#a98bff', '#5affc8', '#ff4f8b', '#f4f4f4'];
-const S_PUNTATE = [5, 10, 20, 50, 100, 200, 500, 1000];
+// le puntate sono le fiches del tavolo (10, 25, 50, 100% dello stack, vedi BUY-IN E STACK in index.html)
 
 function sEstrai(rullo, caso) {
   const pesi = S_PESI[rullo];
@@ -99,7 +99,9 @@ function sValuta(g, puntata, molt) {
 /* ════════════════════════════════════════════════════════════════
    LA MACCHINETTA (DOM)
 ════════════════════════════════════════════════════════════════ */
-let sPuntata = 10;
+let sPuntI = 0;            // quale fiche si gioca (posizione)
+let sPuntataGiro = 0;      // puntata del giro in corso
+function sBet() { if (typeof chips !== 'function') return 0; const c = chips(); return c[Math.min(sPuntI, c.length - 1)] || 0; }
 let sGirando = false;
 let sAutoOn = false, sAuto = 0;
 let sGratis = 0, sGratisFatti = 0, sGratisTot = 0, sGratisPuntata = 0;
@@ -154,15 +156,15 @@ function sAggiorna() {
   if (!sPronta) return;
   const libero = !sOccupata();
   document.getElementById('s-saldo').textContent = ggb(balance);
-  document.getElementById('s-puntata').textContent = ggb(sGratis > 0 ? sGratisPuntata : sPuntata);
-  const i = S_PUNTATE.indexOf(sPuntata);
+  document.getElementById('s-puntata').textContent = ggb(sGratis > 0 ? sGratisPuntata : sBet());
+  const n = chips().length, i = Math.min(sPuntI, Math.max(0, n - 1));
   document.getElementById('s-meno').disabled = !libero || i <= 0;
-  document.getElementById('s-piu').disabled = !libero || i >= S_PUNTATE.length - 1;
+  document.getElementById('s-piu').disabled = !libero || i >= n - 1;
   const gioca = document.getElementById('s-gioca');
-  gioca.disabled = !libero || balance < sPuntata;
+  gioca.disabled = !libero || !run || !sBet() || balance < sBet();
   gioca.classList.toggle('gira', sGirando);
   const auto = document.getElementById('s-auto');
-  auto.disabled = !sAutoOn && (!libero || balance < sPuntata);
+  auto.disabled = !sAutoOn && (!libero || !run || !sBet() || balance < sBet());
   auto.classList.toggle('attivo', sAutoOn);
   auto.innerHTML = sAutoOn ? '■ Stop <small>' + sAuto + '</small>' : '⟳ Auto';
   auto.title = sAutoOn ? 'Ferma i giri automatici (Esc)' : 'Giri automatici con questa puntata (tasto A)';
@@ -173,9 +175,10 @@ function sAggiorna() {
 
 function sCambiaPuntata(d) {
   if (sOccupata()) return;
-  const i = Math.max(0, Math.min(S_PUNTATE.length - 1, S_PUNTATE.indexOf(sPuntata) + d));
-  if (S_PUNTATE[i] === sPuntata) return;
-  sPuntata = S_PUNTATE[i];
+  const n = chips().length;
+  const i = Math.max(0, Math.min(n - 1, Math.min(sPuntI, n - 1) + d));
+  if (i === sPuntI) return;
+  sPuntI = i;
   sfxChip();
   sAggiorna();
   sDisegnaTabella();
@@ -185,7 +188,7 @@ function sCambiaPuntata(d) {
 function sDisegnaTabella() {
   const box = document.getElementById('s-tabella-righe');
   if (!box) return;
-  const p = sPuntata, vl = u => ggb(Math.floor(u * p / 10));
+  const p = sBet(), vl = u => ggb(Math.floor(u * p / 10));
   const righe = S_ORDINE.slice().reverse().map(id => {
     const s = S_SIMBOLI[id];
     const val = id === 'bonus' ? (n => ggb(s.paga[n] * p)) : (n => vl(s.paga[n]));
@@ -228,8 +231,9 @@ function sGioca() {
   if (sGirando) return;
   const gratis = sGratis > 0;
   if (!gratis) {
-    if (sAutoOn && balance < sPuntata) { sAutoStop('Auto fermato: saldo insufficiente.'); return; }
-    if (balance < sPuntata) { sfxError(); sMsg('Saldo insufficiente! Abbassa la puntata o clicca il gatto in home.', 'lose'); return; }
+    if (!run || !sBet()) return;
+    if (sAutoOn && balance < sBet()) { sAutoStop('Auto fermato: stack insufficiente.'); return; }
+    if (balance < sBet()) { sfxError(); sMsg('Stack insufficiente! Abbassa la puntata.', 'lose'); return; }
   }
   startMusic();
   sTabella(false);
@@ -240,7 +244,9 @@ function sGioca() {
     sGratis--; sGratisFatti++;
     sMsg('Giro gratis ' + sGratisFatti + ' di ' + (sGratisFatti + sGratis) + ' · vincite ×2');
   } else {
-    balance -= sPuntata;
+    sPuntataGiro = sBet();
+    balance -= sPuntataGiro;
+    contaGiocata();
     sMsg(sAutoOn ? 'Auto: ancora ' + sAuto + ' giri' : 'Gira, gira...');
     document.getElementById('s-vincita').textContent = '—';
   }
@@ -296,7 +302,7 @@ function sGioca() {
 }
 
 function sRisultato(g, gratis) {
-  const puntata = gratis ? sGratisPuntata : sPuntata;
+  const puntata = gratis ? sGratisPuntata : sPuntataGiro;
   const v = sValuta(g, puntata, gratis ? 2 : 1);
   const vincita = v.totale;
   balance += vincita;
@@ -323,7 +329,7 @@ function sRisultato(g, gratis) {
   if (v.scatter) {
     sSuonoBonus();
     setCroupier('festoso');
-    if (!gratis) { sGratisPuntata = sPuntata; sGratisFatti = 0; sGratisTot = vincita; }
+    if (!gratis) { sGratisPuntata = sPuntataGiro; sGratisFatti = 0; sGratisTot = vincita; }
     sGratis += v.scatter.gratis;
     sBanner((gratis ? '+' : '') + v.scatter.gratis + ' GIRI GRATIS!', 'Il Tromba offre il giro · vincite ×2');
     sMsg(v.scatter.n + ' BONUS! ' + v.scatter.gratis + ' giri gratis' + (v.scatter.vincita ? ' e ' + ggb(v.scatter.vincita) : ''), 'win');
@@ -355,12 +361,11 @@ function sRisultato(g, gratis) {
 
   const pausa = v.scatter ? 2600 : grande ? 2400 : vincita ? 1300 : 650;
   if (sGratis > 0) { setTimeout(sGioca, pausa + (fineGratis ? 0 : 400)); return; }
+  if (fineRun()) { sAutoStop(); return; }
   if (sAutoOn) {
-    if (sAuto > 0 && balance >= sPuntata) setTimeout(sAutoGiro, pausa + (fineGratis ? 2200 : 0));
-    else sAutoStop(sAuto > 0 ? 'Auto fermato: saldo insufficiente.' : '');
-    return;
+    if (sAuto > 0 && balance >= sBet()) setTimeout(sAutoGiro, pausa + (fineGratis ? 2200 : 0));
+    else sAutoStop(sAuto > 0 ? 'Auto fermato: stack insufficiente.' : '');
   }
-  if (balance <= 0) bancarotta();
 }
 
 /* ── vincite: linee sullo schermo, celle che brillano, poi una linea alla volta ── */
@@ -421,7 +426,7 @@ function sAutoMenu() {
 function sAutoAvvia(giri) {
   document.getElementById('s-auto-menu').hidden = true;
   if (sOccupata()) return;
-  if (balance < sPuntata) { sfxError(); sMsg('Saldo insufficiente per l\'auto.', 'lose'); return; }
+  if (!run || !sBet() || balance < sBet()) { sfxError(); sMsg('Stack insufficiente per l\'auto.', 'lose'); return; }
   sAutoOn = true; sAuto = giri;
   sAutoGiro();
 }
@@ -436,15 +441,13 @@ function sAutoStop(testo) {
   sAutoOn = false; sAuto = 0;
   if (testo) sMsg(testo, 'push');
   sAggiorna();
-  if (!sGirando && !sGratis && balance <= 0) bancarotta();
+
 }
 
 /* ── entrata / uscita ── */
 function sEntra() {
   sCostruisci();
   requestAnimationFrame(sMisura);
-  // la puntata non può superare il saldo
-  while (sPuntata > S_PUNTATE[0] && sPuntata > balance) sPuntata = S_PUNTATE[S_PUNTATE.indexOf(sPuntata) - 1];
   sAggiorna();
   sDisegnaTabella();
   if (!document.getElementById('s-msg').textContent) sMsg('Scegli la puntata e tira la leva. Il maneki neko è il jolly!');
