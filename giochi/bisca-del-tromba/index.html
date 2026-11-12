@@ -807,6 +807,9 @@ function chips() {
   });
   return out;
 }
+// Cinquegirelli e Plinko: puntate fisse che non crescono con lo stack (scelta di Leo)
+const PUNTATE_FISSE = [10, 20, 50, 100];
+function puntateFisse() { return run ? PUNTATE_FISSE.slice() : []; }
 function puntataMin() { return run ? chips()[0] : 0; }
 // quanto si può mettere sul tavolo in una giocata
 function puntataTetto() { return Math.min(balance, puntataMax()); }
@@ -2306,7 +2309,7 @@ setCroupier('init');
 </script>
 <script src="../../js/radio.js?v=14"></script>
 <script src="roulette.js?v=8"></script>
-<script src="slot.js?v=4"></script>
-<script src="plinko.js?v=2"></script>
+<script src="slot.js?v=5"></script>
+<script src="plinko.js?v=3"></script>
 </body>
 </html>
