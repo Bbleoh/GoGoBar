@@ -1,6 +1,6 @@
 /* ════════════════════════════════════════════════════════════════
-   CLASSIFICA DI SLENDERRINO
-   Script classico (niente module): definisce window.SlenderrinoClassifica.
+   CLASSIFICA DI RESIDENT CREVIL: MORTE SUL GREPPO
+   Script classico (niente module): definisce window.ResidentCrevilClassifica.
    Lo usano sia il gioco sia la homepage del sito.
 
    attiva                 → true se il database è configurato
@@ -8,13 +8,13 @@
                             ordinata dal tempo più BASSO; [] se qualcosa va storto (non lancia mai)
    salva(nome, secondi)   → Promise<void>: tiene il tempo migliore (più basso) per ogni nome
 
-   Database: Firebase Realtime Database, percorso slenderrino/classifica
+   Database: Firebase Realtime Database, percorso residentcrevil/classifica
    (regole in firebase/regole.json: si può scrivere solo un tempo più basso del precedente).
 ════════════════════════════════════════════════════════════════ */
 (function () {
   'use strict';
   var DB_URL = 'https://gogobar-ed267-default-rtdb.europe-west1.firebasedatabase.app';
-  var PERCORSO = 'slenderrino/classifica';
+  var PERCORSO = 'residentcrevil/classifica';
   var TIMEOUT_MS = 8000;
 
   function base() { return DB_URL.replace(/\/+$/, ''); }
@@ -74,5 +74,5 @@
     }).then(function () {});
   }
 
-  window.SlenderrinoClassifica = { attiva: !!DB_URL, carica: carica, salva: salva };
+  window.ResidentCrevilClassifica = { attiva: !!DB_URL, carica: carica, salva: salva };
 })();
