@@ -72,13 +72,14 @@
 
   /* ── trofei ── */
   // valore in GGB per click, deciso dall'id: così vale anche nelle pagine senza contenuti.js
-  function valore(tid) { return /^(cm_|bisca_)/.test(tid) ? 5 : 1; }
+  function valore(tid) { return /^(cm_|bisca_|sl_)/.test(tid) ? 5 : 1; }
   var TROFEI_GIOCHI = [
     { id: 'cm_epico',          gruppo: 'Giochi', nome: 'Corri Marf! · Platino',     desc: 'Completa tutti gli achievement comuni, rari ed epici di Corri Marf!' },
     { id: 'cm_leggendario',    gruppo: 'Giochi', nome: 'Corri Marf! · Leggenda',    desc: 'Completa tutti gli achievement leggendari di Corri Marf!' },
     { id: 'cm_nascosti',       gruppo: 'Giochi', nome: 'Corri Marf! · Segreti',     desc: 'Trova tutti gli achievement nascosti di Corri Marf!' },
     { id: 'bisca_epico',       gruppo: 'Giochi', nome: 'Bisca · Platino',           desc: 'Completa tutti i trofei comuni, rari ed epici della Bisca der Tromba' },
-    { id: 'bisca_leggendario', gruppo: 'Giochi', nome: 'Bisca · Leggenda',          desc: 'Completa tutti i trofei leggendari della Bisca der Tromba' }
+    { id: 'bisca_leggendario', gruppo: 'Giochi', nome: 'Bisca · Leggenda',          desc: 'Completa tutti i trofei leggendari della Bisca der Tromba' },
+    { id: 'sl_fogli',          gruppo: 'Giochi', nome: 'Slenderrino · Fuori dal bosco', desc: 'Raccogli tutti e 10 i fogli nei boschi di Capricchia' }
   ];
   function slugBrano(file) { return k(String(file || '').replace(/^.*\//, '').replace(/\.[^.]+$/, '')); }
   function albumBase() {   // gli album che si hanno da subito: danno un trofeo ciascuno

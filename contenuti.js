@@ -43,6 +43,13 @@ const CONTENUTI = {
       tag: ['Bighelloni', 'Dipendenza', 'Salute'],
       inEvidenza: true,
     },
+    {
+      titolo: 'Slenderrino',
+      descrizione: "Notte, boschi di Capricchia. Guerrino ti dice di aspettarlo alla Fonticella. Poi si sentono le roncolate. (Prototipo)",
+      tag: ['Paura', 'Bosco', 'Roncola'],
+      link: 'giochi/slenderrino/',
+      immagine: 'giochi/slenderrino/copertina.jpg?v=1',
+    },
   ],
 
   // I video sono divisi in playlist, nell'ordine in cui appaiono sul sito.

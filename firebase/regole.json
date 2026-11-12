@@ -227,6 +227,15 @@
           ".validate": false
         }
       }
+    },
+    "slenderrino": {
+      "classifica": {
+        ".read": true,
+        "$giocatore": {
+          ".write": "newData.exists() && (!root.child('nomi/' + $giocatore).exists() || (auth != null && root.child('account/' + root.child('nomi/' + $giocatore).val() + '/dispositivi/' + auth.uid).exists()))",
+          ".validate": "newData.hasChildren(['nome', 'punti']) && newData.child('nome').isString() && newData.child('nome').val().length > 0 && newData.child('nome').val().length <= 20 && newData.child('punti').isNumber() && newData.child('punti').val() > 0 && newData.child('punti').val() <= 360000 && (!data.exists() || newData.child('punti').val() < data.child('punti').val())"
+        }
+      }
     }
   }
 }
