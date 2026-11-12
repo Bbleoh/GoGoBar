@@ -73,7 +73,7 @@
     .nav-radio.radio-on { color: var(--gold); }
     .nav-icona svg { width: 1.45rem; height: 1.45rem; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
     .brand { display: inline-flex; align-items: center; gap: .45rem; }
-    .brand img { width: 1.15em; height: 1.15em; display: block; }
+    .brand img { width: 1.15em; height: 1.15em; display: block; flex: none; }
     .nav-account {
       font-family: var(--mono); font-size: .72rem; letter-spacing: .06em;
       color: var(--gold-2); background: none; cursor: pointer;
@@ -167,6 +167,7 @@
       color: var(--gold-2) !important; padding: .4rem .7rem !important; white-space: nowrap; }
     .nav-ggb[hidden] { display: none !important; }
     .nav-ggb .ggb-ico { width: .85em; height: .8em; }
+    .ggb-miao { font-size: 1.9rem; animation-duration: 1.4s; }
     /* +1 raro nel banner */
     .ticker span.ggb-raro { padding: 0 .6rem; }
     .ticker span.ggb-raro button { pointer-events: auto; cursor: pointer; font: inherit; color: #fff3c4; background: #1a1408; border: 2px solid #fff3c4; border-radius: 999px;
@@ -368,13 +369,20 @@
       .brand { font-size: 1.55rem; }
       .nav-links a { font-size: .66rem; }
       .nav-links { gap: 0; }
-      .nav { gap: .5rem; }
+      /* sul telefono il saldo non sta nell'header: logo e account prendono il loro spazio,
+         le icone stanno al centro di quello che resta (con 1fr|auto|1fr Safari le sovrapponeva al logo) */
+      .nav { gap: .5rem; grid-template-columns: auto minmax(0, 1fr) auto; }
+      .nav > .nav-links:not(.nav-destra) { justify-self: center; }
       .nav-links a.nav-icona, .nav-links button.nav-icona { width: 2.15rem; height: 2.15rem; }
       .nav-icona svg { width: 1.25rem; height: 1.25rem; }
       .nav-account { font-size: .9rem; padding: .3rem .5rem; }
       .nav-account .gga-txt { display: none; }          /* sul telefono resta solo 👤 */
       .nav-account.gga-dentro { background: rgba(228,179,60,.18); }
       .nav-ggb { display: none !important; }            /* sul telefono il saldo sta sotto il gatto */
+    }
+    @media (max-width: 370px) {
+      .brand { font-size: 1.3rem; gap: .3rem; }
+      .nav { padding-left: .8rem; padding-right: .8rem; }
     }
   </style>
   <link rel="icon" href="favicon.ico" sizes="48x48">
@@ -788,10 +796,26 @@
     setTimeout(() => { fumetto && fumetto.remove(); fumetto = null; }, 4500);
   }
 
+  // miao raro: 0,02% dei tocchi (1 su 5000), per tutti, anche senza account.
+  // Il file (CC0, vedi audio/LICENZA.txt) si scarica solo quando serve.
+  const MIAO = 0.0002;
+  function miao(e) {
+    try { const a = new Audio('audio/miao.mp3'); a.volume = .9; a.play().catch(() => {}); } catch (err) {}
+    const r = mascot.getBoundingClientRect();
+    const m = document.createElement('span');
+    m.className = 'ggb-piu ggb-miao';
+    m.textContent = 'Miao!';
+    m.style.left = (e.clientX - r.left) + 'px';
+    m.style.top = (e.clientY - r.top - 44) + 'px';
+    mascot.append(m);
+    setTimeout(() => m.remove(), 1400);
+  }
+
   neko.addEventListener('pointerdown', function (e) {
     if (e.button > 0) return;
     e.preventDefault();
     neko.classList.remove('tocco'); void neko.offsetWidth; neko.classList.add('tocco');
+    if (Math.random() < (window.GOGOBAR_MIAO || MIAO)) miao(e);
     if (!window.GoGoAccount || !GoGoAccount.attivo) return;
     const n = G.clic();
     if (!n) { senzaAccount(); return; }
