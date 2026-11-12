@@ -14,8 +14,8 @@ body:not([data-gioco="blackjack"]) #stage,body:not([data-gioco="blackjack"]) #do
 #lobby-msg{font-family:var(--text);font-weight:800;font-size:clamp(1rem,2vw,1.3rem);color:var(--gold-light);text-shadow:0 2px 6px #000;min-height:1.4em;}
 .lobby-title{font-family:'Cinzel Decorative',serif;color:var(--gold);font-size:clamp(1.4rem,3.4vw,2.4rem);
   text-shadow:0 0 18px rgba(212,175,90,.5),0 2px 4px #000;}
-#tavoli{display:flex;gap:clamp(12px,2.4vw,28px);justify-content:center;flex-wrap:wrap;width:100%;}
-.tavolo{position:relative;width:clamp(180px,17.6vw,250px);display:flex;flex-direction:column;align-items:center;gap:6px;padding:14px 14px 18px;
+#tavoli{display:flex;gap:clamp(10px,1.4vw,20px);justify-content:center;flex-wrap:wrap;width:100%;}
+.tavolo{position:relative;width:clamp(150px,14vw,220px);display:flex;flex-direction:column;align-items:center;gap:6px;padding:14px 14px 18px;
   border-radius:22px;cursor:pointer;text-align:center;
   background:radial-gradient(ellipse at 50% 30%,#1c5a35 0%,var(--felt) 55%,var(--felt-dark) 100%);
   border:2px solid var(--gold-dim);box-shadow:0 18px 40px rgba(0,0,0,.6),inset 0 0 0 5px rgba(0,0,0,.25),inset 0 0 0 6px rgba(212,175,90,.2);
@@ -194,3 +194,18 @@ button.tavolo:hover,button.tavolo:focus-visible{transform:translateY(-6px);borde
   #r-tools .bet-tool{font-size:.7rem;padding:0 5px;letter-spacing:0;}
   .r-auto-wrap{flex:1 1 auto;}
 }
+
+/* il Tromba dietro al tavolo delle puntate, come al blackjack: se ne vede la metà di sopra */
+#r-croupier-panel{display:none;}
+@media (min-height:790px) and (min-width:901px){
+  #r-side{--ch:clamp(70px,calc(100dvh - 730px),170px);}
+  #r-head{order:1;} #r-storia{order:2;} #r-croupier-panel{order:3;} #r-board{order:4;} #r-modi{order:5;} #r-pagamenti{order:6;}
+  #r-croupier-panel{display:flex;justify-content:center;align-items:flex-start;width:100%;height:var(--ch);margin-bottom:-10px;position:relative;z-index:1;pointer-events:none;}
+  #r-croupier-big{display:block;height:calc(var(--ch)*2);width:auto;filter:drop-shadow(0 0 24px rgba(0,0,0,.9));transition:opacity .3s;}
+  #r-board{position:relative;z-index:2;}
+  #r-croupier{display:none;}
+}
+/* lobby: la J della slot come copertina del blackjack */
+.tavolo-img.bj-img{align-items:center;}
+.tavolo-img.bj-img img{height:88%;width:auto;align-self:center;transform:rotate(-6deg);animation:bjLobby 3s ease-in-out infinite;}
+@keyframes bjLobby{0%,100%{transform:rotate(-6deg) translateY(0);}50%{transform:rotate(-2deg) translateY(-5px);}}
