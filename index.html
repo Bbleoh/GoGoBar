@@ -451,7 +451,6 @@
 
 <footer>
   <div><strong>GoGoBar</strong> · Collettivo M.I.A.O.</div>
-  <a href="https://github.com/Bbleoh/GoGoBar" target="_blank" rel="noopener">github.com/Bbleoh/GoGoBar</a>
 </footer>
 
 <noscript><p style="padding:2rem;font-family:monospace">Per vedere i contenuti serve JavaScript attivo.</p></noscript>
@@ -747,9 +746,8 @@
     if (st.saldo == null) return;
     nav.hidden = false;
     contaMenu.textContent = G.formatta(st.saldo);
-    banco.innerHTML = '<b><span></span>' + G.icona + '</b><small></small>';
+    banco.innerHTML = '<b><span></span>' + G.icona + '</b>';
     banco.querySelector('b span').textContent = G.formatta(st.saldo);
-    banco.querySelector('small').textContent = 'GoGoldBar · +' + st.perClick + ' ' + G.simbolo + ' a click';
   }
   G.suCambio(disegna);
   disegna(G.stato());
