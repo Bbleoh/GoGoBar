@@ -462,7 +462,7 @@
 
 <noscript><p style="padding:2rem;font-family:monospace">Per vedere i contenuti serve JavaScript attivo.</p></noscript>
 
-<script src="contenuti.js?v=20"></script>
+<script src="contenuti.js?v=21"></script>
 <script src="js/radio.js?v=14"></script>
 <script src="js/copertina.js?v=1"></script>
 <!-- account GoGoBar senza password (👤 nel menu in alto) -->
@@ -479,6 +479,7 @@
 <!-- classifiche dei giochi: se un file non c'è ancora, la sua scheda invita a giocare -->
 <script src="giochi/bisca-del-tromba/classifica.js?v=9" onerror="window.BiscaClassifica = null"></script>
 <script src="giochi/corri-marf/classifica.js?v=2" onerror="window.CorriMarfClassifica = null"></script>
+<script src="giochi/slenderrino/classifica.js?v=1" onerror="window.SlenderrinoClassifica = null"></script>
 <script>
 /*
  * Costruisce la homepage a partire da CONTENUTI (vedi contenuti.js).
@@ -664,6 +665,8 @@
         link: BISCA, cta: 'Siediti al tavolo', punti: n => window.GoGoldBar ? GoGoldBar.valuta(n) : n.toLocaleString('it-IT') },
       { gioco: 'Corri Marf!', titolo: '💔 I peggio single', api: 'CorriMarfClassifica',
         link: 'giochi/corri-marf/', cta: 'Corri anche tu', punti: n => n.toLocaleString('it-IT') + ' m' },
+      { gioco: 'Slenderrino', titolo: '🌲 Usciti vivi dal bosco', api: 'SlenderrinoClassifica',
+        link: 'giochi/slenderrino/', cta: 'Entra nel bosco', punti: n => Math.floor(n / 60) + ':' + String(n % 60).padStart(2, '0') },
     ];
     const box = el('div', 'card board');
     const testa = el('div', 'board-head');
