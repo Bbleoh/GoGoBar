@@ -805,9 +805,9 @@ function chips() {
   });
   return out;
 }
-// Cinquegirelli e Plinko: puntate fisse che non crescono con lo stack (scelta di Leo)
+// Cinquegirelli e Plinko: puntate fisse che non crescono con lo stack, in scala col tavolo (10/20/50/100 al tavolo da 100)
 const PUNTATE_FISSE = [10, 20, 50, 100];
-function puntateFisse() { return run ? PUNTATE_FISSE.slice() : []; }
+function puntateFisse() { return run ? PUNTATE_FISSE.map(v => v * run.tavolo / 100) : []; }
 function puntataMin() { return run ? chips()[0] : 0; }
 // quanto si può mettere sul tavolo in una giocata
 function puntataTetto() { return Math.min(balance, puntataMax()); }
@@ -829,16 +829,26 @@ function disegnaChips(id, onclickDi, scelta) {
 function contaGiocata() { if (run) run.giocate++; }
 
 // dopo ogni giocata: sotto la puntata minima la run è finita, a 100× il buy-in si sale di tavolo
-function fineRun() {
+// macchinette = true per Cinquegirelli e Plinko: lì si sale appena lo stack supera il buy-in del tavolo dopo
+// (al tavolo da 100 a 1.000), anche di più tavoli in un colpo; blackjack e roulette salgono a 100× il buy-in
+function fineRun(macchinette) {
   if (!run) return true;
   if (balance < passo()) { bancarotta(); return true; }
-  const prossimo = run.tavolo * 100;
-  if (TAVOLI.includes(prossimo) && balance >= prossimo) {
+  let prossimo = 0;
+  if (macchinette) { for (const t of TAVOLI) if (t > run.tavolo && balance >= t) prossimo = t; }
+  else if (TAVOLI.includes(run.tavolo * 100) && balance >= run.tavolo * 100) prossimo = run.tavolo * 100;
+  if (prossimo) {
     run.tavolo = prossimo;
     currentBet = 0;
+    if (typeof sPuntI !== 'undefined') sPuntI = 0;   // nuovo tavolo: si riparte dalla puntata più bassa
+    if (typeof pPuntI !== 'undefined') pPuntI = 0;
+    if (typeof sAutoStop === 'function' && sAutoOn) sAutoStop('Auto fermato: sei salito di tavolo.');
+    if (typeof pAutoStop === 'function' && pAutoOn) pAutoStop('Auto fermato: sei salito di tavolo.');
+    const f = puntateFisse();
     const b = document.getElementById('salto');
     b.querySelector('b').textContent = 'Il Tromba sbaraglia tutto!';
-    b.querySelector('span').textContent = 'Passi al tavolo da ' + numero(prossimo) + ': puntata max ' + ggb(puntataMax());
+    b.querySelector('span').textContent = 'Passi al tavolo da ' + numero(prossimo) + ': ' +
+      (macchinette ? 'slot e plinko da ' + ggb(f[0]) + ' a ' + ggb(f[f.length - 1]) : 'puntata max ' + ggb(puntataMax()));
     b.className = ''; void b.offsetWidth; b.className = 'show';
     sfxTrofeo();
     memScrivi();
@@ -868,7 +878,9 @@ function aggiornaLobby() {
   const c = chips(), prossimo = run.tavolo * 100;
   const parti = ['Puntata da <b>' + ggb(c[0]) + '</b> a <b>' + ggb(puntataMax()) + '</b>'];
   parti.push(run.giocate < GIOCATE_CASHOUT ? 'cash-out tra <b>' + (GIOCATE_CASHOUT - run.giocate) + '</b> giocate' : '<b>cash-out disponibile</b>');
-  if (TAVOLI.includes(prossimo)) parti.push('a ' + ggb(prossimo) + ' sali al tavolo da ' + numero(prossimo));
+  const dopo = TAVOLI.find(t => t > run.tavolo);
+  if (dopo) parti.push('con slot o plinko a ' + ggb(dopo) + ' sali al tavolo da ' + numero(dopo));
+  if (TAVOLI.includes(prossimo)) parti.push('con blackjack o roulette a ' + ggb(prossimo) + ' sali al tavolo da ' + numero(prossimo));
   if (run.partenza !== run.tavolo) parti.push('run partita dal tavolo da ' + numero(run.partenza));
   document.getElementById('lobby-info').innerHTML = parti.join(' · ');
 }
@@ -2307,7 +2319,7 @@ setCroupier('init');
 </script>
 <script src="../../js/radio.js?v=14"></script>
 <script src="roulette.js?v=8"></script>
-<script src="slot.js?v=5"></script>
-<script src="plinko.js?v=4"></script>
+<script src="slot.js?v=6"></script>
+<script src="plinko.js?v=5"></script>
 </body>
 </html>
