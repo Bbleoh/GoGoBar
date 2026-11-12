@@ -1,0 +1,5 @@
+miao.mp3
+  Miagolio di gattino da BigSoundBank (https://bigsoundbank.com/), CC0 1.0
+  (pubblico dominio), preso dal pacchetto github.com/aurthur/spank-kitten-sounds
+  (sounds/little_07.mp3, anch'esso CC0). Rifilato e normalizzato per GoGoBar.
+  Licenza: https://creativecommons.org/publicdomain/zero/1.0/
