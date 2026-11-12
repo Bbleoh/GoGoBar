@@ -668,6 +668,7 @@
   <div class="modal-box">
     <h2>💸 Sbancato!</h2>
     <p>Sei sotto la puntata minima, <span id="overlay-name"></span>: il buy-in è andato. Il Tromba ringrazia.</p>
+    <p id="overlay-resto" style="display:none"></p>
     <button class="btn primary wide" onclick="nuovoBuyIn()">🎲 Nuovo buy-in</button>
     <a class="btn wide" href="../../#neko" style="text-decoration:none;text-align:center;margin-top:8px">🐱 Mi servono GoGoldBar</a>
   </div>
@@ -1999,6 +2000,14 @@ function finishRound() {
    RESET
 ════════════════════════════════════════════════════════════════ */
 function bancarotta() {
+  // gli spiccioli sotto la puntata minima tornano nel portafogli
+  const resto = Math.max(0, Math.floor(balance));
+  const rEl = document.getElementById('overlay-resto');
+  rEl.style.display = resto > 0 ? '' : 'none';
+  if (resto > 0) {
+    rEl.innerHTML = 'Gli spiccioli rimasti (' + ggb(resto) + ') tornano nel portafogli.';
+    GoGoldBar.aggiungi(resto).catch(() => { rEl.textContent = 'Non sono riuscito a rimettere gli spiccioli nel portafogli, riprova più tardi.'; });
+  }
   run = null; balance = 0; currentBet = 0;
   stats.bancarotte++;
   sblocca('rovina');
