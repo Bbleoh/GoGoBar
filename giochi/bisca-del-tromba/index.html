@@ -11,7 +11,7 @@
 
 <link rel="stylesheet" href="roulette.css?v=6">
 <link rel="stylesheet" href="slot.css?v=2">
-<link rel="stylesheet" href="plinko.css?v=1">
+<link rel="stylesheet" href="plinko.css?v=2">
 <style>
   :root{
     --gold:#d4af5a; --gold-light:#f3dc9a; --gold-dim:rgba(212,175,90,.35);
@@ -534,7 +534,7 @@
       </button>
       <button class="tavolo" onclick="vaiA('plinko')">
         <div class="tavolo-img pl"><div class="mini-plinko-wrap"><div class="mini-plinko"></div><div class="mini-plinko-moneta"></div></div></div>
-        <div class="tavolo-testo"><b>Plinko</b><small>Lascia cadere la moneta tra i chiodi: in fondo le buche moltiplicano la puntata, fino a 150 volte.</small></div>
+        <div class="tavolo-testo"><b>Plinko</b><small>Lascia cadere la moneta tra i chiodi: da 8 a 18 file, in fondo le buche moltiplicano la puntata fino a 1.000 volte.</small></div>
         <kbd>P</kbd>
       </button>
     </div>
@@ -639,7 +639,7 @@
     <div class="pk">
       <h2 class="pk-titolo">Plinko</h2>
       <div id="p-head"><img id="p-croupier" src="assets/croupier-init.png" alt="Il Tromba"><div id="p-msg" aria-live="polite"></div></div>
-      <canvas id="p-board" aria-label="Tabellone del plinko: 12 file di chiodi e 13 buche"></canvas>
+      <canvas id="p-board" aria-label="Tabellone del plinko"></canvas>
       <div id="p-storia" aria-label="Ultimi moltiplicatori"></div>
       <div class="pk-pannello vlt-pannello">
         <div class="s-info"><small>Stack</small><span id="p-saldo">0 &#xE000;</span></div>
@@ -647,10 +647,20 @@
         <div class="s-info"><small>Ultima</small><span id="p-vincita">—</span></div>
       </div>
       <div class="pk-tasti">
-        <div id="p-rischi" role="group" aria-label="Rischio"></div>
-        <button class="btn s-gioca" type="button" id="p-gioca" onclick="pLancia()" title="Spazio o Invio">Lancia</button>
+        <select id="p-righe" class="pk-scelta" aria-label="Numero di file di chiodi" title="Frecce ← →"></select>
+        <div class="pk-centro">
+          <div class="pk-auto-wrap">
+            <button class="bet-tool auto" type="button" id="p-auto" onclick="pAutoMenu()" title="Tasto A">⟳ Auto</button>
+            <div id="p-auto-menu" hidden role="menu" aria-label="Quante monete automatiche">
+              <small>Monete automatiche</small>
+              <div><button class="bet-tool" onclick="pAutoAvvia(5)">5</button><button class="bet-tool" onclick="pAutoAvvia(10)">10</button><button class="bet-tool" onclick="pAutoAvvia(20)">20</button></div>
+            </div>
+          </div>
+          <button class="btn s-gioca" type="button" id="p-gioca" title="Spazio o Invio · tieni premuto per continuare">Lancia</button>
+        </div>
+        <select id="p-rischio" class="pk-scelta" aria-label="Rischio" title="Tasti 1 2 3"></select>
       </div>
-      <div id="p-keys">Tasti: Spazio/Invio lancia · ↑↓ puntata · 1 2 3 rischio</div>
+      <div id="p-keys">Tasti: Spazio/Invio lancia (tieni premuto per continuare) · ↑↓ puntata · ←→ file · 1 2 3 rischio · A auto</div>
     </div>
   </section>
 
@@ -2297,6 +2307,6 @@ setCroupier('init');
 <script src="../../js/radio.js?v=14"></script>
 <script src="roulette.js?v=8"></script>
 <script src="slot.js?v=4"></script>
-<script src="plinko.js?v=1"></script>
+<script src="plinko.js?v=2"></script>
 </body>
 </html>
