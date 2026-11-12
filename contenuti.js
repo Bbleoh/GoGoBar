@@ -45,10 +45,10 @@ const CONTENUTI = {
     },
     {
       titolo: 'Resident Crevil: morte sul greppo',
-      descrizione: "Notte, boschi di Capricchia. Guerrino ti dice di aspettarlo alla Fonticella. Poi si sentono le roncolate. (Prototipo)",
-      tag: ['Paura', 'Bosco', 'Roncola'],
+      descrizione: "Notte, boschi di Capricchia. Guerrino ti porta alla Fonticella Petri e si mette a menare un albero. Tu cerchi i fogli. Poi arriva Papi, alto tre metri. (Prototipo)",
+      tag: ['Paura', 'Bosco', 'Papi'],
       link: 'giochi/resident-crevil/',
-      immagine: 'giochi/resident-crevil/copertina.jpg?v=2',
+      immagine: 'giochi/resident-crevil/copertina.jpg?v=3',
     },
   ],
 

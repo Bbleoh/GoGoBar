@@ -1,0 +1,6 @@
+Passi nel bosco (passo1-5.mp3) e pugni sugli alberi (pugno1-3.mp3):
+mix dei suoni di Kenney (www.kenney.nl), pacchetti "RPG Audio" (footstep00-09)
+e "Impact Sounds" (footstep_grass, impactPunch_heavy, impactWood_heavy).
+
+Licenza: Creative Commons Zero, CC0 1.0 Universal (pubblico dominio)
+http://creativecommons.org/publicdomain/zero/1.0/
