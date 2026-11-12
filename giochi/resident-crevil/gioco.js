@@ -1,5 +1,5 @@
 /* ════════════════════════════════════════════════════════════════
-   SLENDERRINO — prototipo
+   RESIDENT CREVIL: MORTE SUL GREPPO — prototipo
    Notte nei boschi di Capricchia (Amatrice). Guerrino ti porta alla
    Fonticella, ti dice di aspettarlo e se ne va. Dopo qualche minuto
    si sentono le roncolate... Raccogli i 10 fogli prima che ti prenda.
@@ -16,6 +16,7 @@ import { MeshoptDecoder } from './lib/addons/libs/meshopt_decoder.module.js';
 import { mergeGeometries } from './lib/addons/utils/BufferGeometryUtils.js';
 
 const VELOCE = /veloce/.test(location.search);
+const PROVA = { congela: false };   // per i test: ferma la logica di Guerrino
 const HALF = 650, N = 261, CELLA = 5, LIMITE = 615;
 const TOCCO = matchMedia('(pointer: coarse)').matches || 'ontouchstart' in window;
 if (TOCCO) document.body.classList.add('tocco');
@@ -118,8 +119,9 @@ const pronto = Promise.all([
   promessa(caricaTex, 'mappa/colori.jpg'),
   fetch('mappa/osm.json').then(r => r.json()),
   promessa(gltf, 'modelli/guerrino.glb'),
+  promessa(gltf, 'modelli/roncola.glb').catch(() => null),
   ...SUONI.map(s => promessa(caricaAudio, 'sfx/' + s + '.mp3').then(b => { buf[s] = b; }, () => {})),
-]).then(([bin, bosco, colori, osm, modello]) => costruisci(bin, bosco, colori, osm, modello));
+]).then(([bin, bosco, colori, osm, modello, roncola]) => costruisci(bin, bosco, colori, osm, modello, roncola));
 
 /* ════════ TERRENO ════════ */
 let Q;   // Float32Array quote
@@ -392,9 +394,9 @@ function creaFogli() {
 }
 
 /* ════════ GUERRINO ════════ */
-const guerrino = { g: new THREE.Group(), stato: 'guida', x: 0, z: 0, rot: 0, t: 0, passo: 0, tappa: 0, inclina: 0, prossimo: 0, fine: 0, bersaglio: null };
+const guerrino = { g: new THREE.Group(), stato: 'guida', x: 0, z: 0, rot: 0, t: 0, passo: 0, tappa: 0, inclina: 0, vel: 0, colpo: 0, prossimo: 0, fine: 0, bersaglio: null };
 let roncolaAudio = null, colpoAudio = null;
-function creaGuerrino(modello) {
+function creaGuerrino(modello, roncola) {
   const m = modello.scene;
   // Lambert come il resto della scena: col PBR la torcia lo sbianca
   m.traverse(o => {
@@ -405,20 +407,57 @@ function creaGuerrino(modello) {
   });
   guerrino.corpo = m;
   guerrino.g.add(m);
-  // roncola provvisoria (arriva il modello vero): manico + lama curva
-  const ron = new THREE.Group();
-  const manico = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.022, 0.16, 6), new THREE.MeshLambertMaterial({ color: 0x3a2414 }));
-  ron.add(manico);
-  const sagoma = new THREE.Shape();
-  sagoma.moveTo(0, 0); sagoma.lineTo(0.035, 0); sagoma.quadraticCurveTo(0.05, 0.22, -0.02, 0.32); sagoma.quadraticCurveTo(-0.07, 0.3, -0.04, 0.26);
-  sagoma.quadraticCurveTo(0.0, 0.2, -0.01, 0);
-  const lama = new THREE.Mesh(new THREE.ExtrudeGeometry(sagoma, { depth: 0.006, bevelEnabled: false }), new THREE.MeshStandardMaterial({ color: 0x8b8f93, metalness: 0.8, roughness: 0.45 }));
-  lama.position.y = 0.07; ron.add(lama);
-  ron.position.set(-0.33, 0.86, 0.06);
-  ron.rotation.set(0.25, 0, 0.15);
-  guerrino.roncola = ron;
-  guerrino.g.add(ron);
+  const osso = n => m.getObjectByName(n);
+  guerrino.braccio = osso('RightArm'); guerrino.avambraccio = osso('RightForeArm');
+  // camminata (unica animazione del modello): tolgo lo spostamento in avanti delle anche,
+  // così la velocità la decide il gioco; v0 = metri al secondo della camminata originale
+  const clip = modello.animations[0];
+  guerrino.v0 = 1.2;
+  if (clip) {
+    const tr = clip.tracks.find(t => /Hips\.position$/.test(t.name));
+    if (tr) {
+      const v = tr.values, n = v.length / 3;
+      guerrino.v0 = Math.max(0.4, Math.hypot(v[(n - 1) * 3] - v[0], v[(n - 1) * 3 + 2] - v[2]) / clip.duration);
+      for (let i = 0; i < n; i++) { v[i * 3] = v[0]; v[i * 3 + 2] = v[2]; }
+    }
+    guerrino.mixer = new THREE.AnimationMixer(m);
+    guerrino.passo1 = guerrino.mixer.clipAction(clip); guerrino.passo1.play();
+    // posa da fermo: il fotogramma con i piedi più vicini
+    const piedeS = osso('LeftFoot'), piedeD = osso('RightFoot'), a = new THREE.Vector3(), b = new THREE.Vector3();
+    let best = 0, bd = Infinity;
+    for (let t = 0; t < clip.duration; t += clip.duration / 32) {
+      guerrino.mixer.setTime(t); m.updateMatrixWorld(true);
+      const d = piedeS.getWorldPosition(a).distanceTo(piedeD.getWorldPosition(b));
+      if (d < bd) { bd = d; best = t; }
+    }
+    guerrino.tFermo = best;
+  }
+  // la roncola di Leo in mano destra (il modello è alto 1,9 "unità": la porto a 50 cm)
+  const mano = osso('RightHand');
+  if (roncola && mano) {
+    const r = roncola.scene;
+    r.traverse(o => { if (o.isMesh) o.frustumCulled = false; });
+    r.position.set(0, -1.65, 0);
+    const perno = new THREE.Group(); perno.add(r);
+    perno.scale.setScalar(0.27); perno.position.set(0, 0.085, 0); perno.rotation.set(0, 0, Math.PI / 2 + 0.6);
+    mano.add(perno);
+  }
   scena.add(guerrino.g);
+}
+
+// velocità (m/s) e colpo (0 = braccio giù, 1 = roncola alzata, <0 = colpo affondato) decisi dalla logica
+const _qc = new THREE.Quaternion(), _ax = new THREE.Vector3(1, 0, 0);
+function animaGuerrino(dt) {
+  if (!guerrino.mixer || !guerrino.g.visible) return;
+  const v = guerrino.vel || 0, az = guerrino.passo1;
+  if (v > 0.05) { az.paused = false; az.timeScale = v / guerrino.v0; }
+  else { az.paused = true; az.time += (guerrino.tFermo - az.time) * Math.min(1, dt * 6); }
+  guerrino.mixer.update(dt);
+  const c = guerrino.colpo || 0;
+  if (c !== 0 && guerrino.braccio) {
+    guerrino.braccio.quaternion.multiply(_qc.setFromAxisAngle(_ax, c * 2.2));
+    guerrino.avambraccio.quaternion.multiply(_qc.setFromAxisAngle(_ax, Math.max(0, c) * 0.9));
+  }
 }
 
 /* ════════ AUDIO ════════ */
@@ -645,19 +684,19 @@ function camminaSu(lista, dt, vel) {
   const dx = tx - guerrino.x, dz = tz - guerrino.z, d = Math.hypot(dx, dz);
   if (d < 0.6) { guerrino.tappa++; return guerrino.tappa >= lista.length; }
   const s = Math.min(d, vel * dt);
-  guerrino.x += dx / d * s; guerrino.z += dz / d * s;
+  guerrino.x += dx / d * s; guerrino.z += dz / d * s; guerrino.vel = vel;
   giraVerso(Math.atan2(dx, dz), dt, 5);
   guerrino.passo += s;
   return false;
 }
-function disegnaGuerrino(t, ondeggia = 1) {
-  const q = quota(guerrino.x, guerrino.z);
-  guerrino.g.position.set(guerrino.x, q + Math.abs(Math.sin(guerrino.passo * 2.6)) * 0.035 * ondeggia, guerrino.z);
-  guerrino.g.rotation.set(guerrino.inclina || 0, guerrino.rot, Math.sin(guerrino.passo * 2.6) * 0.03 * ondeggia);
+function disegnaGuerrino() {
+  guerrino.g.position.set(guerrino.x, quota(guerrino.x, guerrino.z), guerrino.z);
+  guerrino.g.rotation.set(guerrino.inclina || 0, guerrino.rot, 0);
 }
 
 function aggiornaStoria(dt, t) {
   tStoria += dt;
+  guerrino.vel = 0;
   const dGioc = Math.hypot(io.x - guerrino.x, io.z - guerrino.z);
   if (storia === 'intro') {
     giraVerso(guardaVerso(io.x, io.z), dt, 3);
@@ -788,7 +827,7 @@ function aggiornaCaccia(dt, t, d) {
       if (Math.random() < pInsegue) {
         const av = avanti(), a = Math.atan2(av.x, av.z) + Math.PI + (Math.random() - 0.5) * 1.2;
         posaGuerrino(io.x + Math.sin(a) * 32, io.z + Math.cos(a) * 32, 0);
-        guerrino.stato = 'insegue'; guerrino.fine = t + 12 + Math.random() * 8; guerrino.passo = 0;
+        guerrino.stato = 'insegue'; guerrino.fine = t + 12 + Math.random() * 8; guerrino.passo = 0; guerrino.colpo = 0;
         guerrino.g.visible = true; guerrino.inclina = 0.14;
         if (roncolaAudio) { roncolaAudio.setPlaybackRate(1.15); roncolaAudio.play(); }
         if (Math.random() < 0.6) dici(pesca(BATTUTE.caccia), 2600);
@@ -808,11 +847,13 @@ function aggiornaCaccia(dt, t, d) {
   } else if (guerrino.stato === 'apposta') {
     // mena l'albero: piccoli scatti a tempo con le roncolate, poi si gira verso di te
     guerrino.tColpo += dt;
-    const colpo = guerrino.tColpo < 2.7 ? Math.max(0, Math.sin(guerrino.tColpo * Math.PI / 0.45)) : 0;
+    // un colpo ogni 0,45 s come nel suono: alza (1) e cala di scatto (-0.15)
+    const ph = (guerrino.tColpo % 0.45) / 0.45;
+    const colpo = guerrino.tColpo < 2.7 ? (ph < 0.7 ? ph / 0.7 : 1 - (ph - 0.7) / 0.3 * 1.15) : 0;
     if (guerrino.tColpo > 2.7) giraVerso(guardaVerso(io.x, io.z), dt, 1.2);
-    guerrino.roncola.rotation.x = 0.25 - colpo * 1.6;
+    guerrino.colpo = colpo;
     guerrino.g.position.set(guerrino.x, quota(guerrino.x, guerrino.z), guerrino.z);
-    guerrino.g.rotation.set(colpo * 0.06, guerrino.rot + colpo * 0.12, 0);
+    guerrino.g.rotation.set(Math.max(0, -colpo) * 0.2, guerrino.rot, 0);
     // se ti avvicini troppo, ti viene addosso
     if (d < 7 + livello * 0.4) { guerrino.stato = 'insegue'; guerrino.fine = t + 8; guerrino.inclina = 0.14; }
     if (t > guerrino.fine && vis === 0) { guerrino.g.visible = false; guerrino.stato = 'assente'; guerrino.prossimo = t + Math.max(6, 20 - livello * 1.4) * (0.7 + Math.random() * 0.6); }
@@ -825,10 +866,10 @@ function aggiornaCaccia(dt, t, d) {
       if (od < tr.r + 0.6) { dx += ox / od * 0.8; dz += oz / od * 0.8; }
     });
     const l2 = Math.hypot(dx, dz) || 1;
-    guerrino.x += dx / l2 * v * dt; guerrino.z += dz / l2 * v * dt; guerrino.passo += v * dt * 1.4;
+    guerrino.x += dx / l2 * v * dt; guerrino.z += dz / l2 * v * dt; guerrino.vel = v;
     giraVerso(Math.atan2(dx, dz), dt, 6);
-    guerrino.roncola.rotation.x = 0.25 - Math.max(0, Math.sin(guerrino.passo * 1.3)) * 1.2;
-    disegnaGuerrino(t, 1.6);
+    guerrino.colpo = 0.55 + Math.sin(t * 3) * 0.1;   // corre con la roncola alzata
+    disegnaGuerrino();
     if (t > guerrino.fine && vis === 0) { guerrino.g.visible = false; guerrino.stato = 'assente'; guerrino.inclina = 0; guerrino.prossimo = t + Math.max(6, 18 - livello * 1.2); }
   }
 
@@ -875,8 +916,8 @@ function preso() {
   // ultimo sguardo: girati verso di lui
   const a = Math.atan2(-(guerrino.x - io.x), -(guerrino.z - io.z));
   io.yaw = a; io.pitch = 0.05;
-  posaGuerrino(io.x - Math.sin(a) * 1.1, io.z - Math.cos(a) * 1.1, a + Math.PI);
-  guerrino.g.visible = true;
+  posaGuerrino(io.x - Math.sin(a) * 1.4, io.z - Math.cos(a) * 1.4, a);
+  guerrino.g.visible = true; guerrino.vel = 0; guerrino.colpo = 1; guerrino.inclina = 0; disegnaGuerrino();
   camera.rotation.set(io.pitch, io.yaw, 0, 'YXZ');
   suono('colpo', 1); suono('scricchiolio', 0.6);
   ui.statico.style.opacity = 0.9;
@@ -893,7 +934,7 @@ function riprova() {
   mostra('morte', false); document.body.classList.remove('fuori');
   io.x = io.check.x; io.z = io.check.z; io.fiato = 1; io.sfinito = false;
   io.batteria = Math.max(io.batteria, 0.25); if (io.batteria > 0) io.torcia = true;
-  staticoV = 0; guerrino.g.visible = false; guerrino.stato = 'assente'; guerrino.albero = null;
+  staticoV = 0; guerrino.g.visible = false; guerrino.stato = 'assente'; guerrino.albero = null; guerrino.colpo = 0;
   guerrino.prossimo = orologio.elapsedTime + 15;
   if (storia !== 'caccia') { storia = 'caccia'; tCaccia = 0; }
   ui.buio.style.opacity = 0;
@@ -912,7 +953,7 @@ function vittoria() {
       document.body.classList.add('fuori'); mostra('vittoria', true);
       if (document.pointerLockElement) document.exitPointerLock();
       preparaSalvataggio(s);
-      if (window.GoGoldBar && GoGoldBar.trofeo) try { GoGoldBar.trofeo('sl_fogli'); } catch (e) {}
+      if (window.GoGoldBar && GoGoldBar.trofeo) try { GoGoldBar.trofeo('rc_fogli'); } catch (e) {}
     }, 800);
   }, 1200);
 }
@@ -939,7 +980,7 @@ function controllaOrizzontale() {
 /* ════════ CLASSIFICA ════════ */
 function nomeAccount() { const A = window.GoGoAccount, s = A && A.stato && A.stato(); return s && s.account ? s.account.nome : ''; }
 function disegnaClassifica(el) {
-  const C = window.SlenderrinoClassifica;
+  const C = window.ResidentCrevilClassifica;
   if (!C || !C.attiva) { el.innerHTML = ''; return; }
   C.carica(8).then(righe => {
     if (!righe.length) { el.innerHTML = '<h3>Chi è uscito dal bosco</h3><p class="piccolo">Ancora nessuno.</p>'; return; }
@@ -947,14 +988,14 @@ function disegnaClassifica(el) {
   });
 }
 function preparaSalvataggio(sec) {
-  const C = window.SlenderrinoClassifica, box = $('salva-box'), inp = $('nome'), esito = $('salva-esito');
+  const C = window.ResidentCrevilClassifica, box = $('salva-box'), inp = $('nome'), esito = $('salva-esito');
   disegnaClassifica($('classifica-fine'));
   if (!C || !C.attiva) { box.classList.add('nascosto'); return; }
   const acc = nomeAccount();
-  if (acc) { inp.value = acc; inp.disabled = true; } else inp.value = localStorage.getItem('slenderrino.nome') || '';
+  if (acc) { inp.value = acc; inp.disabled = true; } else inp.value = localStorage.getItem('residentcrevil.nome') || '';
   $('salva').onclick = () => {
     const nome = inp.value.trim().slice(0, 20); if (!nome) { inp.focus(); return; }
-    try { localStorage.setItem('slenderrino.nome', nome); } catch (e) {}
+    try { localStorage.setItem('residentcrevil.nome', nome); } catch (e) {}
     esito.textContent = 'Salvo...';
     C.salva(nome, sec).then(() => { esito.textContent = 'Fatto.'; disegnaClassifica($('classifica-fine')); }, e => { esito.textContent = e.message; });
   };
@@ -962,7 +1003,7 @@ function preparaSalvataggio(sec) {
 
 /* ════════ COSTRUZIONE E CICLO ════════ */
 const orologio = new THREE.Clock();
-function costruisci(bin, bosco, colori, osm, modello) {
+function costruisci(bin, bosco, colori, osm, modello, roncola) {
   const u16 = new Uint16Array(bin);
   Q = new Float32Array(N * N);
   for (let i = 0; i < Q.length; i++) Q[i] = 1000 + u16[i] / 20;
@@ -972,10 +1013,10 @@ function costruisci(bin, bosco, colori, osm, modello) {
   creaPaese(osm);
   creaFonte();
   creaFogli();
-  creaGuerrino(modello);
+  creaGuerrino(modello, roncola);
   preparaAudio();
   posaGuerrino(-143.5, 383, 0);
-  guerrino.rot = guardaVerso(io.x, io.z); disegnaGuerrino(0, 0);
+  guerrino.rot = guardaVerso(io.x, io.z); disegnaGuerrino(); animaGuerrino(0);
   camera.position.set(io.x, quota(io.x, io.z) + 1.65, io.z);
   camera.rotation.set(io.pitch, io.yaw, 0, 'YXZ');
   // primo render per compilare gli shader mentre c'è ancora il caricamento
@@ -984,7 +1025,7 @@ function costruisci(bin, bosco, colori, osm, modello) {
   mostra('caricamento', false); mostra('menu', true);
   document.body.classList.remove('carica'); document.body.classList.add('fuori');
   disegnaClassifica($('classifica-menu'));
-  window.__slenderrino = { quota, guarda: (x, z) => { io.yaw = Math.atan2(-(x - io.x), -(z - io.z)); }, info: () => renderer.info.render, io, guerrino, scena, camera, renderer, salta: s => { storia = s; tStoria = 0; }, caccia: () => { iniziaCaccia(orologio.elapsedTime); guerrino.prossimo = 0; }, stato: () => ({ storia, fase, attesa, livello, staticoV }) };
+  window.__crevil = { PROVA, quota, guarda: (x, z) => { io.yaw = Math.atan2(-(x - io.x), -(z - io.z)); }, info: () => renderer.info.render, io, guerrino, scena, camera, renderer, salta: s => { storia = s; tStoria = 0; }, caccia: () => { iniziaCaccia(orologio.elapsedTime); guerrino.prossimo = 0; }, stato: () => ({ storia, fase, attesa, livello, staticoV }) };
 }
 pronto.catch(e => { console.error(e); $('prog-testo').textContent = 'Il bosco non si carica: ricarica la pagina.'; });
 
@@ -1008,12 +1049,12 @@ function ciclo() {
     if (storia === 'solo' || storia === 'caccia') io.tempo += dt;   // il tempo parte quando Guerrino se ne va
     muoviGiocatore(dt);
     aggiornaTorcia(dt, t);
-    aggiornaStoria(dt, t);
+    if (!PROVA.congela) aggiornaStoria(dt, t);
     aggiornaDialogo(dt);
     cercaFoglio();
     if ((tFosso -= dt) < 0) { tFosso = 0.5; if (fosso) fosso.setVolume(Math.max(0, 1 - distFosso(io.x, io.z) / 70) * 0.6); }
   }
-  if (fase === 'gioco' || fase === 'morto') disegnaStatico(t);
+  if (fase === 'gioco' || fase === 'morto') { disegnaStatico(t); animaGuerrino(dt); }
   // accendi solo i pezzi di bosco vicini
   for (const b of BLOCCHI) b.visible = Math.hypot(b.userData.cx - io.x, b.userData.cz - io.z) < (TOCCO ? 105 : 125);
   renderer.render(scena, camera);

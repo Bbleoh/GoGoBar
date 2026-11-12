@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no"/>
+  <title>Resident Crevil: morte sul greppo · GoGoBar</title>
+  <meta name="description" content="Notte, boschi di Capricchia, dieci fogli. E Guerrino."/>
+  <meta property="og:title" content="Resident Crevil: morte sul greppo · GoGoBar"/>
+  <meta property="og:image" content="copertina.jpg"/>
+  <link rel="icon" href="../../favicon.ico"/>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Special+Elite&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="stile.css?v=2"/>
+</head>
+<body class="carica">
+  <canvas id="scena"></canvas>
+  <canvas id="statico" width="160" height="90"></canvas>
+  <div id="buio"></div>
+
+  <!-- HUD -->
+  <div id="hud">
+    <div class="hud-sx">
+      <div id="fogli">Fogli <b>0</b>/10</div>
+      <div class="barra" title="Batteria della torcia"><span>🔦</span><i><em id="batteria"></em></i></div>
+      <div class="barra" title="Fiato"><span>💨</span><i><em id="fiato"></em></i></div>
+    </div>
+    <button id="pausa-btn" class="tondo" aria-label="Pausa">II</button>
+  </div>
+  <div id="mirino"></div>
+  <div id="prendi" class="nascosto">Prendi il foglio <kbd>E</kbd></div>
+  <div id="dialogo" class="nascosto"><b id="chi">Guerrino</b><p id="battuta"></p></div>
+  <div id="didascalia" class="nascosto"></div>
+  <div id="foglio-grande" class="nascosto"><div class="carta"></div></div>
+
+  <!-- comandi da telefono -->
+  <div id="touch" class="nascosto">
+    <div id="joy"><div id="joy-pomello"></div></div>
+    <button id="t-corri" class="tondo grande">CORRI</button>
+    <button id="t-torcia" class="tondo">🔦</button>
+    <button id="t-prendi" class="tondo grande nascosto">PRENDI</button>
+  </div>
+
+  <!-- schermate -->
+  <section id="caricamento" class="schermo">
+    <h1>Resident Crevil</h1>
+    <p class="sotto">Morte sul greppo</p>
+    <div class="progresso"><i id="prog"></i></div>
+    <p id="prog-testo" class="piccolo">Carico il bosco...</p>
+  </section>
+
+  <section id="menu" class="schermo nascosto">
+    <a class="indietro" href="../../#giochi">← GoGoBar</a>
+    <h1>Resident Crevil</h1>
+    <p class="titoletto">Morte sul greppo</p>
+    <p class="sotto">Nei boschi di Capricchia, Guerrino ti accompagna. Poi ti lascia solo.</p>
+    <button id="gioca" class="btn">Entra nel bosco</button>
+    <div class="comandi pc">
+      <p><kbd>W A S D</kbd> cammina · <kbd>Mouse</kbd> guarda · <kbd>Shift</kbd> corri</p>
+      <p><kbd>F</kbd> torcia · <kbd>E</kbd> prendi il foglio · <kbd>Esc</kbd> pausa</p>
+    </div>
+    <div class="comandi tel">
+      <p>Pollice sinistro: cammina · Destra: trascina per guardare</p>
+      <p>Tieni il telefono in orizzontale e alza il volume.</p>
+    </div>
+    <p class="piccolo">Prototipo. Cuffie consigliate.</p>
+    <div id="classifica-menu" class="classifica"></div>
+  </section>
+
+  <section id="pausa" class="schermo nascosto">
+    <h2>Pausa</h2>
+    <button id="riprendi" class="btn">Riprendi</button>
+    <a class="btn btn-sec" href="../../#giochi">Esci</a>
+  </section>
+
+  <section id="morte" class="schermo nascosto">
+    <h2>Guerrino t'ha preso</h2>
+    <p id="morte-frase" class="sotto"></p>
+    <button id="riprova" class="btn">Riprova dall'ultimo foglio</button>
+  </section>
+
+  <section id="vittoria" class="schermo nascosto">
+    <h2>Dieci fogli</h2>
+    <p id="vittoria-testo" class="sotto"></p>
+    <div id="salva-box">
+      <input id="nome" maxlength="20" placeholder="Il tuo nome" autocomplete="off"/>
+      <button id="salva" class="btn">Salva il tempo</button>
+      <p id="salva-esito" class="piccolo"></p>
+    </div>
+    <div id="classifica-fine" class="classifica"></div>
+    <button id="ancora" class="btn btn-sec">Gioca ancora</button>
+  </section>
+
+  <section id="ruota" class="schermo nascosto">
+    <p class="sotto">Gira il telefono in orizzontale</p>
+  </section>
+
+  <p id="crediti">Suoni: Oculus Audio Pack (Meta), CC BY 4.0 · Mappa: © OpenStreetMap, quote Mapzen/AWS Terrain Tiles · three.js (MIT)</p>
+
+  <script src="../../js/account.js?v=4"></script>
+  <script src="../../js/gogoldbar.js?v=5"></script>
+  <script src="classifica.js?v=2" onerror="window.ResidentCrevilClassifica = null"></script>
+  <script type="importmap">{ "imports": { "three": "./lib/three.module.min.js" } }</script>
+  <script type="module" src="gioco.js?v=2"></script>
+</body>
+</html>

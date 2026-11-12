@@ -44,11 +44,11 @@ const CONTENUTI = {
       inEvidenza: true,
     },
     {
-      titolo: 'Slenderrino',
+      titolo: 'Resident Crevil: morte sul greppo',
       descrizione: "Notte, boschi di Capricchia. Guerrino ti dice di aspettarlo alla Fonticella. Poi si sentono le roncolate. (Prototipo)",
       tag: ['Paura', 'Bosco', 'Roncola'],
-      link: 'giochi/slenderrino/',
-      immagine: 'giochi/slenderrino/copertina.jpg?v=1',
+      link: 'giochi/resident-crevil/',
+      immagine: 'giochi/resident-crevil/copertina.jpg?v=2',
     },
   ],
 

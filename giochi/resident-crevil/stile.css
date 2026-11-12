@@ -53,6 +53,7 @@ body.tocco #dialogo p { font-size: 15px; }
 .schermo h1 { font-size: clamp(42px, 9vw, 84px); letter-spacing: .06em; font-weight: 400; text-shadow: 0 0 24px rgba(233,228,214,.25); }
 .schermo h2 { font-size: clamp(30px, 6vw, 52px); font-weight: 400; }
 #morte h2 { color: #d9483b; }
+.titoletto { font-size: clamp(18px, 3vw, 26px); letter-spacing: .3em; text-transform: uppercase; color: #d9483b; margin-top: -8px; }
 .sotto { font-size: 18px; color: #c9c3b2; max-width: 560px; line-height: 1.4; }
 .piccolo { font-family: var(--mono); font-size: 12px; color: var(--muted); }
 .btn { font: 500 15px var(--mono); letter-spacing: .12em; text-transform: uppercase; background: var(--carta); color: #111; border: 0; border-radius: 6px; padding: 12px 22px; cursor: pointer; text-decoration: none; }
