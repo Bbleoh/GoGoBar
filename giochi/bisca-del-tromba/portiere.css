@@ -1,0 +1,162 @@
+/* ════════════════════════════════════════════════════════════════
+   IL PORTIERE (logica in portiere.js)
+════════════════════════════════════════════════════════════════ */
+#portiere{display:none;flex:1;min-height:0;flex-direction:column;align-items:center;justify-content:flex-start;padding:4px 12px 12px;overflow-y:auto;}
+body[data-gioco="portiere"] #portiere{display:flex;}
+/* larghezza del campo (16:10): sta nello schermo in larghezza e in altezza */
+#portiere{--cw:clamp(260px,min(calc(94vw - 170px),620px,calc((100dvh - 360px) * 1.6)),620px);}
+
+.pt{margin:auto 0;flex-shrink:0;width:calc(var(--cw) + 190px);max-width:100%;display:flex;flex-direction:column;align-items:center;gap:8px;padding:10px 14px 14px;
+  border-radius:24px;background:radial-gradient(ellipse at 50% 20%,#1c5a35 0%,var(--felt) 55%,var(--felt-dark) 100%);
+  border:3px solid var(--gold);box-shadow:0 24px 60px rgba(0,0,0,.8),inset 0 0 0 4px rgba(0,0,0,.3),inset 0 0 0 6px rgba(212,175,90,.3);}
+.pt-titolo{font-family:'Cinzel Decorative',serif;font-weight:700;font-size:clamp(1.2rem,3vw,1.9rem);letter-spacing:4px;line-height:1;margin-top:4px;
+  color:#ffe9a8;text-shadow:0 0 10px rgba(255,200,80,.8),0 3px 0 #3a2a05;}
+#pt-head{display:flex;align-items:center;gap:10px;width:100%;min-height:46px;justify-content:center;}
+#pt-croupier{width:46px;height:46px;border-radius:50%;object-fit:cover;object-position:50% 8%;flex-shrink:0;
+  border:2px solid var(--gold);background:var(--felt);box-shadow:0 4px 10px rgba(0,0,0,.6);}
+#pt-msg{font-family:var(--text);font-weight:800;font-size:clamp(.88rem,1.7vw,1.08rem);color:var(--ink);text-align:center;text-shadow:0 2px 4px #000;min-height:1.3em;}
+#pt-msg.win{color:var(--win);} #pt-msg.lose{color:var(--lose);}
+#pt-msg.pop{animation:msgPop .4s ease;}
+
+.pt-gioco{display:grid;grid-template-columns:var(--cw) 150px;gap:14px;align-items:stretch;justify-content:center;width:100%;}
+
+/* ── il campo ── */
+#pt-campo{position:relative;width:100%;aspect-ratio:16/10;border-radius:14px;overflow:hidden;isolation:isolate;
+  background:linear-gradient(180deg,#0b1020 0%,#16213a 30%,#1d2a40 52%);box-shadow:inset 0 0 0 2px rgba(0,0,0,.4),0 8px 20px rgba(0,0,0,.5);}
+/* tribuna: file di teste e luci */
+.pt-stadio{position:absolute;left:0;right:0;top:0;height:52%;
+  background:
+    radial-gradient(ellipse at 50% -20%,rgba(255,236,170,.35),transparent 55%),
+    radial-gradient(circle,#7a3b2c 0 3px,transparent 3.6px) 0 4px/11px 10px,
+    radial-gradient(circle,#c99a5b 0 3px,transparent 3.6px) 5px 9px/11px 10px,
+    linear-gradient(180deg,#121a2c,#22304a);opacity:.95;}
+.pt-stadio::after{content:'LA BISCA DER TROMBA · GOGOBAR · LA BISCA DER TROMBA · GOGOBAR';position:absolute;left:0;right:0;bottom:0;height:24%;
+  display:flex;align-items:center;justify-content:center;white-space:nowrap;overflow:hidden;
+  font-family:var(--ui);font-weight:900;font-size:clamp(.5rem,1.4vw,.8rem);letter-spacing:3px;color:#1a1204;
+  background:linear-gradient(180deg,#f2cf6a,#c8962e);box-shadow:0 2px 0 rgba(0,0,0,.4);}
+/* erba a strisce, linea di porta, area piccola e dischetto */
+.pt-erba{position:absolute;left:0;right:0;top:52%;bottom:0;
+  background:repeating-linear-gradient(180deg,#2f8a3a 0 9%,#287a33 9% 18%);}
+.pt-erba::before{content:'';position:absolute;left:0;right:0;top:23%;height:2px;background:rgba(255,255,255,.85);}
+.pt-erba::after{content:'';position:absolute;left:9%;right:9%;top:23%;height:30%;border:2px solid rgba(255,255,255,.75);border-top:none;}
+.pt-dischetto{position:absolute;left:50%;top:91%;width:3%;aspect-ratio:2/1;transform:translate(-50%,-50%);border-radius:50%;background:rgba(255,255,255,.85);}
+
+/* ── la porta ── */
+.pt-porta{position:absolute;left:14%;right:14%;top:14%;height:50%;z-index:1;
+  border:clamp(4px,1.1vw,7px) solid #fafafa;border-bottom:none;border-radius:4px 4px 0 0;
+  box-shadow:0 0 0 1px rgba(0,0,0,.35),inset 0 0 0 1px rgba(0,0,0,.25),0 6px 14px rgba(0,0,0,.45);}
+.pt-rete{position:absolute;inset:0;transform-origin:50% 0;
+  background:
+    repeating-linear-gradient(45deg,rgba(255,255,255,.28) 0 1px,transparent 1px 12px),
+    repeating-linear-gradient(-45deg,rgba(255,255,255,.28) 0 1px,transparent 1px 12px),
+    linear-gradient(180deg,rgba(0,0,0,.45),rgba(0,0,0,.25));}
+#pt-campo.gol .pt-rete{animation:ptRete .6s ease-out;}
+@keyframes ptRete{0%{transform:none;}30%{transform:scale(1.04,1.08) translateY(3%);filter:brightness(1.6);}100%{transform:none;}}
+#pt-campo.gol .pt-porta{animation:ptPali .5s ease-out;}
+@keyframes ptPali{0%,100%{transform:none;}25%{transform:translateX(-3px);}50%{transform:translateX(3px);}75%{transform:translateX(-1px);}}
+
+/* le sei zone di tiro: bottoni trasparenti sopra al portiere */
+#pt-zone{position:absolute;inset:0;z-index:3;display:grid;grid-template-columns:repeat(3,1fr);grid-template-rows:repeat(2,1fr);}
+.pt-zona{position:relative;background:none;border:none;padding:0;cursor:crosshair;-webkit-tap-highlight-color:transparent;}
+.pt-zona span{position:absolute;left:50%;top:50%;width:min(46%,64px);aspect-ratio:1;transform:translate(-50%,-50%) scale(.85);border-radius:50%;
+  border:3px dashed rgba(255,216,74,.75);opacity:.8;transition:transform .15s,opacity .15s,border-color .15s,background .15s;}
+.pt-zona:nth-child(-n+3) span{top:46%;}
+.pt-zona:nth-child(1) span,.pt-zona:nth-child(4) span{left:40%;}
+.pt-zona:nth-child(3) span,.pt-zona:nth-child(6) span{left:60%;}
+.pt-zona:hover:not(:disabled) span,.pt-zona:focus-visible span{opacity:1;transform:translate(-50%,-50%) scale(1);border-style:solid;border-color:#ffd84a;background:rgba(255,216,74,.18);}
+.pt-zona.mirata span{opacity:1;border-style:solid;border-color:#ffd84a;transform:translate(-50%,-50%) scale(1);}
+.pt-zona:disabled{cursor:default;}
+.pt-zona:disabled:not(.mirata) span{opacity:0;}
+
+/* ── il portiere: corpo disegnato e testa del Tromba ── */
+#pt-portiere{position:absolute;left:42%;width:16%;top:23%;height:41%;z-index:2;pointer-events:none;transform-origin:50% 100%;
+  transition:transform .42s cubic-bezier(.25,.9,.35,1.05);filter:drop-shadow(0 6px 6px rgba(0,0,0,.45));}
+#pt-portiere svg{position:absolute;inset:0;width:100%;height:100%;overflow:visible;}
+.pt-testa{position:absolute;left:31%;top:2%;width:38%;aspect-ratio:1;border-radius:50%;overflow:hidden;background:#d9a77f;
+  box-shadow:0 0 0 2px #1d1d1d;}
+.pt-testa img{display:block;width:100%;height:100%;object-fit:cover;}
+/* tuffi: si ruota attorno ai piedi, i guanti arrivano sull'angolo scelto */
+#pt-portiere.tuffo-0{transform:translate(-78%,-16%) rotate(-40deg);}
+#pt-portiere.tuffo-1{transform:translateY(-16%) scale(1.04);}
+#pt-portiere.tuffo-2{transform:translate(78%,-16%) rotate(40deg);}
+#pt-portiere.tuffo-3{transform:translate(-22%,-2%) rotate(-76deg);}
+#pt-portiere.tuffo-4{transform:scale(1.22,.8);}
+#pt-portiere.tuffo-5{transform:translate(22%,-2%) rotate(76deg);}
+
+/* ── il pallone ── */
+#pt-palla{position:absolute;left:50%;top:84%;width:7.5%;aspect-ratio:1;margin-left:-3.75%;transform-origin:50% 50%;z-index:4;pointer-events:none;
+  filter:drop-shadow(0 4px 3px rgba(0,0,0,.5));}
+#pt-palla svg{display:block;width:100%;height:100%;}
+
+/* ── scritta di esito ── */
+#pt-banner{position:absolute;left:50%;top:79%;z-index:5;transform:translate(-50%,-50%) scale(.4);opacity:0;pointer-events:none;text-align:center;
+  padding:8px 18px;border-radius:16px;background:rgba(6,14,9,.78);border:2px solid var(--gold);box-shadow:0 10px 30px rgba(0,0,0,.7);white-space:nowrap;}
+#pt-banner b{display:block;font-family:'Cinzel Decorative',serif;font-size:clamp(1.1rem,4vw,2.1rem);color:#ffe9a8;text-shadow:0 0 14px rgba(255,200,80,.9);}
+#pt-banner span{font-family:var(--ui);font-weight:900;color:#fff;font-size:clamp(.8rem,2vw,1.05rem);}
+#pt-banner.show{animation:ptBanner 1.3s cubic-bezier(.2,1.5,.4,1) forwards;}
+#pt-campo.parata #pt-banner b{color:#ffb4a8;text-shadow:0 0 14px rgba(255,80,60,.9);}
+@keyframes ptBanner{0%{opacity:0;transform:translate(-50%,-50%) scale(.4);}18%{opacity:1;transform:translate(-50%,-50%) scale(1);}80%{opacity:1;transform:translate(-50%,-50%) scale(1);}100%{opacity:0;transform:translate(-50%,-50%) scale(.96);}}
+#pt-campo.parata::after{content:'';position:absolute;inset:0;z-index:4;pointer-events:none;background:radial-gradient(ellipse at 50% 40%,transparent 40%,rgba(255,50,40,.35));animation:ptLampo .6s ease-out forwards;}
+#pt-campo.gol::after{content:'';position:absolute;inset:0;z-index:4;pointer-events:none;background:radial-gradient(ellipse at 50% 40%,rgba(255,230,140,.35),transparent 60%);animation:ptLampo .7s ease-out forwards;}
+@keyframes ptLampo{0%{opacity:1;}100%{opacity:0;}}
+
+/* ── torre dei moltiplicatori ── */
+#pt-torre{list-style:none;margin:0;padding:4px;display:flex;flex-direction:column;gap:2px;overflow-y:auto;border-radius:14px;
+  background:rgba(0,0,0,.3);box-shadow:inset 0 0 12px rgba(0,0,0,.5);max-height:calc(var(--cw) / 1.6);scrollbar-width:thin;}
+#pt-torre li{flex:1 1 0;display:grid;grid-template-columns:22px 1fr;grid-template-rows:auto auto;column-gap:6px;align-content:center;align-items:center;
+  padding:1px 8px;border-radius:10px;border:1px solid rgba(212,175,90,.18);background:rgba(255,255,255,.03);transition:background .2s,border-color .2s;}
+#pt-torre small{grid-row:span 2;font-family:var(--ui);font-weight:900;font-size:.7rem;color:var(--muted);text-align:center;}
+#pt-torre b{font-family:var(--ui);font-weight:900;font-size:.86rem;color:var(--gold-light);line-height:1;}
+#pt-torre span{font-family:var(--ui);font-size:.64rem;color:var(--muted);line-height:1.05;white-space:nowrap;}
+#pt-torre li.fatto{background:rgba(61,220,132,.1);border-color:rgba(61,220,132,.35);}
+#pt-torre li.fatto b{color:var(--win);}
+#pt-torre li.ora{background:linear-gradient(180deg,rgba(255,216,74,.32),rgba(212,175,90,.14));border-color:#ffd84a;box-shadow:0 0 14px rgba(255,216,74,.35);}
+#pt-torre li.ora b,#pt-torre li.ora span{color:#fff3c4;}
+#pt-torre li.prossimo{border-color:var(--gold);border-style:dashed;}
+
+/* ── comandi ── */
+.pt-pannello{display:flex;gap:8px;width:100%;justify-content:center;flex-wrap:wrap;}
+.pt-pannello .s-info{min-width:0;}
+.pt-comandi{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;column-gap:clamp(10px,2.4vw,22px);width:100%;}
+#pt-camp{display:flex;gap:6px;justify-self:end;}
+#pt-camp .bet-tool{min-height:36px;padding:0 12px;font-size:.74rem;white-space:nowrap;}
+#pt-camp .bet-tool.scelto{background:rgba(212,175,90,.25);border-color:var(--gold);color:#fff3c4;}
+#pt-campionato-info{justify-self:start;font-size:.78rem;color:var(--muted);line-height:1.3;max-width:220px;}
+#pt-campionato-info b{color:var(--gold-light);}
+#pt-incassa{grid-column:2;min-width:180px;}
+#pt-incassa b{font-weight:900;}
+#pt-keys{font-size:.7rem;color:var(--muted);text-align:center;}
+
+/* lobby: copertina del portiere */
+.tavolo-img.pt-img{align-items:center;}
+.mini-porta{position:relative;width:min(170px,84%);aspect-ratio:2.2;border:5px solid #f4f4f4;border-bottom:none;border-radius:3px 3px 0 0;margin-bottom:22px;
+  background:repeating-linear-gradient(45deg,rgba(255,255,255,.25) 0 1px,transparent 1px 9px),repeating-linear-gradient(-45deg,rgba(255,255,255,.25) 0 1px,transparent 1px 9px),rgba(0,0,0,.3);
+  box-shadow:0 18px 0 -14px #2f8a3a,0 6px 12px rgba(0,0,0,.5);}
+.mini-palla{position:absolute;left:50%;bottom:-30px;width:22px;height:22px;margin-left:-11px;border-radius:50%;
+  background:radial-gradient(circle at 50% 50%,#222 0 22%,transparent 24%),radial-gradient(circle at 35% 30%,#fff,#d8d8d8 70%,#9a9a9a);
+  box-shadow:0 2px 4px rgba(0,0,0,.6);animation:portiereLobby 2.4s cubic-bezier(.25,.8,.4,1) infinite;}
+@keyframes portiereLobby{0%,15%{transform:translate(0,0) scale(1);opacity:1;}50%{transform:translate(56px,-58px) scale(.6) rotate(400deg);opacity:1;}80%{transform:translate(56px,-58px) scale(.6) rotate(400deg);opacity:1;}100%{transform:translate(56px,-58px) scale(.6);opacity:0;}}
+
+@media (max-height:860px){ #pt-keys{display:none;} }
+@media (hover:none){ #pt-keys{display:none;} }
+@media (max-width:760px){
+  #portiere{padding:2px 6px 8px;--cw:clamp(250px,min(calc(100vw - 36px),calc((100dvh - 370px) * 1.6)),620px);}
+  .pt{width:calc(var(--cw) + 20px);padding:8px 8px 10px;gap:6px;border-radius:20px;}
+  .pt-gioco{grid-template-columns:var(--cw);gap:6px;}
+  /* la torre diventa una striscia orizzontale sopra al campo, dal 1° gol a sinistra */
+  #pt-torre{order:-1;flex-direction:row;overflow-x:auto;overflow-y:hidden;max-height:none;padding:4px;}
+  #pt-torre li{flex:0 0 auto;grid-template-columns:auto;grid-template-rows:auto auto auto;justify-items:center;padding:2px 8px;row-gap:0;}
+  #pt-torre small{grid-row:auto;font-size:.6rem;}
+  #pt-torre b{font-size:.8rem;}
+  #pt-torre span{font-size:.6rem;}
+  .pt-comandi{grid-template-columns:1fr;row-gap:6px;justify-items:center;}
+  #pt-camp,#pt-campionato-info{justify-self:center;text-align:center;}
+  #pt-incassa{grid-column:1;grid-row:3;}
+  #pt-camp{grid-row:1;}
+  #pt-campionato-info{grid-row:2;max-width:none;}
+}
+@media (max-width:640px){
+  .mini-porta{border-width:3px;margin-bottom:18px;}
+  .mini-palla{width:14px;height:14px;margin-left:-7px;bottom:-22px;animation-name:portiereLobbyMini;}
+}
+@keyframes portiereLobbyMini{0%,15%{transform:translate(0,0) scale(1);opacity:1;}50%{transform:translate(22px,-30px) scale(.6) rotate(400deg);opacity:1;}80%{transform:translate(22px,-30px) scale(.6) rotate(400deg);opacity:1;}100%{transform:translate(22px,-30px) scale(.6);opacity:0;}}
