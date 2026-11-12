@@ -939,13 +939,14 @@ function fineRun(macchinette) {
     currentBet = 0;
     if (typeof sPuntI !== 'undefined') sPuntI = 0;   // nuovo tavolo: si riparte dalla puntata più bassa
     if (typeof pPuntI !== 'undefined') pPuntI = 0;
+    if (typeof ptPuntI !== 'undefined') ptPuntI = 0;
     if (typeof sAutoStop === 'function' && sAutoOn) sAutoStop('Auto fermato: sei salito di tavolo.');
     if (typeof pAutoStop === 'function' && pAutoOn) pAutoStop('Auto fermato: sei salito di tavolo.');
     const f = puntateFisse();
     const b = document.getElementById('salto');
     b.querySelector('b').textContent = 'Il Tromba sbaraglia tutto!';
     b.querySelector('span').textContent = 'Passi al tavolo da ' + numero(prossimo) + ': ' +
-      (macchinette ? 'slot e plinko da ' + ggb(f[0]) + ' a ' + ggb(f[f.length - 1]) : 'puntata max ' + ggb(puntataMax()));
+      (macchinette ? 'slot, plinko e portiere da ' + ggb(f[0]) + ' a ' + ggb(f[f.length - 1]) : 'puntata max ' + ggb(puntataMax()));
     b.className = ''; void b.offsetWidth; b.className = 'show';
     sfxTrofeo();
     memScrivi();
@@ -1771,7 +1772,7 @@ function apriStats() {
   const portiereRighe = [
     ['Serie di rigori', s.ptPartite || 0], ['Gol / parate', (s.ptGol || 0) + ' / ' + (s.ptParate || 0)],
     ['Serie incassate', s.ptIncassi || 0], ['Gol di fila migliore', s.ptSerieMax || 0],
-    ['Moltiplicatore più alto incassato', String(s.ptMoltMax || 0).replace('.', ',') + '×'], ['Vincita più alta', euro(s.ptVincitaMax || 0)],
+    ['Moltiplicatore più alto incassato', Number(s.ptMoltMax || 0).toLocaleString('it-IT') + '×'], ['Vincita più alta', euro(s.ptVincitaMax || 0)],
   ];
   document.getElementById('account-nome').textContent = playerName || '—';
   const riga = ([k,v]) => `<div class="stat-row"><span>${k}</span><b>${v}</b></div>`;
@@ -2511,6 +2512,6 @@ setCroupier('init');
 <script src="roulette.js?v=8"></script>
 <script src="slot.js?v=6"></script>
 <script src="plinko.js?v=5"></script>
-<script src="portiere.js?v=2"></script>
+<script src="portiere.js?v=3"></script>
 </body>
 </html>

@@ -2,24 +2,25 @@
    IL PORTIERE — rigori contro il Tromba
    Si paga la puntata e si tira: sinistra, centro o destra.
    Ogni gol fa salire la torre dei moltiplicatori; puoi incassare dopo
-   qualsiasi gol, ma se il Tromba para perdi tutto. Massimo 8 tiri.
+   qualsiasi gol, ma se il Tromba para perdi tutto. Massimo 9 tiri.
    Tre campionati: più è difficile, più para e più paga.
-   Moltiplicatore dopo k gol = 0,96 / p^k (p = probabilità di segnare),
-   quindi il ritorno è ~96% qualunque sia il momento in cui incassi.
+   I moltiplicatori sono la tabella di valori mandata da Leo (divisa per
+   10: 12 → 1,2×). La probabilità di segnare il tiro k è scelta perché il
+   ritorno sia 94,2% a qualunque gol incassi: primo tiro 0,942 / m1, poi
+   m(k-1) / m(k). Il Tromba para sempre di più a ogni livello.
    Usa lo stack, le puntate fisse di slot e plinko (puntateFisse()),
    il conteggio delle giocate e il salto di tavolo di index.html.
 ════════════════════════════════════════════════════════════════ */
-const PT_TIRI = 8;
+const PT_TIRI = 9;
+const PT_RTP = 0.942;
 const PT_CAMPIONATI = {
-  calcetto:  { nome: 'Calcetto',  p: 0.75 },    // il portiere a volte resta fermo
-  seriea:    { nome: 'Serie A',   p: 2 / 3 },   // si tuffa a caso su uno dei tre lati
-  champions: { nome: 'Champions', p: 0.60 },    // ti legge il tiro
+  calcetto:  { nome: 'Calcetto',  m: [1.2, 1.6, 2.2, 3.5, 5.8, 10.5, 21.1, 47.5, 117] },
+  seriea:    { nome: 'Serie A',   m: [1.3, 2.1, 3.5, 6.4, 12.6, 28.2, 71.2, 204, 662] },
+  champions: { nome: 'Champions', m: [1.7, 3.5, 7.6, 19.3, 55.5, 184, 725, 3700, 24200] },
 };
-function ptTorre(c) {
-  const p = PT_CAMPIONATI[c].p, t = [];
-  for (let k = 1; k <= PT_TIRI; k++) t.push(Math.floor(0.96 / Math.pow(p, k) * 100) / 100);
-  return t;
-}
+function ptTorre(c) { return PT_CAMPIONATI[c].m; }
+// probabilità di segnare il tiro dopo `gol` gol già fatti
+function ptProb(c, gol) { const m = PT_CAMPIONATI[c].m; return gol ? m[gol - 1] / m[gol] : PT_RTP / m[0]; }
 // tre direzioni: 0 sinistra, 1 centro, 2 destra
 // la testa del portiere: le facce del Tromba ritagliate dalle foto del croupier
 const PT_TESTE = { init: 'assets/portiere/testa-init.webp', festoso: 'assets/portiere/testa-festoso.webp', lose: 'assets/portiere/testa-lose.webp', vincente: 'assets/portiere/testa-vincente.webp' };
@@ -51,7 +52,10 @@ function ptRipristina(r) {
 
 function ptOrizzontale() { return !!(window.matchMedia && matchMedia('(max-width:760px)').matches); }
 window.addEventListener('resize', () => { if (gioco === 'portiere') ptAggiorna(); });
-function ptValuta(m) { return String(m).replace('.', ',') + '×'; }
+function ptValuta(m) {   // 1,7× · 3.700× · 24.200×
+  const [i, d] = String(Math.round(Number(m) * 100) / 100).split('.');
+  return i.replace(/\B(?=(\d{3})+(?!\d))/g, '.') + (d ? ',' + d : '') + '×';
+}
 
 /* ── costruzione ── */
 function ptCostruisci() {
@@ -80,7 +84,7 @@ function ptTira(i) {
   }
   ptTirando = true;
   ptVista = ptStato();
-  const gol = Math.random() < PT_CAMPIONATI[ptRound.camp].p;
+  const gol = Math.random() < ptProb(ptRound.camp, ptRound.gol);
   if (gol) {
     ptRound.gol++;
     stats.ptGol = (stats.ptGol || 0) + 1;
@@ -134,7 +138,7 @@ function ptEsito(gol) {
     ptBanner('GOOOL!', ptValuta(m) + ' · ' + ggb(Math.floor(v.puntata * m)));
     setCroupier('lose');
     if (n >= PT_TIRI) {
-      ptMsg('Otto su otto!', 'win');
+      ptMsg('Nove su nove!', 'win');
       setTimeout(() => { ptTirando = false; ptVista = null; ptRimetti(); ptIncassa(true); }, 1300);
       return;
     }
@@ -177,8 +181,8 @@ function ptIncassa(tutti) {
   ptRound = null;
   sfxWin();
   setCroupier(m >= 10 ? 'lose' : 'init');
-  ptBanner(tutti ? 'OTTO SU OTTO!' : 'INCASSATO', ggb(vincita));
-  ptMsg((tutti ? 'Otto gol su otto! ' : 'Incassati ') + ggb(vincita) + ' (' + ptValuta(m) + ').', 'win');
+  ptBanner(tutti ? 'NOVE SU NOVE!' : 'INCASSATO', ggb(vincita));
+  ptMsg((tutti ? 'Nove gol su nove! ' : 'Incassati ') + ggb(vincita) + ' (' + ptValuta(m) + ').', 'win');
   document.getElementById('balance-display').textContent = ggb(balance);
   memScrivi();
   ptAggiorna();
@@ -213,8 +217,8 @@ function ptAggiorna() {
   inc.disabled = !r || !gol || ptTirando;
   inc.innerHTML = gol ? 'Incassa <b>' + ggb(Math.floor(puntata * torre[gol - 1])) + '</b>' : 'Incassa';
   const info = document.getElementById('pt-campionato-info');
-  if (info) info.innerHTML = PT_CAMPIONATI[camp].nome + ': segni il <b>' + Math.round(PT_CAMPIONATI[camp].p * 100) + '%</b> dei tiri, ' + PT_TIRI + ' gol pagano <b>' + ptValuta(torre[PT_TIRI - 1]) + '</b>';
-  // torre: su schermo largo in colonna dal basso (1° gol) all'alto (8°), su telefono in riga da sinistra
+  if (info) info.innerHTML = PT_CAMPIONATI[camp].nome + ': ' + (r && gol < PT_TIRI ? 'questo tiro entra' : 'il primo tiro entra') + ' il <b>' + Math.round(ptProb(camp, r ? Math.min(gol, PT_TIRI - 1) : 0) * 100) + '%</b> delle volte, poi il Tromba para sempre di più. ' + PT_TIRI + ' gol pagano <b>' + ptValuta(torre[PT_TIRI - 1]) + '</b>';
+  // torre: su schermo largo in colonna dal basso (1° gol) all'alto (9°), su telefono in riga da sinistra
   const righe = torre.map((m, k) => {
     const cls = k < gol - 1 ? 'fatto' : k === gol - 1 ? 'ora' : k === gol ? 'prossimo' : '';
     return `<li class="${cls}"><small>${k + 1}</small><b>${ptValuta(m)}</b><span>${ggb(Math.floor(puntata * m))}</span></li>`;
@@ -247,7 +251,7 @@ function ptTono(f, durata, tipo, vol, quando) { if (typeof sTono === 'function')
 function ptEntra() {
   ptCostruisci();
   ptAggiorna();
-  if (ptRound && ptRound.gol >= PT_TIRI) { ptIncassa(true); return; }   // dodici gol fatti prima di ricaricare la pagina
+  if (ptRound && ptRound.gol >= PT_TIRI) { ptIncassa(true); return; }   // serie completa prima di ricaricare la pagina
   if (ptRound) ptMsg('Riprendi la serie: ' + ptRound.gol + ' gol fatti. Incassi o tiri?');
   else if (!document.getElementById('pt-msg').textContent) ptMsg('Scegli puntata e campionato, poi scegli una freccia per tirare. Incassa quando vuoi!');
 }
