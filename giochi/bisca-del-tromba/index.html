@@ -485,7 +485,7 @@
       <h2 class="lobby-title">Scegli il buy-in</h2>
       <div class="lobby-saldo">Portafogli<b id="lobby-portafogli">0 &#xE000;</b></div>
       <div id="buyin-tavoli"></div>
-      <p class="buyin-regole">Il buy-in esce dal portafogli e diventa il tuo stack. Le fiches valgono il 10, 25, 50 e 100% dello stack, la puntata massima è 30 volte il buy-in. Il cash-out si sblocca dopo 20 giocate; se scendi sotto la puntata minima perdi tutto.</p>
+      <p class="buyin-regole">Il buy-in esce dal portafogli e diventa il tuo stack. Le fiches valgono il 10, 25, 50 e 100% dello stack, contato a scaglioni del buy-in (al tavolo da 100: da 100 a 199 contano 100, da 200 a 299 contano 200...); la puntata massima è 30 volte il buy-in. Il cash-out si sblocca dopo 20 giocate; se scendi sotto la puntata minima la run finisce e gli spiccioli tornano nel portafogli.</p>
     </div>
     <div id="in-run">
     <h2 class="lobby-title" id="lobby-tavolo">Scegli il gioco</h2>
@@ -734,9 +734,12 @@ function passo() { return run ? run.tavolo / 10 : 0; }
 function puntataMax() { return run ? run.tavolo * 30 : 0; }
 function chips() {
   if (!run) return [];
-  const p = passo(), max = puntataMax(), base = Math.min(balance, run.tavolo * 60), out = [];
+  // scaglioni: le percentuali si applicano allo stack arrotondato per difetto a multipli del buy-in
+  // (tavolo da 100: 100-199 → 100, 200-299 → 200...), da 60× il buy-in restano fisse
+  const t = run.tavolo, max = puntataMax(), out = [];
+  const base = Math.min(Math.max(t, Math.floor(balance / t) * t), t * 60);
   PERC_FICHES.forEach(f => {
-    const v = Math.max(p, Math.min(max, Math.floor(base * f / p) * p));
+    const v = Math.min(max, Math.round(base * f));
     if (!out.includes(v)) out.push(v);
   });
   return out;
@@ -744,7 +747,8 @@ function chips() {
 function puntataMin() { return run ? chips()[0] : 0; }
 // quanto si può mettere sul tavolo in una giocata
 function puntataTetto() { return Math.min(balance, puntataMax()); }
-function chipBreve(v) { return v >= 1e6 ? +(v / 1e6).toFixed(1) + 'M' : v >= 10000 ? Math.round(v / 1000) + 'k' : v >= 1000 ? +(v / 1000).toFixed(1) + 'k' : String(v); }
+// etichetta esatta e corta: 1.5k, 2.95k, 1475, 1.25M
+function chipBreve(v) { return v >= 1e6 && v % 1e4 === 0 ? v / 1e6 + 'M' : v >= 1000 && v % 10 === 0 ? v / 1000 + 'k' : String(v); }
 const CHIP_COLORI = ['chip-10', 'chip-50', 'chip-100', 'chip-500'];
 
 // le fiches di blackjack e roulette si ridisegnano quando cambiano i valori
