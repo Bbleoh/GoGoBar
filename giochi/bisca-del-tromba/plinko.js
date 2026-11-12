@@ -4,7 +4,7 @@
    a sinistra (50 e 50) e finisce in una delle buche in fondo, che
    moltiplicano la puntata. Da 8 a 18 file di chiodi, tre livelli di
    rischio, RTP ~96% per ogni combinazione.
-   Usa lo stack, le fiches (chips()) e il conteggio delle giocate di
+   Usa lo stack, le puntate fisse (puntateFisse(): 10/20/50/100) e il conteggio delle giocate di
    index.html; più monete possono cadere insieme (tenendo premuto
    LANCIA o con l'autobet da 5, 10 e 20).
 ════════════════════════════════════════════════════════════════ */
@@ -45,7 +45,7 @@ let pLuci = {};             // chiodi e buche che si accendono: chiave → tempo
 let pAutoOn = false, pAuto = 0, pAutoTimer = null;
 let pTieni = null, pUltimoLancio = 0;
 const P_MAX_VOLO = 30;
-function pBet() { if (typeof chips !== 'function') return 0; const c = chips(); return c[Math.min(pPuntI, c.length - 1)] || 0; }
+function pBet() { if (typeof puntateFisse !== 'function') return 0; const c = puntateFisse(); return c[Math.min(pPuntI, c.length - 1)] || 0; }
 function pOccupata() { return pPalle.length > 0 || pAutoOn; }
 
 function pPiolo(g, i, j) { return { x: P_CX + (j - (i + 2) / 2) * g.dx, y: P_TOP + i * g.dy }; }
@@ -268,7 +268,7 @@ function pAggiorna() {
   const libero = !pOccupata();
   document.getElementById('p-saldo').textContent = ggb(balance);
   document.getElementById('p-puntata').textContent = ggb(pBet());
-  const n = chips().length, i = Math.min(pPuntI, Math.max(0, n - 1));
+  const n = puntateFisse().length, i = Math.min(pPuntI, Math.max(0, n - 1));
   document.getElementById('p-meno').disabled = !libero || i <= 0;
   document.getElementById('p-piu').disabled = !libero || i >= n - 1;
   const puo = !!run && !!pBet() && balance >= pBet();
@@ -285,7 +285,7 @@ function pAggiorna() {
 }
 function pCambiaPuntata(d) {
   if (pOccupata()) return;
-  const n = chips().length, i = Math.max(0, Math.min(n - 1, Math.min(pPuntI, n - 1) + d));
+  const n = puntateFisse().length, i = Math.max(0, Math.min(n - 1, Math.min(pPuntI, n - 1) + d));
   if (i === pPuntI) return;
   pPuntI = i; sfxChip(); pAggiorna();
 }

@@ -101,7 +101,7 @@ function sValuta(g, puntata, molt) {
 ════════════════════════════════════════════════════════════════ */
 let sPuntI = 0;            // quale fiche si gioca (posizione)
 let sPuntataGiro = 0;      // puntata del giro in corso
-function sBet() { if (typeof chips !== 'function') return 0; const c = chips(); return c[Math.min(sPuntI, c.length - 1)] || 0; }
+function sBet() { if (typeof puntateFisse !== 'function') return 0; const c = puntateFisse(); return c[Math.min(sPuntI, c.length - 1)] || 0; }
 let sGirando = false;
 let sAutoOn = false, sAuto = 0;
 let sGratis = 0, sGratisFatti = 0, sGratisTot = 0, sGratisPuntata = 0;
@@ -157,7 +157,7 @@ function sAggiorna() {
   const libero = !sOccupata();
   document.getElementById('s-saldo').textContent = ggb(balance);
   document.getElementById('s-puntata').textContent = ggb(sGratis > 0 ? sGratisPuntata : sBet());
-  const n = chips().length, i = Math.min(sPuntI, Math.max(0, n - 1));
+  const n = puntateFisse().length, i = Math.min(sPuntI, Math.max(0, n - 1));
   document.getElementById('s-meno').disabled = !libero || i <= 0;
   document.getElementById('s-piu').disabled = !libero || i >= n - 1;
   const gioca = document.getElementById('s-gioca');
@@ -175,7 +175,7 @@ function sAggiorna() {
 
 function sCambiaPuntata(d) {
   if (sOccupata()) return;
-  const n = chips().length;
+  const n = puntateFisse().length;
   const i = Math.max(0, Math.min(n - 1, Math.min(sPuntI, n - 1) + d));
   if (i === sPuntI) return;
   sPuntI = i;
