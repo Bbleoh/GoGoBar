@@ -4,10 +4,14 @@
    Lo usano sia il gioco sia la homepage del sito.
 
    window.BiscaClassifica.attiva          → true se il servizio è configurato
-   window.BiscaClassifica.carica(limite)  → Promise<[{ nome, punti, data }]>
-       ordinata dal punteggio più alto; [] se qualcosa va storto (non lancia mai).
-   window.BiscaClassifica.salva(nome, punti) → Promise<void>
-       tiene il punteggio più alto per ogni nome; lancia un Error se fallisce.
+   window.BiscaClassifica.carica(limite)  → Promise<[{ nome, punti, data, tavolo }]>
+       classifica generale: il cash-out migliore di ogni giocatore su tutti i tavoli,
+       ordinata dal più alto; [] se qualcosa va storto (non lancia mai).
+   window.BiscaClassifica.caricaTavolo(tavolo, limite) → come sopra, solo le run partite da quel tavolo
+   window.BiscaClassifica.salvaTavolo(tavolo, nome, punti) → Promise<void>
+       tiene il cash-out più alto per ogni nome su quel tavolo; lancia un Error se fallisce.
+   Tavoli (buy-in): 100, 1000, 10000, 100000 → bisca/classifiche/t<buy-in>/<chiave>.
+   (bisca/classifica è la vecchia classifica a saldo unico, non più usata.)
    window.BiscaClassifica.caricaGiocatore(nome) / salvaGiocatore(nome, dati) / caricaGiocatori()
        account per nome con saldo, statistiche e trofei (vedi sotto).
 
@@ -50,7 +54,7 @@
     if (ctrl) opzioni.signal = ctrl.signal;
     return fetch(url, opzioni).then(function (r) {
       if (timer) clearTimeout(timer);
-      if (r.status === 401 || r.status === 403) throw new Error('Questo nome è di un account GoGoBar: per salvarci sopra entra con il tuo account dalla home.');
+      if (r.status === 401 || r.status === 403) throw new Error('permesso negato dal database (regole Firebase da aggiornare?)');
       if (!r.ok) throw new Error('Errore classifica (' + r.status + ')');
       return r.json();
     }, function (e) {
@@ -59,29 +63,62 @@
     });
   }
 
+  var CLASSIFICHE = 'bisca/classifiche';
+  var TAVOLI = [100, 1000, 10000, 100000];
+
+  function righe(dati, tavolo) {
+    if (!dati || typeof dati !== 'object') return [];
+    return Object.keys(dati).map(function (k) {
+      var r = dati[k] || {};
+      return {
+        chiave: k,
+        nome: String(r.nome || k).slice(0, 20),
+        punti: Math.floor(Number(r.punti)) || 0,
+        data: typeof r.data === 'string' ? r.data : null,
+        tavolo: tavolo
+      };
+    });
+  }
+  function ordina(lista, limite) {
+    return lista.sort(function (a, b) { return b.punti - a.punti; }).slice(0, limite);
+  }
+
+  // generale: il cash-out migliore di ogni giocatore, da qualsiasi tavolo
   function carica(limite) {
     limite = limite || 10;
     if (!DB_URL) return Promise.resolve([]);
-    return richiesta(base() + '/' + PERCORSO + '.json').then(function (dati) {
-      if (!dati || typeof dati !== 'object') return [];
-      return Object.keys(dati).map(function (k) {
-        var r = dati[k] || {};
-        return {
-          nome: String(r.nome || k).slice(0, 20),
-          punti: Math.floor(Number(r.punti)) || 0,
-          data: typeof r.data === 'string' ? r.data : null
-        };
-      }).sort(function (a, b) { return b.punti - a.punti; }).slice(0, limite);
+    return richiesta(base() + '/' + CLASSIFICHE + '.json').then(function (tutte) {
+      var migliori = {};
+      TAVOLI.forEach(function (t) {
+        righe(tutte && tutte['t' + t], t).forEach(function (r) {
+          if (!migliori[r.chiave] || r.punti > migliori[r.chiave].punti) migliori[r.chiave] = r;
+        });
+      });
+      return ordina(Object.keys(migliori).map(function (k) { return migliori[k]; }), limite);
     }).catch(function () { return []; });
   }
 
-  function salva(nome, punti) {
+  function caricaTavolo(tavolo, limite) {
+    limite = limite || 10;
+    if (!DB_URL || TAVOLI.indexOf(Number(tavolo)) < 0) return Promise.resolve([]);
+    return richiesta(base() + '/' + CLASSIFICHE + '/t' + Number(tavolo) + '.json')
+      .then(function (d) { return ordina(righe(d, Number(tavolo)), limite); })
+      .catch(function () { return []; });
+  }
+
+  function salvaTavolo(tavolo, nome, punti) {
+    if (TAVOLI.indexOf(Number(tavolo)) < 0) return Promise.reject(new Error('Tavolo sconosciuto.'));
+    return salvaIn(CLASSIFICHE + '/t' + Number(tavolo), nome, punti);
+  }
+  function salva(nome, punti) { return salvaIn(PERCORSO, nome, punti); }
+
+  function salvaIn(percorso, nome, punti) {
     nome = String(nome || '').trim();
     punti = Math.floor(Number(punti));
     if (!DB_URL) return Promise.reject(new Error('La classifica online non è ancora attiva.'));
     if (!nome) return Promise.reject(new Error('Nome vuoto.'));
     if (!isFinite(punti) || punti < 0) return Promise.reject(new Error('Punteggio non valido.'));
-    var url = base() + '/' + PERCORSO + '/' + encodeURIComponent(chiaveDa(nome)) + '.json';
+    var url = base() + '/' + percorso + '/' + encodeURIComponent(chiaveDa(nome)) + '.json';
     return richiesta(url).then(function (attuale) {
       if (attuale && Number(attuale.punti) >= punti) return; // tiene il record migliore
       return richiesta(url, {
@@ -150,7 +187,7 @@
   }
 
   window.BiscaClassifica = {
-    attiva: !!DB_URL, carica: carica, salva: salva,
+    attiva: !!DB_URL, carica: carica, caricaTavolo: caricaTavolo, salva: salva, salvaTavolo: salvaTavolo, TAVOLI: TAVOLI,
     caricaGiocatore: caricaGiocatore, salvaGiocatore: salvaGiocatore, caricaGiocatori: caricaGiocatori
   };
 })();
