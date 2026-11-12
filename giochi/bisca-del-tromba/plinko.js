@@ -69,11 +69,11 @@ function pCostruisci() {
   pPronta = true;
   pCtx = document.getElementById('p-board').getContext('2d');
   const sr = document.getElementById('p-righe');
-  for (let n = P_RIGHE_MIN; n <= P_RIGHE_MAX; n++) sr.add(new Option(n + ' file', n));
+  for (let n = P_RIGHE_MIN; n <= P_RIGHE_MAX; n++) sr.add(new Option(String(n), n));
   sr.value = pRighe;
   sr.addEventListener('change', () => pCambiaRighe(+sr.value));
   const sk = document.getElementById('p-rischio');
-  Object.keys(P_RISCHI).forEach(k => sk.add(new Option('Rischio ' + P_RISCHI[k].toLowerCase(), k)));
+  Object.keys(P_RISCHI).forEach(k => sk.add(new Option(P_RISCHI[k], k)));
   sk.value = pRischio;
   sk.addEventListener('change', () => pCambiaRischio(sk.value));
   // LANCIA: un tocco lancia una moneta, tenendo premuto continuano a scendere
