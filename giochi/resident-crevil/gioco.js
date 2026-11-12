@@ -1,8 +1,9 @@
 /* ════════════════════════════════════════════════════════════════
    RESIDENT CREVIL: MORTE SUL GREPPO — prototipo
    Notte nei boschi di Capricchia (Amatrice). Guerrino ti porta alla
-   Fonticella, ti dice di aspettarlo e se ne va. Dopo qualche minuto
-   si sentono le roncolate... Raccogli i 10 fogli prima che ti prenda.
+   Fonticella Petri, si stanca e si mette a prendere a pugni un albero.
+   Tu cerchi i 10 fogli. Dopo qualche minuto nel bosco arriva Papi,
+   alto tre metri: se ti prende, ricominci dall'ultimo foglio.
 
    Mappa: quadrato di 1300 m centrato su 42.6263 N, 13.3445 E.
    Coordinate di gioco: x = est (m), z = sud (m), y = quota (m s.l.m.).
@@ -16,7 +17,7 @@ import { MeshoptDecoder } from './lib/addons/libs/meshopt_decoder.module.js';
 import { mergeGeometries } from './lib/addons/utils/BufferGeometryUtils.js';
 
 const VELOCE = /veloce/.test(location.search);
-const PROVA = { congela: false };   // per i test: ferma la logica di Guerrino
+const PROVA = { congela: false, tempo: 1 };   // per i test: ferma la storia (Guerrino e Papi), accelera il tempo
 const HALF = 650, N = 261, CELLA = 5, LIMITE = 615;
 const TOCCO = matchMedia('(pointer: coarse)').matches || 'ontouchstart' in window;
 if (TOCCO) document.body.classList.add('tocco');
@@ -25,25 +26,29 @@ if (TOCCO) document.body.classList.add('tocco');
 const BATTUTE = {
   intro: [
     "Oh, eccote. Tu sei Crivo, giusto? Er fijo de... vabbè, nun importa.",
-    "Io so' Guerrino. Stanotte te porto ner bosco, che te devo fa' vede' 'na cosa.",
+    "Io so' Guerrino. Stanotte te porto alla Fonticella Petri, che è qui vicino.",
     "Accendi 'sta torcia, va'. Io ar buio ce vedo uguale. Abitudine.",
     "Statte dietro e nun te perde. Qua se so' persi pure i cani da tartufo.",
   ],
   strada: [
     "Da regazzino qua ce venivo a fa' la legna co' mi' padre. Co' la roncola, mica co' 'ste motoseghe.",
     "Senti che silenzio? D'estate ce stanno i grilli. D'inverno... d'inverno ce sto io.",
-    "Là sotto c'è er Fosso de Selva Grande. Dice che la notte se sentono le voci. È er vento. Quasi sempre.",
     "Quell'albero lì l'ho piantato io. Ner cinquantotto. O ner sessantotto. Comunque è venuto storto.",
-    "Ah, 'na cosa: si trovi dei fogli attaccati agli alberi, nun li toccà. Nun so' roba tua.",
+    "Ahò, piano. C'ho settantott'anni, mica venti.",
   ],
   fonte: [
-    "Ecco, questa è la Fonticella. Fermate qua.",
-    "Aspettame. Vado a pijà 'na cosa e torno subito.",
-    "Nun te move. E nun toccà gnente.",
+    "Ecco la Fonticella Petri. Fermamose.",
+    "Uff... aspetta... nun c'ho più er fiato.",
   ],
+  sfogo: [
+    "Mo' me so' stancato pure d'esse stanco.",
+    "'St'albero me guarda storto da quarant'anni. Mo' je faccio vede' io.",
+    "Tu va' a cercà i fogli attaccati agli alberi. So' dieci. Trovali tutti prima che arriva Papi.",
+  ],
+  mena: ["Pija questa!", "E questa è pe' mi' cognato!", "Nun me guardà, cerca i fogli!", "Quarant'anni che me guardi storto!", "Ahia. Vabbè, continuo.", "Er fiato nun ce l'ho, ma er pugno sì."],
   indietro: ["Daje, che c'hai le gambe de ricotta?", "Ahò, de qua!", "Nun me fa' tornà indietro.", "Sbrighete, che fa freddo."],
-  caccia: ["T'avevo detto de nun toccalli!", "Crivo... Criiivo...", "Er bosco è mio.", "Vie' qua, che te faccio vede' la roncola de mi' padre.", "Nun te move. Te l'avevo detto."],
-  preso: ["Che t'avevo detto?", "Mo' te riporto a casa. A pezzi.", "Gnente, nun ascorta più nessuno.", "Dovevi aspettà alla Fonticella.", "La roncola nun sbaja mai."],
+  caccia: ["CRIVO! È ARIVATO PAPI!", "Nun lo guardà fisso, che je piace!", "Corri, Crivo! Papi è arto tre metri, mica è scemo!", "Papi! Lassalo stà, che è er fijo de...!"],
+  preso: ["Papi è arto tre metri. Tu no.", "Papi s'è ripreso i fogli.", "Guerrino nun ha manco smesso de menà l'albero.", "Te l'aveva detto: nun lo guardà.", "Papi nun corre. Papi arriva."],
 };
 
 /* ── DOM ── */
@@ -110,7 +115,7 @@ function immagineDati(url) {
 }
 caricaFile.setResponseType('arraybuffer');
 
-const SUONI = ['notte', 'fosso', 'roncolate', 'colpo', 'foglio', 'fiatone', 'scricchiolio', 'frasche', 'passo1', 'passo2', 'passo3', 'passo4', 'passo5'];
+const SUONI = ['notte', 'fosso', 'colpo', 'foglio', 'fiatone', 'scricchiolio', 'frasche', 'passo1', 'passo2', 'passo3', 'passo4', 'passo5', 'pugno1', 'pugno2', 'pugno3'];
 const buf = {};
 
 const pronto = Promise.all([
@@ -120,8 +125,11 @@ const pronto = Promise.all([
   fetch('mappa/osm.json').then(r => r.json()),
   promessa(gltf, 'modelli/guerrino.glb'),
   promessa(gltf, 'modelli/roncola.glb').catch(() => null),
+  promessa(gltf, 'modelli/papi.glb'),
+  promessa(caricaTex, 'texture/corteccia.jpg'),
+  promessa(caricaTex, 'texture/fronde.webp'),
   ...SUONI.map(s => promessa(caricaAudio, 'sfx/' + s + '.mp3').then(b => { buf[s] = b; }, () => {})),
-]).then(([bin, bosco, colori, osm, modello, roncola]) => costruisci(bin, bosco, colori, osm, modello, roncola));
+]).then(([bin, bosco, colori, osm, modello, roncola, modelloPapi, corteccia, fronde]) => costruisci(bin, bosco, colori, osm, modello, roncola, modelloPapi, [corteccia, fronde]));
 
 /* ════════ TERRENO ════════ */
 let Q;   // Float32Array quote
@@ -178,40 +186,99 @@ function rand(seme) {
   let s = seme >>> 0 || 1;
   return () => { s ^= s << 13; s ^= s >>> 17; s ^= s << 5; return ((s >>> 0) % 100000) / 100000; };
 }
-function colora(geo, col) {
-  const n = geo.attributes.position.count, c = new Float32Array(n * 3);
-  const cc = new THREE.Color(col);
-  for (let i = 0; i < n; i++) { c[i * 3] = cc.r; c[i * 3 + 1] = cc.g; c[i * 3 + 2] = cc.b; }
-  geo.setAttribute('color', new THREE.BufferAttribute(c, 3));
-  return geo;
+// alberi fatti a mano con texture CC0 di Poly Haven (island_tree_01): corteccia vera e fronde
+// fatte di foglie vere ritagliate (texture/fronde.webp: a sinistra latifoglia, a destra abete)
+function tronco(r0, r1, h, segs = 7, alti = 1) {
+  const g = new THREE.CylinderGeometry(r1, r0, h, segs, alti, true).translate(0, h / 2, 0);
+  const uv = g.attributes.uv, p = g.attributes.position;
+  for (let i = 0; i < uv.count; i++) uv.setXY(i, uv.getX(i) * 2, p.getY(i) / 1.4);
+  return g;
 }
-function bitorzola(geo, r, quanto) {
-  const p = geo.attributes.position;
-  for (let i = 0; i < p.count; i++) {
-    const k = 1 + (r() - 0.5) * quanto;
-    p.setXYZ(i, p.getX(i) * k, p.getY(i) * (1 + (r() - 0.5) * quanto * 0.6), p.getZ(i) * k);
+function ramoLegno(base, az, incl, lung, r) {
+  const g = tronco(r, r * 0.35, lung, 4);
+  g.rotateZ(-incl); g.rotateY(az); g.translate(base.x, base.y, base.z);
+  return g;
+}
+// una fronda: piano col ramo che parte dal basso; crociata = due piani a 90°
+function fronda(lista, base, az, incl, w, h, conifera, centro, croce = true) {
+  const u0 = conifera ? 0.5 : 0, u1 = conifera ? 1 : 0.5;
+  for (let k = 0; k < (croce ? 2 : 1); k++) {
+    const g = new THREE.PlaneGeometry(w, h).translate(0, h / 2, 0);
+    const uv = g.attributes.uv;
+    for (let i = 0; i < uv.count; i++) uv.setX(i, u0 + uv.getX(i) * (u1 - u0));
+    g.rotateY((croce ? k : 1) * Math.PI / 2);   // da sola: piatta, come un ramo d'abete
+    g.rotateZ(-incl); g.rotateY(az); g.translate(base.x, base.y, base.z);
+    // normali "a palla" dal centro della chioma: luce morbida, niente lati neri
+    const p = g.attributes.position, n = g.attributes.normal, v = new THREE.Vector3();
+    for (let i = 0; i < p.count; i++) {
+      v.set(p.getX(i) - centro.x, (p.getY(i) - centro.y) * 0.7 + 0.4, p.getZ(i) - centro.z).normalize();
+      n.setXYZ(i, v.x, v.y, v.z);
+    }
+    lista.push(g);
   }
-  return geo;
 }
-function pulisci(g) { g = g.index ? g.toNonIndexed() : g; for (const k of Object.keys(g.attributes)) if (k !== 'position' && k !== 'color') g.deleteAttribute(k); return g; }
 function modelliAlberi() {
-  const r = rand(5), T = 0x3b2f25;
-  // A: latifoglia (cerro, faggio)
-  const a = [colora(new THREE.CylinderGeometry(0.16, 0.3, 5, 6, 1, true).translate(0, 2.5, 0), T)];
-  for (let i = 0; i < 4; i++) {
-    const s = 1.6 + r() * 1.1;
-    a.push(colora(bitorzola(new THREE.IcosahedronGeometry(s, 1), r, 0.3).translate((r() - 0.5) * 2.2, 5.6 + r() * 2.2, (r() - 0.5) * 2.2), i % 2 ? 0x1f3018 : 0x26391c));
+  const r = rand(5), V = (x, y, z) => new THREE.Vector3(x, y, z);
+  const modelli = [];
+  // A: latifoglia (cerro, faggio): chioma larga
+  {
+    const legno = [tronco(0.3, 0.17, 6.2)], fr = [], c = V(0, 6.4, 0);
+    for (let i = 0; i < 5; i++) { const az = i * 1.26 + r() * 0.5; legno.push(ramoLegno(V(0, 3.6 + i * 0.5, 0), az, 0.75 + r() * 0.3, 2.4, 0.09)); }
+    for (let i = 0; i < 13; i++) {
+      const az = i * 2.4 + r() * 0.6, y = 3.9 + r() * 2.6, d = 0.2 + r() * 0.5;
+      fronda(fr, V(Math.sin(az) * d, y, Math.cos(az) * d), az, 0.55 + r() * 0.6, 3.2 + r(), 3.6 + r() * 1.2, false, c);
+    }
+    for (let i = 0; i < 4; i++) fronda(fr, V((r() - 0.5) * 0.8, 6.6, (r() - 0.5) * 0.8), r() * 6.28, r() * 0.35, 3, 3.2, false, c);
+    modelli.push([legno, fr]);
   }
   // B: faggio alto e sottile
-  const b = [colora(new THREE.CylinderGeometry(0.12, 0.24, 8.5, 6, 1, true).translate(0, 4.25, 0), 0x4a443c)];
-  for (let i = 0; i < 3; i++) b.push(colora(bitorzola(new THREE.IcosahedronGeometry(1.3 + r() * 0.8, 1), r, 0.3).translate((r() - 0.5) * 1.6, 8 + r() * 2.5, (r() - 0.5) * 1.6), 0x223419));
-  // C: abete / pino nero
-  const c = [colora(new THREE.CylinderGeometry(0.1, 0.25, 4, 5, 1, true).translate(0, 2, 0), T)];
-  for (let i = 0; i < 4; i++) c.push(colora(new THREE.ConeGeometry(2.6 - i * 0.55, 3.2, 7, 1, true).translate(0, 3 + i * 1.9, 0), 0x16261a));
+  {
+    const legno = [tronco(0.24, 0.12, 9.5)], fr = [], c = V(0, 9, 0);
+    for (let i = 0; i < 4; i++) legno.push(ramoLegno(V(0, 6.5 + i * 0.6, 0), i * 1.6 + r(), 0.6 + r() * 0.3, 1.8, 0.07));
+    for (let i = 0; i < 10; i++) {
+      const az = i * 2.4 + r() * 0.6, y = 6.6 + r() * 2.8;
+      fronda(fr, V(Math.sin(az) * 0.2, y, Math.cos(az) * 0.2), az, 0.45 + r() * 0.5, 2.4 + r() * 0.8, 3 + r(), false, c);
+    }
+    fronda(fr, V(0, 9.3, 0), 0, 0.1, 2.4, 2.6, false, c);
+    modelli.push([legno, fr]);
+  }
+  // C: abete / pino nero: palchi di rami che pendono
+  {
+    const legno = [tronco(0.25, 0.04, 10, 6)], fr = [], c = V(0, 5, 0);
+    const palchi = 7;
+    for (let j = 0; j < palchi; j++) {
+      const y = 1.6 + j * 1.15, lung = 3.4 - j * 0.38, n = 6 - (j > 4 ? 2 : 0);
+      for (let i = 0; i < n; i++) {
+        const az = i * 6.28 / n + j * 0.7 + r() * 0.3;
+        fronda(fr, V(0, y, 0), az, 1.75 + r() * 0.2, lung * 0.75, lung, true, V(0, y, 0), false);
+      }
+    }
+    fronda(fr, V(0, 9.2, 0), 0, 0, 1, 1.4, true, c);
+    modelli.push([legno, fr]);
+  }
   // D: cespuglio
-  const d = [colora(bitorzola(new THREE.IcosahedronGeometry(0.9, 0), r, 0.5).scale(1.3, 0.75, 1.3).translate(0, 0.4, 0), 0x1d2c15),
-             colora(bitorzola(new THREE.IcosahedronGeometry(0.6, 0), r, 0.5).translate(0.7, 0.35, 0.3), 0x22331a)];
-  return [a, b, c, d].map(l => mergeGeometries(l.map(pulisci)));
+  {
+    const fr = [], c = V(0, 0.2, 0);
+    for (let i = 0; i < 6; i++) { const az = i * 1.05 + r() * 0.4; fronda(fr, V(0, -0.1, 0), az, 0.6 + r() * 0.5, 1.5, 1.6, false, c); }
+    modelli.push([[], fr]);
+  }
+  const unisci = l => {
+    if (!l.length) return null;
+    const g = mergeGeometries(l.map(x => { x = x.index ? x.toNonIndexed() : x; for (const k of Object.keys(x.attributes)) if (!['position', 'normal', 'uv'].includes(k)) x.deleteAttribute(k); return x; }));
+    g.clearGroups(); return g;
+  };
+  return modelli.map(([a, b]) => [unisci(a), unisci(b)]);
+}
+function materialiAlberi(corteccia, fronde) {
+  corteccia.wrapS = corteccia.wrapT = THREE.RepeatWrapping; corteccia.colorSpace = THREE.SRGBColorSpace; corteccia.anisotropy = 4;
+  fronde.colorSpace = THREE.SRGBColorSpace; fronde.anisotropy = 2;
+  const legno = new THREE.MeshLambertMaterial({ map: corteccia, color: 0x9a9088 });
+  const foglie = new THREE.MeshLambertMaterial({ map: fronde, color: 0x7c8670, alphaTest: 0.42, side: THREE.DoubleSide });
+  // il retro delle fronde non va al buio: tengo la normale "a palla" su tutti e due i lati
+  foglie.onBeforeCompile = sh => {
+    sh.fragmentShader = sh.fragmentShader.replace('#include <normal_fragment_begin>', '#include <normal_fragment_begin>\n#ifdef DOUBLE_SIDED\n\tnormal *= faceDirection;\n#endif');
+  };
+  return [legno, foglie];
 }
 
 const TRONCHI = new Map();   // griglia 10 m → [{x,z,r,mesh,i,s}]
@@ -226,16 +293,16 @@ function tronchiVicini(x, z, raggio, fn) {
 }
 
 const BLOCCHI = [];   // pezzi di bosco 100x100 m, accesi solo vicino al giocatore
-function creaBosco(bosco, osm, fogliPos) {
+function creaBosco(bosco, osm, fogliPos, texAlberi) {
   const geos = modelliAlberi();
-  const mat = new THREE.MeshLambertMaterial({ vertexColors: true, side: THREE.DoubleSide });
+  const mats = materialiAlberi(...texAlberi);
   const r = rand(1234);
   const dens = (x, z) => {
     const i = Math.min(bosco.w - 1, Math.max(0, Math.round((x + HALF) / (HALF * 2) * (bosco.w - 1))));
     const j = Math.min(bosco.h - 1, Math.max(0, Math.round((z + HALF) / (HALF * 2) * (bosco.h - 1))));
     return bosco.d[(j * bosco.w + i) * 4] / 255;
   };
-  const libero = (x, z) => !fogliPos.some(f => Math.hypot(f[0] - x, f[1] - z) < 3.5);
+  const libero = (x, z) => !fogliPos.some(f => Math.hypot(f[0] - x, f[1] - z) < 3.5) && Math.hypot(FONTE.x - x, FONTE.z - z) > 5;
   const lista = [];   // [x, z, tipo, scala, rot]
   const PASSO = 5.2;
   for (let z = -HALF + 2; z < HALF - 2; z += PASSO) for (let x = -HALF + 2; x < HALF - 2; x += PASSO) {
@@ -252,8 +319,10 @@ function creaBosco(bosco, osm, fogliPos) {
   }
   // gli alberi dei fogli: tronchi grossi e sicuri
   for (const f of fogliPos) lista.push([f[0], f[1], 0, 1.35, f[2]]);
+  // l'albero che Guerrino prende a pugni, accanto alla Fonticella
+  lista.push([FONTE.x + 4.2, FONTE.z - 2.6, 0, 1.25, 1.1]);
 
-  const NB = 13, LATO = HALF * 2 / NB;
+  const NB = 26, LATO = HALF * 2 / NB;   // blocchi da 50 m
   const perBlocco = new Map();
   for (const t of lista) {
     const bi = Math.min(NB - 1, (t[0] + HALF) / LATO | 0), bj = Math.min(NB - 1, (t[1] + HALF) / LATO | 0);
@@ -267,15 +336,14 @@ function creaBosco(bosco, osm, fogliPos) {
     g.userData.cx = ((k % NB) + 0.5) * LATO - HALF; g.userData.cz = ((k / NB | 0) + 0.5) * LATO - HALF;
     tipi.forEach((l, tipo) => {
       if (!l.length) return;
-      const im = new THREE.InstancedMesh(geos[tipo], mat, l.length);
+      const ims = geos[tipo].map((geo, k) => geo && new THREE.InstancedMesh(geo, mats[k], l.length)).filter(Boolean);
       l.forEach((t, i) => {
         qq.setFromAxisAngle(su, t[4]); sc.set(t[3], t[3] * (0.9 + (i % 5) * 0.06), t[3]);
         v.set(t[0], quota(t[0], t[1]) - 0.15, t[1]);
-        m4.compose(v, qq, sc); im.setMatrixAt(i, m4);
-        if (tipo < 3) aggiungiTronco({ x: t[0], z: t[1], r: (tipo === 1 ? 0.22 : 0.28) * t[3] + 0.05, mesh: im, i, s: t[3], rot: t[4], y: v.y });
+        m4.compose(v, qq, sc); for (const im of ims) im.setMatrixAt(i, m4);
+        if (tipo < 3) aggiungiTronco({ x: t[0], z: t[1], r: (tipo === 1 ? 0.22 : 0.28) * t[3] + 0.05, mesh: ims, i, s: t[3], sy: sc.y, rot: t[4], y: v.y });
       });
-      im.computeBoundingSphere();
-      g.add(im);
+      for (const im of ims) { im.computeBoundingSphere(); g.add(im); }
     });
     scena.add(g); BLOCCHI.push(g);
   }
@@ -346,7 +414,7 @@ function spingiFuoriCase(p, raggio) {
 }
 
 /* ════════ FONTICELLA ════════ */
-const FONTE = { x: 233, z: 263 };
+const FONTE = { x: -27, z: 313 };   // a 130 m di strada dalla fine del paese
 function creaFonte() {
   const pietra = new THREE.MeshLambertMaterial({ color: 0x7a746a });
   const g = new THREE.Group();
@@ -393,71 +461,108 @@ function creaFogli() {
   }
 }
 
-/* ════════ GUERRINO ════════ */
-const guerrino = { g: new THREE.Group(), stato: 'guida', x: 0, z: 0, rot: 0, t: 0, passo: 0, tappa: 0, inclina: 0, vel: 0, colpo: 0, prossimo: 0, fine: 0, bersaglio: null };
-let roncolaAudio = null, colpoAudio = null;
-function creaGuerrino(modello, roncola) {
+/* ════════ PERSONAGGI: GUERRINO E PAPI ════════ */
+// Guerrino: il modello vecchio di Leo con le 9 animazioni del suo scheletro nuovo
+// (jab, combo, affondo, stanco, calcioAlto, pugno, calcio, calcio2, cammina).
+// Papi: alto 3 metri, animazioni gattona, salto, corsa, striscia.
+const guerrino = { g: new THREE.Group(), x: 0, z: 0, rot: 0, tappa: 0, vel: 0, prossimo: 0, mena: false, tinta: 0x77716a, scala: 1 };
+const papi = { g: new THREE.Group(), x: 0, z: 0, rot: 0, vel: 0, stato: 'assente', prossimo: 0, fine: 0, tinta: 0x5c5a58, scala: 3 / 1.89 };
+function preparaPersonaggio(p, modello) {
   const m = modello.scene;
-  // Lambert come il resto della scena: col PBR la torcia lo sbianca
+  // Lambert come il resto della scena: col PBR la torcia li sbianca
   m.traverse(o => {
     if (!o.isMesh) return;
     o.frustumCulled = false;
     const v = o.material;
-    o.material = new THREE.MeshLambertMaterial({ map: v.map, normalMap: v.normalMap || null, color: 0x77716a });
+    o.material = new THREE.MeshLambertMaterial({ map: v.map, normalMap: v.normalMap || null, color: p.tinta });
   });
-  guerrino.corpo = m;
-  guerrino.g.add(m);
-  const osso = n => m.getObjectByName(n);
-  guerrino.braccio = osso('RightArm'); guerrino.avambraccio = osso('RightForeArm');
-  // camminata (unica animazione del modello): tolgo lo spostamento in avanti delle anche,
-  // così la velocità la decide il gioco; v0 = metri al secondo della camminata originale
-  const clip = modello.animations[0];
-  guerrino.v0 = 1.2;
-  if (clip) {
+  m.scale.setScalar(p.scala);
+  p.corpo = m; p.g.add(m);
+  p.mixer = new THREE.AnimationMixer(m);
+  p.az = {}; p.v0 = {};
+  for (const clip of modello.animations) {
+    // tolgo lo spostamento in avanti delle anche: dove va lo decide il gioco.
+    // v0 = metri al secondo dell'animazione originale (già in scala)
     const tr = clip.tracks.find(t => /Hips\.position$/.test(t.name));
     if (tr) {
       const v = tr.values, n = v.length / 3;
-      guerrino.v0 = Math.max(0.4, Math.hypot(v[(n - 1) * 3] - v[0], v[(n - 1) * 3 + 2] - v[2]) / clip.duration);
+      p.v0[clip.name] = Math.max(0.3, Math.hypot(v[(n - 1) * 3] - v[0], v[(n - 1) * 3 + 2] - v[2]) / clip.duration * p.scala);
       for (let i = 0; i < n; i++) { v[i * 3] = v[0]; v[i * 3 + 2] = v[2]; }
     }
-    guerrino.mixer = new THREE.AnimationMixer(m);
-    guerrino.passo1 = guerrino.mixer.clipAction(clip); guerrino.passo1.play();
-    // posa da fermo: il fotogramma con i piedi più vicini
-    const piedeS = osso('LeftFoot'), piedeD = osso('RightFoot'), a = new THREE.Vector3(), b = new THREE.Vector3();
+    p.az[clip.name] = p.mixer.clipAction(clip);
+  }
+  p.corrente = null; p.nomeAz = '';
+  scena.add(p.g);
+}
+// passa a un'animazione con una dissolvenza; una = una volta sola e resta sull'ultimo fotogramma
+function recita(p, nome, una = false, fade = 0.25) {
+  const a = p.az[nome]; if (!a) return null;
+  if (p.corrente === a && !una) return a;
+  a.reset(); a.setLoop(una ? THREE.LoopOnce : THREE.LoopRepeat, Infinity); a.clampWhenFinished = una; a.timeScale = 1;
+  a.play();
+  if (p.corrente && p.corrente !== a) p.corrente.crossFadeTo(a, fade, false);
+  p.corrente = a; p.nomeAz = nome;
+  return a;
+}
+function finita(p) { const a = p.corrente; return !a || (a.loop === THREE.LoopOnce && a.time >= a.getClip().duration - 0.02); }
+
+function creaGuerrino(modello, roncola) {
+  preparaPersonaggio(guerrino, modello);
+  const m = guerrino.corpo, osso = n => m.getObjectByName(n);
+  // posa da fermo: il fotogramma della camminata con i piedi più vicini
+  const cam = guerrino.az.cammina;
+  if (cam) {
+    cam.play();
+    const clip = cam.getClip(), piedeS = osso('LeftFoot'), piedeD = osso('RightFoot'), a = new THREE.Vector3(), b = new THREE.Vector3();
     let best = 0, bd = Infinity;
     for (let t = 0; t < clip.duration; t += clip.duration / 32) {
       guerrino.mixer.setTime(t); m.updateMatrixWorld(true);
       const d = piedeS.getWorldPosition(a).distanceTo(piedeD.getWorldPosition(b));
       if (d < bd) { bd = d; best = t; }
     }
-    guerrino.tFermo = best;
+    guerrino.tFermo = best; cam.stop();
+    recita(guerrino, 'cammina');
   }
-  // la roncola di Leo in mano destra (il modello è alto 1,9 "unità": la porto a 50 cm)
+  // la roncola di Leo in mano destra: il manico passa dentro il pugno (asse x della mano, dal mignolo
+  // all'indice), la lama esce dal lato del pollice col filo verso le nocche
   const mano = osso('RightHand');
   if (roncola && mano) {
     const r = roncola.scene;
-    r.traverse(o => { if (o.isMesh) o.frustumCulled = false; });
-    r.position.set(0, -1.65, 0);
-    const perno = new THREE.Group(); perno.add(r);
-    perno.scale.setScalar(0.27); perno.position.set(0, 0.085, 0); perno.rotation.set(0, 0, Math.PI / 2 + 0.6);
+    r.traverse(o => { if (o.isMesh) { o.frustumCulled = false; o.material = new THREE.MeshLambertMaterial({ map: o.material.map, color: 0x9c9890 }); } });
+    r.position.set(0, -1.65, 0);            // il punto del manico che sta nel palmo (modello alto 1,9)
+    const giro = new THREE.Group(); giro.add(r); giro.rotation.y = -Math.PI / 2;
+    const perno = new THREE.Group(); perno.add(giro);
+    perno.scale.setScalar(0.27); perno.position.set(0, 0.13, 0.03); perno.rotation.set(0, 0, Math.PI / 2);
     mano.add(perno);
   }
-  scena.add(guerrino.g);
+}
+function creaPapi(modello) {
+  preparaPersonaggio(papi, modello);
+  papi.g.visible = false;
+  recita(papi, 'gattona');
 }
 
-// velocità (m/s) e colpo (0 = braccio giù, 1 = roncola alzata, <0 = colpo affondato) decisi dalla logica
-const _qc = new THREE.Quaternion(), _ax = new THREE.Vector3(1, 0, 0);
 function animaGuerrino(dt) {
-  if (!guerrino.mixer || !guerrino.g.visible) return;
-  const v = guerrino.vel || 0, az = guerrino.passo1;
-  if (v > 0.05) { az.paused = false; az.timeScale = v / guerrino.v0; }
-  else { az.paused = true; az.time += (guerrino.tFermo - az.time) * Math.min(1, dt * 6); }
-  guerrino.mixer.update(dt);
-  const c = guerrino.colpo || 0;
-  if (c !== 0 && guerrino.braccio) {
-    guerrino.braccio.quaternion.multiply(_qc.setFromAxisAngle(_ax, c * 2.2));
-    guerrino.avambraccio.quaternion.multiply(_qc.setFromAxisAngle(_ax, Math.max(0, c) * 0.9));
+  if (!guerrino.mixer) return;
+  guerrino.g.visible = Math.hypot(guerrino.x - io.x, guerrino.z - io.z) < 75;
+  if (!guerrino.g.visible) return;
+  const cam = guerrino.az.cammina;
+  if (guerrino.corrente === cam && cam) {
+    const v = guerrino.vel || 0;
+    if (v > 0.05) { cam.paused = false; cam.timeScale = v / (guerrino.v0.cammina || 1.2); }
+    else { cam.paused = true; cam.time += (guerrino.tFermo - cam.time) * Math.min(1, dt * 6); }
   }
+  guerrino.mixer.update(dt);
+}
+function animaPapi(dt) {
+  if (!papi.mixer || !papi.g.visible) return;
+  const a = papi.corrente;
+  if (a && (papi.nomeAz === 'corsa' || papi.nomeAz === 'gattona' || papi.nomeAz === 'striscia')) {
+    const v = papi.vel || 0;
+    a.paused = v < 0.05;
+    if (v >= 0.05) a.timeScale = Math.min(3, v / (papi.v0[papi.nomeAz] || 1));
+  }
+  papi.mixer.update(dt);
 }
 
 /* ════════ AUDIO ════════ */
@@ -478,12 +583,14 @@ function preparaAudio() {
   const b = ctx.createBuffer(1, len, ctx.sampleRate), d = b.getChannelData(0);
   for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
   rumore = new THREE.Audio(ascolto); rumore.setBuffer(b); rumore.setLoop(true); rumore.setVolume(0);
-  if (buf.roncolate) {
-    roncolaAudio = new THREE.PositionalAudio(ascolto); roncolaAudio.setBuffer(buf.roncolate);
-    roncolaAudio.setRefDistance(10); roncolaAudio.setRolloffFactor(0.8); roncolaAudio.setDistanceModel('inverse');
-    roncolaAudio.position.set(0, 1.2, 0);
-    guerrino.g.add(roncolaAudio);
-  }
+  const posizionale = (dove, rif, y) => {
+    const a = new THREE.PositionalAudio(ascolto);
+    a.setRefDistance(rif); a.setRolloffFactor(0.9); a.setDistanceModel('inverse'); a.position.set(0, y, 0);
+    dove.add(a); return a;
+  };
+  pugnoAudio = posizionale(guerrino.g, 5, 1.2);     // i pugni sull'albero si sentono da lontano
+  papiVoce = posizionale(papi.g, 8, 2);
+  papiPassi = posizionale(papi.g, 7, 0.2);
 }
 function avviaLoop() {
   for (const a of [ambiente, fosso, fiatone, rumore]) if (a && !a.isPlaying) a.play();
@@ -663,20 +770,24 @@ function didascalia(testo, ms = 4500) {
 }
 function pesca(l) { return l[Math.random() * l.length | 0]; }
 
-/* ── percorso di Guerrino: dalla fine del paese, su per la carrareccia, fino alla Fonticella ── */
-const PERCORSO = [[-138, 388], [-117, 377], [-108, 367], [-75, 354], [-34, 325], [-13, 320], [17, 321], [58, 338], [80, 342], [120, 339], [151, 327], [177, 326], [184, 321], [196, 273], [203, 267], [222, 266], [229, 262]];
-const VIA = [[240, 250], [266, 236], [273, 232], [305, 239], [322, 232], [320, 196], [329, 195], [331, 172]];
-const TAPPE_FRASI = { 3: 0, 6: 1, 9: 2, 12: 3, 14: 4 };
+/* ── percorso di Guerrino: dalla fine del paese, su per la carrareccia, fino alla Fonticella Petri ── */
+const PERCORSO = [[-138, 388], [-117, 377], [-108, 367], [-75, 354], [-50, 337], [-34, 325], [FONTE.x - 1.5, FONTE.z + 3.5]];
+const TAPPE_FRASI = { 1: 0, 3: 1, 4: 2, 5: 3 };
+const MOSSE = ['pugno', 'jab', 'calcio', 'combo', 'jab', 'calcioAlto', 'pugno', 'calcio2', 'affondo'];
+// quando arriva il colpo, in frazione dell'animazione
+const COLPI = { pugno: [0.32], jab: [0.3], calcio: [0.38], combo: [0.2, 0.42, 0.62], calcioAlto: [0.4], calcio2: [0.42], affondo: [0.45] };
 
-function posaGuerrino(x, z, rot, vola = 0) {
-  guerrino.x = x; guerrino.z = z; guerrino.rot = rot;
-  guerrino.g.position.set(x, quota(x, z) + vola, z);
-  guerrino.g.rotation.set(0, rot, 0);
+function posa(p, x, z, rot) {
+  p.x = x; p.z = z; p.rot = rot;
+  p.g.position.set(x, quota(x, z), z);
+  p.g.rotation.set(0, rot, 0);
 }
-function guardaVerso(x, z) { return Math.atan2(x - guerrino.x, z - guerrino.z); }
-function giraVerso(target, dt, vel = 4) {
-  let d = target - guerrino.rot; d = Math.atan2(Math.sin(d), Math.cos(d));
-  guerrino.rot += d * Math.min(1, dt * vel);
+function posaGuerrino(x, z, rot) { posa(guerrino, x, z, rot); }
+function disegna(p) { p.g.position.set(p.x, quota(p.x, p.z), p.z); p.g.rotation.set(0, p.rot, 0); }
+function guardaVerso(x, z, p = guerrino) { return Math.atan2(x - p.x, z - p.z); }
+function giraVerso(target, dt, vel = 4, p = guerrino) {
+  let d = target - p.rot; d = Math.atan2(Math.sin(d), Math.cos(d));
+  p.rot += d * Math.min(1, dt * vel);
 }
 
 function camminaSu(lista, dt, vel) {
@@ -686,23 +797,58 @@ function camminaSu(lista, dt, vel) {
   const s = Math.min(d, vel * dt);
   guerrino.x += dx / d * s; guerrino.z += dz / d * s; guerrino.vel = vel;
   giraVerso(Math.atan2(dx, dz), dt, 5);
-  guerrino.passo += s;
   return false;
 }
-function disegnaGuerrino() {
-  guerrino.g.position.set(guerrino.x, quota(guerrino.x, guerrino.z), guerrino.z);
-  guerrino.g.rotation.set(guerrino.inclina || 0, guerrino.rot, 0);
+
+// l'albero che Guerrino si mette a menare: il più vicino alla Fonticella
+function alberoDiGuerrino() {
+  let best = null, bd = Infinity;
+  tronchiVicini(FONTE.x, FONTE.z, 14, tr => {
+    if (!tr.mesh) return;
+    const d = Math.hypot(tr.x - FONTE.x, tr.z - FONTE.z);
+    if (d > 2.5 && d < bd) { bd = d; best = tr; }
+  });
+  return best;
+}
+
+// Guerrino mena l'albero, per sempre: una mossa dopo l'altra, col botto a tempo
+function aggiornaMena(dt, t) {
+  const tr = guerrino.albero;
+  if (!guerrino.corrente || finita(guerrino) || guerrino.nomeAz === 'cammina') {
+    guerrino.mossa = (guerrino.mossa + 1) % MOSSE.length;
+    const nome = MOSSE[guerrino.mossa];
+    recita(guerrino, nome, true, 0.2);
+    guerrino.colpiFatti = 0;
+    // ogni tanto riprende fiato
+    if (Math.random() < 0.12) { recita(guerrino, 'stanco', true, 0.3); guerrino.colpiFatti = 9; }
+  }
+  const a = guerrino.corrente, nome = guerrino.nomeAz, fr = a.time / a.getClip().duration, lista = COLPI[nome] || [];
+  while (guerrino.colpiFatti < lista.length && fr >= lista[guerrino.colpiFatti]) {
+    guerrino.colpiFatti++;
+    scuoti(tr, 0.6);
+    if (pugnoAudio && guerrino.g.visible) {
+      pugnoAudio.setBuffer(buf['pugno' + (1 + (Math.random() * 3 | 0))]);
+      pugnoAudio.setPlaybackRate(0.9 + Math.random() * 0.2);
+      if (pugnoAudio.isPlaying) pugnoAudio.stop();
+      pugnoAudio.play();
+    }
+  }
+  if (tr) { giraVerso(Math.atan2(tr.x - guerrino.x, tr.z - guerrino.z), dt, 3); disegna(guerrino); }
+  // se gli passi vicino, ti dice qualcosa
+  const d = Math.hypot(io.x - guerrino.x, io.z - guerrino.z);
+  if (d < 7 && t > guerrino.prossimo && storia !== 'caccia') { guerrino.prossimo = t + 14; dici(pesca(BATTUTE.mena), 2600); }
 }
 
 function aggiornaStoria(dt, t) {
   tStoria += dt;
   guerrino.vel = 0;
+  if (guerrino.mena) aggiornaMena(dt, t);
   const dGioc = Math.hypot(io.x - guerrino.x, io.z - guerrino.z);
   if (storia === 'intro') {
     giraVerso(guardaVerso(io.x, io.z), dt, 3);
-    disegnaGuerrino(t, 0);
+    disegna(guerrino);
     if (tStoria > 0.8 && !guerrino.detto) { guerrino.detto = true; BATTUTE.intro.forEach(b => dici(b)); }
-    if (guerrino.detto && !coda.length && !parlando) { storia = 'strada'; tStoria = 0; guerrino.tappa = 0; guerrino.passo = 0; }
+    if (guerrino.detto && !coda.length && !parlando) { storia = 'strada'; tStoria = 0; guerrino.tappa = 0; }
     return;
   }
   if (storia === 'strada') {
@@ -711,31 +857,37 @@ function aggiornaStoria(dt, t) {
       if (t > guerrino.prossimo) { guerrino.prossimo = t + 9; dici(pesca(BATTUTE.indietro), 2400); }
     } else if (dGioc < 8 || guerrino.tappa === 0) {
       const prima = guerrino.tappa;
-      const arrivato = camminaSu(PERCORSO, dt, 1.35);
+      const arrivato = camminaSu(PERCORSO, dt, 1.25);
       if (guerrino.tappa !== prima && TAPPE_FRASI[guerrino.tappa] !== undefined) dici(BATTUTE.strada[TAPPE_FRASI[guerrino.tappa]]);
-      if (arrivato) { storia = 'fonte'; tStoria = 0; }
+      if (arrivato) { storia = 'fonte'; tStoria = 0; guerrino.fase = 0; }
     }
-    disegnaGuerrino(t);
+    disegna(guerrino);
     return;
   }
   if (storia === 'fonte') {
-    giraVerso(guardaVerso(io.x, io.z), dt, 3);
-    disegnaGuerrino(t, 0);
-    if (dGioc < 9 && !guerrino.fonteDetta) { guerrino.fonteDetta = true; BATTUTE.fonte.forEach(b => dici(b)); }
-    if (guerrino.fonteDetta && !coda.length && !parlando) { storia = 'via'; guerrino.tappa = 0; io.check = { x: io.x, z: io.z }; }
-    return;
-  }
-  if (storia === 'via') {
-    const finito = guerrino.tappa >= VIA.length || camminaSu(VIA, dt, 1.5);
-    if (finito) {
-      // arrivato: sparisce appena non lo guardi
-      giraVerso(guardaVerso(io.x, io.z), dt, 2);
-      if (dGioc < 14 && !guerrino.sgridato) { guerrino.sgridato = true; dici("T'ho detto d'aspettà alla Fonticella!", 2600); }
-    }
-    disegnaGuerrino(t, finito ? 0 : 1);
-    if ((finito && visibileDaMe(60) === 0) || dGioc > 34) {
-      guerrino.g.visible = false; storia = 'solo'; tStoria = 0;
-      attesa = VELOCE ? 25 : 240;
+    // arriva, si gira, ha il fiatone; poi si piega stanco; poi se la prende con l'albero
+    if (guerrino.fase === 0) {
+      giraVerso(guardaVerso(io.x, io.z), dt, 3); disegna(guerrino);
+      if (dGioc < 10 || tStoria > 20) { guerrino.fase = 1; BATTUTE.fonte.forEach(b => dici(b)); }
+    } else if (guerrino.fase === 1) {
+      giraVerso(guardaVerso(io.x, io.z), dt, 3); disegna(guerrino);
+      if (!coda.length && !parlando) { guerrino.fase = 2; tStoria = 0; recita(guerrino, 'stanco', false, 0.4); }
+    } else if (guerrino.fase === 2) {
+      if (tStoria > 4.5) { guerrino.fase = 3; recita(guerrino, 'cammina', false, 0.4); BATTUTE.sfogo.forEach(b => dici(b)); }
+    } else if (guerrino.fase === 3) {
+      if (!coda.length && !parlando) {
+        guerrino.fase = 4;
+        const tr = alberoDiGuerrino(); guerrino.albero = tr;
+        guerrino.verso = tr ? [tr.x + (FONTE.x - tr.x) / Math.hypot(FONTE.x - tr.x, FONTE.z - tr.z) * (tr.r + 0.75), tr.z + (FONTE.z - tr.z) / Math.hypot(FONTE.x - tr.x, FONTE.z - tr.z) * (tr.r + 0.75)] : [guerrino.x, guerrino.z];
+        guerrino.tappa = 0;
+      }
+    } else if (guerrino.fase === 4) {
+      if (camminaSu([guerrino.verso], dt, 1.1)) {
+        guerrino.mena = true; guerrino.mossa = -1; guerrino.corrente = guerrino.az.cammina; guerrino.prossimo = t + 10;
+        storia = 'solo'; tStoria = 0; io.check = { x: io.x, z: io.z };
+        attesa = VELOCE ? 25 : 240;
+      }
+      disegna(guerrino);
     }
     return;
   }
@@ -744,35 +896,61 @@ function aggiornaStoria(dt, t) {
     if (attesa <= 0) iniziaCaccia(t);
     return;
   }
-  if (storia === 'caccia') aggiornaCaccia(dt, t, dGioc);
+  if (storia === 'caccia') aggiornaCaccia(dt, t);
 }
 
-/* ════════ LA CACCIA ════════ */
+/* ── alberi che tremano (i pugni di Guerrino, Papi che passa) ── */
+const SCOSSI = [];
+function scuoti(tr, forza = 1) {
+  if (!tr || !tr.mesh) return;
+  const s = SCOSSI.find(x => x.tr === tr);
+  if (s) { s.t = 0; s.k = forza; } else SCOSSI.push({ tr, t: 0, k: forza });
+}
+const _m4 = new THREE.Matrix4(), _q = new THREE.Quaternion(), _s = new THREE.Vector3(), _p = new THREE.Vector3(), _e = new THREE.Euler();
+function aggiornaScossi(dt) {
+  for (let n = SCOSSI.length - 1; n >= 0; n--) {
+    const s = SCOSSI[n], tr = s.tr;
+    s.t += dt;
+    const k = Math.max(0, 1 - s.t / 1.6) * s.k;
+    const f = Math.sin(s.t * 16) * 0.03 * k;
+    _e.set(f, tr.rot, f * 0.6); _q.setFromEuler(_e);
+    _s.set(tr.s, tr.sy || tr.s, tr.s); _p.set(tr.x, tr.y, tr.z);
+    _m4.compose(_p, _q, _s);
+    for (const im of tr.mesh) { im.setMatrixAt(tr.i, _m4); im.instanceMatrix.needsUpdate = true; }
+    if (k <= 0) SCOSSI.splice(n, 1);
+  }
+}
+
+/* ════════ LA CACCIA: PAPI ════════ */
+let papiVoce = null, papiPassi = null, pugnoAudio = null;
 function iniziaCaccia(t) {
   storia = 'caccia'; tCaccia = 0;
-  didascalia('Da qualche parte nel bosco, qualcuno sta menando un albero.', 5500);
-  // le prime roncolate, lontane
+  didascalia('Tra gli alberi si muove qualcosa. Qualcosa di molto alto.', 5500);
+  setTimeout(() => { if (storia === 'caccia' && fase === 'gioco') dici(BATTUTE.caccia[0], 3000); }, 6000);
+  papi.g.visible = false; papi.stato = 'assente'; papi.prossimo = t + (VELOCE ? 4 : 10);
   const a = Math.random() * 6.28;
-  posaGuerrino(io.x + Math.sin(a) * 60, io.z + Math.cos(a) * 60, 0);
-  guerrino.g.visible = false;
-  if (roncolaAudio) { roncolaAudio.setVolume(1); roncolaAudio.play(); }
-  guerrino.stato = 'assente'; guerrino.prossimo = t + 12;
+  posa(papi, io.x + Math.sin(a) * 50, io.z + Math.cos(a) * 50, 0);
+  versoPapi('frasche', 1, 0.8);
+}
+function versoPapi(nome, vol = 1, rate = 1) {
+  if (!papiVoce || !buf[nome]) return;
+  if (papiVoce.isPlaying) papiVoce.stop();
+  papiVoce.setBuffer(buf[nome]); papiVoce.setVolume(vol); papiVoce.setPlaybackRate(rate); papiVoce.play();
 }
 
 const _v = new THREE.Vector3();
-function visibileDaMe(maxD) {
-  const dx = guerrino.x - io.x, dz = guerrino.z - io.z, d = Math.hypot(dx, dz);
-  if (!guerrino.g.visible || d > maxD) return 0;
-  _v.set(guerrino.x, quota(guerrino.x, guerrino.z) + 1.3, guerrino.z).project(camera);
+// quanto vedo un personaggio (0 = per niente): nell'inquadratura e senza tronchi in mezzo
+function visibileDaMe(p, maxD, altezza = 1.3) {
+  const dx = p.x - io.x, dz = p.z - io.z, d = Math.hypot(dx, dz);
+  if (!p.g.visible || d > maxD) return 0;
+  _v.set(p.x, quota(p.x, p.z) + altezza, p.z).project(camera);
   if (_v.z > 1 || Math.abs(_v.x) > 0.95 || Math.abs(_v.y) > 0.95) return 0;
-  // alberi in mezzo?
   let coperto = false;
   const passi = Math.ceil(d / 3);
   for (let i = 1; i < passi && !coperto; i++) {
     const px = io.x + dx * i / passi, pz = io.z + dz * i / passi;
     tronchiVicini(px, pz, 1, tr => {
       if (coperto) return;
-      // distanza del tronco dal segmento
       const t2 = ((tr.x - io.x) * dx + (tr.z - io.z) * dz) / (d * d);
       if (t2 <= 0.05 || t2 >= 0.95) return;
       const cx = io.x + dx * t2, cz = io.z + dz * t2;
@@ -798,87 +976,91 @@ function alberoPerApparire(dist, davanti) {
   return best;
 }
 
-function scuotiAlbero(tr) {
-  if (!tr || !tr.mesh) return;
-  guerrino.albero = tr; guerrino.tScuoti = 0;
+// muove Papi verso di te schivando i tronchi; ogni tanto fa tremare l'albero che sfiora
+function avanzaPapi(dt, v) {
+  let dx = io.x - papi.x, dz = io.z - papi.z; const l = Math.hypot(dx, dz) || 1; dx /= l; dz /= l;
+  tronchiVicini(papi.x + dx * 1.4, papi.z + dz * 1.4, 1.6, tr => {
+    const ox = papi.x + dx * 1.4 - tr.x, oz = papi.z + dz * 1.4 - tr.z, od = Math.hypot(ox, oz) || 1;
+    if (od < tr.r + 0.8) { dx += ox / od * 0.8; dz += oz / od * 0.8; if (Math.random() < dt * 2) scuoti(tr, 0.5); }
+  });
+  const l2 = Math.hypot(dx, dz) || 1;
+  papi.x += dx / l2 * v * dt; papi.z += dz / l2 * v * dt; papi.vel = v;
+  giraVerso(Math.atan2(dx, dz), dt, 6, papi);
+  papi.passo = (papi.passo || 0) + v * dt;
 }
-const _m4 = new THREE.Matrix4(), _q = new THREE.Quaternion(), _s = new THREE.Vector3(), _p = new THREE.Vector3(), _e = new THREE.Euler();
-function aggiornaScuoti(dt) {
-  const tr = guerrino.albero; if (!tr) return;
-  guerrino.tScuoti += dt;
-  const k = Math.max(0, 1 - guerrino.tScuoti / 3);
-  const fase = Math.sin(guerrino.tScuoti * 14) * 0.035 * k;
-  _e.set(fase, tr.rot, fase * 0.6); _q.setFromEuler(_e);
-  _s.set(tr.s, tr.s, tr.s); _p.set(tr.x, tr.y, tr.z);
-  _m4.compose(_p, _q, _s); tr.mesh.setMatrixAt(tr.i, _m4); tr.mesh.instanceMatrix.needsUpdate = true;
-  if (k <= 0) guerrino.albero = null;
+function passoPapi(ogni, vol) {
+  if (papi.passo < ogni || !papiPassi) return;
+  papi.passo = 0;
+  papiPassi.setBuffer(buf['passo' + (4 + (Math.random() * 2 | 0))]);
+  papiPassi.setPlaybackRate(0.5 + Math.random() * 0.08); papiPassi.setVolume(vol);
+  if (papiPassi.isPlaying) papiPassi.stop();
+  papiPassi.play();
 }
 
-function aggiornaCaccia(dt, t, d) {
+function aggiornaCaccia(dt, t) {
   tCaccia += dt;
   livello = io.fogli + tCaccia / 120;
-  const vis = visibileDaMe(io.torcia ? 45 : 15);
-  aggiornaScuoti(dt);
+  papi.vel = 0;
+  const d = Math.hypot(io.x - papi.x, io.z - papi.z);
+  const alto = papi.stato === 'insegue' || papi.stato === 'salta' ? 2.2 : 0.9;
+  const vis = visibileDaMe(papi, io.torcia ? 45 : 15, alto);
 
-  if (guerrino.stato === 'assente') {
-    if (t > guerrino.prossimo) {
-      // inseguimento vero o apparizione davanti a un albero
+  if (papi.stato === 'assente') {
+    if (t > papi.prossimo) {
       const pInsegue = io.fogli >= 2 ? Math.min(0.5, 0.15 + livello * 0.04) : 0;
       if (Math.random() < pInsegue) {
+        // ti arriva da dietro, di corsa
         const av = avanti(), a = Math.atan2(av.x, av.z) + Math.PI + (Math.random() - 0.5) * 1.2;
-        posaGuerrino(io.x + Math.sin(a) * 32, io.z + Math.cos(a) * 32, 0);
-        guerrino.stato = 'insegue'; guerrino.fine = t + 12 + Math.random() * 8; guerrino.passo = 0; guerrino.colpo = 0;
-        guerrino.g.visible = true; guerrino.inclina = 0.14;
-        if (roncolaAudio) { roncolaAudio.setPlaybackRate(1.15); roncolaAudio.play(); }
-        if (Math.random() < 0.6) dici(pesca(BATTUTE.caccia), 2600);
+        posa(papi, io.x + Math.sin(a) * 32, io.z + Math.cos(a) * 32, 0);
+        papi.stato = 'insegue'; papi.fine = t + 12 + Math.random() * 8; papi.g.visible = true;
+        recita(papi, 'corsa', false, 0.05);
+        versoPapi('frasche', 1, 0.7);
+        if (Math.random() < 0.6) dici(pesca(BATTUTE.caccia), 2800);
       } else {
-        const dist = Math.max(10, 27 - livello * 2) + Math.random() * 6;
+        // agguato: sbuca da dietro un albero, a quattro zampe
+        const dist = Math.max(11, 27 - livello * 2) + Math.random() * 6;
         const tr = alberoPerApparire(dist, Math.random() < 0.55);
         if (tr) {
-          const a = Math.atan2(io.x - tr.x, io.z - tr.z);
-          posaGuerrino(tr.x + Math.sin(a) * (tr.r + 0.55), tr.z + Math.cos(a) * (tr.r + 0.55), a + Math.PI * 0.85);
-          guerrino.stato = 'apposta'; guerrino.fine = t + 7 + Math.random() * 5; guerrino.passo = 0; guerrino.inclina = 0;
-          guerrino.g.visible = true; guerrino.tColpo = 0;
-          scuotiAlbero(tr);
-          if (roncolaAudio) { roncolaAudio.setPlaybackRate(0.95 + Math.random() * 0.1); if (roncolaAudio.isPlaying) roncolaAudio.stop(); roncolaAudio.play(); }
-        } else guerrino.prossimo = t + 2;
+          const a = Math.atan2(io.x - tr.x, io.z - tr.z) + (Math.random() < 0.5 ? 1 : -1) * 0.9;
+          posa(papi, tr.x + Math.sin(a) * (tr.r + 0.9), tr.z + Math.cos(a) * (tr.r + 0.9), 0);
+          papi.rot = guardaVerso(io.x, io.z, papi); disegna(papi);
+          papi.stato = 'agguato'; papi.fine = t + 9 + Math.random() * 6; papi.g.visible = true;
+          recita(papi, Math.random() < 0.5 ? 'gattona' : 'striscia', false, 0.05);
+          scuoti(tr, 1);
+          versoPapi('scricchiolio', 0.9, 0.7 + Math.random() * 0.15);
+        } else papi.prossimo = t + 2;
       }
     }
-  } else if (guerrino.stato === 'apposta') {
-    // mena l'albero: piccoli scatti a tempo con le roncolate, poi si gira verso di te
-    guerrino.tColpo += dt;
-    // un colpo ogni 0,45 s come nel suono: alza (1) e cala di scatto (-0.15)
-    const ph = (guerrino.tColpo % 0.45) / 0.45;
-    const colpo = guerrino.tColpo < 2.7 ? (ph < 0.7 ? ph / 0.7 : 1 - (ph - 0.7) / 0.3 * 1.15) : 0;
-    if (guerrino.tColpo > 2.7) giraVerso(guardaVerso(io.x, io.z), dt, 1.2);
-    guerrino.colpo = colpo;
-    guerrino.g.position.set(guerrino.x, quota(guerrino.x, guerrino.z), guerrino.z);
-    guerrino.g.rotation.set(Math.max(0, -colpo) * 0.2, guerrino.rot, 0);
-    // se ti avvicini troppo, ti viene addosso
-    if (d < 7 + livello * 0.4) { guerrino.stato = 'insegue'; guerrino.fine = t + 8; guerrino.inclina = 0.14; }
-    if (t > guerrino.fine && vis === 0) { guerrino.g.visible = false; guerrino.stato = 'assente'; guerrino.prossimo = t + Math.max(6, 20 - livello * 1.4) * (0.7 + Math.random() * 0.6); }
-  } else if (guerrino.stato === 'insegue') {
-    const v = 3.1 + livello * 0.14;
-    let dx = io.x - guerrino.x, dz = io.z - guerrino.z; const l = Math.hypot(dx, dz) || 1; dx /= l; dz /= l;
-    // schiva i tronchi
-    tronchiVicini(guerrino.x + dx * 1.2, guerrino.z + dz * 1.2, 1.5, tr => {
-      const ox = guerrino.x + dx * 1.2 - tr.x, oz = guerrino.z + dz * 1.2 - tr.z, od = Math.hypot(ox, oz);
-      if (od < tr.r + 0.6) { dx += ox / od * 0.8; dz += oz / od * 0.8; }
-    });
-    const l2 = Math.hypot(dx, dz) || 1;
-    guerrino.x += dx / l2 * v * dt; guerrino.z += dz / l2 * v * dt; guerrino.vel = v;
-    giraVerso(Math.atan2(dx, dz), dt, 6);
-    guerrino.colpo = 0.55 + Math.sin(t * 3) * 0.1;   // corre con la roncola alzata
-    disegnaGuerrino();
-    if (t > guerrino.fine && vis === 0) { guerrino.g.visible = false; guerrino.stato = 'assente'; guerrino.inclina = 0; guerrino.prossimo = t + Math.max(6, 18 - livello * 1.2); }
+  } else if (papi.stato === 'agguato') {
+    // se lo guardi si ferma; se ti giri, striscia verso di te
+    if (vis === 0) { avanzaPapi(dt, (papi.nomeAz === 'gattona' ? 1.5 : 1.0) + livello * 0.06); passoPapi(2.2, 0.35); }
+    else giraVerso(guardaVerso(io.x, io.z, papi), dt, 3, papi);
+    disegna(papi);
+    if (d < 8 + livello * 0.3) {
+      papi.stato = 'salta'; papi.tSalto = 0; recita(papi, 'salto', true, 0.1);
+      versoPapi('frasche', 1, 0.6);
+    } else if (t > papi.fine && vis === 0) { papi.g.visible = false; papi.stato = 'assente'; papi.prossimo = t + Math.max(6, 20 - livello * 1.4) * (0.7 + Math.random() * 0.6); }
+  } else if (papi.stato === 'salta') {
+    // il balzo: nella parte in volo dell'animazione ti viene addosso
+    papi.tSalto += dt;
+    const fr = papi.corrente.time / papi.corrente.getClip().duration;
+    if (fr > 0.12 && fr < 0.42 && d > 2) avanzaPapi(dt, 7);
+    else giraVerso(guardaVerso(io.x, io.z, papi), dt, 4, papi);
+    disegna(papi);
+    if (fr > 0.62 || finita(papi)) { papi.stato = 'insegue'; papi.fine = t + 8 + Math.random() * 5; recita(papi, 'corsa', false, 0.3); }
+  } else if (papi.stato === 'insegue') {
+    avanzaPapi(dt, 3.1 + livello * 0.14);
+    passoPapi(1.6, 1);
+    disegna(papi);
+    if (t > papi.fine && vis === 0) { papi.g.visible = false; papi.stato = 'assente'; papi.prossimo = t + Math.max(6, 18 - livello * 1.2); }
   }
 
   // guardarlo fa salire lo statico; troppo vicino = preso
-  if (guerrino.g.visible && vis > 0) {
+  if (papi.g.visible && vis > 0) {
     const dd = Math.max(0, 1 - d / 45);
     staticoV += dt * vis * (0.08 + dd * dd * 0.5) * (1 + livello * 0.06);
   } else staticoV -= dt * 0.3;
-  if (guerrino.g.visible && d < 2 + (guerrino.stato === 'insegue' ? 0.4 : 0)) staticoV = 1;
+  if (papi.g.visible && d < 2.3) staticoV = 1;
   staticoV = Math.max(0, Math.min(1, staticoV));
   if (staticoV >= 1) preso();
 }
@@ -887,7 +1069,7 @@ function aggiornaCaccia(dt, t, d) {
 const sg = ui.statico.getContext('2d');
 const sImg = sg.createImageData(160, 90);
 function disegnaStatico(t) {
-  const vicino = guerrino.g.visible ? Math.max(0, 1 - Math.hypot(io.x - guerrino.x, io.z - guerrino.z) / 40) * 0.25 : 0;
+  const vicino = papi.g.visible ? Math.max(0, 1 - Math.hypot(io.x - papi.x, io.z - papi.z) / 40) * 0.25 : 0;
   const k = Math.min(1, staticoV + vicino);
   ui.statico.style.opacity = (k * k * 0.85).toFixed(3);
   if (rumore) rumore.setVolume(k * k * 0.5);
@@ -913,11 +1095,14 @@ function distFosso(x, z) {
 function preso() {
   if (fase !== 'gioco') return;
   fase = 'morto'; io.morti++;
-  // ultimo sguardo: girati verso di lui
-  const a = Math.atan2(-(guerrino.x - io.x), -(guerrino.z - io.z));
-  io.yaw = a; io.pitch = 0.05;
-  posaGuerrino(io.x - Math.sin(a) * 1.4, io.z - Math.cos(a) * 1.4, a);
-  guerrino.g.visible = true; guerrino.vel = 0; guerrino.colpo = 1; guerrino.inclina = 0; disegnaGuerrino();
+  // ultimo sguardo: girati verso di lui, e guarda in su (è alto tre metri)
+  const a = Math.atan2(-(papi.x - io.x), -(papi.z - io.z));
+  io.yaw = a; io.pitch = 0.5;
+  posa(papi, io.x - Math.sin(a) * 2.1, io.z - Math.cos(a) * 2.1, a);
+  papi.g.visible = true; papi.vel = 0; papi.stato = 'preso';
+  const sl = recita(papi, 'salto', true, 0.05);
+  if (sl) { sl.time = sl.getClip().duration * 0.4; sl.paused = true; }   // braccia alzate
+  papi.mixer.update(0.3);
   camera.rotation.set(io.pitch, io.yaw, 0, 'YXZ');
   suono('colpo', 1); suono('scricchiolio', 0.6);
   ui.statico.style.opacity = 0.9;
@@ -934,8 +1119,8 @@ function riprova() {
   mostra('morte', false); document.body.classList.remove('fuori');
   io.x = io.check.x; io.z = io.check.z; io.fiato = 1; io.sfinito = false;
   io.batteria = Math.max(io.batteria, 0.25); if (io.batteria > 0) io.torcia = true;
-  staticoV = 0; guerrino.g.visible = false; guerrino.stato = 'assente'; guerrino.albero = null; guerrino.colpo = 0;
-  guerrino.prossimo = orologio.elapsedTime + 15;
+  staticoV = 0; papi.g.visible = false; papi.stato = 'assente';
+  papi.prossimo = tGioco + 15;
   if (storia !== 'caccia') { storia = 'caccia'; tCaccia = 0; }
   ui.buio.style.opacity = 0;
   fase = 'gioco';
@@ -943,13 +1128,12 @@ function riprova() {
 }
 function vittoria() {
   fase = 'vinto'; storia = 'fine';
-  guerrino.g.visible = false;
-  if (roncolaAudio && roncolaAudio.isPlaying) roncolaAudio.stop();
+  papi.g.visible = false; papi.stato = 'assente';
   const s = Math.round(io.tempo);
   setTimeout(() => {
     ui.buio.style.opacity = 1;
     setTimeout(() => {
-      $('vittoria-testo').textContent = `Er bosco tace. Da qualche parte, Guerrino posa la roncola. Tempo: ${mmss(s)}${io.morti ? ` · prese: ${io.morti}` : ''}.`;
+      $('vittoria-testo').textContent = `Er bosco tace. Papi se ne torna tra gli alberi; alla Fonticella, Guerrino mena ancora. Tempo: ${mmss(s)}${io.morti ? ` · prese: ${io.morti}` : ''}.`;
       document.body.classList.add('fuori'); mostra('vittoria', true);
       if (document.pointerLockElement) document.exitPointerLock();
       preparaSalvataggio(s);
@@ -1003,20 +1187,22 @@ function preparaSalvataggio(sec) {
 
 /* ════════ COSTRUZIONE E CICLO ════════ */
 const orologio = new THREE.Clock();
-function costruisci(bin, bosco, colori, osm, modello, roncola) {
+let tGioco = 0;
+function costruisci(bin, bosco, colori, osm, modello, roncola, modelloPapi, texAlberi) {
   const u16 = new Uint16Array(bin);
   Q = new Float32Array(N * N);
   for (let i = 0; i < Q.length; i++) Q[i] = 1000 + u16[i] / 20;
   FOSSI = osm.fossi;
   creaTerreno(colori);
-  creaBosco(bosco, osm, FOGLI_POS);
+  creaBosco(bosco, osm, FOGLI_POS, texAlberi);
   creaPaese(osm);
   creaFonte();
   creaFogli();
   creaGuerrino(modello, roncola);
+  creaPapi(modelloPapi);
   preparaAudio();
   posaGuerrino(-143.5, 383, 0);
-  guerrino.rot = guardaVerso(io.x, io.z); disegnaGuerrino(); animaGuerrino(0);
+  guerrino.rot = guardaVerso(io.x, io.z); disegna(guerrino); animaGuerrino(0);
   camera.position.set(io.x, quota(io.x, io.z) + 1.65, io.z);
   camera.rotation.set(io.pitch, io.yaw, 0, 'YXZ');
   // primo render per compilare gli shader mentre c'è ancora il caricamento
@@ -1025,7 +1211,7 @@ function costruisci(bin, bosco, colori, osm, modello, roncola) {
   mostra('caricamento', false); mostra('menu', true);
   document.body.classList.remove('carica'); document.body.classList.add('fuori');
   disegnaClassifica($('classifica-menu'));
-  window.__crevil = { PROVA, quota, guarda: (x, z) => { io.yaw = Math.atan2(-(x - io.x), -(z - io.z)); }, info: () => renderer.info.render, io, guerrino, scena, camera, renderer, salta: s => { storia = s; tStoria = 0; }, caccia: () => { iniziaCaccia(orologio.elapsedTime); guerrino.prossimo = 0; }, stato: () => ({ storia, fase, attesa, livello, staticoV }) };
+  window.__crevil = { PROVA, quota, guarda: (x, z) => { io.yaw = Math.atan2(-(x - io.x), -(z - io.z)); }, info: () => renderer.info.render, io, guerrino, papi, recita, posa, disegna, scena, camera, renderer, salta: s => { storia = s; tStoria = 0; }, caccia: () => { iniziaCaccia(tGioco); papi.prossimo = 0; }, stato: () => ({ storia, fase, attesa, livello, staticoV }) };
 }
 pronto.catch(e => { console.error(e); $('prog-testo').textContent = 'Il bosco non si carica: ricarica la pagina.'; });
 
@@ -1043,7 +1229,7 @@ $('gioca').addEventListener('click', () => {
 let tFosso = 0;
 function ciclo() {
   requestAnimationFrame(ciclo);
-  const dt = Math.min(0.05, orologio.getDelta()), t = orologio.elapsedTime;
+  const dt = Math.min(0.05, orologio.getDelta()) * PROVA.tempo, t = (tGioco += dt);
   if (!Q) return;
   if (fase === 'gioco') {
     if (storia === 'solo' || storia === 'caccia') io.tempo += dt;   // il tempo parte quando Guerrino se ne va
@@ -1054,9 +1240,11 @@ function ciclo() {
     cercaFoglio();
     if ((tFosso -= dt) < 0) { tFosso = 0.5; if (fosso) fosso.setVolume(Math.max(0, 1 - distFosso(io.x, io.z) / 70) * 0.6); }
   }
-  if (fase === 'gioco' || fase === 'morto') { disegnaStatico(t); animaGuerrino(dt); }
+  if (fase === 'gioco' || fase === 'morto') { disegnaStatico(t); animaGuerrino(dt); animaPapi(dt); aggiornaScossi(dt); }
   // accendi solo i pezzi di bosco vicini
-  for (const b of BLOCCHI) b.visible = Math.hypot(b.userData.cx - io.x, b.userData.cz - io.z) < (TOCCO ? 105 : 125);
+  // oltre gli 80 m la nebbia copre tutto: conta il punto del blocco più vicino a me
+  const LB = HALF / 26;
+  for (const b of BLOCCHI) b.visible = Math.hypot(Math.max(0, Math.abs(b.userData.cx - io.x) - LB), Math.max(0, Math.abs(b.userData.cz - io.z) - LB)) < (TOCCO ? 70 : 80);
   renderer.render(scena, camera);
 }
 ciclo();

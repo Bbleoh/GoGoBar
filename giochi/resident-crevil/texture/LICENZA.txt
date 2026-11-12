@@ -1,0 +1,5 @@
+corteccia.jpg e fronde.webp sono ricavate dalle texture del modello "Island Tree 01"
+di Poly Haven (https://polyhaven.com/a/island_tree_01): la corteccia ridimensionata,
+le fronde composte con le foglie ritagliate.
+
+Licenza: CC0 1.0 Universal (pubblico dominio) - https://polyhaven.com/license
