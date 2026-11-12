@@ -1,5 +1,5 @@
 /* ════════════════════════════════════════════════════════════════
-   TROMBA VLT: LA SLOT DE LA BISCA DER TROMBA
+   CINQUEGIRELLI: LA SLOT DE LA BISCA DER TROMBA
    Script classico caricato dopo lo script principale di index.html:
    usa lo stesso saldo (balance, cioè il portafogli GoGoldBar), le stesse
    statistiche (stats), i trofei (sblocca), gli effetti sonori e il
@@ -108,7 +108,7 @@ let sGiroLinee = null;         // timer che fa scorrere le linee vincenti
 let sPronta = false;
 
 function sOccupata() { return sGirando || sAutoOn || sGratis > 0; }
-function sImg(id) { return 'assets/slot/' + id + '.webp'; }
+function sImg(id) { return 'assets/slot/' + id + '.webp?v=2'; }
 function sCella(id) {
   const d = document.createElement('div');
   d.className = 's-sim s-' + id;
