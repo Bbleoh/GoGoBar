@@ -12,7 +12,7 @@
 <link rel="stylesheet" href="roulette.css?v=7">
 <link rel="stylesheet" href="slot.css?v=2">
 <link rel="stylesheet" href="plinko.css?v=3">
-<link rel="stylesheet" href="portiere.css?v=1">
+<link rel="stylesheet" href="portiere.css?v=2">
 <style>
   :root{
     --gold:#d4af5a; --gold-light:#f3dc9a; --gold-dim:rgba(212,175,90,.35);
@@ -540,7 +540,7 @@
       </button>
       <button class="tavolo" onclick="vaiA('portiere')">
         <div class="tavolo-img pt-img"><div class="mini-porta"><div class="mini-palla"></div></div></div>
-        <div class="tavolo-testo"><b>Il Portiere</b><small>Rigori contro il Tromba: ogni gol fa salire il moltiplicatore e incassi quando vuoi. Se para, perdi tutto.</small></div>
+        <div class="tavolo-testo"><b>Il Portiere</b><small>Rigori contro il Tromba: sinistra, centro o destra. Ogni gol fa salire il moltiplicatore e incassi quando vuoi. Se para, perdi tutto.</small></div>
         <kbd>G</kbd>
       </button>
     </div>
@@ -695,6 +695,7 @@
             </svg>
             <div class="pt-testa"><img id="pt-testa" src="assets/portiere/testa-init.webp" alt="Il Tromba in porta"></div>
           </div>
+          <div id="pt-frecce" role="group" aria-label="Direzione del tiro"></div>
           <div id="pt-palla"><svg viewBox="0 0 40 40" aria-hidden="true">
             <defs><clipPath id="pt-clip-palla"><circle cx="20" cy="20" r="18.5"/></clipPath></defs>
             <circle cx="20" cy="20" r="18.5" fill="#fafafa"/>
@@ -712,7 +713,7 @@
       </div>
       <div class="pt-pannello vlt-pannello">
         <div class="s-info"><small>Stack</small><span id="pt-saldo">0 &#xE000;</span></div>
-        <div class="s-info s-puntata"><small>Puntata</small><div><button type="button" id="pt-meno" onclick="ptCambiaPuntata(-1)" aria-label="Abbassa la puntata" title="Freccia giù">−</button><span id="pt-puntata">10 &#xE000;</span><button type="button" id="pt-piu" onclick="ptCambiaPuntata(1)" aria-label="Alza la puntata" title="Freccia su">+</button></div></div>
+        <div class="s-info s-puntata"><small>Puntata</small><div><button type="button" id="pt-meno" onclick="ptCambiaPuntata(-1)" aria-label="Abbassa la puntata" title="Tasto −">−</button><span id="pt-puntata">10 &#xE000;</span><button type="button" id="pt-piu" onclick="ptCambiaPuntata(1)" aria-label="Alza la puntata" title="Tasto +">+</button></div></div>
         <div class="s-info"><small>Tiro</small><span id="pt-tiri">—</span></div>
       </div>
       <div class="pt-comandi">
@@ -720,7 +721,7 @@
         <button class="btn s-gioca" type="button" id="pt-incassa" onclick="ptIncassa()" title="Invio o I">Incassa</button>
         <div id="pt-campionato-info"></div>
       </div>
-      <div id="pt-keys">Tasti: 1 2 3 tiri in alto, 4 5 6 in basso · Invio incassa · ↑↓ puntata · C campionato</div>
+      <div id="pt-keys">Tasti: ← ↑ → tiri a sinistra, al centro, a destra · Invio incassa · + − puntata · C campionato</div>
     </div>
   </section>
 
@@ -2405,6 +2406,6 @@ setCroupier('init');
 <script src="roulette.js?v=8"></script>
 <script src="slot.js?v=6"></script>
 <script src="plinko.js?v=5"></script>
-<script src="portiere.js?v=1"></script>
+<script src="portiere.js?v=2"></script>
 </body>
 </html>
