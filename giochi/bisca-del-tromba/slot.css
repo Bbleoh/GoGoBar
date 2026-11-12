@@ -1,0 +1,152 @@
+/* ════════════════════════════════════════════════════════════════
+   TROMBA VLT (la logica è in slot.js)
+════════════════════════════════════════════════════════════════ */
+#slot{display:none;flex:1;min-height:0;flex-direction:column;align-items:center;justify-content:flex-start;padding:4px 12px 12px;overflow-y:auto;}
+body[data-gioco="slot"] #slot{display:flex;}
+
+/* misura dello schermo: larghezza dei 5 rulli (alti 3/5) */
+#slot{--sw:clamp(250px,min(94vw,700px,calc((100dvh - 330px) * 5 / 3)),700px);}
+
+.vlt{margin:auto 0;flex-shrink:0;width:calc(var(--sw) + 36px);max-width:100%;display:flex;flex-direction:column;align-items:center;gap:8px;padding:10px 14px 14px;
+  border-radius:26px 26px 18px 18px;
+  background:linear-gradient(180deg,#2a0d0a 0%,#140606 45%,#0d0404 100%);
+  border:3px solid var(--gold);box-shadow:0 24px 60px rgba(0,0,0,.8),inset 0 0 0 4px #3a1508,inset 0 0 0 6px rgba(212,175,90,.35),0 0 50px rgba(212,175,90,.12);}
+
+/* insegna con le lucine */
+.vlt-top{position:relative;width:100%;display:flex;justify-content:center;padding:6px 0 8px;}
+.vlt-titolo{font-family:'Cinzel Decorative',serif;font-weight:700;font-size:clamp(1.3rem,3.2vw,2.1rem);letter-spacing:4px;line-height:1;
+  color:#ffe9a8;text-shadow:0 0 10px rgba(255,200,80,.9),0 0 26px rgba(255,120,40,.6),0 3px 0 #5a1b05;}
+.vlt-titolo span{color:#ff5a45;text-shadow:0 0 10px rgba(255,80,60,.9),0 0 24px rgba(255,40,30,.6),0 3px 0 #4a0705;}
+.vlt-luci{position:absolute;inset:0 4px;border-radius:14px;pointer-events:none;
+  background:radial-gradient(circle,#ffd25a 0 2.5px,transparent 3.5px) 0 0/18px 100% repeat-x,
+             radial-gradient(circle,#ffd25a 0 2.5px,transparent 3.5px) 9px 100%/18px 8px repeat-x;
+  animation:vltLuci .7s steps(2) infinite;opacity:.9;}
+@keyframes vltLuci{50%{filter:hue-rotate(-40deg) brightness(.55);}}
+
+#s-head{display:flex;align-items:center;gap:10px;width:100%;min-height:46px;justify-content:center;}
+#s-croupier{width:46px;height:46px;border-radius:50%;object-fit:cover;object-position:50% 8%;flex-shrink:0;
+  border:2px solid var(--gold);background:var(--felt);box-shadow:0 4px 10px rgba(0,0,0,.6);}
+#s-msg{font-family:var(--text);font-weight:800;font-size:clamp(.88rem,1.7vw,1.08rem);color:var(--ink);text-align:center;text-shadow:0 2px 4px #000;min-height:1.3em;}
+#s-msg.win{color:var(--win);} #s-msg.lose{color:var(--lose);} #s-msg.push{color:var(--push);}
+#s-msg.pop{animation:msgPop .4s ease;}
+
+/* schermo e rulli */
+.vlt-schermo{position:relative;width:var(--sw);max-width:100%;aspect-ratio:5/3;border-radius:14px;overflow:hidden;
+  background:linear-gradient(180deg,#071a0f,#0d3320 50%,#071a0f);border:3px solid #d4af5a;
+  box-shadow:inset 0 0 30px rgba(0,0,0,.9),0 0 0 4px #1a0805,0 0 20px rgba(212,175,90,.25);}
+#s-rulli{position:absolute;inset:0;display:grid;grid-template-columns:repeat(5,1fr);}
+.s-rullo{position:relative;overflow:hidden;border-right:1px solid rgba(212,175,90,.25);}
+.s-rullo:last-child{border-right:0;}
+.s-rullo::after{content:'';position:absolute;inset:0;pointer-events:none;
+  background:linear-gradient(180deg,rgba(0,0,0,.55),transparent 18%,transparent 82%,rgba(0,0,0,.55));}
+.s-striscia{position:absolute;left:0;right:0;top:0;will-change:transform;}
+.s-sim{height:var(--sh,80px);display:flex;align-items:center;justify-content:center;}
+.s-sim img{width:88%;height:88%;object-fit:contain;pointer-events:none;user-select:none;}
+.s-rullo.gira .s-striscia{filter:blur(2px) brightness(1.1);}
+.s-rullo.suspense{box-shadow:inset 0 0 0 3px #ffd25a,inset 0 0 30px rgba(255,210,90,.6);animation:suspense .35s ease-in-out infinite alternate;}
+@keyframes suspense{to{box-shadow:inset 0 0 0 3px #ff5a45,inset 0 0 36px rgba(255,90,60,.7);}}
+.s-sim.vince{animation:simVince .7s ease-in-out infinite alternate;}
+.s-sim.vince img{filter:drop-shadow(0 0 10px rgba(255,230,140,.95));}
+@keyframes simVince{from{transform:scale(1);}to{transform:scale(1.1);}}
+
+#s-linee{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;}
+#s-linee polyline{fill:none;stroke-width:6;stroke-linejoin:round;stroke-linecap:round;opacity:.9;
+  filter:drop-shadow(0 0 4px rgba(0,0,0,.9));vector-effect:non-scaling-stroke;}
+
+#s-banner{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%) scale(.3);opacity:0;pointer-events:none;z-index:5;
+  display:flex;flex-direction:column;align-items:center;gap:4px;padding:14px 26px;border-radius:18px;text-align:center;white-space:nowrap;
+  background:radial-gradient(ellipse,#6a0f0a,#2a0504);border:3px solid #ffd86b;box-shadow:0 0 40px rgba(255,200,80,.6),0 10px 30px rgba(0,0,0,.8);}
+#s-banner b{font-family:'Cinzel Decorative',serif;font-size:clamp(1.3rem,4.4vw,2.4rem);color:#ffe9a8;text-shadow:0 0 14px rgba(255,200,80,.9),0 3px 0 #4a0705;}
+#s-banner span{font-family:var(--ui);font-weight:900;font-size:clamp(.9rem,2.4vw,1.3rem);color:#fff;letter-spacing:1px;}
+#s-banner.show{animation:bannerIn 2.3s cubic-bezier(.2,1.5,.4,1) forwards;}
+@keyframes bannerIn{0%{opacity:0;transform:translate(-50%,-50%) scale(.3);}12%{opacity:1;transform:translate(-50%,-50%) scale(1.05);}
+  20%,85%{opacity:1;transform:translate(-50%,-50%) scale(1);}100%{opacity:0;transform:translate(-50%,-50%) scale(.9);}}
+
+/* giri gratis: lo schermo si scalda */
+#slot.in-gratis .vlt-schermo{border-color:#ff7a45;box-shadow:inset 0 0 30px rgba(0,0,0,.9),0 0 0 4px #1a0805,0 0 30px rgba(255,120,60,.55);}
+#slot.in-gratis .vlt-schermo{background:linear-gradient(180deg,#2a0806,#4a120a 50%,#2a0806);}
+
+/* tabella vincite sopra lo schermo */
+#s-tabella{position:absolute;inset:0;z-index:6;overflow-y:auto;padding:10px 12px;background:rgba(5,10,7,.96);text-align:left;}
+#s-tabella[hidden]{display:none;}
+#s-tabella h3{font-family:var(--ui);color:var(--gold);letter-spacing:2px;font-size:.9rem;text-transform:uppercase;margin-bottom:6px;display:flex;justify-content:space-between;align-items:center;}
+#s-tabella h3 button{background:none;border:0;color:var(--gold-light);font-size:1.2rem;cursor:pointer;}
+#s-tabella-righe{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:6px 12px;}
+.s-tab-riga{display:flex;align-items:center;gap:8px;padding:3px 0;border-bottom:1px solid rgba(212,175,90,.15);}
+.s-tab-riga img{width:44px;height:44px;flex-shrink:0;}
+.s-tab-riga div{display:flex;flex-direction:column;min-width:0;}
+.s-tab-riga b{font-family:var(--ui);font-size:.78rem;color:var(--gold-light);letter-spacing:1px;}
+.s-tab-riga span{font-family:var(--ui);font-weight:700;font-size:.82rem;color:#fff;}
+.s-tab-riga small{font-size:.7rem;color:var(--muted);line-height:1.25;}
+#s-tabella-nota{font-size:.74rem;color:var(--muted);margin-top:8px;}
+
+/* pannello sotto: saldo, puntata, vincita */
+.vlt-pannello{width:var(--sw);max-width:100%;display:grid;grid-template-columns:1fr auto 1fr;gap:8px;}
+.s-info{display:flex;flex-direction:column;align-items:center;gap:1px;padding:5px 10px;border-radius:12px;
+  background:#050302;border:1px solid rgba(212,175,90,.4);box-shadow:inset 0 0 12px rgba(0,0,0,.9);min-width:0;}
+.s-info small{font-family:var(--ui);font-weight:700;font-size:.6rem;letter-spacing:2px;color:var(--gold);text-transform:uppercase;}
+.s-info span{font-family:var(--ui);font-weight:900;font-size:clamp(.95rem,2vw,1.25rem);color:#ffd84a;text-shadow:0 0 8px rgba(255,200,60,.5);white-space:nowrap;}
+.s-puntata div{display:flex;align-items:center;gap:8px;}
+.s-puntata button{width:30px;height:30px;border-radius:50%;border:1px solid var(--gold);background:var(--panel);color:var(--gold-light);
+  font-size:1.1rem;font-weight:900;cursor:pointer;line-height:1;}
+.s-puntata button:disabled{opacity:.35;cursor:not-allowed;}
+
+.vlt-tasti{width:var(--sw);max-width:100%;display:flex;align-items:center;justify-content:center;gap:10px;}
+.s-auto-wrap{position:relative;display:flex;}
+#s-auto-menu{position:absolute;bottom:calc(100% + 10px);left:50%;transform:translateX(-50%);z-index:30;width:max-content;max-width:90vw;
+  display:flex;flex-direction:column;align-items:center;gap:8px;padding:12px 14px;border-radius:16px;
+  background:var(--panel-solid);border:1px solid var(--gold);box-shadow:0 12px 30px rgba(0,0,0,.7);animation:modalIn .18s ease;}
+#s-auto-menu[hidden]{display:none;}
+#s-auto-menu small{font-family:var(--ui);font-size:.66rem;letter-spacing:1.5px;color:var(--gold);text-transform:uppercase;}
+#s-auto-menu div{display:flex;gap:6px;}
+#s-auto-menu .bet-tool{min-width:52px;}
+.btn.s-gioca{min-width:150px;min-height:52px;font-size:1.15rem;letter-spacing:3px;border-radius:999px;
+  background:linear-gradient(180deg,#ff6a4f,#b3170f);color:#fff;border-color:#ffc2a8;text-shadow:0 2px 0 #5a0704;
+  box-shadow:0 6px 0 #5a0704,0 10px 20px rgba(0,0,0,.6);}
+.btn.s-gioca:hover:not(:disabled){background:linear-gradient(180deg,#ff8466,#cc2316);}
+.btn.s-gioca:active:not(:disabled){transform:translateY(4px);box-shadow:0 2px 0 #5a0704,0 6px 12px rgba(0,0,0,.6);}
+.btn.s-gioca.gira{opacity:.55;}
+.s-gioca kbd{display:none;}
+#s-keys{font-size:.7rem;color:var(--muted);text-align:center;}
+
+/* lobby: copertina della slot */
+.tavolo-img.sl{align-items:center;gap:4px;padding:0 8px;}
+.tavolo-img.sl img{height:auto;width:30%;align-self:center;filter:drop-shadow(0 4px 8px rgba(0,0,0,.8));animation:slotLobby 2.4s ease-in-out infinite;}
+.tavolo-img.sl img:nth-child(2){animation-delay:.3s;width:34%;}
+.tavolo-img.sl img:nth-child(3){animation-delay:.6s;}
+@keyframes slotLobby{0%,70%,100%{transform:translateY(0);}80%{transform:translateY(-8px);}}
+
+@media (max-height:860px){ #s-keys{display:none;} }
+@media (hover:none){ #s-keys{display:none;} }
+@media (max-width:640px){
+  #slot{padding:2px 6px 8px;--sw:clamp(240px,min(calc(100vw - 40px),calc((100dvh - 300px) * 5 / 3)),700px);}
+  .vlt{padding:8px 8px 10px;gap:6px;border-radius:20px 20px 14px 14px;}
+  .vlt-pannello{gap:5px;}
+  .s-info{padding:4px 6px;}
+  .s-puntata div{gap:5px;}
+  .s-puntata button{width:26px;height:26px;font-size:1rem;}
+  .btn.s-gioca{min-width:0;flex:1;}
+  .vlt-tasti .bet-tool{padding:0 10px;}
+  #s-auto-menu{left:0;transform:none;}
+}
+@media (max-height:520px){
+  #slot{--sw:clamp(200px,calc((100dvh - 245px) * 5 / 3),700px);}
+  .vlt-top{display:none;}
+  #s-head{min-height:34px;} #s-croupier{width:32px;height:32px;}
+}
+/* telefono in orizzontale: schermo a sinistra, comandi a destra */
+@media (max-height:520px) and (min-width:600px){
+  #slot{--sw:clamp(220px,min(calc((100dvh - 180px) * 5 / 3),calc(100vw - 320px)),640px);padding:2px 8px 6px;}
+  .vlt{width:auto;display:grid;grid-template-columns:var(--sw) 220px;grid-template-areas:"head head" "schermo pann" "schermo tasti";
+    align-items:center;gap:6px 12px;padding:8px 12px;}
+  #s-head{grid-area:head;}
+  .vlt-schermo{grid-area:schermo;}
+  .vlt-pannello{grid-area:pann;width:auto;grid-template-columns:1fr;align-self:end;}
+  .vlt-tasti{grid-area:tasti;width:auto;flex-wrap:wrap;align-self:start;}
+  .vlt-tasti .bet-tool{flex:1 1 auto;padding:0 8px;min-height:34px;}
+  .s-auto-wrap{flex:1 1 auto;} .s-auto-wrap .bet-tool{flex:1;}
+  .btn.s-gioca{flex:1 1 100%;min-width:0;min-height:44px;}
+  .s-info{padding:2px 8px;flex-direction:row;justify-content:space-between;gap:8px;}
+  .vlt-pannello{gap:4px;}
+  #s-auto-menu{left:auto;right:0;transform:none;}
+}

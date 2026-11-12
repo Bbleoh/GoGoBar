@@ -10,6 +10,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700;900&family=Cinzel+Decorative:wght@700&family=Playfair+Display:wght@600;800;900&family=Fredoka:wght@500;600;700&family=DM+Mono&family=DM+Sans:wght@400;600&display=swap" rel="stylesheet">
 
 <link rel="stylesheet" href="roulette.css?v=6">
+<link rel="stylesheet" href="slot.css?v=1">
 <style>
   :root{
     --gold:#d4af5a; --gold-light:#f3dc9a; --gold-dim:rgba(212,175,90,.35);
@@ -460,10 +461,11 @@
         <div class="tavolo-testo"><b>Roulette</b><small>Europea, un solo zero. Il numero pieno paga 36 volte la puntata.</small></div>
         <kbd>R</kbd>
       </button>
-      <div class="tavolo presto" aria-hidden="true">
-        <div class="tavolo-img"><span>🎰</span></div>
-        <div class="tavolo-testo"><b>Prossimamente</b><small>Il Tromba sta preparando altri tavoli...</small></div>
-      </div>
+      <button class="tavolo" onclick="vaiA('slot')">
+        <div class="tavolo-img sl"><img src="assets/slot/neko.webp" alt=""><img src="assets/slot/ggb.webp" alt=""><img src="assets/slot/canna.webp" alt=""></div>
+        <div class="tavolo-testo"><b>Tromba VLT</b><small>La slot del Tromba: 10 linee, il maneki neko è il jolly, giri gratis col BONUS.</small></div>
+        <kbd>S</kbd>
+      </button>
     </div>
   </section>
 
@@ -531,6 +533,41 @@
     </div>
     <div id="keys-hint">Tasti: 1-6 fiches · 7 all in · R ripeti · X ×2 · Esc annulla · Invio distribuisci</div>
   </footer>
+
+  <!-- ══ SLOT TROMBA VLT (logica in slot.js) ══ -->
+  <section id="slot" aria-label="Slot Tromba VLT">
+    <div class="vlt">
+      <div class="vlt-top"><div class="vlt-luci"></div><h2 class="vlt-titolo">Tromba <span>VLT</span></h2></div>
+      <div id="s-head"><img id="s-croupier" src="assets/croupier-init.png" alt="Il Tromba"><div id="s-msg" aria-live="polite"></div></div>
+      <div class="vlt-schermo">
+        <div id="s-rulli" aria-label="Rulli"></div>
+        <svg id="s-linee" viewBox="0 0 500 300" preserveAspectRatio="none" aria-hidden="true"></svg>
+        <div id="s-banner" aria-live="polite"></div>
+        <div id="s-tabella" hidden>
+          <h3>Tabella vincite <button type="button" onclick="sTabella(false)" aria-label="Chiudi">✕</button></h3>
+          <div id="s-tabella-righe"></div>
+          <p id="s-tabella-nota"></p>
+        </div>
+      </div>
+      <div class="vlt-pannello">
+        <div class="s-info"><small>Saldo</small><span id="s-saldo">0 &#xE000;</span></div>
+        <div class="s-info s-puntata"><small>Puntata</small><div><button type="button" id="s-meno" onclick="sCambiaPuntata(-1)" aria-label="Abbassa la puntata" title="Freccia giù">−</button><span id="s-puntata">10 &#xE000;</span><button type="button" id="s-piu" onclick="sCambiaPuntata(1)" aria-label="Alza la puntata" title="Freccia su">+</button></div></div>
+        <div class="s-info"><small>Vincita</small><span id="s-vincita">—</span></div>
+      </div>
+      <div class="vlt-tasti">
+        <button class="bet-tool" type="button" onclick="sTabella()" title="Tasto T">ℹ Tabella</button>
+        <div class="s-auto-wrap">
+          <button class="bet-tool auto" type="button" id="s-auto" onclick="sAutoMenu()">⟳ Auto</button>
+          <div id="s-auto-menu" hidden role="menu" aria-label="Quanti giri automatici">
+            <small>Giri automatici con questa puntata</small>
+            <div><button class="bet-tool" onclick="sAutoAvvia(10)">10</button><button class="bet-tool" onclick="sAutoAvvia(25)">25</button><button class="bet-tool" onclick="sAutoAvvia(50)">50</button><button class="bet-tool" onclick="sAutoAvvia(100)">100</button></div>
+          </div>
+        </div>
+        <button class="btn s-gioca" type="button" id="s-gioca" onclick="sGioca()" title="Spazio o Invio">Gioca</button>
+      </div>
+      <div id="s-keys">Tasti: Spazio/Invio gioca · ↑↓ puntata · A auto · T tabella · Esc ferma</div>
+    </div>
+  </section>
 
   <!-- ══ ROULETTE (logica in roulette.js) ══ -->
   <section id="roulette" aria-label="Roulette">
@@ -612,10 +649,11 @@
 <script src="../../js/gogoldbar.js?v=4"></script>
 <script src="classifica.js?v=7"></script>
 <script>
-/* Tavolo in uso: 'lobby' | 'blackjack' | 'roulette' (la roulette è in roulette.js) */
+/* Tavolo in uso: 'lobby' | 'blackjack' | 'roulette' | 'slot' (roulette.js e slot.js) */
 let gioco = 'lobby';
 function rouletteOccupata() { return typeof rGirando !== 'undefined' && (rGirando || rAutoOn); }
-function tavoloLibero() { return phase === 'bet' && !rouletteOccupata(); }
+function slotOccupata() { return typeof sOccupata === 'function' && sOccupata(); }
+function tavoloLibero() { return phase === 'bet' && !rouletteOccupata() && !slotOccupata(); }
 function aggiornaTavoliBtn() {
   const b = document.getElementById('tavoli-btn');
   if (b) b.disabled = gioco === 'lobby' || !playerName || !tavoloLibero();
@@ -630,6 +668,8 @@ function vaiA(dove) {
     document.getElementById('lobby-saldo').textContent = ggb(balance);
   } else if (dove === 'roulette') {
     rEntra();
+  } else if (dove === 'slot') {
+    sEntra();
   } else {
     if (!document.getElementById('message').textContent) msg('Buona fortuna, ' + playerName + '!');
   }
@@ -734,7 +774,7 @@ function statoAccount(t, errore) {
 // Unisce i dati del browser con quelli online: trofei sommati, contatori al massimo,
 // saldo e serie in corso dalla copia più recente.
 const STATS_MAX = ['mani','vinte','perse','pari','blackjack','sballate','serieMax','recordSaldo','vincitaMax','cashout','cashoutMax','bancarotte',
-                   'rGiri','rVinti','rPieni','rVincitaMax'];
+                   'rGiri','rVinti','rPieni','rVincitaMax','sGiri','sVinti','sVincitaMax','sBonus'];
 function unisciAccount(loc, rem) {
   if (!loc) return rem || null;
   if (!rem) return loc;
@@ -1143,6 +1183,7 @@ function setCroupier(s) {
     img.style.opacity = '1'; img.style.transform = 'none';
     document.getElementById('croupier-avatar').src = img.src;
     document.getElementById('r-croupier').src = img.src;
+    document.getElementById('s-croupier').src = img.src;
   }, 270);
 }
 
@@ -1196,7 +1237,9 @@ const STATS_ZERO = {
   // serie in corso usate dai trofei
   serieBJ:0, seriePari:0, serieBancoBJ:0, serieSballo:0, seriePerse:0, serieAllin:0, rimonta:0,
   // roulette
-  rGiri:0, rVinti:0, rPieni:0, rVincitaMax:0, rSerieRosso:0, rUltimoPieno:0
+  rGiri:0, rVinti:0, rPieni:0, rVincitaMax:0, rSerieRosso:0, rUltimoPieno:0,
+  // slot
+  sGiri:0, sVinti:0, sVincitaMax:0, sBonus:0
 };
 let stats  = Object.assign({}, STATS_ZERO);
 let trofei = {}; // id → data ISO di sblocco
@@ -1281,6 +1324,17 @@ const TROFEI = [
   { id:'r_pieno100',  r:'epico', icona:'💣', nome:'Pieno da paura',       desc:'Prendi un numero pieno con 100 \uE000 o più sopra' },
   { id:'r_sbanca',    r:'leggendario', icona:'🎆', nome:'Sbanca la ruota', desc:'Vinci 5.000 \uE000 in un solo giro' },
   { id:'r_bis',       r:'leggendario', icona:'🔮', nome:'Il bis',          desc:'Prendi lo stesso numero pieno due giri di fila' },
+  // slot Tromba VLT
+  { id:'s_primo',     r:'comune', icona:'🎰', nome:'Prima leva',            desc:'Gioca alla Tromba VLT per la prima volta' },
+  { id:'s_canne',     r:'comune', icona:'🌿', nome:'Giro di canne',         desc:'Fai una linea con 3 o più canne' },
+  { id:'s_neko',      r:'raro', icona:'🐱', nome:'Gatto fortunato',         desc:'Fai una linea di soli maneki neko' },
+  { id:'s_gratis',    r:'raro', icona:'🎁', nome:'Offre il Tromba',         desc:'Prendi i giri gratis con 3 BONUS' },
+  { id:'s_giri250',   r:'raro', icona:'🔁', nome:'Leva consumata',          desc:'Gioca 250 giri alla slot' },
+  { id:'s_canna5',    r:'epico', icona:'💨', nome:'Canna infinita',         desc:'Fai una linea con 5 canne' },
+  { id:'s_cento',     r:'epico', icona:'💥', nome:'Cento volte tanto',      desc:'Vinci 100 volte la puntata in un giro o in un giro di bonus' },
+  { id:'s_tromba5',   r:'epico', icona:'🎺', nome:'Cinque Trombe',          desc:'Fai una linea con 5 Tromba' },
+  { id:'s_jackpot',   r:'leggendario', icona:'💰', nome:'Jackpot GoGoldBar', desc:'Fai una linea con 5 GoGoldBar' },
+  { id:'s_bonus5',    r:'leggendario', icona:'🤑', nome:'Il Tromba impazzisce', desc:'Fai uscire 5 BONUS insieme' },
   { id:'leggenda',    r:'leggendario', icona:'🌟', nome:'Leggenda della bisca', desc:'Sblocca tutti gli altri trofei' },
 ];
 
@@ -1333,11 +1387,16 @@ function apriStats() {
     ['Giri di roulette', s.rGiri], ['Giri vinti', s.rVinti + (s.rGiri ? ` (${Math.round(s.rVinti / s.rGiri * 100)}%)` : '')],
     ['Numeri pieni presi', s.rPieni], ['Vincita più alta in un giro', euro(s.rVincitaMax)],
   ];
+  const slotRighe = [
+    ['Giri di slot', s.sGiri || 0], ['Giri vincenti', (s.sVinti || 0) + (s.sGiri ? ` (${Math.round((s.sVinti || 0) / s.sGiri * 100)}%)` : '')],
+    ['Bonus presi', s.sBonus || 0], ['Vincita più alta in un giro', euro(s.sVincitaMax || 0)],
+  ];
   document.getElementById('account-nome').textContent = playerName || '—';
   const riga = ([k,v]) => `<div class="stat-row"><span>${k}</span><b>${v}</b></div>`;
   document.getElementById('stats-list').innerHTML =
     '<div class="rarita-head stat-sub">🃏 Blackjack e saldo</div>' + righe.map(riga).join('') +
-    '<div class="rarita-head stat-sub">🎡 Roulette</div>' + rouletteRighe.map(riga).join('');
+    '<div class="rarita-head stat-sub">🎡 Roulette</div>' + rouletteRighe.map(riga).join('') +
+    '<div class="rarita-head stat-sub">🎰 Tromba VLT</div>' + slotRighe.map(riga).join('');
   const n = TROFEI.filter(t => trofei[t.id]).length;
   document.getElementById('trofei-count').textContent = `${n} / ${TROFEI.length}`;
   document.getElementById('trofei-grid').innerHTML = Object.keys(RARITA).map(r => {
@@ -1377,6 +1436,7 @@ function updateHUD() {
   updateChipStates();
   updateBetTools();
   if (gioco === 'roulette' && typeof rAggiorna === 'function') rAggiorna();
+  if (gioco === 'slot' && typeof sAggiorna === 'function') sAggiorna();
   if (gioco === 'lobby') document.getElementById('lobby-saldo').textContent = ggb(balance);
 }
 
@@ -1787,6 +1847,7 @@ function resetTavolo() {
   document.getElementById('insurance-bar').classList.remove('show');
   closeCashoutModal();
   if (typeof rReset === 'function') rReset();
+  if (typeof sReset === 'function') sReset();
 }
 // niente più ripartenze da 50: le GGB si rifanno cliccando il maneki neko in home
 function resetGame() {
@@ -1817,11 +1878,12 @@ document.addEventListener('keydown', e => {
   if (e.key === 'Escape' && document.getElementById('lb-panel').classList.contains('open')) { toggleLeaderboard(); return; }
   if (document.getElementById('overlay').classList.contains('show')) return;
   if (gioco === 'lobby') {
-    const t = { b: 'blackjack', r: 'roulette' }[e.key.toLowerCase()];
+    const t = { b: 'blackjack', r: 'roulette', s: 'slot' }[e.key.toLowerCase()];
     if (t) { e.preventDefault(); vaiA(t); }
     return;
   }
   if (gioco === 'roulette') { rTasti(e); return; }
+  if (gioco === 'slot') { sTasti(e); return; }
   const k = e.key.toLowerCase();
   const azioni = {
     player:    { c: hit, s: stand, d: doubleDown, p: splitHand },
@@ -1930,5 +1992,6 @@ setCroupier('init');
 </script>
 <script src="../../js/radio.js?v=14"></script>
 <script src="roulette.js?v=7"></script>
+<script src="slot.js?v=1"></script>
 </body>
 </html>
