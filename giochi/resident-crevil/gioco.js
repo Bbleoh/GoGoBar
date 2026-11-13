@@ -5,10 +5,11 @@
    Tu cerchi i 10 fogli. Dopo qualche minuto nel bosco arriva Papi,
    alto tre metri: se ti prende, ricominci dall'ultimo foglio.
 
-   Mappa: quadrato di 1300 m centrato su 42.6263 N, 13.3445 E.
-   Coordinate di gioco: x = est (m), z = sud (m), y = quota (m s.l.m.).
-   File in mappa/: terreno.bin (quote, griglia 261x261 ogni 5 m, uint16 in 5 cm sopra i 1000 m),
-   bosco.png (densità alberi, 2,5 m/px), colori.jpg (colore del suolo), osm.json (case, strade, fossi).
+   Mappa: il quadrato vero di 1300 m centrato su 42.6263 N, 13.3445 E, rimpicciolito a metà in tutte
+   e tre le direzioni (SCALA): nel gioco è largo 650 m e le pendenze restano quelle vere.
+   Coordinate di gioco: x = est (m), z = sud (m), y = quota di gioco (quota vera × SCALA).
+   File in mappa/ (in misure vere): terreno.bin (quote, griglia 261x261 ogni 5 m, uint16 in 5 cm sopra
+   i 1000 m), bosco.png (densità alberi), colori.jpg (colore del suolo), osm.json (case, strade, fossi).
    Prova veloce: ?veloce (attese corte).
 ════════════════════════════════════════════════════════════════ */
 import * as THREE from 'three';
@@ -18,7 +19,9 @@ import { mergeGeometries } from './lib/addons/utils/BufferGeometryUtils.js';
 
 const VELOCE = /veloce/.test(location.search);
 const PROVA = { congela: false, tempo: 1 };   // per i test: ferma la storia (Guerrino e Papi), accelera il tempo
-const HALF = 650, N = 261, CELLA = 5, LIMITE = 615;
+const SCALA = 0.5;   // quanto è rimpicciolita la mappa vera
+const HALF = 650 * SCALA, N = 261, CELLA = 5 * SCALA, LIMITE = 615 * SCALA;
+const NB = 13;       // il bosco è a blocchi di 50 m
 const TOCCO = matchMedia('(pointer: coarse)').matches || 'ontouchstart' in window;
 if (TOCCO) document.body.classList.add('tocco');
 
@@ -34,16 +37,20 @@ const BATTUTE = {
     "Da regazzino qua ce venivo a fa' la legna co' mi' padre. Co' la roncola, mica co' 'ste motoseghe.",
     "Senti che silenzio? D'estate ce stanno i grilli. D'inverno... d'inverno ce sto io.",
     "Quell'albero lì l'ho piantato io. Ner cinquantotto. O ner sessantotto. Comunque è venuto storto.",
-    "Ahò, piano. C'ho settantott'anni, mica venti.",
+    "Ahò, piano. C'ho ottantasett'anni, mica venti.",
   ],
   fonte: [
     "Ecco la Fonticella Petri. Fermamose.",
     "Uff... aspetta... nun c'ho più er fiato.",
   ],
+  seduto: [
+    "Me metto a sede' un attimo sulla Fonticella.",
+    "Tu intanto va' a cercà i fogli attaccati agli alberi. So' dieci. Trovali tutti prima che arriva Papi.",
+    "Sur telefono c'hai la mappa. Ma er GPS quaggiù nun pija: pe' sapé 'ndo stai devi salì in arto.",
+  ],
   sfogo: [
     "Mo' me so' stancato pure d'esse stanco.",
     "'St'albero me guarda storto da quarant'anni. Mo' je faccio vede' io.",
-    "Tu va' a cercà i fogli attaccati agli alberi. So' dieci. Trovali tutti prima che arriva Papi.",
   ],
   mena: ["Pija questa!", "E questa è pe' mi' cognato!", "Nun me guardà, cerca i fogli!", "Quarant'anni che me guardi storto!", "Ahia. Vabbè, continuo.", "Er fiato nun ce l'ho, ma er pugno sì."],
   indietro: ["Daje, che c'hai le gambe de ricotta?", "Ahò, de qua!", "Nun me fa' tornà indietro.", "Sbrighete, che fa freddo."],
@@ -174,7 +181,7 @@ function creaTerreno(colori) {
     sh.uniforms.dettaglio = { value: det };
     sh.fragmentShader = sh.fragmentShader
       .replace('#include <map_pars_fragment>', '#include <map_pars_fragment>\nuniform sampler2D dettaglio;')
-      .replace('#include <map_fragment>', '#include <map_fragment>\ndiffuseColor.rgb *= texture2D(dettaglio, vMapUv * 520.0).rgb * 1.9;');
+      .replace('#include <map_fragment>', '#include <map_fragment>\ndiffuseColor.rgb *= texture2D(dettaglio, vMapUv * 260.0).rgb * 1.9;');
   };
   const m = new THREE.Mesh(geo, mat);
   m.matrixAutoUpdate = false;
@@ -302,7 +309,7 @@ function creaBosco(bosco, osm, fogliPos, texAlberi) {
     const j = Math.min(bosco.h - 1, Math.max(0, Math.round((z + HALF) / (HALF * 2) * (bosco.h - 1))));
     return bosco.d[(j * bosco.w + i) * 4] / 255;
   };
-  const libero = (x, z) => !fogliPos.some(f => Math.hypot(f[0] - x, f[1] - z) < 3.5) && Math.hypot(FONTE.x - x, FONTE.z - z) > 5;
+  const libero = (x, z) => !fogliPos.some(f => Math.hypot(f[0] - x, f[1] - z) < 3.5) && Math.hypot(FONTE.x - x, FONTE.z - z) > 5 && Math.hypot(io.x - x, io.z - z) > 4;
   const lista = [];   // [x, z, tipo, scala, rot]
   const PASSO = 5.2;
   for (let z = -HALF + 2; z < HALF - 2; z += PASSO) for (let x = -HALF + 2; x < HALF - 2; x += PASSO) {
@@ -322,7 +329,7 @@ function creaBosco(bosco, osm, fogliPos, texAlberi) {
   // l'albero che Guerrino prende a pugni, accanto alla Fonticella
   lista.push([FONTE.x + 4.2, FONTE.z - 2.6, 0, 1.25, 1.1]);
 
-  const NB = 26, LATO = HALF * 2 / NB;   // blocchi da 50 m
+  const LATO = HALF * 2 / NB;
   const perBlocco = new Map();
   for (const t of lista) {
     const bi = Math.min(NB - 1, (t[0] + HALF) / LATO | 0), bj = Math.min(NB - 1, (t[1] + HALF) / LATO | 0);
@@ -364,7 +371,7 @@ function texMuro() {
   g.fillRect(40, 90, 36, 52); g.fillRect(170, 90, 36, 52);
   g.fillStyle = '#3b2a1c'; g.fillRect(36, 86, 44, 4); g.fillRect(166, 86, 44, 4);
   const t = new THREE.CanvasTexture(c); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.colorSpace = THREE.SRGBColorSpace;
-  t.repeat.set(1 / 5, 1 / 5);
+  t.repeat.set(1 / 3.4, 1 / 3.4);
   return t;
 }
 function creaPaese(osm) {
@@ -375,13 +382,13 @@ function creaPaese(osm) {
     const forma = new THREE.Shape(pts.map(p => new THREE.Vector2(p[0], p[1])));
     let qmin = Infinity, qmax = -Infinity;
     for (const p of pts) { const q = quota(p[0], p[1]); qmin = Math.min(qmin, q); qmax = Math.max(qmax, q); }
-    const h = 5.5 + r() * 3.5 + (qmax - qmin);
+    const h = 3.6 + r() * 2.2 + (qmax - qmin);
     const g = new THREE.ExtrudeGeometry(forma, { depth: h, bevelEnabled: false });
     g.rotateX(Math.PI / 2);
     g.translate(0, qmin - 0.8 + h, 0);
     muri.push(g);
     // tetto: una lastra scura che sporge un po'
-    const tetto = new THREE.ExtrudeGeometry(forma, { depth: 0.35, bevelEnabled: true, bevelSize: 0.35, bevelThickness: 0.2, bevelSegments: 1 });
+    const tetto = new THREE.ExtrudeGeometry(forma, { depth: 0.3, bevelEnabled: true, bevelSize: 0.25, bevelThickness: 0.15, bevelSegments: 1 });
     tetto.rotateX(Math.PI / 2); tetto.translate(0, qmin - 0.8 + h + 0.35, 0);
     tetti.push(tetto);
     let minx = Infinity, maxx = -Infinity, minz = Infinity, maxz = -Infinity;
@@ -414,18 +421,21 @@ function spingiFuoriCase(p, raggio) {
 }
 
 /* ════════ FONTICELLA ════════ */
-const FONTE = { x: -27, z: 313 };   // a 130 m di strada dalla fine del paese
+const FONTE = { x: -13.5, z: 156.5, rot: 0.6 + Math.PI };   // a 70 m di strada dalla fine del paese; la vasca guarda a nord-ovest
+// un punto contato dalla Fonticella: lx = di lato, lz = davanti alla vasca (metri)
+function daFonte(lx, lz) { const c = Math.cos(FONTE.rot), s = Math.sin(FONTE.rot); return [FONTE.x + lx * c + lz * s, FONTE.z - lx * s + lz * c]; }
 function creaFonte() {
-  const pietra = new THREE.MeshLambertMaterial({ color: 0x7a746a });
+  const grana = texDettaglio(); grana.repeat.set(0.7, 0.7);
+  const pietra = new THREE.MeshLambertMaterial({ map: grana, color: 0x8a857c });   // pietra chiazzata: liscia, la torcia la sbiancava
   const g = new THREE.Group();
-  const vasca = new THREE.Mesh(new THREE.BoxGeometry(2.2, 0.7, 1), pietra); vasca.position.y = 0.35; g.add(vasca);
+  const vasca = new THREE.Mesh(new THREE.BoxGeometry(2.2, 0.55, 1), pietra); vasca.position.y = 0.275;   // bordo all'altezza di una seduta g.add(vasca);
   const muro = new THREE.Mesh(new THREE.BoxGeometry(1.4, 1.6, 0.4), pietra); muro.position.set(0, 0.8, -0.6); g.add(muro);
   const acqua = new THREE.Mesh(new THREE.PlaneGeometry(2, 0.8), new THREE.MeshLambertMaterial({ color: 0x0c1a22, emissive: 0x050a0d }));
-  acqua.rotation.x = -Math.PI / 2; acqua.position.y = 0.62; g.add(acqua);
+  acqua.rotation.x = -Math.PI / 2; acqua.position.y = 0.48; g.add(acqua);
   const tubo = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.4, 6), new THREE.MeshLambertMaterial({ color: 0x333333 }));
   tubo.rotation.x = Math.PI / 2; tubo.position.set(0, 1.1, -0.3); g.add(tubo);
   g.position.set(FONTE.x, quota(FONTE.x, FONTE.z), FONTE.z);
-  g.rotation.y = 0.6;
+  g.rotation.y = FONTE.rot;
   scena.add(g);
   aggiungiTronco({ x: FONTE.x, z: FONTE.z, r: 1.1, mesh: null });
 }
@@ -433,8 +443,8 @@ function creaFonte() {
 /* ════════ FOGLI ════════ */
 // [x, z, direzione del foglio sul tronco] — posti fissi, nella zona dello screenshot di Leo e intorno
 const FOGLI_POS = [
-  [150, 172, 2.2], [42, 58, 0.4], [-62, 18, 4.1], [205, -118, 1.2], [62, -296, 5.4],
-  [252, -384, 3.0], [-148, -246, 0.9], [418, 98, 4.6], [378, -222, 2.6], [-246, 148, 1.8],
+  [75, 86, 2.2], [21, 29, 0.4], [-31, 9, 4.1], [102.5, -59, 1.2], [31, -148, 5.4],
+  [126, -192, 3.0], [-74, -123, 0.9], [209, 49, 4.6], [189, -111, 2.6], [-123, 74, 1.8],
 ];
 const FOGLI = [];
 function texFoglio() {
@@ -598,8 +608,8 @@ function avviaLoop() {
 
 /* ════════ GIOCATORE ════════ */
 const io = {
-  x: -150, z: 384, yaw: -Math.PI / 2, pitch: -0.05, fiato: 1, sfinito: false, batteria: 1, torcia: true,
-  passi: 0, dondolo: 0, fogli: 0, check: { x: -150, z: 384 }, morti: 0, tempo: 0, vel: 0,
+  x: -75, z: 192, yaw: -Math.PI / 2, pitch: -0.05, fiato: 1, sfinito: false, batteria: 1, torcia: true,
+  passi: 0, dondolo: 0, fogli: 0, check: { x: -75, z: 192 }, morti: 0, tempo: 0, vel: 0,
 };
 const tasti = {};
 const joy = { x: 0, y: 0, attivo: false, id: null, ox: 0, oy: 0 };
@@ -615,6 +625,8 @@ addEventListener('keydown', e => {
   if (fase !== 'gioco') return;
   if (e.code === 'KeyF') cambiaTorcia();
   if (e.code === 'KeyE') provaPrendere();
+  if (e.code === 'KeyM') apriTelefono();
+  if (e.code === 'KeyZ' && tel.aperto) zoomTelefono();
 });
 addEventListener('keyup', e => { tasti[e.code] = false; });
 function cambiaTorcia() { if (io.batteria > 0) { io.torcia = !io.torcia; suono('colpo', 0.08, 2.6); } }
@@ -638,7 +650,7 @@ const sguardo = { id: null, x: 0, y: 0 };
 addEventListener('touchstart', e => {
   if (fase !== 'gioco') return;
   for (const t of e.changedTouches) {
-    if (t.target.closest && t.target.closest('button')) continue;
+    if (t.target.closest && t.target.closest('button, #telefono')) continue;
     if (t.clientX < innerWidth * 0.45 && joy.id === null) {
       joy.id = t.identifier; joy.ox = t.clientX; joy.oy = t.clientY; joy.x = joy.y = 0;
       const j = $('joy'); j.style.left = t.clientX + 'px'; j.style.top = t.clientY + 'px'; j.classList.add('on');
@@ -771,7 +783,9 @@ function didascalia(testo, ms = 4500) {
 function pesca(l) { return l[Math.random() * l.length | 0]; }
 
 /* ── percorso di Guerrino: dalla fine del paese, su per la carrareccia, fino alla Fonticella Petri ── */
-const PERCORSO = [[-138, 388], [-117, 377], [-108, 367], [-75, 354], [-50, 337], [-34, 325], [FONTE.x - 1.5, FONTE.z + 3.5]];
+const PERCORSO = [[-69, 194], [-58.5, 188.5], [-54, 183.5], [-37.5, 177], [-25, 168.5], [-17, 162.5], daFonte(0.9, 2.2)];
+const SEDILE = daFonte(0.55, 0.7);   // il bordo davanti della vasca, dove Guerrino si siede
+const SEDUTA = VELOCE ? 6 : 30;      // secondi seduto prima di menare
 const TAPPE_FRASI = { 1: 0, 3: 1, 4: 2, 5: 3 };
 const MOSSE = ['pugno', 'jab', 'calcio', 'combo', 'jab', 'calcioAlto', 'pugno', 'calcio2', 'affondo'];
 // quando arriva il colpo, in frazione dell'animazione
@@ -790,10 +804,11 @@ function giraVerso(target, dt, vel = 4, p = guerrino) {
   p.rot += d * Math.min(1, dt * vel);
 }
 
-function camminaSu(lista, dt, vel) {
+// preciso = quanto vicino all'ultimo punto deve arrivare (le tappe in mezzo le sfiora e basta)
+function camminaSu(lista, dt, vel, preciso = 0.6) {
   const [tx, tz] = lista[guerrino.tappa];
   const dx = tx - guerrino.x, dz = tz - guerrino.z, d = Math.hypot(dx, dz);
-  if (d < 0.6) { guerrino.tappa++; return guerrino.tappa >= lista.length; }
+  if (d < (guerrino.tappa === lista.length - 1 ? preciso : 0.6)) { guerrino.tappa++; return guerrino.tappa >= lista.length; }
   const s = Math.min(d, vel * dt);
   guerrino.x += dx / d * s; guerrino.z += dz / d * s; guerrino.vel = vel;
   giraVerso(Math.atan2(dx, dz), dt, 5);
@@ -819,8 +834,6 @@ function aggiornaMena(dt, t) {
     const nome = MOSSE[guerrino.mossa];
     recita(guerrino, nome, true, 0.2);
     guerrino.colpiFatti = 0;
-    // ogni tanto riprende fiato
-    if (Math.random() < 0.12) { recita(guerrino, 'stanco', true, 0.3); guerrino.colpiFatti = 9; }
   }
   const a = guerrino.corrente, nome = guerrino.nomeAz, fr = a.time / a.getClip().duration, lista = COLPI[nome] || [];
   while (guerrino.colpiFatti < lista.length && fr >= lista[guerrino.colpiFatti]) {
@@ -865,24 +878,43 @@ function aggiornaStoria(dt, t) {
     return;
   }
   if (storia === 'fonte') {
-    // arriva, si gira, ha il fiatone; poi si piega stanco; poi se la prende con l'albero
+    // arriva e ha il fiatone; si siede sulla Fonticella per mezzo minuto; poi se la prende con l'albero
     if (guerrino.fase === 0) {
       giraVerso(guardaVerso(io.x, io.z), dt, 3); disegna(guerrino);
       if (dGioc < 10 || tStoria > 20) { guerrino.fase = 1; BATTUTE.fonte.forEach(b => dici(b)); }
     } else if (guerrino.fase === 1) {
       giraVerso(guardaVerso(io.x, io.z), dt, 3); disegna(guerrino);
-      if (!coda.length && !parlando) { guerrino.fase = 2; tStoria = 0; recita(guerrino, 'stanco', false, 0.4); }
+      if (!coda.length && !parlando) { guerrino.fase = 2; guerrino.tappa = 0; }
     } else if (guerrino.fase === 2) {
-      if (tStoria > 4.5) { guerrino.fase = 3; recita(guerrino, 'cammina', false, 0.4); BATTUTE.sfogo.forEach(b => dici(b)); }
+      // va al bordo della vasca
+      if (camminaSu([SEDILE], dt, 0.9, 0.08)) guerrino.fase = 3;
+      disegna(guerrino);
     } else if (guerrino.fase === 3) {
-      if (!coda.length && !parlando) {
-        guerrino.fase = 4;
-        const tr = alberoDiGuerrino(); guerrino.albero = tr;
-        guerrino.verso = tr ? [tr.x + (FONTE.x - tr.x) / Math.hypot(FONTE.x - tr.x, FONTE.z - tr.z) * (tr.r + 0.75), tr.z + (FONTE.z - tr.z) / Math.hypot(FONTE.x - tr.x, FONTE.z - tr.z) * (tr.r + 0.75)] : [guerrino.x, guerrino.z];
-        guerrino.tappa = 0;
+      // si gira con la schiena alla fonte e si siede
+      giraVerso(FONTE.rot, dt, 5); disegna(guerrino);
+      if (Math.abs(Math.sin((FONTE.rot - guerrino.rot) / 2)) < 0.04) {
+        guerrino.fase = 4; tStoria = 0;
+        guerrino.x = SEDILE[0]; guerrino.z = SEDILE[1]; guerrino.rot = FONTE.rot;
+        recita(guerrino, 'stanco', false, 0.5);
+        BATTUTE.seduto.forEach(b => dici(b));
       }
     } else if (guerrino.fase === 4) {
-      if (camminaSu([guerrino.verso], dt, 1.1)) {
+      disegna(guerrino);
+      guerrino.g.position.y = quota(FONTE.x, FONTE.z);   // seduto sulla vasca, non sul pendio
+      if (tStoria > SEDUTA) { guerrino.fase = 5; recita(guerrino, 'cammina', false, 0.5); BATTUTE.sfogo.forEach(b => dici(b)); }
+    } else if (guerrino.fase === 5) {
+      disegna(guerrino);
+      if (!coda.length && !parlando) {
+        guerrino.fase = 6;
+        const tr = alberoDiGuerrino(); guerrino.albero = tr;
+        // gira intorno alla vasca e si pianta a un braccio dal tronco
+        const giro = daFonte(-1.7, 1.1);
+        if (tr) { const dx = giro[0] - tr.x, dz = giro[1] - tr.z, d = Math.hypot(dx, dz) || 1, r = tr.r + 0.35; guerrino.verso = [giro, [tr.x + dx / d * r, tr.z + dz / d * r]]; }
+        else guerrino.verso = [[guerrino.x, guerrino.z]];
+        guerrino.tappa = 0;
+      }
+    } else if (guerrino.fase === 6) {
+      if (camminaSu(guerrino.verso, dt, 1.1, 0.08)) {
         guerrino.mena = true; guerrino.mossa = -1; guerrino.corrente = guerrino.az.cammina; guerrino.prossimo = t + 10;
         storia = 'solo'; tStoria = 0; io.check = { x: io.x, z: io.z };
         attesa = VELOCE ? 25 : 240;
@@ -1091,10 +1123,136 @@ function distFosso(x, z) {
   return best;
 }
 
+/* ════════ TELEFONO: APP MAPPA ════════ */
+// Sul telefono c'è la mappa della zona, ma il GPS aggancia i satelliti solo in quota:
+// sotto GPS_QUOTA vedi la carta e l'ultima posizione nota, non dove sei adesso.
+const GPS_QUOTA = 1170;   // metri veri sul mare (il paese sta a 1126)
+const tel = { aperto: false, fix: false, tFix: 0, tacche: 0, ux: io.x, uz: io.z, tUltimo: 0, zoom: 0, mappa: null, tDis: 0, paese: [0, 0] };
+const telUI = { box: $('telefono'), cv: $('tel-mappa'), ora: $('tel-ora'), tacche: $('tel-tacche'), batt: $('tel-batt'), gps: $('tel-gps'), quota: $('tel-quota'), nota: $('tel-nota') };
+function quotaVera() { return quota(io.x, io.z) / SCALA; }
+
+// la carta, disegnata una volta sola dal terreno vero: ombre, curve di livello, bosco, fossi, strade, case
+function creaMappaTelefono(bosco, osm) {
+  const L = 512, c = document.createElement('canvas'); c.width = c.height = L;
+  const g = c.getContext('2d'), img = g.createImageData(L, L), d = img.data;
+  const H = new Float32Array(L * L), m = HALF * 2 / L, passo = m / SCALA * 2;
+  for (let j = 0; j < L; j++) for (let i = 0; i < L; i++) H[j * L + i] = quota((i + 0.5) * m - HALF, (j + 0.5) * m - HALF) / SCALA;
+  for (let j = 0; j < L; j++) for (let i = 0; i < L; i++) {
+    const k = j * L + i, h = H[k];
+    const est = H[j * L + Math.min(L - 1, i + 1)], ovest = H[j * L + Math.max(0, i - 1)], sud = H[Math.min(L - 1, j + 1) * L + i], nord = H[Math.max(0, j - 1) * L + i];
+    const luce = Math.max(0.4, Math.min(1.55, 1 + ((est - ovest) + (sud - nord)) / passo * 0.55));   // sole finto da nord-ovest
+    const b = bosco.d[((j * bosco.h / L | 0) * bosco.w + (i * bosco.w / L | 0)) * 4] / 255;
+    let r = (50 - 24 * b) * luce, v = (56 - 10 * b) * luce, bl = (50 - 20 * b) * luce;
+    // curve di livello ogni 10 m, più marcate ogni 50
+    if ((h / 10 | 0) !== (est / 10 | 0) || (h / 10 | 0) !== (sud / 10 | 0)) {
+      const a = (h / 50 | 0) !== (est / 50 | 0) || (h / 50 | 0) !== (sud / 50 | 0) ? 58 : 24;
+      r += a; v += a; bl += a * 0.85;
+    }
+    d[k * 4] = r; d[k * 4 + 1] = v; d[k * 4 + 2] = bl; d[k * 4 + 3] = 255;
+  }
+  g.putImageData(img, 0, 0);
+  const px = q => (q + HALF) / m;
+  const linea = pts => { g.beginPath(); pts.forEach((p, i) => i ? g.lineTo(px(p[0]), px(p[1])) : g.moveTo(px(p[0]), px(p[1]))); };
+  g.lineJoin = g.lineCap = 'round';
+  g.strokeStyle = '#4a8fba'; g.lineWidth = 1.8; for (const f of osm.fossi) { linea(f); g.stroke(); }
+  for (const [tipo, pts] of osm.strade) {
+    const sentiero = tipo === 't' || tipo === 'p';
+    g.setLineDash(sentiero ? [5, 4] : []); g.lineWidth = sentiero ? 1.3 : 2.2; g.strokeStyle = sentiero ? '#c2b592' : '#e0dac8';
+    linea(pts); g.stroke();
+  }
+  g.setLineDash([]);
+  g.fillStyle = '#a89c86'; let sx = 0, sz = 0, n = 0;
+  for (const pts of osm.case) { if (pts.length < 3) continue; linea(pts); g.closePath(); g.fill(); for (const p of pts) { sx += p[0]; sz += p[1]; n++; } }
+  if (n) tel.paese = [sx / n, sz / n];
+  tel.mappa = c;
+}
+
+function apriTelefono(si = !tel.aperto) {
+  if (si === tel.aperto) return;
+  tel.aperto = si; tel.tDis = 0;
+  telUI.box.classList.toggle('su', si);
+  suono('colpo', 0.05, 3.4);
+}
+function zoomTelefono() { tel.zoom ^= 1; tel.tDis = 0; }
+
+function aggiornaGps(dt, t) {
+  const q = quotaVera();
+  tel.tacche = q >= GPS_QUOTA + 25 ? 4 : q >= GPS_QUOTA ? 3 : q >= GPS_QUOTA - 15 ? 2 : q >= GPS_QUOTA - 35 ? 1 : 0;
+  // ci mette un paio di secondi ad agganciare, e lo perde appena scendi
+  tel.tFix = Math.max(0, Math.min(3, tel.tFix + (q >= GPS_QUOTA ? dt : -dt * 1.5)));
+  if (!tel.fix && tel.tFix >= 2.5) tel.fix = true;
+  if (tel.fix && tel.tFix <= 1) tel.fix = false;
+  if (tel.fix) { tel.ux = io.x; tel.uz = io.z; tel.tUltimo = t; }
+  if (tel.aperto && (tel.tDis -= dt) <= 0) { tel.tDis = 0.1; disegnaTelefono(t, q); }
+}
+
+function disegnaTelefono(t, q) {
+  if (!tel.mappa) return;
+  const cv = telUI.cv, S = Math.round((cv.clientWidth || 150) * Math.min(2, devicePixelRatio || 1));
+  if (cv.width !== S) cv.width = cv.height = S;
+  const g = cv.getContext('2d'), u = S / 230;   // u = un punto dello schermo del telefono
+  const campo = tel.zoom ? HALF * 2 : 170;      // metri di mappa nello schermo
+  const cx = tel.zoom ? 0 : tel.ux, cz = tel.zoom ? 0 : tel.uz;
+  const sx = x => ((x - cx) / campo + 0.5) * S, sy = z => ((z - cz) / campo + 0.5) * S;
+  g.fillStyle = '#0c0f0e'; g.fillRect(0, 0, S, S);
+  // ritaglio a mano: fuori dalla carta resta nero
+  const k = tel.mappa.width / (HALF * 2);
+  const x0 = Math.max(-HALF, cx - campo / 2), x1 = Math.min(HALF, cx + campo / 2), z0 = Math.max(-HALF, cz - campo / 2), z1 = Math.min(HALF, cz + campo / 2);
+  if (x1 > x0 && z1 > z0) g.drawImage(tel.mappa, (x0 + HALF) * k, (z0 + HALF) * k, (x1 - x0) * k, (z1 - z0) * k, sx(x0), sy(z0), sx(x1) - sx(x0), sy(z1) - sy(z0));
+  g.textBaseline = 'middle'; g.lineJoin = 'round';
+  const scritta = (testo, x, y, col = '#e9e4d6', corpo = 10) => {
+    g.font = `500 ${Math.round(corpo * u)}px "DM Mono", monospace`;
+    g.lineWidth = 3 * u; g.strokeStyle = 'rgba(8,10,9,.9)'; g.strokeText(testo, x, y); g.fillStyle = col; g.fillText(testo, x, y);
+  };
+  scritta('Capricchia', sx(tel.paese[0]) - 30 * u, sy(tel.paese[1]) + 22 * u, '#d8d2c0', 11);
+  // Fonticella Petri
+  g.fillStyle = '#5fb7ea'; g.strokeStyle = '#fff'; g.lineWidth = 1.5 * u;
+  g.beginPath(); g.arc(sx(FONTE.x), sy(FONTE.z), 4 * u, 0, 6.3); g.fill(); g.stroke();
+  scritta('Fonticella Petri', sx(FONTE.x) + 7 * u, sy(FONTE.z), '#bfe2f7');
+  // i fogli già presi
+  for (const f of FOGLI) if (f.preso) {
+    g.fillStyle = '#efeadb'; g.strokeStyle = '#1a1812'; g.lineWidth = u;
+    g.beginPath(); g.rect(sx(f.x) - 3 * u, sy(f.z) - 4 * u, 6 * u, 8 * u); g.fill(); g.stroke();
+  }
+  // tu: pallino blu se il GPS prende; se no, l'ultima posizione e un cerchio che si allarga
+  const px = sx(tel.ux), py = sy(tel.uz);
+  if (tel.fix) {
+    const a = avanti(), ang = Math.atan2(a.z, a.x);
+    g.fillStyle = 'rgba(86,160,255,.3)'; g.beginPath(); g.moveTo(px, py); g.arc(px, py, 30 * u, ang - 0.5, ang + 0.5); g.closePath(); g.fill();
+    g.fillStyle = 'rgba(86,160,255,.2)'; g.beginPath(); g.arc(px, py, 10 * u, 0, 6.3); g.fill();
+    g.fillStyle = '#4c9bff'; g.strokeStyle = '#fff'; g.lineWidth = 2 * u; g.beginPath(); g.arc(px, py, 5 * u, 0, 6.3); g.fill(); g.stroke();
+  } else {
+    const inc = Math.min(HALF, 8 + (t - tel.tUltimo) * 1.4) / campo * S;
+    g.setLineDash([4 * u, 4 * u]); g.strokeStyle = 'rgba(233,228,214,.6)'; g.lineWidth = 1.3 * u; g.beginPath(); g.arc(px, py, inc, 0, 6.3); g.stroke(); g.setLineDash([]);
+    g.fillStyle = '#8b8f88'; g.strokeStyle = '#e9e4d6'; g.lineWidth = 1.5 * u; g.beginPath(); g.arc(px, py, 4.5 * u, 0, 6.3); g.fill(); g.stroke();
+  }
+  // nord e scala
+  g.fillStyle = 'rgba(8,10,9,.7)'; g.beginPath(); g.arc(S - 16 * u, 16 * u, 11 * u, 0, 6.3); g.fill();
+  g.fillStyle = '#e9e4d6'; g.beginPath(); g.moveTo(S - 16 * u, 8 * u); g.lineTo(S - 12 * u, 17 * u); g.lineTo(S - 20 * u, 17 * u); g.closePath(); g.fill();
+  g.font = `500 ${Math.round(7 * u)}px "DM Mono", monospace`; g.textAlign = 'center'; g.fillText('N', S - 16 * u, 22 * u); g.textAlign = 'left';
+  const metri = tel.zoom ? 200 : 50, lung = metri / campo * S;
+  g.strokeStyle = '#e9e4d6'; g.lineWidth = 1.5 * u; g.beginPath(); g.moveTo(8 * u, 9 * u); g.lineTo(8 * u, 13 * u); g.lineTo(8 * u + lung, 13 * u); g.lineTo(8 * u + lung, 9 * u); g.stroke();
+  scritta(metri + ' m', 12 * u + lung, 11 * u, '#e9e4d6', 9);
+
+  // le scritte intorno alla carta
+  const min = 187 + Math.floor(t / 60);
+  telUI.ora.textContent = String(Math.floor(min / 60) % 24).padStart(2, '0') + ':' + String(min % 60).padStart(2, '0');
+  telUI.tacche.dataset.n = tel.tacche;
+  telUI.batt.textContent = Math.round(io.batteria * 100) + '%';
+  const cerca = !tel.fix && q >= GPS_QUOTA;
+  telUI.gps.textContent = tel.fix ? 'GPS agganciato' : cerca ? 'Cerco i satelliti...' : 'GPS assente';
+  telUI.gps.className = tel.fix ? 'si' : cerca ? 'cerca' : 'no';
+  telUI.quota.textContent = `Quota ${Math.round(q)} m`;
+  const fa = Math.floor((t - tel.tUltimo) / 60);
+  telUI.nota.textContent = tel.fix ? 'Il pallino blu sei tu.' : `Prende sopra i ${GPS_QUOTA} m. Ultima posizione: ${fa < 1 ? 'meno di un minuto fa' : fa === 1 ? 'un minuto fa' : fa + ' minuti fa'}.`;
+}
+$('t-mappa').addEventListener('touchstart', e => { e.preventDefault(); apriTelefono(); });
+telUI.cv.addEventListener('touchstart', e => { e.preventDefault(); zoomTelefono(); });
+
 /* ════════ STATI DEL GIOCO ════════ */
 function preso() {
   if (fase !== 'gioco') return;
-  fase = 'morto'; io.morti++;
+  fase = 'morto'; io.morti++; apriTelefono(false);
   // ultimo sguardo: girati verso di lui, e guarda in su (è alto tre metri)
   const a = Math.atan2(-(papi.x - io.x), -(papi.z - io.z));
   io.yaw = a; io.pitch = 0.5;
@@ -1127,7 +1285,7 @@ function riprova() {
   if (!TOCCO) canvas.requestPointerLock?.();
 }
 function vittoria() {
-  fase = 'vinto'; storia = 'fine';
+  fase = 'vinto'; storia = 'fine'; apriTelefono(false);
   papi.g.visible = false; papi.stato = 'assente';
   const s = Math.round(io.tempo);
   setTimeout(() => {
@@ -1191,17 +1349,20 @@ let tGioco = 0;
 function costruisci(bin, bosco, colori, osm, modello, roncola, modelloPapi, texAlberi) {
   const u16 = new Uint16Array(bin);
   Q = new Float32Array(N * N);
-  for (let i = 0; i < Q.length; i++) Q[i] = 1000 + u16[i] / 20;
+  for (let i = 0; i < Q.length; i++) Q[i] = (1000 + u16[i] / 20) * SCALA;
+  // osm.json è in metri veri: lo porto in metri di gioco
+  for (const poligono of [...osm.case, ...osm.fossi, ...osm.strade.map(s => s[1])]) for (const p of poligono) { p[0] *= SCALA; p[1] *= SCALA; }
   FOSSI = osm.fossi;
   creaTerreno(colori);
   creaBosco(bosco, osm, FOGLI_POS, texAlberi);
   creaPaese(osm);
   creaFonte();
   creaFogli();
+  creaMappaTelefono(bosco, osm);
   creaGuerrino(modello, roncola);
   creaPapi(modelloPapi);
   preparaAudio();
-  posaGuerrino(-143.5, 383, 0);
+  posaGuerrino(-69.5, 191.5, 0);
   guerrino.rot = guardaVerso(io.x, io.z); disegna(guerrino); animaGuerrino(0);
   camera.position.set(io.x, quota(io.x, io.z) + 1.65, io.z);
   camera.rotation.set(io.pitch, io.yaw, 0, 'YXZ');
@@ -1211,13 +1372,13 @@ function costruisci(bin, bosco, colori, osm, modello, roncola, modelloPapi, texA
   mostra('caricamento', false); mostra('menu', true);
   document.body.classList.remove('carica'); document.body.classList.add('fuori');
   disegnaClassifica($('classifica-menu'));
-  window.__crevil = { PROVA, quota, guarda: (x, z) => { io.yaw = Math.atan2(-(x - io.x), -(z - io.z)); }, info: () => renderer.info.render, io, guerrino, papi, recita, posa, disegna, scena, camera, renderer, salta: s => { storia = s; tStoria = 0; }, caccia: () => { iniziaCaccia(tGioco); papi.prossimo = 0; }, stato: () => ({ storia, fase, attesa, livello, staticoV }) };
+  window.__crevil = { PROVA, quota, guarda: (x, z) => { io.yaw = Math.atan2(-(x - io.x), -(z - io.z)); }, info: () => renderer.info.render, io, guerrino, papi, recita, posa, disegna, scena, camera, renderer, salta: s => { storia = s; tStoria = 0; }, caccia: () => { iniziaCaccia(tGioco); papi.prossimo = 0; }, tel, apriTelefono, quotaVera, FONTE, FOGLI, stato: () => ({ storia, fase, attesa, livello, staticoV, faseG: guerrino.fase, az: guerrino.nomeAz }) };
 }
 pronto.catch(e => { console.error(e); $('prog-testo').textContent = 'Il bosco non si carica: ricarica la pagina.'; });
 
 $('gioca').addEventListener('click', () => {
   mostra('menu', false); document.body.classList.remove('fuori');
-  fase = 'gioco'; tStoria = 0;
+  fase = 'gioco'; tStoria = 0; tel.tUltimo = tGioco;
   ascolto.context.resume?.(); avviaLoop();
   if (TOCCO) {
     mostra('touch', true);
@@ -1235,15 +1396,16 @@ function ciclo() {
     if (storia === 'solo' || storia === 'caccia') io.tempo += dt;   // il tempo parte quando Guerrino se ne va
     muoviGiocatore(dt);
     aggiornaTorcia(dt, t);
+    aggiornaGps(dt, t);
     if (!PROVA.congela) aggiornaStoria(dt, t);
     aggiornaDialogo(dt);
     cercaFoglio();
-    if ((tFosso -= dt) < 0) { tFosso = 0.5; if (fosso) fosso.setVolume(Math.max(0, 1 - distFosso(io.x, io.z) / 70) * 0.6); }
+    if ((tFosso -= dt) < 0) { tFosso = 0.5; if (fosso) fosso.setVolume(Math.max(0, 1 - distFosso(io.x, io.z) / 45) * 0.6); }
   }
   if (fase === 'gioco' || fase === 'morto') { disegnaStatico(t); animaGuerrino(dt); animaPapi(dt); aggiornaScossi(dt); }
   // accendi solo i pezzi di bosco vicini
   // oltre gli 80 m la nebbia copre tutto: conta il punto del blocco più vicino a me
-  const LB = HALF / 26;
+  const LB = HALF / NB;
   for (const b of BLOCCHI) b.visible = Math.hypot(Math.max(0, Math.abs(b.userData.cx - io.x) - LB), Math.max(0, Math.abs(b.userData.cz - io.z) - LB)) < (TOCCO ? 70 : 80);
   renderer.render(scena, camera);
 }
