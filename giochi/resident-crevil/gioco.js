@@ -69,9 +69,8 @@ function mostra(id, si) { $(id).classList.toggle('nascosto', !si); }
 
 /* ════════ RENDERER E SCENA ════════ */
 const canvas = $('scena');
-const renderer = new THREE.WebGLRenderer({ canvas, antialias: !TOCCO, powerPreference: 'high-performance' });
-renderer.setPixelRatio(Math.min(devicePixelRatio, TOCCO ? 1.25 : 1.5));
-renderer.setSize(innerWidth, innerHeight);
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: false, powerPreference: 'high-performance' });
+renderer.setPixelRatio(1);
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 const scena = new THREE.Scene();
 const NEBBIA = new THREE.Color(0x07090b);
@@ -79,6 +78,37 @@ scena.background = NEBBIA;
 scena.fog = new THREE.FogExp2(NEBBIA, 0.034);
 const camera = new THREE.PerspectiveCamera(70, innerWidth / innerHeight, 0.08, 95);
 scena.add(camera);
+
+/* ── resa da PS1 ──
+   Il gioco è disegnato a 270 righe e ingrandito a pixel netti; i vertici scattano sulla griglia dei
+   pixel (il tremolio dei poligoni della PS1); i colori sono a 15 bit col retino 4x4; le texture sono
+   piccole (64 px) e senza sfumatura fra un pixel e l'altro. */
+const PS1 = { altezza: 270, ris: { value: new THREE.Vector2(240, 135) } };
+function ps1Shader(sh) {
+  sh.uniforms.ps1Ris = PS1.ris;
+  sh.vertexShader = 'uniform vec2 ps1Ris;\n' + sh.vertexShader.replace('#include <project_vertex>',
+    '#include <project_vertex>\n\tgl_Position.xy = floor(gl_Position.xy / gl_Position.w * ps1Ris + 0.5) / ps1Ris * gl_Position.w;');
+  sh.fragmentShader = sh.fragmentShader.replace('#include <dithering_fragment>', `#include <dithering_fragment>
+	{
+		const mat4 retino = mat4(0., 8., 2., 10., 12., 4., 14., 6., 3., 11., 1., 9., 15., 7., 13., 5.);
+		ivec2 px = ivec2(mod(gl_FragCoord.xy, 4.0));
+		gl_FragColor.rgb = floor(gl_FragColor.rgb * 31.0 + (retino[px.x][px.y] + 0.5) / 16.0) / 31.0;
+	}`);
+}
+function ps1(mat) { mat.onBeforeCompile = ps1Shader; return mat; }
+function texPs1(t, sx = 1, sy = sx) {
+  t.magFilter = t.minFilter = THREE.NearestFilter; t.generateMipmaps = false;
+  t.colorSpace = THREE.SRGBColorSpace; t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(sx, sy);
+  return t;
+}
+function ridimensiona() {
+  const h = PS1.altezza, w = Math.max(160, Math.round(h * innerWidth / innerHeight));
+  renderer.setSize(w, h, false);
+  PS1.ris.value.set(w / 2, h / 2);
+  camera.aspect = innerWidth / innerHeight;
+  camera.updateProjectionMatrix();
+}
+ridimensiona();
 scena.add(new THREE.HemisphereLight(0x4a5a7a, 0x10120c, 1.1));
 const luna = new THREE.DirectionalLight(0x8090b0, 0.25);
 luna.position.set(-0.4, 1, 0.3);
@@ -94,9 +124,7 @@ const alone = new THREE.PointLight(0xffe6c0, 1.2, 6, 2);   // un po' di luce vic
 camera.add(alone);
 
 addEventListener('resize', () => {
-  renderer.setSize(innerWidth, innerHeight);
-  camera.aspect = innerWidth / innerHeight;
-  camera.updateProjectionMatrix();
+  ridimensiona();
   controllaOrizzontale();
 });
 
@@ -122,6 +150,8 @@ function immagineDati(url) {
 }
 caricaFile.setResponseType('arraybuffer');
 
+// texture da PS1 (Kenney e Poly Haven, CC0): vedi texture/LICENZA.txt
+const TEX_PS1 = ['erba', 'terra', 'roccia', 'ciottoli', 'acqua', 'tetto', 'muro', 'corteccia', 'fronde'], TEX = {};
 const SUONI = ['notte', 'fosso', 'colpo', 'foglio', 'fiatone', 'scricchiolio', 'frasche', 'passo1', 'passo2', 'passo3', 'passo4', 'passo5', 'pugno1', 'pugno2', 'pugno3'];
 const buf = {};
 
@@ -130,13 +160,15 @@ const pronto = Promise.all([
   immagineDati('mappa/bosco.png'),
   promessa(caricaTex, 'mappa/colori.jpg'),
   fetch('mappa/osm.json').then(r => r.json()),
-  promessa(gltf, 'modelli/guerrino.glb'),
+  promessa(gltf, 'modelli/guerrino.glb?v=2'),
   promessa(gltf, 'modelli/roncola.glb').catch(() => null),
   promessa(gltf, 'modelli/papi.glb'),
-  promessa(caricaTex, 'texture/corteccia.jpg'),
-  promessa(caricaTex, 'texture/fronde.webp'),
+  ...TEX_PS1.map(n => promessa(caricaTex, 'texture/ps1/' + n + '.png')),
   ...SUONI.map(s => promessa(caricaAudio, 'sfx/' + s + '.mp3').then(b => { buf[s] = b; }, () => {})),
-]).then(([bin, bosco, colori, osm, modello, roncola, modelloPapi, corteccia, fronde]) => costruisci(bin, bosco, colori, osm, modello, roncola, modelloPapi, [corteccia, fronde]));
+]).then(([bin, bosco, colori, osm, modello, roncola, modelloPapi, ...resto]) => {
+  TEX_PS1.forEach((n, i) => { TEX[n] = texPs1(resto[i]); });
+  costruisci(bin, bosco, colori, osm, modello, roncola, modelloPapi, [TEX.corteccia, TEX.fronde]);
+});
 
 /* ════════ TERRENO ════════ */
 let Q;   // Float32Array quote
@@ -149,39 +181,52 @@ function quota(x, z) {
   return Q[k + N + 1] + (Q[k + N] - Q[k + N + 1]) * (1 - u) + (Q[k + 1] - Q[k + N + 1]) * (1 - v);
 }
 
-function texDettaglio() {
-  // foglie secche e terra, ripetuta: dà grana al suolo da vicino
-  const c = document.createElement('canvas'); c.width = c.height = 256;
-  const g = c.getContext('2d');
-  g.fillStyle = '#808080'; g.fillRect(0, 0, 256, 256);
-  const r = rand(11);
-  for (let i = 0; i < 2600; i++) {
-    const x = r() * 256, y = r() * 256, s = 1 + r() * 4, l = 60 + r() * 110;
-    g.fillStyle = `rgb(${l * 1.08 | 0},${l | 0},${l * 0.8 | 0})`;
-    g.save(); g.translate(x, y); g.rotate(r() * 6.28);
-    g.beginPath(); g.ellipse(0, 0, s, s * 0.5, 0, 0, 6.28); g.fill(); g.restore();
+// maschera del suolo: rosso = strade e sentieri, verde = quanto bosco c'è
+function texMaschera(bosco, osm) {
+  const L = 1024, c = document.createElement('canvas'); c.width = c.height = L;
+  const g = c.getContext('2d'), img = g.createImageData(L, L), d = img.data;
+  for (let j = 0; j < L; j++) for (let i = 0; i < L; i++) {
+    const k = (j * L + i) * 4;
+    d[k + 1] = bosco.d[((j * bosco.h / L | 0) * bosco.w + (i * bosco.w / L | 0)) * 4]; d[k + 3] = 255;
   }
-  const t = new THREE.CanvasTexture(c);
-  t.wrapS = t.wrapT = THREE.RepeatWrapping; t.colorSpace = THREE.SRGBColorSpace;
-  t.anisotropy = 4;
+  g.putImageData(img, 0, 0);
+  g.globalCompositeOperation = 'lighter'; g.strokeStyle = '#f00'; g.lineJoin = g.lineCap = 'round';
+  const px = q => (q + HALF) / (HALF * 2) * L;
+  for (const [tipo, pts] of osm.strade) {
+    g.lineWidth = (tipo === 't' || tipo === 'p' ? 2.2 : 3.6) / (HALF * 2) * L;
+    g.beginPath(); pts.forEach((p, i) => i ? g.lineTo(px(p[0]), px(p[1])) : g.moveTo(px(p[0]), px(p[1]))); g.stroke();
+  }
+  const t = new THREE.CanvasTexture(c); t.minFilter = THREE.LinearFilter; t.generateMipmaps = false;
   return t;
 }
 
-function creaTerreno(colori) {
+function creaTerreno(colori, bosco, osm) {
   const geo = new THREE.PlaneGeometry(HALF * 2, HALF * 2, N - 1, N - 1);
   geo.rotateX(-Math.PI / 2);
   const p = geo.attributes.position;
   for (let i = 0; i < p.count; i++) p.setY(i, Q[i]);
   geo.computeVertexNormals();
   colori.colorSpace = THREE.SRGBColorSpace;
-  colori.anisotropy = 4;
   const mat = new THREE.MeshLambertMaterial({ map: colori });
-  const det = texDettaglio();
+  const maschera = texMaschera(bosco, osm);
+  // sul suolo le texture hanno le mipmap (a scatti): senza, da lontano sfarfalla tutto
+  for (const n of ['erba', 'terra', 'roccia']) { TEX[n].generateMipmaps = true; TEX[n].minFilter = THREE.NearestMipmapNearestFilter; TEX[n].needsUpdate = true; }
   mat.onBeforeCompile = sh => {
-    sh.uniforms.dettaglio = { value: det };
+    Object.assign(sh.uniforms, { tErba: { value: TEX.erba }, tTerra: { value: TEX.terra }, tRoccia: { value: TEX.roccia }, tMaschera: { value: maschera } });
+    sh.vertexShader = 'varying float vPend;\n' + sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\n\tvPend = 1.0 - normal.y;');
     sh.fragmentShader = sh.fragmentShader
-      .replace('#include <map_pars_fragment>', '#include <map_pars_fragment>\nuniform sampler2D dettaglio;')
-      .replace('#include <map_fragment>', '#include <map_fragment>\ndiffuseColor.rgb *= texture2D(dettaglio, vMapUv * 260.0).rgb * 1.9;');
+      .replace('#include <map_pars_fragment>', '#include <map_pars_fragment>\nuniform sampler2D tErba, tTerra, tRoccia, tMaschera;\nvarying float vPend;')
+      .replace('#include <map_fragment>', `#include <map_fragment>
+	{
+		vec2 uvP = vMapUv * ${(HALF * 2 / 3).toFixed(1)};   // una piastrella ogni 3 metri
+		vec4 mk = texture2D(tMaschera, vMapUv);
+		vec3 terra = texture2D(tTerra, uvP).rgb;
+		vec3 suolo = mix(texture2D(tErba, uvP).rgb * 1.25, terra * vec3(0.55, 0.47, 0.34), mk.g * 0.92);   // nel bosco: lettiera di foglie
+		suolo = mix(suolo, terra * 0.95, min(1.0, mk.r * 1.4));                                              // strade e sentieri
+		suolo = mix(suolo, texture2D(tRoccia, uvP * 0.5).rgb * 0.7, smoothstep(0.17, 0.3, vPend));           // sul ripido: roccia
+		diffuseColor.rgb = suolo * mix(vec3(1.0), diffuseColor.rgb * 6.0, 0.3) * 1.5;
+	}`);
+    ps1Shader(sh);
   };
   const m = new THREE.Mesh(geo, mat);
   m.matrixAutoUpdate = false;
@@ -277,13 +322,12 @@ function modelliAlberi() {
   return modelli.map(([a, b]) => [unisci(a), unisci(b)]);
 }
 function materialiAlberi(corteccia, fronde) {
-  corteccia.wrapS = corteccia.wrapT = THREE.RepeatWrapping; corteccia.colorSpace = THREE.SRGBColorSpace; corteccia.anisotropy = 4;
-  fronde.colorSpace = THREE.SRGBColorSpace; fronde.anisotropy = 2;
-  const legno = new THREE.MeshLambertMaterial({ map: corteccia, color: 0x9a9088 });
+  const legno = ps1(new THREE.MeshLambertMaterial({ map: corteccia, color: 0x9a9088 }));
   const foglie = new THREE.MeshLambertMaterial({ map: fronde, color: 0x7c8670, alphaTest: 0.42, side: THREE.DoubleSide });
   // il retro delle fronde non va al buio: tengo la normale "a palla" su tutti e due i lati
   foglie.onBeforeCompile = sh => {
     sh.fragmentShader = sh.fragmentShader.replace('#include <normal_fragment_begin>', '#include <normal_fragment_begin>\n#ifdef DOUBLE_SIDED\n\tnormal *= faceDirection;\n#endif');
+    ps1Shader(sh);
   };
   return [legno, foglie];
 }
@@ -358,22 +402,6 @@ function creaBosco(bosco, osm, fogliPos, texAlberi) {
 
 /* ════════ PAESE ════════ */
 const CASE = [];   // [{pts, minx, maxx, minz, maxz}]
-function texMuro() {
-  const c = document.createElement('canvas'); c.width = c.height = 256;
-  const g = c.getContext('2d'); const r = rand(3);
-  g.fillStyle = '#6d655a'; g.fillRect(0, 0, 256, 256);
-  for (let y = 0; y < 256; y += 16) for (let x = -(y / 16 % 2) * 14; x < 256; x += 28) {
-    const l = 80 + r() * 50; g.fillStyle = `rgb(${l + 12 | 0},${l + 6 | 0},${l - 6 | 0})`;
-    g.fillRect(x + 1, y + 1, 26, 14);
-  }
-  // finestre buie
-  g.fillStyle = '#0d0c0b';
-  g.fillRect(40, 90, 36, 52); g.fillRect(170, 90, 36, 52);
-  g.fillStyle = '#3b2a1c'; g.fillRect(36, 86, 44, 4); g.fillRect(166, 86, 44, 4);
-  const t = new THREE.CanvasTexture(c); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.colorSpace = THREE.SRGBColorSpace;
-  t.repeat.set(1 / 3.4, 1 / 3.4);
-  return t;
-}
 function creaPaese(osm) {
   const muri = [], tetti = [];
   const r = rand(77);
@@ -397,8 +425,8 @@ function creaPaese(osm) {
   }
   if (!muri.length) return;
   const unisci = l => { const g = mergeGeometries(l.map(x => x.index ? x.toNonIndexed() : x)); g.clearGroups(); return g; };
-  scena.add(new THREE.Mesh(unisci(muri), new THREE.MeshLambertMaterial({ map: texMuro() })));
-  scena.add(new THREE.Mesh(unisci(tetti), new THREE.MeshLambertMaterial({ color: 0x3a2a22 })));
+  scena.add(new THREE.Mesh(unisci(muri), ps1(new THREE.MeshLambertMaterial({ map: texPs1(TEX.muro, 1 / 3.4) }))));   // pietra a corsi con le finestre
+  scena.add(new THREE.Mesh(unisci(tetti), ps1(new THREE.MeshLambertMaterial({ map: texPs1(TEX.tetto, 1 / 1.6), color: 0x8a7a70 }))));
 }
 function spingiFuoriCase(p, raggio) {
   for (const c of CASE) {
@@ -425,14 +453,14 @@ const FONTE = { x: -13.5, z: 156.5, rot: 0.6 + Math.PI };   // a 70 m di strada 
 // un punto contato dalla Fonticella: lx = di lato, lz = davanti alla vasca (metri)
 function daFonte(lx, lz) { const c = Math.cos(FONTE.rot), s = Math.sin(FONTE.rot); return [FONTE.x + lx * c + lz * s, FONTE.z - lx * s + lz * c]; }
 function creaFonte() {
-  const grana = texDettaglio(); grana.repeat.set(0.7, 0.7);
-  const pietra = new THREE.MeshLambertMaterial({ map: grana, color: 0x8a857c });   // pietra chiazzata: liscia, la torcia la sbiancava
+  const pietra = ps1(new THREE.MeshLambertMaterial({ map: TEX.ciottoli, color: 0x8f8a80 }));
   const g = new THREE.Group();
-  const vasca = new THREE.Mesh(new THREE.BoxGeometry(2.2, 0.55, 1), pietra); vasca.position.y = 0.275;   // bordo all'altezza di una seduta g.add(vasca);
+  const vasca = new THREE.Mesh(new THREE.BoxGeometry(2.2, 0.55, 1), pietra); vasca.position.y = 0.275; g.add(vasca);   // bordo all'altezza di una seduta
   const muro = new THREE.Mesh(new THREE.BoxGeometry(1.4, 1.6, 0.4), pietra); muro.position.set(0, 0.8, -0.6); g.add(muro);
-  const acqua = new THREE.Mesh(new THREE.PlaneGeometry(2, 0.8), new THREE.MeshLambertMaterial({ color: 0x0c1a22, emissive: 0x050a0d }));
-  acqua.rotation.x = -Math.PI / 2; acqua.position.y = 0.48; g.add(acqua);
-  const tubo = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.4, 6), new THREE.MeshLambertMaterial({ color: 0x333333 }));
+  const acqua = new THREE.Mesh(new THREE.PlaneGeometry(2, 0.8), ps1(new THREE.MeshLambertMaterial({ map: texPs1(TEX.acqua, 2, 1), color: 0x4a6a78, emissive: 0x04080a })));
+  FONTE.acqua = TEX.acqua;
+  acqua.rotation.x = -Math.PI / 2; acqua.position.y = 0.56; g.add(acqua);   // a filo del bordo
+  const tubo = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.4, 6), ps1(new THREE.MeshLambertMaterial({ color: 0x333333 })));
   tubo.rotation.x = Math.PI / 2; tubo.position.set(0, 1.1, -0.3); g.add(tubo);
   g.position.set(FONTE.x, quota(FONTE.x, FONTE.z), FONTE.z);
   g.rotation.y = FONTE.rot;
@@ -458,7 +486,7 @@ function texFoglio() {
 }
 function creaFogli() {
   const geo = new THREE.PlaneGeometry(0.21, 0.297);
-  const mat = new THREE.MeshLambertMaterial({ map: texFoglio(), color: 0x9a968c, emissive: 0x1a1812, side: THREE.DoubleSide });
+  const mat = ps1(new THREE.MeshLambertMaterial({ map: texFoglio(), color: 0x9a968c, emissive: 0x1a1812, side: THREE.DoubleSide }));
   for (const [x, z, dir] of FOGLI_POS) {
     const m = new THREE.Mesh(geo, mat);
     const r = 0.43;   // appena fuori dal tronco (largo 0,37 m a quell'altezza)
@@ -472,7 +500,8 @@ function creaFogli() {
 }
 
 /* ════════ PERSONAGGI: GUERRINO E PAPI ════════ */
-// Guerrino: il modello vecchio di Leo con le 9 animazioni del suo scheletro nuovo
+// Guerrino: l'export nuovo di Leo da Rodin, tutto dallo stesso file (modello, scheletro e 9 animazioni:
+// mischiare il modello vecchio con le animazioni nuove gli storceva spalle e braccia)
 // (jab, combo, affondo, stanco, calcioAlto, pugno, calcio, calcio2, cammina).
 // Papi: alto 3 metri, animazioni gattona, salto, corsa, striscia.
 const guerrino = { g: new THREE.Group(), x: 0, z: 0, rot: 0, tappa: 0, vel: 0, prossimo: 0, mena: false, tinta: 0x77716a, scala: 1 };
@@ -484,7 +513,7 @@ function preparaPersonaggio(p, modello) {
     if (!o.isMesh) return;
     o.frustumCulled = false;
     const v = o.material;
-    o.material = new THREE.MeshLambertMaterial({ map: v.map, normalMap: v.normalMap || null, color: p.tinta });
+    o.material = ps1(new THREE.MeshLambertMaterial({ map: v.map, normalMap: v.normalMap || null, color: p.tinta }));
   });
   m.scale.setScalar(p.scala);
   p.corpo = m; p.g.add(m);
@@ -538,7 +567,7 @@ function creaGuerrino(modello, roncola) {
   const mano = osso('RightHand');
   if (roncola && mano) {
     const r = roncola.scene;
-    r.traverse(o => { if (o.isMesh) { o.frustumCulled = false; o.material = new THREE.MeshLambertMaterial({ map: o.material.map, color: 0x9c9890 }); } });
+    r.traverse(o => { if (o.isMesh) { o.frustumCulled = false; o.material = ps1(new THREE.MeshLambertMaterial({ map: o.material.map, color: 0x9c9890 })); } });
     r.position.set(0, -1.65, 0);            // il punto del manico che sta nel palmo (modello alto 1,9)
     const giro = new THREE.Group(); giro.add(r); giro.rotation.y = -Math.PI / 2;
     const perno = new THREE.Group(); perno.add(giro);
@@ -909,7 +938,7 @@ function aggiornaStoria(dt, t) {
         const tr = alberoDiGuerrino(); guerrino.albero = tr;
         // gira intorno alla vasca e si pianta a un braccio dal tronco
         const giro = daFonte(-1.7, 1.1);
-        if (tr) { const dx = giro[0] - tr.x, dz = giro[1] - tr.z, d = Math.hypot(dx, dz) || 1, r = tr.r + 0.35; guerrino.verso = [giro, [tr.x + dx / d * r, tr.z + dz / d * r]]; }
+        if (tr) { const dx = giro[0] - tr.x, dz = giro[1] - tr.z, d = Math.hypot(dx, dz) || 1, r = tr.r + 0.55; guerrino.verso = [giro, [tr.x + dx / d * r, tr.z + dz / d * r]]; }
         else guerrino.verso = [[guerrino.x, guerrino.z]];
         guerrino.tappa = 0;
       }
@@ -1353,7 +1382,7 @@ function costruisci(bin, bosco, colori, osm, modello, roncola, modelloPapi, texA
   // osm.json è in metri veri: lo porto in metri di gioco
   for (const poligono of [...osm.case, ...osm.fossi, ...osm.strade.map(s => s[1])]) for (const p of poligono) { p[0] *= SCALA; p[1] *= SCALA; }
   FOSSI = osm.fossi;
-  creaTerreno(colori);
+  creaTerreno(colori, bosco, osm);
   creaBosco(bosco, osm, FOGLI_POS, texAlberi);
   creaPaese(osm);
   creaFonte();
@@ -1402,6 +1431,7 @@ function ciclo() {
     cercaFoglio();
     if ((tFosso -= dt) < 0) { tFosso = 0.5; if (fosso) fosso.setVolume(Math.max(0, 1 - distFosso(io.x, io.z) / 45) * 0.6); }
   }
+  if (FONTE.acqua) FONTE.acqua.offset.y = -t * 0.12;
   if (fase === 'gioco' || fase === 'morto') { disegnaStatico(t); animaGuerrino(dt); animaPapi(dt); aggiornaScossi(dt); }
   // accendi solo i pezzi di bosco vicini
   // oltre gli 80 m la nebbia copre tutto: conta il punto del blocco più vicino a me
