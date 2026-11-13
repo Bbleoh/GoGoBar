@@ -1,7 +1,9 @@
 <!DOCTYPE html>
-<html lang="it">
+<html lang="it" data-filodiffusione>
 <head>
   <meta charset="UTF-8" />
+  <!-- filodiffusione: tra le pagine con data-filodiffusione la musica non si ferma (vedi js/filodiffusione.js) -->
+  <script src="../js/filodiffusione.js?v=1"></script>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Musica · GoGoBar</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -177,7 +179,7 @@
   <link rel="icon" type="image/png" sizes="16x16" href="../img/icone/favicon-16.png">
   <link rel="apple-touch-icon" href="../img/icone/apple-touch-icon.png">
 </head>
-<body>
+<body data-radio="nascosta">
 
 <div class="top">
   <a href="../" class="logo"><img src="../img/icone/icona-96.png" alt="" width="40" height="40">Go<em>Go</em>Bar</a>
@@ -216,26 +218,22 @@
 
 <section class="list" id="scaletta"></section>
 
-<audio id="audio" preload="metadata"></audio>
-
 <script src="../contenuti.js?v=24"></script>
-<script src="../js/copertina.js?v=1"></script>
-<script src="../js/account.js?v=4"></script>
-<script src="../js/gogoldbar.js?v=6"></script>
+<script src="../js/copertina.js?v=2"></script>
+<script src="../js/account.js?v=5"></script>
+<script src="../js/gogoldbar.js?v=7"></script>
+<script src="../js/radio.js?v=15"></script>
 <script>
 /*
  * Player musicale: legge i brani da contenuti.js (sezione musica).
  * Ogni brano ha il suo link: musica/#nome-del-file (senza .mp3).
  */
 (function () {
-  // tutti i brani in una lista sola, con il nome dell'album su ognuno
-  // (funziona anche se il browser ha ancora in cache un contenuti.js vecchio)
-  const TUTTI = (typeof TUTTI_I_BRANI !== 'undefined') ? TUTTI_I_BRANI
-    : ((typeof CONTENUTI !== 'undefined' && CONTENUTI.musica) || []).flatMap(a =>
-        a.brani ? a.brani.map(b => Object.assign({ album: a.album, copertina: a.copertina || '' }, b)) : [a]);
-  const brani = TUTTI.filter(b => b.file);
+  // i brani sono quelli della radio (stesso ordine), che suona per tutta la pagina e oltre
+  const R = window.GoGoBarRadio;
+  const brani = R ? R.brani : [];
   const $ = id => document.getElementById(id);
-  const audio = $('audio');
+  const audio = R && R.audio;
 
   if (!brani.length) {
     $('player').outerHTML = '<p class="empty">Silenzio, per ora. Presto rumori forti.</p>';
@@ -243,7 +241,6 @@
   }
 
   const slug = b => b.file.replace(/\.[^.]+$/, '');
-  const src  = b => /^(https?:)?\/\//.test(b.file) ? b.file : 'brani/' + b.file;
   const mmss = s => isFinite(s) ? Math.floor(s / 60) + ':' + String(Math.floor(s % 60)).padStart(2, '0') : '0:00';
   const ICONA_PLAY  = '<path d="M7 4v16l13-8z"/>';
   const ICONA_PAUSA = '<path d="M6 4h4v16H6zM14 4h4v16h-4z"/>';
@@ -396,82 +393,57 @@
     });
   }
 
-  // ── stato ──
-  let corrente = -1;
-  let casuale = false;
+  // ── il player è la radio (js/radio.js): stesso audio e stessa coda in tutto il sito, così con la
+  //    filodiffusione la musica continua quando cambi pagina. Qui sotto c'è solo come si vede e i comandi. ──
+  const G = window.GoGoldBar;
+  function chiediAlbum(nome) { if (G) G.chiediSblocco(G.sbloccoDi(nome)); }
   let trascinando = false;
 
-  // GoGoldBar: gli album a pagamento non suonano finché non li sblocchi
-  const G = window.GoGoldBar;
-  const chiuso = i => !!(G && G.albumBloccato(brani[i].album));
-  function chiediAlbum(nome) { if (G) G.chiediSblocco(G.sbloccoDi(nome)); }
-
-  function carica(i, suona) {
-    i = (i + brani.length) % brani.length;
-    if (chiuso(i)) {
-      if (suona) { chiediAlbum(brani[i].album); return; }
-      const k = brani.findIndex((_, j) => !chiuso(j));
-      if (k >= 0) i = k;
-    }
-    const b = brani[i];
-    if (i !== corrente) {
-      corrente = i;
-      audio.src = src(b);
-      $('titolo').textContent = b.titolo;
-      $('artisti').textContent = b.artisti || '';
-      $('prod').textContent = b.prod ? 'prod. ' + b.prod : '';
-      $('kicker').textContent = (b.album ? b.album + ' · ' : '') + pos[i].n + ' di ' + pos[i].tot;
-      $('tot').textContent = b.durata || '0:00';
-      $('ora').textContent = '0:00';
-      aggiornaBarra(0);
-      document.title = b.titolo + ' · GoGoBar';
-      document.querySelectorAll('.track, .hot').forEach(el => el.classList.toggle('attivo', +el.dataset.i === i));
-      mostraAlbum(b.album);
-      // al centro del vinile: la copertina dell'album, se c'è, altrimenti il gatto
-      $('etichetta').classList.toggle('foto', !!b.copertina);
-      $('etichetta-img').src = b.copertina ? (/^(https?:)?\/\//.test(b.copertina) ? b.copertina : '../' + b.copertina) : '../img/maneki-neko.webp';
-      history.replaceState(null, '', '#' + slug(b));
-      if ('mediaSession' in navigator) {
-        navigator.mediaSession.metadata = new MediaMetadata({
-          title: b.titolo, artist: b.artisti || 'Collettivo M.I.A.O.', album: b.album || 'GoGoBar',
-          artwork: b.copertina
-            ? [{ src: new URL(/^(https?:)?\/\//.test(b.copertina) ? b.copertina : '../' + b.copertina, location.href).href }]
-            : [{ src: new URL('../img/maneki-neko.webp', location.href).href, sizes: '689x900', type: 'image/webp' }]
-        });
-      }
-    }
-    if (suona) audio.play().catch(() => {});
+  function mostraBrano() {
+    const i = R.corrente(), b = brani[i];
+    if (!b) return;
+    $('titolo').textContent = b.titolo;
+    $('artisti').textContent = b.artisti || '';
+    $('prod').textContent = b.prod ? 'prod. ' + b.prod : '';
+    $('kicker').textContent = (b.album ? b.album + ' · ' : '') + pos[i].n + ' di ' + pos[i].tot;
+    $('tot').textContent = b.durata || '0:00';
+    document.title = b.titolo + ' · GoGoBar';
+    document.querySelectorAll('.track, .hot').forEach(el => el.classList.toggle('attivo', +el.dataset.i === i));
+    mostraAlbum(b.album);
+    // al centro del vinile: la copertina dell'album, se c'è, altrimenti il gatto
+    $('etichetta').classList.toggle('foto', !!b.copertina);
+    $('etichetta-img').src = b.copertina ? (/^(https?:)?\/\//.test(b.copertina) ? b.copertina : '../' + b.copertina) : '../img/maneki-neko.webp';
+    history.replaceState(history.state, '', '#' + slug(b));
+    mostraTempo();
   }
-
-  function prossimo(dir) {
-    const aperti = brani.map((_, j) => j).filter(j => !chiuso(j));
-    if (!aperti.length) return;
-    if (casuale && aperti.length > 1) {
-      let j; do { j = aperti[Math.floor(Math.random() * aperti.length)]; } while (j === corrente);
-      carica(j, true);
-    } else {
-      let j = corrente;
-      for (let k = 0; k < brani.length; k++) { j = (j + dir + brani.length) % brani.length; if (!chiuso(j)) break; }
-      carica(j, true);
-    }
+  function mostraStato() {
+    const on = !audio.paused;
+    document.body.classList.toggle('playing', on);
+    $('icona').innerHTML = on ? ICONA_PAUSA : ICONA_PLAY;
+    $('play').setAttribute('aria-label', on ? 'Pausa' : 'Play');
+    $('play').classList.toggle('riprendi', R.inAttesa());    // il browser ha bloccato la ripartenza: un tocco e va
   }
-
+  function mostraTempo() {
+    if (trascinando) return;
+    if (!audio.duration) { $('ora').textContent = '0:00'; aggiornaBarra(0); return; }
+    $('tot').textContent = mmss(audio.duration);
+    $('ora').textContent = mmss(audio.currentTime);
+    aggiornaBarra(audio.currentTime / audio.duration);
+  }
   function aggiornaBarra(frazione) {
     $('barra').value = Math.round(frazione * 1000);
     $('barra').style.setProperty('--p', (frazione * 100) + '%');
   }
-
-  // ── eventi audio ──
-  audio.addEventListener('play',  () => { document.body.classList.add('playing');    $('icona').innerHTML = ICONA_PAUSA; $('play').setAttribute('aria-label', 'Pausa'); });
-  audio.addEventListener('pause', () => { document.body.classList.remove('playing'); $('icona').innerHTML = ICONA_PLAY;  $('play').setAttribute('aria-label', 'Play'); });
-  audio.addEventListener('loadedmetadata', () => { $('tot').textContent = mmss(audio.duration); });
-  audio.addEventListener('timeupdate', () => {
-    if (trascinando || !audio.duration) return;
-    $('ora').textContent = mmss(audio.currentTime);
-    aggiornaBarra(audio.currentTime / audio.duration);
+  function segnaTasti() {
+    $('loop').classList.toggle('on', R.loop()); $('loop').setAttribute('aria-pressed', R.loop());
+    $('shuffle').classList.toggle('on', R.casuale()); $('shuffle').setAttribute('aria-pressed', R.casuale());
+  }
+  R.ascolta(function (tipo) {
+    if (tipo === 'brano') mostraBrano();
+    else if (tipo === 'stato') mostraStato();
+    else if (tipo === 'tempo') mostraTempo();
+    else segnaTasti();
   });
-  audio.addEventListener('ended', () => prossimo(1));
-  if (G) G.segui(audio, () => corrente >= 0 ? brani[corrente].file : null);   // trofei degli album
 
   // lucchetti sugli album a pagamento: sullo scaffale e sopra la scaletta
   function lucchetti() {
@@ -507,25 +479,16 @@
   lucchetti();
 
   // ── comandi ──
-  $('play').onclick = () => { if (corrente < 0) carica(0); audio.paused ? audio.play().catch(() => {}) : audio.pause(); };
-  $('next').onclick = () => prossimo(1);
-  $('prev').onclick = () => { if (audio.currentTime > 3) audio.currentTime = 0; else prossimo(-1); };
-  // loop: ripete il brano corrente all'infinito (resta attivo anche se cambi brano)
-  $('loop').onclick = function () {
-    audio.loop = !audio.loop;
-    this.classList.toggle('on', audio.loop);
-    this.setAttribute('aria-pressed', audio.loop);
-  };
-  $('shuffle').onclick = function () {
-    casuale = !casuale;
-    this.classList.toggle('on', casuale);
-    this.setAttribute('aria-pressed', casuale);
-  };
+  $('play').onclick = () => R.playPausa();
+  $('next').onclick = () => R.avanti();
+  $('prev').onclick = () => R.indietro();
+  $('loop').onclick = () => R.loop(!R.loop());          // ripete il brano (resta attivo anche se cambi brano)
+  $('shuffle').onclick = () => R.casuale(!R.casuale());
   $('scaletta').addEventListener('click', e => {
     const t = e.target.closest('.track, .hot'); if (!t) return;
     const i = +t.dataset.i;
-    if (i === corrente) { audio.paused ? audio.play().catch(() => {}) : audio.pause(); }
-    else carica(i, true);
+    if (i === R.corrente()) R.playPausa();
+    else R.carica(i, true);
   });
   $('barra').addEventListener('input', function () {
     trascinando = true;
@@ -537,57 +500,26 @@
     if (audio.duration) audio.currentTime = (this.value / 1000) * audio.duration;
     trascinando = false;
   });
+  $('volume').value = Math.round(audio.volume * 100);
+  $('volume').style.setProperty('--p', $('volume').value + '%');
   $('volume').addEventListener('input', function () {
     audio.volume = this.value / 100;
     this.style.setProperty('--p', this.value + '%');
   });
-  audio.volume = .9; $('volume').style.setProperty('--p', '90%');
 
   // spazio = play/pausa (se non stai scrivendo in un campo)
   document.addEventListener('keydown', e => {
     if (e.code === 'Space' && !/INPUT|TEXTAREA|BUTTON/.test(document.activeElement.tagName)) {
-      e.preventDefault(); $('play').click();
+      e.preventDefault(); R.playPausa();
     }
   });
 
-  // comandi dal telefono / tastiera multimediale
-  if ('mediaSession' in navigator) {
-    navigator.mediaSession.setActionHandler('play', () => audio.play());
-    navigator.mediaSession.setActionHandler('pause', () => audio.pause());
-    navigator.mediaSession.setActionHandler('previoustrack', () => $('prev').click());
-    navigator.mediaSession.setActionHandler('nexttrack', () => prossimo(1));
-  }
-
-  // apertura da un link con #brano
+  // apertura con un link musica/#brano: se sta già suonando qualcosa non lo interrompe,
+  // mostra solo l'album del brano; altrimenti prepara quel brano (parte col play)
   const iniziale = brani.findIndex(b => slug(b) === location.hash.slice(1));
-  carica(iniziale >= 0 ? iniziale : 0, false);
-
-  // ── staffetta con la radio delle altre pagine: la musica continua quando cambi pagina ──
-  const STAFFETTA = 'gogobarSuona.v1';
-  let inAttesa = false;
-  addEventListener('pagehide', function () {
-    if (corrente < 0) return;
-    try {
-      localStorage.setItem(STAFFETTA, JSON.stringify({
-        file: brani[corrente].file, t: audio.currentTime || 0, suona: inAttesa || !audio.paused, ts: Date.now()
-      }));
-    } catch (e) {}
-  });
-  (function () {
-    if (iniziale >= 0) return;               // hai scelto un brano col link: vince quello
-    let st; try { st = JSON.parse(localStorage.getItem(STAFFETTA)); } catch (e) {}
-    if (!st || !st.suona || Date.now() - st.ts > 120000) return;
-    const k = brani.findIndex(b => b.file === st.file);
-    if (k < 0) return;
-    carica(k, false);
-    audio.preload = 'auto';
-    audio.addEventListener('loadedmetadata', function () {
-      audio.currentTime = Math.min(st.t || 0, Math.max(0, audio.duration - 1));
-      audio.play().catch(function () { inAttesa = true; $('play').classList.add('riprendi'); });
-    }, { once: true });
-    audio.load();
-  })();
-  audio.addEventListener('play', () => { inAttesa = false; $('play').classList.remove('riprendi'); });
+  if (iniziale >= 0 && !R.occupata()) R.carica(iniziale, false);
+  mostraBrano(); mostraStato(); segnaTasti();
+  if (iniziale >= 0 && R.occupata()) mostraAlbum(brani[iniziale].album);
 })();
 </script>
 </body>

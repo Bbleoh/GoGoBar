@@ -343,6 +343,12 @@
     attivo: !!API_KEY, pronto: pronto, stato: stato, crea: crea, codice: codice, usaCodice: usaCodice,
     db: db, leggi: function (p) { return http(DB_URL + '/' + p + '.json' + (DB_QUERY ? '?' + DB_QUERY : '')); },
     dispositivi: dispositivi, togli: togli, esci: esci, token: token, chiave: chiave, nomeLibero: nomeLibero, nomePreso: nomePreso, controlla: controlla,
-    suCambio: function (fn) { if (typeof fn === 'function') ascoltatori.push(fn); }
+    suCambio: function (fn) {
+      if (typeof fn !== 'function') return;
+      ascoltatori.push(fn);
+      var via = function () { var k = ascoltatori.indexOf(fn); if (k >= 0) ascoltatori.splice(k, 1); };
+      if (window.GoGoFilo && GoGoFilo.diPagina()) GoGoFilo.alUscita(via);   // filodiffusione: via quando esci dalla pagina
+      return via;
+    }
   };
 })();
