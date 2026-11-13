@@ -1,5 +1,9 @@
-corteccia.jpg e fronde.webp sono ricavate dalle texture del modello "Island Tree 01"
-di Poly Haven (https://polyhaven.com/a/island_tree_01): la corteccia ridimensionata,
-le fronde composte con le foglie ritagliate.
+Le texture in ps1/ sono tutte CC0 1.0 Universal (pubblico dominio).
 
-Licenza: CC0 1.0 Universal (pubblico dominio) - https://polyhaven.com/license
+erba, terra, roccia: "Retro Urban Kit" di Kenney (https://kenney.nl), CC0.
+ciottoli, acqua, tetto (virato al cotto), muro (pietra a corsi piu' la finestra di legno):
+  "Retro Fantasy Kit" di Kenney (https://kenney.nl), CC0.
+corteccia, fronde: ricavate dalle texture del modello "Island Tree 01" di Poly Haven
+  (https://polyhaven.com/a/island_tree_01), CC0: rimpicciolite e ridotte a pochi colori.
+
+Licenza: https://creativecommons.org/publicdomain/zero/1.0/

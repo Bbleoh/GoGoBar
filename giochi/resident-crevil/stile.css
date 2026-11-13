@@ -5,7 +5,7 @@
 * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
 html, body { width: 100%; height: 100%; overflow: hidden; background: var(--bg); color: var(--carta); font-family: var(--scritta); }
 body { touch-action: none; user-select: none; -webkit-user-select: none; }
-canvas#scena { position: fixed; inset: 0; width: 100%; height: 100%; display: block; }
+canvas#scena { position: fixed; inset: 0; width: 100%; height: 100%; display: block; image-rendering: pixelated; image-rendering: crisp-edges; image-rendering: pixelated; }
 #statico { position: fixed; inset: 0; width: 100%; height: 100%; image-rendering: pixelated; opacity: 0; pointer-events: none; mix-blend-mode: screen; }
 #buio { position: fixed; inset: 0; background: #000; opacity: 0; pointer-events: none; transition: opacity .6s; }
 .nascosto { display: none !important; }
