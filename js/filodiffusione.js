@@ -10,7 +10,7 @@
  *  Per mettere una pagina in filodiffusione:
  *    1. <html lang="it" data-filodiffusione>
  *    2. nel <head>, prima di tutto il resto degli script:
- *         <script src="js/filodiffusione.js?v=1"></script>      (con ../ se la pagina è in una cartella)
+ *         <script src="js/filodiffusione.js?v=2"></script>      (con ../ se la pagina è in una cartella)
  *    3. carica anche js/radio.js, prima degli script scritti nella pagina.
  *    4. il codice scritto nella pagina sta dentro (function () { ... })(), come nelle altre
  *       pagine: ogni volta che ci torni viene rieseguito da capo.
@@ -51,7 +51,7 @@
   });
 
   var stessoSito = function (u) { return u.origin === location.origin && u.pathname.indexOf(radice.pathname) === 0; };
-  var NONFILO = 'gogofilo.no.v1';                          // pagine già viste senza filodiffusione
+  var NONFILO = 'gogofilo.no.v2';                          // pagine già viste senza filodiffusione
   var noFilo = {};
   try { noFilo = JSON.parse(sessionStorage.getItem(NONFILO)) || {}; } catch (e) {}
   function segnaNoFilo(p) { noFilo[p] = 1; try { sessionStorage.setItem(NONFILO, JSON.stringify(noFilo)); } catch (e) {} }
