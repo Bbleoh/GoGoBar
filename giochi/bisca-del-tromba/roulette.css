@@ -209,3 +209,32 @@ button.tavolo:hover,button.tavolo:focus-visible{transform:translateY(-6px);borde
 .tavolo-img.bj-img{align-items:center;}
 .tavolo-img.bj-img img{height:88%;width:auto;align-self:center;transform:rotate(-6deg);animation:bjLobby 3s ease-in-out infinite;}
 @keyframes bjLobby{0%,100%{transform:rotate(-6deg) translateY(0);}50%{transform:rotate(-2deg) translateY(-5px);}}
+
+/* lobby a due righe (6 + 5 tavoli): tutto un po' più su e un po' più compatto */
+.tavoli-a-capo{flex-basis:100%;height:0;}
+body[data-run="1"] #lobby{justify-content:flex-start;gap:clamp(6px,1.4vh,14px);padding-top:clamp(4px,1.2vh,12px);}
+body[data-run="1"] #in-run{gap:clamp(6px,1.2vh,12px);}
+body[data-run="1"] #lobby-msg{min-height:1.2em;}
+body[data-run="1"] #tavoli{row-gap:clamp(10px,1.6vh,16px);}
+body[data-run="1"] .tavolo{padding:10px 12px 12px;gap:4px;}
+body[data-run="1"] .tavolo-img{height:clamp(70px,11vh,118px);}
+body[data-run="1"] .mini-ruota{width:auto;height:92%;}
+body[data-run="1"] .tavolo b{font-size:1.05rem;letter-spacing:1.5px;}
+body[data-run="1"] .tavolo small{font-size:.76rem;line-height:1.3;}
+@media (max-width:640px){
+  .tavoli-a-capo{display:none;}
+  body[data-run="1"] .tavolo-img{width:80px;height:80px;}
+  body[data-run="1"] .mini-ruota{width:72px;height:auto;}
+}
+body[data-run="1"] .mini-mine,body[data-run="1"] .mini-torre{width:auto;height:94%;aspect-ratio:1;}
+body[data-run="1"] .mini-torre{aspect-ratio:auto;width:min(110px,70%);justify-content:space-around;}
+@media (max-height:820px) and (min-width:641px){
+  body[data-run="1"] .lobby-title{font-size:clamp(1.2rem,2.6vw,1.8rem);}
+  body[data-run="1"] .lobby-saldo b{font-size:1.2rem;}
+  body[data-run="1"] .lobby-info{font-size:.8rem;}
+  body[data-run="1"] .tavolo-img{height:clamp(56px,9vh,80px);}
+  body[data-run="1"] .tavolo small{display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;}
+}
+body[data-run="1"] #lobby-msg{line-height:1.25;}
+body[data-run="1"] .mini-talpe i{width:clamp(14px,2.6vh,24px);height:clamp(14px,2.6vh,24px);}
+body[data-run="1"] .mini-talpe,body[data-run="1"] .mini-talpe div{gap:clamp(3px,.6vh,6px);}
