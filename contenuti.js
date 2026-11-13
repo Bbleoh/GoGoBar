@@ -184,6 +184,29 @@ const CONTENUTI = {
     },
   ],
 
+  // ── CHI SIAMO (pagina chi-siamo/) ──
+  chiSiamo: {
+    // 10 posti per i membri. foto: immagine quadrata in img/membri/ (es. 'img/membri/leo.webp').
+    // Se foto è vuota si vede il posto "foto in arrivo"; se nome è vuoto, "Membro N".
+    membri: [
+      { nome: '', foto: '' },
+      { nome: '', foto: '' },
+      { nome: '', foto: '' },
+      { nome: '', foto: '' },
+      { nome: '', foto: '' },
+      { nome: '', foto: '' },
+      { nome: '', foto: '' },
+      { nome: '', foto: '' },
+      { nome: '', foto: '' },
+      { nome: '', foto: '' },
+    ],
+    // planisfero: dove siamo stati. livello 1 = visitato, 2 = ci abitiamo adesso (0 = mai stati, non serve scriverlo).
+    // lat/lon in gradi decimali (si trovano su Google Maps: tasto destro sul punto).
+    luoghi: [
+      { nome: 'Roma', lat: 41.9028, lon: 12.4964, livello: 2 },
+    ],
+  },
+
 };
 
 /*

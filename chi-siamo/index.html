@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="it" data-filodiffusione>
+<head>
+  <meta charset="UTF-8" />
+  <!-- filodiffusione: tra le pagine con data-filodiffusione la musica non si ferma (vedi js/filodiffusione.js) -->
+  <script src="../js/filodiffusione.js?v=1"></script>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Chi siamo · GoGoBar</title>
+  <meta name="description" content="Le facce del Collettivo M.I.A.O. e i posti dove siamo passati.">
+  <link rel="icon" href="../favicon.ico" sizes="48x48">
+  <link rel="icon" type="image/png" sizes="32x32" href="../img/icone/favicon-32.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=DM+Mono:wght@400;500&family=DM+Sans:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #0d0d0c; --surface: #161614; --raised: #1d1d1a; --line: #2a2a27;
+      --ivory: #f0ead6; --cream: #c8bfa8; --muted: #77715f;
+      --gold: #e4b33c; --gold-2: #f6d77a;
+      --caldo: #ff6a2b; --tiepido: #f6b13c;
+      --mono: 'DM Mono', monospace; --display: 'Fredoka', 'DM Sans', sans-serif; --sans: 'DM Sans', sans-serif;
+      --pad: clamp(1rem, 4vw, 4rem);
+    }
+    body { background: var(--bg); color: var(--ivory); font-family: var(--sans); min-height: 100vh; }
+    a { color: inherit; }
+
+    .top { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: 1.2rem var(--pad); border-bottom: 1px solid var(--line); }
+    .top a { color: var(--cream); text-decoration: none; font-family: var(--mono); font-size: .72rem; letter-spacing: .14em; text-transform: uppercase; }
+    .top a:hover { color: var(--gold); }
+    .top a.logo { display: inline-flex; align-items: center; gap: .4rem; font-family: var(--display); font-size: 1.4rem; letter-spacing: 0; text-transform: none; color: var(--ivory); font-weight: 700; }
+    .top a.logo img { width: 1.15em; height: 1.15em; display: block; }
+    .logo em { color: var(--gold); font-style: normal; }
+    .top-dx { display: flex; align-items: center; gap: .6rem; }
+    .radio-top { display: grid; place-items: center; width: 2.4rem; height: 2.4rem; padding: 0; border-radius: 999px; border: 0; background: none; color: var(--cream); cursor: pointer; }
+    .radio-top:hover { background: var(--raised); color: var(--gold); }
+    .radio-top.radio-on { color: var(--gold); }
+    .radio-top svg { width: 1.35rem; height: 1.35rem; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+
+    main { max-width: 1200px; margin: 0 auto; padding: 0 var(--pad) 5rem; }
+    .intro { padding: clamp(2.5rem, 6vw, 4.5rem) 0 2rem; }
+    .kicker { font-family: var(--mono); font-size: .72rem; letter-spacing: .18em; text-transform: uppercase; color: var(--gold); }
+    h1 { font-family: var(--display); font-weight: 700; font-size: clamp(2.6rem, 8vw, 4.6rem); line-height: 1; margin: .5rem 0 .8rem; }
+    .intro p { color: var(--cream); max-width: 34rem; line-height: 1.5; }
+    h2 { font-family: var(--display); font-weight: 700; font-size: 1.7rem; margin: 2.8rem 0 1.1rem; display: flex; align-items: baseline; gap: .6rem; }
+    h2 small { font-family: var(--mono); font-weight: 400; font-size: .75rem; color: var(--muted); letter-spacing: .1em; }
+
+    /* ── la banda: 10 posti ── */
+    .banda { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 1rem; list-style: none; }
+    .membro { display: flex; flex-direction: column; gap: .55rem; }
+    .membro .foto { aspect-ratio: 1; border-radius: 18px; overflow: hidden; background: var(--surface); border: 1px solid var(--line); position: relative; }
+    .membro .foto img.vera { width: 100%; height: 100%; object-fit: cover; display: block; }
+    .membro.vuoto .foto { border: 1.5px dashed #3a3a33; display: grid; place-items: center; background:
+      radial-gradient(circle at 50% 40%, rgba(228,179,60,.08), transparent 60%), var(--surface); }
+    .membro.vuoto .foto img { width: 46%; opacity: .16; filter: grayscale(1); }
+    .membro.vuoto .foto span { position: absolute; bottom: .7rem; left: 0; right: 0; text-align: center; font-family: var(--mono); font-size: .62rem; letter-spacing: .14em; text-transform: uppercase; color: var(--muted); }
+    .membro .nome { font-family: var(--display); font-weight: 600; font-size: 1.05rem; }
+    .membro.vuoto .nome { color: var(--muted); }
+
+    /* ── planisfero ── */
+    .mappa { position: relative; background: radial-gradient(ellipse at 50% 40%, #15140f, #0b0b0a 75%); border: 1px solid var(--line); border-radius: 22px; padding: clamp(.6rem, 2vw, 1.4rem); overflow: hidden; }
+    .mappa svg { display: block; width: 100%; height: auto; }
+    .mappa .paesi path { fill: #24231f; stroke: #34322c; stroke-width: .35; stroke-linejoin: round; }
+    .mappa .calore { mix-blend-mode: screen; }
+    .mappa .luogo { cursor: pointer; outline: none; }
+    .mappa .luogo .punto { fill: #fff3c4; }
+    .mappa .luogo.l2 .onda { fill: none; stroke: var(--caldo); stroke-width: 1; transform-box: fill-box; transform-origin: center; animation: onda 2.6s ease-out infinite; }
+    @keyframes onda { from { transform: scale(.3); opacity: .9; } to { transform: scale(1.6); opacity: 0; } }
+    .mappa .luogo text { font-family: var(--display); font-weight: 600; font-size: 13px; fill: var(--ivory); paint-order: stroke; stroke: #0b0b0a; stroke-width: 3px; opacity: 0; transition: opacity .2s; pointer-events: none; }
+    .mappa .luogo:hover text, .mappa .luogo:focus text, .mappa .luogo.aperto text { opacity: 1; }
+    .mappa .carica { padding: 3rem; text-align: center; color: var(--muted); font-family: var(--mono); font-size: .75rem; letter-spacing: .12em; text-transform: uppercase; }
+    @media (prefers-reduced-motion: reduce) { .mappa .luogo.l2 .onda { animation: none; } }
+
+    .mappa-nota { display: none; margin-top: .6rem; font-family: var(--mono); font-size: .66rem; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+    .legenda { display: flex; flex-wrap: wrap; gap: .5rem 1.4rem; margin-top: 1rem; font-family: var(--mono); font-size: .72rem; letter-spacing: .08em; color: var(--cream); }
+    .legenda span { display: inline-flex; align-items: center; gap: .5rem; }
+    .legenda i { width: 14px; height: 14px; border-radius: 50%; display: inline-block; }
+    .legenda .t0 i { background: #24231f; border: 1px solid #3a3a33; border-radius: 4px; }
+    .legenda .t1 i { background: radial-gradient(circle, #fff1b8, var(--tiepido) 55%, rgba(246,177,60,0) 75%); }
+    .legenda .t2 i { background: radial-gradient(circle, #fff6d6, #ffb347 30%, var(--caldo) 55%, rgba(255,60,30,0) 78%); }
+    .posti { display: flex; flex-wrap: wrap; gap: .5rem; margin-top: 1rem; list-style: none; }
+    .posti li { font-family: var(--display); font-weight: 500; font-size: .92rem; border: 1px solid var(--line); border-radius: 999px; padding: .35rem .8rem; display: inline-flex; gap: .45rem; align-items: center; }
+    .posti li small { font-family: var(--mono); font-size: .66rem; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+    .posti li.l2 { border-color: rgba(255,106,43,.5); }
+    .posti li.l2 small { color: var(--caldo); }
+    .posti li.l1 small { color: var(--tiepido); }
+
+    footer { margin-top: 4rem; border-top: 1px solid var(--line); padding: 2rem var(--pad); font-family: var(--mono); font-size: .7rem; letter-spacing: .08em; color: var(--muted); }
+    footer strong { color: var(--ivory); font-weight: 500; }
+
+    @media (max-width: 900px) { .banda { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+    @media (max-width: 560px) {
+      .banda { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .8rem; }
+      .top a.indietro { font-size: .66rem; }
+      /* sul telefono il planisfero è più grande e si scorre col dito; parte centrato sui posti più caldi */
+      .mappa { border-radius: 16px; overflow-x: auto; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
+      .mappa::-webkit-scrollbar { display: none; }
+      .mappa svg { width: 260%; max-width: none; }
+      .mappa-nota { display: block; }
+    }
+  </style>
+</head>
+<body>
+<header class="top">
+  <a class="logo" href="../"><img src="../img/icone/icona-96.png" alt="" width="40" height="40">Go<em>Go</em>Bar</a>
+  <div class="top-dx">
+    <a class="indietro" href="../">← Home</a>
+    <button type="button" class="radio-top" data-gogobar-radio aria-label="Radio GoGoBar" title="Radio"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="8" width="18" height="12" rx="2.5"/><path d="M7 8l10-4"/><circle cx="15.5" cy="14" r="2.6"/><path d="M6.5 12.5h4M6.5 15.5h4"/></svg></button>
+  </div>
+</header>
+
+<main>
+  <section class="intro">
+    <p class="kicker">Collettivo M.I.A.O.</p>
+    <h1>Chi siamo</h1>
+    <p>Le facce del Collettivo e i posti dove siamo passati.</p>
+  </section>
+
+  <section aria-labelledby="t-banda">
+    <h2 id="t-banda">La banda <small data-quanti></small></h2>
+    <ul class="banda" id="banda"></ul>
+  </section>
+
+  <section aria-labelledby="t-mappa">
+    <h2 id="t-mappa">Dove siamo</h2>
+    <div class="mappa" id="mappa"><p class="carica">Carico il planisfero...</p></div>
+    <span class="mappa-nota">← Scorri il planisfero col dito →</span>
+    <div class="legenda" aria-label="Legenda">
+      <span class="t0"><i></i>Mai stati</span>
+      <span class="t1"><i></i>Visitato</span>
+      <span class="t2"><i></i>Ci abitiamo</span>
+    </div>
+    <ul class="posti" id="posti"></ul>
+  </section>
+</main>
+
+<footer><strong>GoGoBar</strong> · Collettivo M.I.A.O.</footer>
+
+<script src="../contenuti.js?v=25"></script>
+<script src="../js/account.js?v=5"></script>
+<script src="../js/gogoldbar.js?v=7"></script>
+<script src="../js/radio.js?v=15"></script>
+<script>
+/*
+ * Chi siamo: i 10 membri e il planisfero "a calore".
+ * Tutto si cambia da contenuti.js, sezione chiSiamo (membri e luoghi): qui non serve toccare niente.
+ */
+(function () {
+  const DATI = (typeof CONTENUTI !== 'undefined' && CONTENUTI.chiSiamo) || { membri: [], luoghi: [] };
+  const percorso = f => /^(https?:)?\/\//.test(f) ? f : '../' + f;
+  const el = (tag, cls, testo) => { const e = document.createElement(tag); if (cls) e.className = cls; if (testo != null) e.textContent = testo; return e; };
+
+  // ── la banda ──
+  const banda = document.getElementById('banda');
+  const membri = (DATI.membri || []).slice(0, 10);
+  while (membri.length < 10) membri.push({});
+  membri.forEach(function (m, i) {
+    const li = el('li', 'membro' + (m.foto ? '' : ' vuoto'));
+    const foto = el('div', 'foto');
+    if (m.foto) {
+      const img = el('img', 'vera'); img.src = percorso(m.foto); img.alt = m.nome || 'Membro ' + (i + 1); img.loading = 'lazy';
+      foto.append(img);
+    } else {
+      const img = el('img'); img.src = '../img/maneki-neko.webp'; img.alt = '';
+      foto.append(img, el('span', null, 'Foto in arrivo'));
+    }
+    li.append(foto, el('p', 'nome', m.nome || 'Membro ' + (i + 1)));
+    banda.append(li);
+  });
+  const conFoto = membri.filter(m => m.foto).length;
+  document.querySelector('[data-quanti]').textContent = conFoto ? conFoto + ' di 10' : '10 posti';
+
+  // ── planisfero ──
+  // img/planisfero.svg: Natural Earth 1:110m (pubblico dominio), proiezione equirettangolare
+  // larga 1000, da 84° N a 58° S (senza Antartide): x = (lon + 180) · K, y = (84 − lat) · K
+  const K = 1000 / 360, NORD = 84;
+  const LIVELLI = { 1: 'Visitato', 2: 'Ci abitiamo' };
+  const luoghi = (DATI.luoghi || []).filter(l => LIVELLI[l.livello] && isFinite(l.lat) && isFinite(l.lon));
+  const NS = 'http://www.w3.org/2000/svg';
+  const svgEl = (tag, attr) => { const e = document.createElementNS(NS, tag); for (const k in attr) e.setAttribute(k, attr[k]); return e; };
+
+  const posti = document.getElementById('posti');
+  luoghi.slice().sort((a, b) => b.livello - a.livello).forEach(function (l) {
+    const li = el('li', 'l' + l.livello, l.nome);
+    li.append(el('small', null, LIVELLI[l.livello]));
+    posti.append(li);
+  });
+
+  const box = document.getElementById('mappa');
+  fetch('../img/planisfero.svg?v=1').then(r => r.ok ? r.text() : Promise.reject()).then(function (testo) {
+    const doc = new DOMParser().parseFromString(testo, 'image/svg+xml');
+    const svg = doc.documentElement;
+    if (!svg || svg.nodeName !== 'svg') throw new Error('svg');
+    svg.setAttribute('role', 'img');
+    svg.setAttribute('aria-label', 'Planisfero: ' + (luoghi.map(l => l.nome + ' (' + LIVELLI[l.livello].toLowerCase() + ')').join(', ') || 'nessun posto segnato'));
+    const paesi = svgEl('g', { class: 'paesi' });
+    [...svg.querySelectorAll('path')].forEach(p => paesi.append(p));
+    svg.append(paesi);
+
+    // il calore: macchie sfumate (gradienti radiali) che si sommano in "screen"
+    const defs = svgEl('defs', {});
+    defs.innerHTML =
+      '<radialGradient id="cal2"><stop offset="0" stop-color="#fff6d6"/><stop offset=".22" stop-color="#ffb347"/><stop offset=".5" stop-color="#ff6a2b" stop-opacity=".85"/><stop offset="1" stop-color="#ff3c1e" stop-opacity="0"/></radialGradient>' +
+      '<radialGradient id="cal1"><stop offset="0" stop-color="#fff1b8"/><stop offset=".35" stop-color="#f6b13c" stop-opacity=".8"/><stop offset="1" stop-color="#f6b13c" stop-opacity="0"/></radialGradient>';
+    svg.prepend(defs);
+    const calore = svgEl('g', { class: 'calore' }), sopra = svgEl('g', {});
+    luoghi.slice().sort((a, b) => a.livello - b.livello).forEach(function (l) {
+      const x = ((l.lon + 180) * K).toFixed(1), y = ((NORD - l.lat) * K).toFixed(1);
+      const r = l.livello === 2 ? 30 : 18;
+      calore.append(svgEl('circle', { cx: x, cy: y, r: r, fill: 'url(#cal' + l.livello + ')' }));
+      const g = svgEl('g', { class: 'luogo l' + l.livello, tabindex: '0' });
+      const t = svgEl('title', {}); t.textContent = l.nome + ' · ' + LIVELLI[l.livello];
+      g.append(t);
+      if (l.livello === 2) g.append(svgEl('circle', { class: 'onda', cx: x, cy: y, r: 12 }));
+      g.append(svgEl('circle', { cx: x, cy: y, r: 9, fill: 'transparent' }));    // area di tocco
+      g.append(svgEl('circle', { class: 'punto', cx: x, cy: y, r: l.livello === 2 ? 2.2 : 1.6 }));
+      const testo = svgEl('text', { x: +x + 8, y: +y - 8 }); testo.textContent = l.nome;
+      g.append(testo);
+      g.addEventListener('click', () => g.classList.toggle('aperto'));
+      sopra.append(g);
+    });
+    svg.append(calore, sopra);
+    box.replaceChildren(document.adoptNode(svg));
+    // se il planisfero è più largo del riquadro (telefono), parte centrato sul posto più caldo
+    const caldo = luoghi.slice().sort((a, b) => b.livello - a.livello)[0];
+    if (caldo && box.scrollWidth > box.clientWidth) {
+      box.scrollLeft = (caldo.lon + 180) / 360 * box.scrollWidth - box.clientWidth / 2;
+    }
+  }).catch(function () {
+    box.innerHTML = '<p class="carica">Il planisfero non si è caricato. Riprova tra poco.</p>';
+  });
+})();
+</script>
+</body>
+</html>
