@@ -48,11 +48,12 @@
     '.gga li button:hover{border-color:#d2452f;color:#ff8b77}' +
     '.gga-sez{display:flex;flex-direction:column;gap:.5rem}';
 
-  var st = document.createElement('style'); st.textContent = CSS; document.head.appendChild(st);
+  var st = document.createElement('style'); st.textContent = CSS; st.setAttribute('data-resta', ''); document.head.appendChild(st);
 
   var dlg = document.createElement('dialog');
   dlg.className = 'gga';
   dlg.setAttribute('aria-label', 'Account GoGoBar');
+  dlg.setAttribute('data-resta', '');               // filodiffusione: resta quando cambi pagina
   document.body.appendChild(dlg);
   dlg.addEventListener('click', function (e) { if (e.target === dlg) chiudi(); });   // clic sullo sfondo
 
@@ -237,6 +238,7 @@
     if (dlg.open && !A.stato().account) disegna(disegnaOspite('crea'));
   });
   A.pronto.then(aggiornaPulsanti);
+  document.addEventListener('gogofilo:pagina', aggiornaPulsanti);   // pagina nuova, pulsanti 👤 nuovi
 
   window.GoGoAccountUI = { apri: apri };
 })();

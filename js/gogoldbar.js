@@ -356,6 +356,7 @@
   agganciaFont();
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', agganciaFont);
   window.addEventListener('load', agganciaFont);
+  document.addEventListener('gogofilo:pagina', function () { agganciaFont(); if (document.fonts && document.fonts.ready) document.fonts.ready.then(agganciaFont); });
   var CSS = '' +
     '.ggb-ico{width:.95em;height:.9em;vertical-align:-.08em;display:inline-block}' +
     '.ggb-toast{position:fixed;left:50%;bottom:22px;transform:translate(-50%,140%);z-index:2147483000;background:#161614;color:#f4efe2;' +
@@ -375,13 +376,13 @@
     'font:600 1rem Fredoka,"DM Sans",sans-serif;cursor:pointer}' +
     '.ggb-dlg button.ghost,.ggb-dlg a.ggb-b.ghost{background:none;color:#f6d77a}' +
     '.ggb-dlg button[disabled]{opacity:.5;cursor:not-allowed}';
-  var stile = document.createElement('style'); stile.textContent = CSS;
+  var stile = document.createElement('style'); stile.textContent = CSS; stile.setAttribute('data-resta', '');
   (document.head || document.documentElement).appendChild(stile);
 
   var toast = null, timerToast = null;
   function annuncia(testo) {
     if (!document.body) return;
-    if (!toast) { toast = document.createElement('div'); toast.className = 'ggb-toast'; toast.setAttribute('role', 'status'); document.body.appendChild(toast); }
+    if (!toast) { toast = document.createElement('div'); toast.className = 'ggb-toast'; toast.setAttribute('role', 'status'); toast.setAttribute('data-resta', ''); document.body.appendChild(toast); }
     toast.textContent = testo;
     requestAnimationFrame(function () { toast.classList.add('on'); });
     clearTimeout(timerToast);
@@ -394,7 +395,7 @@
     if (!s) return Promise.resolve(false);
     if (sbloccato(sid)) return Promise.resolve(true);
     return new Promise(function (fine) {
-      var dlg = document.createElement('dialog'); dlg.className = 'ggb-dlg';
+      var dlg = document.createElement('dialog'); dlg.className = 'ggb-dlg'; dlg.setAttribute('data-resta', '');
       var h = document.createElement('h2'); h.innerHTML = '🔒 <span></span>'; h.querySelector('span').textContent = s.nome;
       var p = document.createElement('p');
       var prezzo = document.createElement('div'); prezzo.className = 'ggb-prezzo'; prezzo.innerHTML = '<span></span>' + ICONA;
@@ -468,7 +469,13 @@
     ascoltato: function (file) { segna('brani', slugBrano(file)); },
     visto: function (yt) { segna('video', chiaveVideo(yt)); },
     SBLOCCHI: SBLOCCHI, formatta: formatta, valuta: valuta, simbolo: G, icona: ICONA, glifo: ICONA,
-    suCambio: function (fn) { if (typeof fn === 'function') ascoltatori.push(fn); },
+    suCambio: function (fn) {
+      if (typeof fn !== 'function') return;
+      ascoltatori.push(fn);
+      var via = function () { var k = ascoltatori.indexOf(fn); if (k >= 0) ascoltatori.splice(k, 1); };
+      if (window.GoGoFilo && GoGoFilo.diPagina()) GoGoFilo.alUscita(via);   // filodiffusione: via quando esci dalla pagina
+      return via;
+    },
     aggiorna: carica
   };
 })();

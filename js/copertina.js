@@ -31,6 +31,7 @@
   `;
   const st = document.createElement('style');
   st.textContent = css;
+  st.setAttribute('data-resta', '');
   document.head.appendChild(st);
 
   // stesso nome → stesso colore

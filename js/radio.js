@@ -6,7 +6,7 @@
  *  Suona i brani della sezione Musica (contenuti.js) dentro un gioco.
  *  Per aggiungerla a una pagina basta una riga prima di </body>:
  *
- *      <script src="../../js/radio.js?v=12"></script>
+ *      <script src="../../js/radio.js?v=15"></script>
  *
  *  Il pulsante:
  *   - se nella pagina c'è un elemento con  data-gogobar-radio
@@ -64,10 +64,20 @@
     const acceso = i => !spenti.has(brani[i].album || '') && !chiuso(i);
     let mazzo = [];          // ordine casuale ancora da suonare
     const storico = [];      // brani già suonati, per tornare indietro in casuale
+    // chi ascolta i cambi (es. il player della pagina Musica): fn(tipo) con tipo brano | stato | tempo | casuale | loop
+    const ascoltatori = new Set();
+    function emetti(tipo) { ascoltatori.forEach(fn => { try { fn(tipo); } catch (e) { console.error(e); } }); }
+    function ascolta(fn) {
+      ascoltatori.add(fn);
+      const via = () => ascoltatori.delete(fn);
+      if (window.GoGoFilo && GoGoFilo.diPagina()) GoGoFilo.alUscita(via);   // la pagina se ne va: smette di ascoltare
+      return via;
+    }
 
     // ── interfaccia (shadow DOM: gli stili del gioco non la toccano) ──
     const host = document.createElement('div');
     host.id = 'gogobar-radio-host';
+    host.setAttribute('data-resta', '');               // filodiffusione: resta quando cambi pagina
     host.style.cssText = 'position:fixed;inset:auto;z-index:2147483000;';
     const root = host.attachShadow({ mode: 'open' });
     root.innerHTML = `
@@ -116,6 +126,9 @@
   .tasti button.shuffle { border-color: transparent; color: #77715f; }
   .tasti button.shuffle:hover { color: #f0ead6; }
   .tasti button.shuffle[aria-pressed="true"] { color: #e4b33c; border-color: #e4b33c; }
+  .tasti button.loop { border-color: transparent; color: #77715f; }
+  .tasti button.loop:hover { color: #f0ead6; }
+  .tasti button.loop[aria-pressed="true"] { color: #e4b33c; border-color: #e4b33c; }
   ol { list-style: none; overflow-y: auto; margin: 0 -6px; scrollbar-width: thin; scrollbar-color: #3a3a33 transparent; }
   li button { width: 100%; display: grid; grid-template-columns: 1.6rem minmax(0,1fr) auto; gap: 8px; align-items: center; text-align: left;
     background: none; border: 0; color: inherit; font: inherit; padding: 7px 6px; border-radius: 9px; cursor: pointer; }
@@ -147,21 +160,35 @@
     <button class="prev" aria-label="Precedente"><svg viewBox="0 0 24 24"><path d="M6 5h2v14H6zM20 5v14L9 12z"/></svg></button>
     <button class="play" aria-label="Play"><svg viewBox="0 0 24 24"><path d="M7 4v16l13-8z"/></svg></button>
     <button class="next" aria-label="Successivo"><svg viewBox="0 0 24 24"><path d="M16 5h2v14h-2zM4 5l11 7-11 7z"/></svg></button>
-    <span class="spazio" aria-hidden="true"></span>
+    <button class="loop" aria-label="Ripeti il brano" aria-pressed="false" title="Ripeti il brano"><svg viewBox="0 0 24 24"><path d="M7 7h10v3l4-4-4-4v3H5v6h2zM17 17H7v-3l-4 4 4 4v-3h12v-6h-2z"/></svg></button>
   </div>
   <ol></ol>
-  <a class="tutto" target="_blank" rel="noopener">Apri la pagina Musica ↗</a>
+  <a class="tutto">Apri la pagina Musica →</a>
 </div>`;
     const $ = s => root.querySelector(s);
     const pannello = $('.pannello'), fab = $('.fab'), barra = $('input'), lista = $('ol');
-    $('.tutto').href = new URL('musica/', radice).href;
+    const tutto = $('.tutto');
+    tutto.href = new URL('musica/', radice).href;
+    // con la filodiffusione la pagina Musica si apre senza fermare la musica; altrimenti in una scheda nuova
+    if (!(window.GoGoFilo && GoGoFilo.attiva)) { tutto.target = '_blank'; tutto.rel = 'noopener'; tutto.textContent = 'Apri la pagina Musica ↗'; }
+    tutto.addEventListener('click', e => {
+      if (window.GoGoFilo && GoGoFilo.attiva) { e.preventDefault(); apri(false); GoGoFilo.vai(tutto.href); }
+    });
     document.body.appendChild(host);
 
-    // il pulsante: quello della pagina (data-gogobar-radio) o quello rotondo
-    const pagina = document.querySelector('[data-gogobar-radio]');
-    const pulsante = pagina || fab;
-    if (!pagina) fab.hidden = false;
-    pulsante.setAttribute('aria-expanded', 'false');
+    // il pulsante: quello della pagina (data-gogobar-radio) o quello rotondo.
+    // Con la filodiffusione la pagina cambia sotto la radio: a ogni pagina nuova si riaggancia.
+    // <body data-radio="nascosta"> = niente pulsante (la pagina Musica fa già da player).
+    let pagina = null, pulsante = fab;
+    function aggancia() {
+      pagina = document.querySelector('[data-gogobar-radio]');
+      pulsante = pagina || fab;
+      fab.hidden = !!pagina || document.body.dataset.radio === 'nascosta';
+      pulsante.setAttribute('aria-expanded', 'false');
+      if (pagina && !pagina.dataset.radioLegata) { pagina.dataset.radioLegata = '1'; pagina.addEventListener('click', clicPulsante); }
+      if (typeof aggiornaStato === 'function' && audio.src) aggiornaStato();
+      if (inAttesa) pulsante.classList.add('radio-riprendi');
+    }
 
     // scaletta, divisa per album
     let album;
@@ -202,11 +229,14 @@
       pulsante.setAttribute('aria-expanded', String(si));
       if (si) { posiziona(); const a = lista.querySelector('li.attivo'); if (a) a.scrollIntoView({ block: 'nearest' }); }
     }
-    pulsante.addEventListener('click', e => {
+    function clicPulsante(e) {
       e.preventDefault(); e.stopPropagation();
       if (inAttesa) riprendi();            // musica rimasta in sospeso dalla pagina prima: un tocco e riparte
       apri(!pannello.classList.contains('aperto'));
-    });
+    }
+    fab.addEventListener('click', clicPulsante);
+    document.addEventListener('gogofilo:uscita', () => apri(false));
+    document.addEventListener('gogofilo:pagina', aggancia);
     $('.chiudi').onclick = () => apri(false);
     addEventListener('resize', () => { if (pannello.classList.contains('aperto')) posiziona(); });
     document.addEventListener('pointerdown', e => {
@@ -238,9 +268,12 @@
         if ('mediaSession' in navigator) {
           navigator.mediaSession.metadata = new MediaMetadata({
             title: b.titolo, artist: b.artisti || 'Collettivo M.I.A.O.', album: b.album || 'GoGoBar',
-            artwork: [{ src: new URL('img/maneki-neko.webp', radice).href, sizes: '689x900', type: 'image/webp' }]
+            artwork: b.copertina
+              ? [{ src: new URL(b.copertina, radice).href }]
+              : [{ src: new URL('img/maneki-neko.webp', radice).href, sizes: '689x900', type: 'image/webp' }]
           });
         }
+        emetti('brano');
       }
       if (suona) audio.play().catch(() => {});
     }
@@ -252,8 +285,16 @@
       fab.classList.toggle('on', on);
       pulsante.classList.toggle('radio-on', on);
       silenziaGioco(on);
+      emetti('stato');
     }
-    $('.play').onclick = () => { if (audio.paused) carica(corrente, true); else audio.pause(); };
+    function playPausa() {
+      if (inAttesa) return riprendi();
+      if (audio.paused) carica(corrente, true); else audio.pause();
+    }
+    $('.play').onclick = playPausa;
+    // ripeti il brano (audio.loop): resta attivo anche se cambi brano
+    function segnaLoop() { $('.loop').setAttribute('aria-pressed', String(audio.loop)); emetti('loop'); }
+    $('.loop').onclick = () => { audio.loop = !audio.loop; segnaLoop(); };
     // ── ordine casuale: pesca da un mazzo mescolato, così non ripete finché non li ha suonati tutti ──
     function segnaAlbum() {
       const g = G(), bloc = a => !!(g && g.albumBloccato(a));
@@ -298,6 +339,7 @@
     function segnaCasuale() {
       $('.shuffle').setAttribute('aria-pressed', String(casuale));
       salva();
+      emetti('casuale');
     }
     $('.shuffle').onclick = () => { casuale = !casuale; mazzo = []; storico.length = 0; segnaCasuale(); };
     segnaCasuale();
@@ -308,13 +350,14 @@
     audio.addEventListener('pause', aggiornaStato);
     audio.addEventListener('ended', avanti);
     conG(g => g.segui(audio, () => brani[corrente] && brani[corrente].file));   // trofei GoGoldBar degli album
-    audio.addEventListener('loadedmetadata', () => { $('.tot').textContent = mmss(audio.duration); });
+    audio.addEventListener('loadedmetadata', () => { $('.tot').textContent = mmss(audio.duration); emetti('tempo'); });
     let trascino = false;
     audio.addEventListener('timeupdate', () => {
       if (trascino || !audio.duration) return;
       const p = audio.currentTime / audio.duration;
       barra.value = Math.round(p * 1000); barra.style.setProperty('--p', (p * 100) + '%');
       $('.ora').textContent = mmss(audio.currentTime);
+      emetti('tempo');
     });
     barra.addEventListener('input', () => {
       trascino = true; barra.style.setProperty('--p', (barra.value / 10) + '%');
@@ -349,12 +392,15 @@
     const stile = document.createElement('style');
     stile.textContent = '[data-gogobar-radio].radio-riprendi{animation:gogobarPulsa 1.4s ease-in-out infinite}' +
       '@keyframes gogobarPulsa{0%,100%{box-shadow:0 0 0 0 rgba(228,179,60,.7)}50%{box-shadow:0 0 0 9px rgba(228,179,60,0)}}';
+    stile.setAttribute('data-resta', '');
     document.head.appendChild(stile);
     let inAttesa = false;
+    let riprendendo = false;             // sta ripartendo dalla pagina prima (staffetta)
     function riprendi() {
       inAttesa = false;
       pulsante.classList.remove('radio-riprendi'); fab.classList.remove('riprendi');
       audio.play().catch(() => {});
+      emetti('stato');
     }
     addEventListener('pagehide', function () {
       if (!audio.src) return;
@@ -371,17 +417,33 @@
       if (k < 0) return;
       carica(k, false);
       audio.preload = 'auto';
+      riprendendo = true;
       audio.addEventListener('loadedmetadata', function () {
+        riprendendo = false;
         audio.currentTime = Math.min(s.t || 0, Math.max(0, audio.duration - 1));
         audio.play().catch(function () {
           inAttesa = true;
-          pulsante.classList.add('radio-riprendi'); fab.classList.add('riprendi'); fab.hidden = !!pagina;
+          pulsante.classList.add('radio-riprendi'); fab.classList.add('riprendi');
+          if (!pagina) fab.hidden = false;
+          emetti('stato');
         });
       }, { once: true });
       audio.load();
     })();
     audio.addEventListener('play', () => { if (inAttesa) { inAttesa = false; pulsante.classList.remove('radio-riprendi'); fab.classList.remove('riprendi'); } });
 
-    window.GoGoBarRadio = { play: () => carica(corrente, true), pausa: () => audio.pause(), apri: () => apri(true), audio };
+    aggancia();
+    window.GoGoBarRadio = {
+      play: () => carica(corrente, true), pausa: () => audio.pause(), apri: () => apri(true), audio,
+      // per i player delle pagine (Musica): stesso audio, stessa coda
+      brani, ascolta, carica, avanti, indietro, playPausa, riprendi,
+      corrente: () => corrente,
+      inAttesa: () => inAttesa,
+      // sta suonando o sta per farlo (ripresa dalla pagina prima): una pagina non deve cambiare brano da sola
+      occupata: () => !audio.paused || inAttesa || riprendendo,
+      chiuso,
+      casuale: v => { if (v !== undefined && !!v !== casuale) { casuale = !!v; mazzo = []; storico.length = 0; segnaCasuale(); } return casuale; },
+      loop: v => { if (v !== undefined) { audio.loop = !!v; segnaLoop(); } return audio.loop; }
+    };
   }
 })();

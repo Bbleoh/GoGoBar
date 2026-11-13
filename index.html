@@ -1,7 +1,9 @@
 <!DOCTYPE html>
-<html lang="it">
+<html lang="it" data-filodiffusione>
 <head>
   <meta charset="UTF-8" />
+  <!-- filodiffusione: tra le pagine con data-filodiffusione la musica non si ferma (vedi js/filodiffusione.js) -->
+  <script src="js/filodiffusione.js?v=1"></script>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>GoGoBar · Collettivo M.I.A.O.</title>
   <meta name="description" content="Video, musica e giochi del Collettivo M.I.A.O.">
@@ -471,17 +473,17 @@
 <noscript><p style="padding:2rem;font-family:monospace">Per vedere i contenuti serve JavaScript attivo.</p></noscript>
 
 <script src="contenuti.js?v=24"></script>
-<script src="js/radio.js?v=14"></script>
-<script src="js/copertina.js?v=1"></script>
+<script src="js/radio.js?v=15"></script>
+<script src="js/copertina.js?v=2"></script>
 <!-- account GoGoBar senza password (👤 nel menu in alto) -->
-<script src="js/account.js?v=4"></script>
-<script src="js/account-ui.js?v=4"></script>
-<script src="js/gogoldbar.js?v=6"></script>
+<script src="js/account.js?v=5"></script>
+<script src="js/account-ui.js?v=5"></script>
+<script src="js/gogoldbar.js?v=7"></script>
 <script>
   // dai giochi (es. la bisca) si arriva con #account: apre subito il pannello 👤
   if (location.hash === '#account' && window.GoGoAccountUI && window.GoGoAccount && GoGoAccount.attivo) {
     GoGoAccountUI.apri();
-    history.replaceState(null, '', location.pathname + location.search);
+    history.replaceState(history.state, '', location.pathname + location.search);
   }
 </script>
 <!-- classifiche dei giochi: se un file non c'è ancora, la sua scheda invita a giocare -->
