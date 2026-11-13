@@ -47,6 +47,34 @@ body.tocco #dialogo p { font-size: 15px; }
 #t-prendi { position: fixed; right: max(24px, env(safe-area-inset-right)); bottom: calc(max(28px, env(safe-area-inset-bottom)) + 96px); background: rgba(233,228,214,.2); }
 .tondo.grande { width: 80px; height: 80px; font-size: 13px; letter-spacing: .08em; }
 .tondo.premuto { background: rgba(233,228,214,.35); }
+#t-mappa { position: fixed; right: calc(max(24px, env(safe-area-inset-right)) + 156px); bottom: max(36px, env(safe-area-inset-bottom)); width: 52px; height: 52px; font-size: 12px; letter-spacing: .06em; }
+
+/* il telefono con l'app mappa: sale dal basso, come tenuto in mano */
+#telefono { position: fixed; right: max(22px, env(safe-area-inset-right)); bottom: 0; width: min(260px, 56vh); aspect-ratio: 9 / 14.4; display: flex; flex-direction: column; gap: 6px; padding: 12px 9px 0; background: #08090a; border: 2px solid #2b2d30; border-bottom: 0; border-radius: 24px 24px 0 0; box-shadow: 0 0 46px rgba(110,150,200,.16), 0 10px 40px #000; font-family: var(--mono); color: var(--carta); pointer-events: none; transform: translateY(108%) rotate(-2deg); transform-origin: 50% 100%; transition: transform .26s cubic-bezier(.2,.8,.3,1); }
+#telefono.su { transform: translateY(0) rotate(-2deg); }
+body.carica #telefono, body.fuori #telefono { display: none; }
+body.tocco #telefono { right: auto; left: 50%; margin-left: calc(min(260px, 56vh) / -2); transform: translateY(108%); }
+body.tocco #telefono.su { transform: translateY(0); }
+body.tocco #telefono.su #tel-mappa { pointer-events: auto; }
+.tel-stato { display: flex; justify-content: space-between; align-items: center; font-size: 11px; padding: 0 6px; color: #cfc9b8; }
+.tel-dx { display: inline-flex; gap: 8px; align-items: center; }
+#tel-tacche { display: inline-flex; gap: 2px; align-items: flex-end; height: 10px; }
+#tel-tacche i { display: block; width: 3px; background: rgba(233,228,214,.22); border-radius: 1px; }
+#tel-tacche i:nth-child(1) { height: 4px; } #tel-tacche i:nth-child(2) { height: 6px; } #tel-tacche i:nth-child(3) { height: 8px; } #tel-tacche i:nth-child(4) { height: 10px; }
+#tel-tacche[data-n="1"] i:nth-child(-n+1), #tel-tacche[data-n="2"] i:nth-child(-n+2), #tel-tacche[data-n="3"] i:nth-child(-n+3), #tel-tacche[data-n="4"] i { background: var(--carta); }
+.tel-app { display: flex; justify-content: space-between; align-items: center; gap: 6px; padding: 0 4px; }
+.tel-app b { font-size: 14px; font-weight: 500; letter-spacing: .04em; }
+#tel-gps { font-size: 10px; padding: 2px 6px; border-radius: 9px; white-space: nowrap; }
+#tel-gps.no { background: rgba(179,38,30,.3); color: #f0a8a2; }
+#tel-gps.cerca { background: rgba(228,179,60,.22); color: var(--oro); }
+#tel-gps.si { background: rgba(76,155,255,.25); color: #a9cdff; }
+#tel-mappa { width: 100%; aspect-ratio: 1 / 1; height: auto; display: block; border-radius: 6px; background: #0c0f0e; }
+.tel-piede { display: flex; flex-direction: column; gap: 3px; padding: 0 4px; font-size: 10.5px; line-height: 1.3; color: #b9b4a5; min-height: 0; overflow: hidden; }
+#tel-quota { font-size: 13px; color: var(--carta); }
+.tel-aiuto { color: var(--muted); font-size: 10px; }
+.tel-aiuto kbd { font-size: 9px; }
+.solo-tocco, body.tocco .solo-pc { display: none; }
+body.tocco .solo-tocco { display: inline; }
 
 /* schermate */
 .schermo { position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; padding: 24px 16px; text-align: center; background: radial-gradient(ellipse at 50% 40%, rgba(20,24,22,.82), rgba(0,0,0,.94)); overflow-y: auto; }

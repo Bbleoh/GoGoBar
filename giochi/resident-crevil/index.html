@@ -4,14 +4,14 @@
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no"/>
   <title>Resident Crevil: morte sul greppo · GoGoBar</title>
-  <meta name="description" content="Notte, boschi di Capricchia, dieci fogli. Guerrino mena gli alberi. E poi c'è Papi."/>
+  <meta name="description" content="Vai vai, segui il signore ultraottantenne vai... ottima idea."/>
   <meta property="og:title" content="Resident Crevil: morte sul greppo · GoGoBar"/>
   <meta property="og:image" content="copertina.jpg"/>
   <link rel="icon" href="../../favicon.ico"/>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Special+Elite&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="stile.css?v=2"/>
+  <link rel="stylesheet" href="stile.css?v=3"/>
 </head>
 <body class="carica">
   <canvas id="scena"></canvas>
@@ -33,11 +33,24 @@
   <div id="didascalia" class="nascosto"></div>
   <div id="foglio-grande" class="nascosto"><div class="carta"></div></div>
 
+  <!-- il telefono di chi gioca: app mappa -->
+  <div id="telefono" aria-hidden="true">
+    <div class="tel-stato"><span id="tel-ora">03:07</span><span class="tel-dx"><span id="tel-tacche" data-n="0"><i></i><i></i><i></i><i></i></span><span id="tel-batt">100%</span></span></div>
+    <div class="tel-app"><b>Mappe</b><span id="tel-gps" class="no">GPS assente</span></div>
+    <canvas id="tel-mappa" width="300" height="300"></canvas>
+    <div class="tel-piede">
+      <p id="tel-quota">Quota 1126 m</p>
+      <p id="tel-nota"></p>
+      <p class="tel-aiuto"><span class="solo-pc"><kbd>Z</kbd> zoom · <kbd>M</kbd> metti via</span><span class="solo-tocco">Tocca la mappa per lo zoom</span></p>
+    </div>
+  </div>
+
   <!-- comandi da telefono -->
   <div id="touch" class="nascosto">
     <div id="joy"><div id="joy-pomello"></div></div>
     <button id="t-corri" class="tondo grande">CORRI</button>
     <button id="t-torcia" class="tondo">🔦</button>
+    <button id="t-mappa" class="tondo">GPS</button>
     <button id="t-prendi" class="tondo grande nascosto">PRENDI</button>
   </div>
 
@@ -53,14 +66,16 @@
     <a class="indietro" href="../../#giochi">← GoGoBar</a>
     <h1>Resident Crevil</h1>
     <p class="titoletto">Morte sul greppo</p>
-    <p class="sotto">Guerrino ti porta alla Fonticella Petri. Poi se la prende con gli alberi. E nel bosco c'è Papi.</p>
+    <p class="sotto">Vai vai, segui il signore ultraottantenne vai... ottima idea.</p>
     <button id="gioca" class="btn">Entra nel bosco</button>
     <div class="comandi pc">
       <p><kbd>W A S D</kbd> cammina · <kbd>Mouse</kbd> guarda · <kbd>Shift</kbd> corri</p>
       <p><kbd>F</kbd> torcia · <kbd>E</kbd> prendi il foglio · <kbd>Esc</kbd> pausa</p>
+      <p><kbd>M</kbd> mappa sul telefono: il GPS prende solo in quota</p>
     </div>
     <div class="comandi tel">
       <p>Pollice sinistro: cammina · Destra: trascina per guardare</p>
+      <p>Tasto GPS: la mappa. Il segnale prende solo in quota.</p>
       <p>Tieni il telefono in orizzontale e alza il volume.</p>
     </div>
     <p class="piccolo">Prototipo. Cuffie consigliate.</p>
@@ -101,6 +116,6 @@
   <script src="../../js/gogoldbar.js?v=7"></script>
   <script src="classifica.js?v=2" onerror="window.ResidentCrevilClassifica = null"></script>
   <script type="importmap">{ "imports": { "three": "./lib/three.module.min.js" } }</script>
-  <script type="module" src="gioco.js?v=3"></script>
+  <script type="module" src="gioco.js?v=4"></script>
 </body>
 </html>

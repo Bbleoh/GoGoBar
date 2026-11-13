@@ -45,7 +45,7 @@ const CONTENUTI = {
     },
     {
       titolo: 'Resident Crevil: morte sul greppo',
-      descrizione: "Notte, boschi di Capricchia. Guerrino ti porta alla Fonticella Petri e si mette a menare un albero. Tu cerchi i fogli. Poi arriva Papi, alto tre metri. (Prototipo)",
+      descrizione: "Vai vai, segui il signore ultraottantenne vai... ottima idea.",
       tag: ['Paura', 'Bosco', 'Papi'],
       link: 'giochi/resident-crevil/',
       immagine: 'giochi/resident-crevil/copertina.jpg?v=3',
