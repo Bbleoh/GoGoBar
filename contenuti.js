@@ -46,9 +46,9 @@ const CONTENUTI = {
     {
       titolo: 'Resident Crevil: morte sul greppo',
       descrizione: "Vai vai, segui il signore ultraottantenne vai... ottima idea.",
-      tag: ['Paura', 'Bosco', 'Papi'],
+      tag: ['Paura', 'Bosco', 'Greppo'],
       link: 'giochi/resident-crevil/',
-      immagine: 'giochi/resident-crevil/copertina.jpg?v=4',
+      immagine: 'giochi/resident-crevil/copertina.jpg?v=5',
     },
   ],
 

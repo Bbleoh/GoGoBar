@@ -25,6 +25,27 @@ const HALF = 650 * SCALA, N = 261, CELLA = 5 * SCALA, LIMITE = 615 * SCALA;
 const NB = 13;       // il bosco è a blocchi di 50 m
 const TOCCO = matchMedia('(pointer: coarse)').matches || 'ontouchstart' in window;
 if (TOCCO) document.body.classList.add('tocco');
+// le indicazioni dei tasti seguono quello che stai usando: tastiera e mouse, controller o dita
+let INGRESSO = TOCCO ? 'tocco' : 'tastiera';
+const TASTI = {
+  prendi: { tastiera: 'E', pad: 'X', tocco: 'PRENDI' },
+  mena: { tastiera: 'clic o E', pad: 'X', tocco: 'COLPISCI' },
+  torcia: { tastiera: 'F', pad: 'RB', tocco: '🔦' },
+};
+const tasto = a => TASTI[a][INGRESSO];
+function usaIngresso(chi) {
+  if (chi === INGRESSO) return;
+  INGRESSO = chi;
+  document.body.classList.remove('in-tastiera', 'in-pad', 'in-tocco'); document.body.classList.add('in-' + chi);
+  const pr = document.getElementById('prendi'); if (pr) pr.dataset.cosa = '';   // si riscrive col tasto giusto
+}
+document.body.classList.add('in-' + INGRESSO);
+addEventListener('keydown', () => usaIngresso('tastiera'), true);
+let tUltimoTocco = -1e9;   // dopo un tocco il browser finge anche il mouse: per un attimo non gli credo
+const mouseVero = () => performance.now() - tUltimoTocco > 1000;
+addEventListener('mousedown', () => { if (mouseVero()) usaIngresso('tastiera'); }, true);
+addEventListener('mousemove', e => { if (mouseVero() && Math.abs(e.movementX) + Math.abs(e.movementY) > 2) usaIngresso('tastiera'); }, true);
+addEventListener('touchstart', () => { tUltimoTocco = performance.now(); usaIngresso('tocco'); }, { capture: true, passive: true });
 
 /* ── testi (Leo li cambierà: sono tutti qui) ── */
 const BATTUTE = {
@@ -68,7 +89,7 @@ const BATTUTE = {
 /* ── DOM ── */
 const $ = id => document.getElementById(id);
 const ui = {
-  fogli: $('fogli'), batteria: $('batteria'), fiato: $('fiato'), prendi: $('prendi'),
+  fogli: $('fogli'), fiato: $('fiato'), prendi: $('prendi'),
   dialogo: $('dialogo'), chi: $('chi'), battuta: $('battuta'), didascalia: $('didascalia'),
   foglioGrande: $('foglio-grande'), statico: $('statico'), buio: $('buio'), effetti: $('effetti'),
 };
@@ -381,7 +402,7 @@ const BLOCCHI = [];   // pezzi di bosco 50x50 m, accesi solo vicino al giocatore
 const BLOCCO = new Map();   // numero del blocco → gruppo
 // posto libero: non addosso ai fogli, alla Fonticella o al punto di partenza
 function libero(x, z, largo = 0) {
-  return !FOGLI_POS.some(f => Math.hypot(f[0] - x, f[1] - z) < 3.5 + largo) && Math.hypot(FONTE.x - x, FONTE.z - z) > 5 + largo && Math.hypot(io.x - x, io.z - z) > 4 + largo;
+  return !FOGLI_ANCORE.some(f => Math.hypot(f.x - x, f.z - z) < 2.5 + largo) && Math.hypot(FONTE.x - x, FONTE.z - z) > 5 + largo && Math.hypot(io.x - x, io.z - z) > 4 + largo;
 }
 function bloccoDi(x, z) {
   const LATO = HALF * 2 / NB;
@@ -417,8 +438,44 @@ function creaBosco(bosco, osm, fogliPos, texAlberi) {
     lista.push([px, pz, 3, 0.6 + r() * 0.9, r() * 6.28]);
     CESPUGLI.push([px, pz, lista[lista.length - 1][3]]);
   }
-  // gli alberi dei fogli: tronchi grossi e sicuri
-  for (const f of fogliPos) lista.push([f[0], f[1], 0, 1.35, f[2]]);
+  // i fogli: ognuno sulla superficie verticale più vicina al punto di Leo, un tronco o il muro di una casa;
+  // in mezzo a un prato senza niente intorno ci pianto un albero
+  const TR = [[0.3, 0.17, 6.2], [0.24, 0.12, 9.5], [0.25, 0.04, 10]];   // raggio in basso, in cima, altezza (modelliAlberi)
+  FOGLI_ANCORE.length = 0;
+  const raggioT = t => { const [r0, r1, h] = TR[t[2]]; return t[3] * r0 - (r0 - r1) * 1.45 / h; };
+  const coperto = (x, z, io) => lista.some(t => t !== io && t[2] < 3 && Math.hypot(t[0] - x, t[1] - z) < raggioT(t) + 0.06);   // dentro un altro tronco
+  for (const [fx, fz] of fogliPos) {
+    let best = null, bd = 14;
+    for (const t of lista) {
+      if (t[2] > 2) continue;
+      const rt = raggioT(t);   // il tronco all'altezza del foglio
+      const d = Math.hypot(t[0] - fx, t[1] - fz) - rt + (t[2] === 2 ? 12 : 0);   // gli abeti hanno i rami bassi che coprono il foglio: solo se non c'è altro
+      if (d >= bd) continue;
+      const a = Math.atan2(fx - t[0], fz - t[1]), x = t[0] + Math.sin(a) * (rt + 0.025), z = t[1] + Math.cos(a) * (rt + 0.025);
+      if (coperto(x + Math.sin(a) * 0.3, z + Math.cos(a) * 0.3, t) || coperto(x, z, t)) continue;
+      bd = d; best = { x, z, dir: a, y: quota(t[0], t[1]) + 1.45 };
+    }
+    for (const pts of osm.case) {
+      if (pts.length < 3) continue;
+      let cx = 0, cz = 0; for (const q of pts) { cx += q[0] / pts.length; cz += q[1] / pts.length; }
+      for (let i = 0; i < pts.length; i++) {
+        const [ax, az] = pts[i], [bx, bz] = pts[(i + 1) % pts.length], ex = bx - ax, ez = bz - az, L = ex * ex + ez * ez;
+        if (L < 0.5) continue;
+        const k = Math.max(0.1, Math.min(0.9, ((fx - ax) * ex + (fz - az) * ez) / L)), px = ax + ex * k, pz = az + ez * k;
+        const d = Math.hypot(fx - px, fz - pz);
+        if (d >= bd) continue;
+        let nx = -ez, nz = ex; const l = Math.hypot(nx, nz); nx /= l; nz /= l;
+        if ((px - cx) * nx + (pz - cz) * nz < 0) { nx = -nx; nz = -nz; }   // la faccia di fuori
+        bd = d; best = { x: px + nx * 0.03, z: pz + nz * 0.03, dir: Math.atan2(nx, nz), y: quota(px + nx, pz + nz) + 1.45 };
+      }
+    }
+    if (!best) {
+      lista.push([fx, fz, 0, 1.35, 0]);
+      const rt = 1.35 * 0.3 - 0.13 * 1.45 / 6.2;
+      best = { x: fx, z: fz + rt + 0.025, dir: 0, y: quota(fx, fz) + 1.45 };
+    }
+    FOGLI_ANCORE.push(best);
+  }
   // l'albero che Guerrino prende a pugni, accanto alla Fonticella
   lista.push([FONTE.x + 4.2, FONTE.z - 2.6, 0, 1.25, 1.1]);
 
@@ -549,9 +606,13 @@ function creaSottobosco(bosco) {
 /* ════════ ACQUA DEI FOSSI ════════ */
 // una striscia d'acqua lungo ogni fosso, che scorre in discesa (la texture cammina)
 let acquaFossi = null;
-function creaAcqua() {
-  acquaFossi = TEX.acqua.clone(); texPs1(acquaFossi, 1, 1); acquaFossi.generateMipmaps = true; acquaFossi.minFilter = THREE.NearestMipmapNearestFilter; acquaFossi.needsUpdate = true;
-  const mat = ps1(new THREE.MeshLambertMaterial({ map: acquaFossi, color: 0x86aabb, emissive: 0x13232b, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -6 }));
+// I fossi scendono sempre: lungo ogni fosso il livello dell'acqua può solo calare verso valle.
+// Dove il terreno fa una gobba (una stradina su un argine) taglio il letto sotto quel livello,
+// e dove una strada passa sopra al fosso c'è un ponticello di legno (Leo, 16/11).
+let PROFILI = [];   // [{pts: [[x,z]...], liv: [quota dell'acqua...], verso}]
+const PONTI = [];   // {x, z, rx, rz, L, W, yA, yB, arco}
+function preparaFossiEPonti(osm) {
+  PROFILI = [];
   for (const f of FOSSI) {
     if (f.length < 2) continue;
     const pts = [];   // un punto ogni metro e un quarto
@@ -559,7 +620,86 @@ function creaAcqua() {
       const [ax, az] = f[i - 1], [bx, bz] = f[i], n = Math.max(1, Math.round(Math.hypot(bx - ax, bz - az) / 1.25));
       for (let k = i === 1 ? 0 : 1; k <= n; k++) pts.push([ax + (bx - ax) * k / n, az + (bz - az) * k / n]);
     }
-    const verso = quota(pts[0][0], pts[0][1]) > quota(pts[pts.length - 1][0], pts[pts.length - 1][1]) ? 1 : -1;   // da che parte scende
+    const liv = pts.map(([x, z]) => quota(x, z));
+    const verso = liv[0] > liv[liv.length - 1] ? 1 : -1;
+    if (verso > 0) for (let i = 1; i < liv.length; i++) liv[i] = Math.min(liv[i], liv[i - 1]);
+    else for (let i = liv.length - 2; i >= 0; i--) liv[i] = Math.min(liv[i], liv[i + 1]);
+    PROFILI.push({ pts, liv, verso });
+  }
+  // i ponti: dove una strada o un sentiero taglia un fosso (prima di scavare: le quote delle sponde sono quelle vere)
+  const incrocio = (a, b, c, d) => {
+    const den = (a[0] - b[0]) * (c[1] - d[1]) - (a[1] - b[1]) * (c[0] - d[0]); if (Math.abs(den) < 1e-9) return null;
+    const t = ((a[0] - c[0]) * (c[1] - d[1]) - (a[1] - c[1]) * (c[0] - d[0])) / den, u = -((a[0] - b[0]) * (a[1] - c[1]) - (a[1] - b[1]) * (a[0] - c[0])) / den;
+    return t >= 0 && t <= 1 && u >= 0 && u <= 1 ? [a[0] + t * (b[0] - a[0]), a[1] + t * (b[1] - a[1])] : null;
+  };
+  for (const pr of PROFILI) for (const [, s] of osm.strade) for (let j = 1; j < s.length; j++) for (let i = 1; i < pr.pts.length; i++) {
+    const q = incrocio(pr.pts[i - 1], pr.pts[i], s[j - 1], s[j]);
+    if (!q || Math.max(Math.abs(q[0]), Math.abs(q[1])) > LIMITE - 4 || PONTI.some(o => Math.hypot(o.x - q[0], o.z - q[1]) < 8)) continue;
+    let rx = s[j][0] - s[j - 1][0], rz = s[j][1] - s[j - 1][1]; const l = Math.hypot(rx, rz) || 1; rx /= l; rz /= l;
+    let fx = pr.pts[i][0] - pr.pts[i - 1][0], fz = pr.pts[i][1] - pr.pts[i - 1][1]; const lf = Math.hypot(fx, fz) || 1; fx /= lf; fz /= lf;
+    const seno = Math.max(0.45, Math.abs(rx * fz - rz * fx)), L = Math.min(11, 2 * 3.1 / seno);
+    const yA = quota(q[0] - rx * L / 2, q[1] - rz * L / 2), yB = quota(q[0] + rx * L / 2, q[1] + rz * L / 2);
+    const acqua = pr.liv[i] + 0.14, arco = Math.max(0.2, acqua + 0.75 - (yA + yB) / 2);
+    PONTI.push({ x: q[0], z: q[1], rx, rz, L, W: 2.1, yA, yB, arco });
+  }
+  // scavo: vicino al fosso il terreno non sta mai sopra il livello dell'acqua (raccordo dopo 1,8 m)
+  for (const { pts, liv } of PROFILI) for (let k = 0; k < pts.length; k++) {
+    const [x, z] = pts[k], i0 = Math.floor((x - 3.4 + HALF) / CELLA), j0 = Math.floor((z - 3.4 + HALF) / CELLA);
+    for (let j = j0; j <= j0 + 3; j++) for (let i = i0; i <= i0 + 3; i++) {
+      if (i < 0 || j < 0 || i >= N || j >= N) continue;
+      const d = Math.hypot(i * CELLA - HALF - x, j * CELLA - HALF - z); if (d > 3.4) continue;
+      const lim = liv[k] - 0.06 + Math.max(0, d - 1.8) * 0.5;
+      if (Q[j * N + i] > lim) Q[j * N + i] = lim;
+    }
+  }
+}
+// il piano del ponte sotto i piedi (null se non ci sei sopra)
+function sulPonte(x, z) {
+  for (const p of PONTI) {
+    const dx = x - p.x, dz = z - p.z, a = dx * p.rx + dz * p.rz, b = -dx * p.rz + dz * p.rx;
+    if (Math.abs(a) < p.L / 2 && Math.abs(b) < p.W / 2) { const t = a / p.L + 0.5; return p.yA + (p.yB - p.yA) * t + p.arco * Math.sin(t * Math.PI) + 0.1; }
+  }
+  return null;
+}
+function suoloIo(x, z) { const q = quota(x, z), p = sulPonte(x, z); return p === null ? q : Math.max(q, p); }
+function creaPonti() {
+  if (!PONTI.length) return;
+  const legno = ps1(new THREE.MeshLambertMaterial({ map: texPs1(TEX.corteccia, 1), color: 0x8a6a4c }));
+  const assi = [], pali = [];
+  const m4 = new THREE.Matrix4(), qq = new THREE.Quaternion(), e = new THREE.Euler(), v = new THREE.Vector3(), sc = new THREE.Vector3(1, 1, 1);
+  const metti = (lista, geo, x, y, z, rx, ry) => { const g = geo.clone(); e.set(rx, ry, 0, 'YXZ'); qq.setFromEuler(e); v.set(x, y, z); m4.compose(v, qq, sc); g.applyMatrix4(m4); lista.push(g); };
+  for (const p of PONTI) {
+    const ry = Math.atan2(p.rx, p.rz), n = Math.round(p.L / 0.34), quotaT = t => p.yA + (p.yB - p.yA) * t + p.arco * Math.sin(t * Math.PI);
+    const asse = new THREE.BoxGeometry(p.W, 0.07, p.L / n * 0.9);
+    for (let i = 0; i < n; i++) {
+      const t = (i + 0.5) / n, a = (t - 0.5) * p.L, y = quotaT(t) + 0.06;
+      const pend = Math.atan2((quotaT(t + 0.01) - quotaT(t - 0.01)), p.L * 0.02);
+      metti(assi, asse, p.x + p.rx * a, y, p.z + p.rz * a, -pend, ry);
+    }
+    // due travi sotto e i parapetti: pali e corrimano
+    for (const s of [-1, 1]) {
+      const ox = -p.rz * s * (p.W / 2 - 0.05), oz = p.rx * s * (p.W / 2 - 0.05);
+      const k = 6;
+      for (let i = 0; i <= k; i++) {
+        const t = i / k, a = (t - 0.5) * p.L, y = quotaT(t);
+        metti(pali, new THREE.BoxGeometry(0.09, 0.95, 0.09), p.x + p.rx * a + ox, y + 0.55, p.z + p.rz * a + oz, 0, ry);
+        if (i < k) {
+          const t2 = (i + 1) / k, y2 = quotaT(t2), am = (t + t2) / 2, lseg = Math.hypot(p.L / k, y2 - y), pend = Math.atan2(y2 - y, p.L / k);
+          const ym = (y + y2) / 2, xm = p.x + p.rx * (am - 0.5) * p.L, zm = p.z + p.rz * (am - 0.5) * p.L;
+          metti(pali, new THREE.BoxGeometry(0.07, 0.07, lseg + 0.06), xm + ox, ym + 1.0, zm + oz, -pend, ry);      // corrimano
+          metti(pali, new THREE.BoxGeometry(0.16, 0.2, lseg + 0.02), xm + ox * 0.8, ym - 0.06, zm + oz * 0.8, -pend, ry);   // trave
+        }
+      }
+    }
+  }
+  const unisci = l => mergeGeometries(l.map(x => x.index ? x.toNonIndexed() : x));
+  const m = new THREE.Mesh(unisci([...assi, ...pali]), legno); m.matrixAutoUpdate = false; scena.add(m);
+}
+
+function creaAcqua() {
+  acquaFossi = TEX.acqua.clone(); texPs1(acquaFossi, 1, 1); acquaFossi.generateMipmaps = true; acquaFossi.minFilter = THREE.NearestMipmapNearestFilter; acquaFossi.needsUpdate = true;
+  const mat = ps1(new THREE.MeshLambertMaterial({ map: acquaFossi, color: 0x86aabb, emissive: 0x13232b, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -6 }));
+  for (const { pts, liv, verso } of PROFILI) {
     let lung = 0;
     const PEZZO = 40;   // pezzi da 50 m: quelli fuori vista non si disegnano
     for (let i0 = 0; i0 < pts.length - 1; i0 += PEZZO) {
@@ -568,8 +708,9 @@ function creaAcqua() {
         const a = pts[Math.max(0, i - 1)], b = pts[Math.min(pts.length - 1, i + 1)], pt = pts[i];
         let tx = b[0] - a[0], tz = b[1] - a[1]; const l = Math.hypot(tx, tz) || 1; tx /= l; tz /= l;
         if (i > i0) lung += Math.hypot(pt[0] - pts[i - 1][0], pt[1] - pts[i - 1][1]);
-        const w = 0.85, vv = lung / 1.7 * verso;
-        const y = Math.max(quota(pt[0], pt[1]), quota(pt[0] + tz * w, pt[1] - tx * w), quota(pt[0] - tz * w, pt[1] + tx * w)) + 0.1;   // sopra tutte e due le sponde
+        // larga da una sponda all'altra: i bordi entrano nel terreno, così non resta mai sospesa
+        const w = 2.3, vv = lung / 4.6 * verso;
+        const y = liv[i] + 0.14;   // il livello scende sempre verso valle (preparaFossiEPonti)
         pos.push(pt[0] + tz * w, y, pt[1] - tx * w, pt[0] - tz * w, y, pt[1] + tx * w);
         uv.push(0, vv, 1, vv); nor.push(0, 1, 0, 0, 1, 0);
         const k = (i - i0) * 2;
@@ -734,11 +875,13 @@ function creaFonte() {
 }
 
 /* ════════ FOGLI ════════ */
-// [x, z, direzione del foglio sul tronco] — posti fissi, nella zona dello screenshot di Leo e intorno
+// [x, z]: i punti che Leo ha messo sulla mappa disegnabile (16/11). Il foglio va inchiodato
+// sulla superficie verticale più vicina: un tronco o il muro di una casa (vedi creaBosco)
 const FOGLI_POS = [
-  [75, 86, 2.2], [21, 29, 0.4], [-31, 9, 4.1], [102.5, -59, 1.2], [31, -148, 5.4],
-  [126, -192, 3.0], [-74, -123, 0.9], [209, 49, 4.6], [189, -111, 2.6], [-123, 74, 1.8],
+  [9, -30], [102, 265], [-135, 73], [-218, 235], [31, -148],
+  [102, -279], [-119, -169], [209, 49], [224, -128], [-254, -14],
 ];
+const FOGLI_ANCORE = [];   // {x, z, dir}: dove sta davvero ogni foglio, e verso dove guarda
 const FOGLI = [];
 function texFoglio() {
   const c = document.createElement('canvas'); c.width = 64; c.height = 90;
@@ -752,11 +895,9 @@ function texFoglio() {
 function creaFogli() {
   const geo = new THREE.PlaneGeometry(0.21, 0.297);
   const mat = ps1(new THREE.MeshLambertMaterial({ map: texFoglio(), color: 0x9a968c, emissive: 0x1a1812, side: THREE.DoubleSide }));
-  for (const [x, z, dir] of FOGLI_POS) {
+  for (const { x: px, z: pz, dir, y } of FOGLI_ANCORE) {
     const m = new THREE.Mesh(geo, mat);
-    const r = 0.43;   // appena fuori dal tronco (largo 0,37 m a quell'altezza)
-    const px = x + Math.sin(dir) * r, pz = z + Math.cos(dir) * r;
-    m.position.set(px, quota(x, z) + 1.45, pz);
+    m.position.set(px, y, pz);
     m.rotation.y = dir;
     m.rotation.z = (Math.random() - 0.5) * 0.2;
     scena.add(m);
@@ -984,7 +1125,7 @@ function tagliaPassi() {
   taglia(buf.colpi, Array.from({ length: 24 }, (_, k) => (k < 12 ? 'ron' : 'pug') + (k % 12)), 1.7, 1.66);
 }
 // dove metti i piedi: sentiero, acqua (guadi il fosso) o sottobosco
-function suolo() { return distFosso(io.x, io.z) < 1.1 ? 'acqua' : suSentiero(io.x, io.z) ? 'sentiero' : 'sottobosco'; }
+function suolo() { return sulPonte(io.x, io.z) !== null ? 'sentiero' : distFosso(io.x, io.z) < 1.1 ? 'acqua' : suSentiero(io.x, io.z) ? 'sentiero' : 'sottobosco'; }
 let ultimoPasso = 0;
 function suonoPasso(corre) {
   const s = suolo(), max = s === 'acqua' && corre ? 3 : 5;
@@ -1077,6 +1218,17 @@ function aggiornaMusica(dt) {
     pz.ob = v;
   }
 }
+// nella lobby suona già la notte: parte al primo clic o tasto (prima il browser non lascia partire l'audio)
+function ambienteLobby() {
+  if (!ambiente) return false;
+  ascolto.context.resume?.();
+  if (!ambiente.isPlaying) ambiente.play();
+  return true;
+}
+for (const ev of ['pointerdown', 'keydown', 'touchstart']) addEventListener(ev, function primo() {
+  if (fase !== 'menu' && !document.body.classList.contains('lobby')) return;
+  if (ambienteLobby()) for (const e of ['pointerdown', 'keydown', 'touchstart']) removeEventListener(e, primo, true);
+}, true);
 function avviaLoop() {
   for (const a of [ambiente, fosso, rumore]) if (a && !a.isPlaying) a.play();
 }
@@ -1193,12 +1345,12 @@ function muoviGiocatore(dt) {
   if (io.fiato < 0.3 && !io.fiatoneFatto) { io.fiatoneFatto = true; suono('fiatone', 0.25, 0.95 + Math.random() * 0.1, 'fiatone'); }
   if (io.fiato > 0.7) io.fiatoneFatto = false;
   io.recupera = !corre && io.fiato < 1;
-  const acqua = distFosso(io.x, io.z) < 1.1;
+  const acqua = distFosso(io.x, io.z) < 1.1 && sulPonte(io.x, io.z) === null;
   const vmax = (corre ? 4.7 : io.giu ? 1.15 : 2.3) * (acqua ? 0.7 : 1);
   const s = Math.sin(io.yaw), c = Math.cos(io.yaw);
   let dx = (ax * c + az * s) * vmax * dt, dz = (-ax * s + az * c) * vmax * dt;
   // pendenza: in salita ripida si rallenta, oltre i 40° non si sale
-  const q0 = quota(io.x, io.z), q1 = quota(io.x + dx, io.z + dz), passo = Math.hypot(dx, dz);
+  const q0 = suoloIo(io.x, io.z), q1 = suoloIo(io.x + dx, io.z + dz), passo = Math.hypot(dx, dz);
   if (passo > 0) {
     const pend = (q1 - q0) / passo;
     if (pend > 0.85) { dx *= 0.15; dz *= 0.15; } else if (pend > 0.3) { const k = 1 - (pend - 0.3) * 0.9; dx *= k; dz *= k; }
@@ -1225,7 +1377,7 @@ function muoviGiocatore(dt) {
   if (!io.alto) io.dondolo += fatto * (corre ? 5.2 : 6.5);
   const bob = Math.sin(io.dondolo) * (corre ? 0.07 : 0.035) * Math.min(1, io.vel);
   io.hGiu += ((io.giu ? 1 : 0) - io.hGiu) * Math.min(1, dt * 8);
-  camera.position.set(io.x, quota(io.x, io.z) + 1.65 - io.hGiu * 0.7 + bob + io.alto - Math.sin(io.botta * Math.PI) * 0.09 - (acqua ? 0.12 : 0), io.z);
+  camera.position.set(io.x, suoloIo(io.x, io.z) + 1.65 - io.hGiu * 0.7 + bob + io.alto - Math.sin(io.botta * Math.PI) * 0.09 - (acqua ? 0.12 : 0), io.z);
   camera.rotation.set(io.pitch, io.yaw, Math.sin(io.dondolo * 0.5) * 0.006 * io.vel, 'YXZ');
 }
 
@@ -1237,8 +1389,6 @@ function aggiornaTorcia(dt, t) {
   let k = io.torcia ? 0.35 + 0.65 * Math.min(1, io.batteria * 3) : 0;
   if (io.torcia && io.batteria < 0.15 && Math.sin(t * 23) * Math.sin(t * 7.3) > 0.55) k *= 0.15;   // tremolio a batteria scarica
   torcia.intensity = TORCIA_MAX * k; alone.intensity = 1.2 * k + 0.1;
-  ui.batteria.textContent = Math.ceil(io.batteria * 100) + '%';
-  ui.batteria.classList.toggle('basso', io.batteria < 0.2);
   ui.fiato.style.width = (io.fiato * 100) + '%';
   ui.fiato.classList.toggle('basso', io.sfinito);
 }
@@ -1260,8 +1410,8 @@ function cercaFoglio() {
     if (d < 1.9 && (dx * av.x + dz * av.z) / d > 0.3) { powerVicino = pu; break; }
   }
   const cosa = foglioVicino ? 'il foglio' : powerVicino ? POWER_NOMI[powerVicino.tipo] : null;
-  if (cosa && ui.prendi.dataset.cosa !== cosa) { ui.prendi.dataset.cosa = cosa; ui.prendi.innerHTML = `Prendi ${cosa} <kbd>E</kbd>`; }
-  mostra('prendi', !!cosa && !TOCCO);
+  if (cosa && ui.prendi.dataset.cosa !== cosa) { ui.prendi.dataset.cosa = cosa; ui.prendi.innerHTML = `Prendi ${cosa} <kbd>${tasto('prendi')}</kbd>`; }
+  mostra('prendi', !!cosa && INGRESSO !== 'tocco');
   const colpire = io.roncola && !cosa;
   mostra('t-prendi', (!!cosa || colpire) && TOCCO);
   $('t-prendi').textContent = colpire ? 'COLPISCI' : 'PRENDI';
@@ -1287,8 +1437,11 @@ function provaPrendere() {
 
 /* ── dialoghi ── */
 const coda = []; let parlando = null, tParla = 0, tScrivi = 0, tBlip = 0;
-function dici(testo, durata) { coda.push({ testo, durata: durata || 2600 + testo.length * 45 }); }
+// Guerrino da lontano non lo senti, tranne quando urla dell'altra bestia
+const UDITO = 22;
+function dici(testo, durata) { coda.push({ testo, durata: durata || 2600 + testo.length * 45, urla: /altra bestia/i.test(testo) }); }
 function aggiornaDialogo(dt) {
+  while (!parlando && coda.length && !coda[0].urla && storia !== 'casa' && Math.hypot(io.x - guerrino.x, io.z - guerrino.z) > UDITO) coda.shift();
   if (!parlando && coda.length) { parlando = coda.shift(); tParla = 0; tScrivi = 0; tBlip = -2; ui.battuta.textContent = ''; mostra('dialogo', true); }
   if (!parlando) return;
   tParla += dt * 1000;
@@ -1405,15 +1558,11 @@ function aggiornaStoria(dt, t) {
     return;
   }
   if (storia === 'strada') {
-    if (dGioc > 11) {
-      giraVerso(guardaVerso(io.x, io.z), dt, 3);
-      if (t > guerrino.prossimo) { guerrino.prossimo = t + 9; dici(pesca(BATTUTE.indietro), 2400); }
-    } else if (dGioc < 8 || guerrino.tappa === 0) {
-      const prima = guerrino.tappa;
-      const arrivato = camminaSu(PERCORSO, dt, 1.25);
-      if (guerrino.tappa !== prima && TAPPE_FRASI[guerrino.tappa] !== undefined) dici(BATTUTE.strada[TAPPE_FRASI[guerrino.tappa]]);
-      if (arrivato) { storia = 'fonte'; tStoria = 0; guerrino.fase = 0; }
-    }
+    // non ti aspetta: va alla Fonticella per conto suo
+    const prima = guerrino.tappa;
+    const arrivato = camminaSu(PERCORSO, dt, 1.25);
+    if (guerrino.tappa !== prima && TAPPE_FRASI[guerrino.tappa] !== undefined) dici(BATTUTE.strada[TAPPE_FRASI[guerrino.tappa]]);
+    if (arrivato) { storia = 'fonte'; tStoria = 0; guerrino.fase = 0; }
     disegna(guerrino);
     return;
   }
@@ -1421,7 +1570,7 @@ function aggiornaStoria(dt, t) {
     // arriva e ha il fiatone; si siede sulla Fonticella per mezzo minuto; poi se la prende con l'albero
     if (guerrino.fase === 0) {
       giraVerso(guardaVerso(io.x, io.z), dt, 3); disegna(guerrino);
-      if (dGioc < 10 || tStoria > 20) { guerrino.fase = 1; BATTUTE.fonte.forEach(b => dici(b)); }
+      if (tStoria > 0.6) { guerrino.fase = 1; BATTUTE.fonte.forEach(b => dici(b)); }
     } else if (guerrino.fase === 1) {
       giraVerso(guardaVerso(io.x, io.z), dt, 3); disegna(guerrino);
       if (!coda.length && !parlando) { guerrino.fase = 2; guerrino.tappa = 0; }
@@ -1750,21 +1899,23 @@ TEL3D.tex.colorSpace = THREE.SRGBColorSpace; TEL3D.tex.minFilter = THREE.LinearM
   schermo.position.set(0, 0.004, 0.0047); g.add(schermo);
   // il palmo dietro, il pollice sul bordo destro, le dita che spuntano a sinistra, il polso che scende
   box(0.07, 0.08, 0.022, pelle, 0.008, -0.04, -0.016);
-  box(0.017, 0.055, 0.016, pelle, 0.041, -0.036, 0.003, 0, 0, 0.32);
-  for (let i = 0; i < 4; i++) box(0.017, 0.015, 0.015, pelle, -0.039, 0.006 - i * 0.017, -0.006);
+  // pollice e dita: salsicciotti (cilindri con le punte tonde)
+  const dito = (r, l, x, y, z, rz) => { const d = new THREE.Mesh(ombre(new THREE.CapsuleGeometry(r, l, 3, 7)), pelle); d.position.set(x, y, z); d.rotation.z = rz; g.add(d); return d; };
+  dito(0.0085, 0.04, 0.041, -0.036, 0.004, 0.32);
+  for (let i = 0; i < 4; i++) dito(0.0078, 0.011 - (i === 3 ? 0.003 : 0), -0.04, 0.006 - i * 0.0168, -0.005, Math.PI / 2 + 0.08 * (i - 1.5));
   box(0.058, 0.13, 0.05, pelle, 0.022, -0.125, -0.03, 0.35, 0, -0.18);
   TEL3D.luce = new THREE.PointLight(0x9cc0ff, 0, 2.5, 2); TEL3D.luce.position.set(0, 0.02, 0.06); g.add(TEL3D.luce);
   g.visible = false; g.renderOrder = 5; camera.add(g);
 }
 function schermoNero() { const g = TEL3D.cv.getContext('2d'); g.fillStyle = '#030404'; g.fillRect(0, 0, TEL3D.cv.width, TEL3D.cv.height); TEL3D.tex.needsUpdate = true; }
 function animaTelefono(dt) {
-  let ob = tel.aperto && fase !== 'menu' ? 1 : 0, scossa = 0;
+  let ob = (tel.aperto || io.torcia) && fase !== 'menu' ? 1 : 0, scossa = 0;   // con la torcia accesa il telefono resta in mano
   if (TEL3D.gesto >= 0) {
     const k = TEL3D.gesto += dt;
     ob = 1;
     if (k > 0.3 && k < 1.2) {
       const n = Math.floor((k - 0.3) / 0.3), f = (k - 0.3) / 0.3 - n;
-      scossa = Math.pow(Math.sin(f * Math.PI), 2);
+      scossa = Math.sin(f * Math.PI * 2);   // di lato, avanti e indietro, come il gesto del Motorola
       if (n >= TEL3D.scossi) { TEL3D.scossi = n + 1; suono('frasche', 0.05, 2.4, 'interfaccia'); }
     }
     if (k >= 1.2 && !io.torcia && TEL3D.scossi < 9) { TEL3D.scossi = 9; if (io.batteria > 0 && fase === 'gioco') { io.torcia = true; suono('colpo', 0.08, 2.6, 'interfaccia'); } }
@@ -1778,8 +1929,10 @@ function animaTelefono(dt) {
   // la mano: la luce dello schermo, più la torcia se è accesa, meno il buio della notte
   TEL3D.pelle.color.setHex(0x9a7058).multiplyScalar(0.55 + (io.torcia ? 0.35 : 0) - BUIO.k * 0.2);
   const bob = Math.sin(io.dondolo) * 0.004 * Math.min(1, io.vel);
-  g.position.set(0.01, -0.2 + s * 0.172 + bob - scossa * 0.035, -0.155 + scossa * 0.01);
-  g.rotation.set(-0.12 - (1 - s) * 0.6 - scossa * 0.75, 0.04, Math.sin(io.dondolo * 0.5) * 0.01 + scossa * 0.12);
+  // in basso a destra; sullo schermo stretto (telefono in verticale) si avvicina al centro
+  const mezzoL = 0.2 * Math.tan(camera.fov * Math.PI / 360) * camera.aspect, px = Math.max(0.015, Math.min(0.15, mezzoL - 0.06));
+  g.position.set(px + scossa * 0.035, -0.27 + s * 0.18 + bob, -0.2);
+  g.rotation.set(-0.12 - (1 - s) * 0.6, 0.22 + scossa * 0.55, 0.06 + Math.sin(io.dondolo * 0.5) * 0.01 - scossa * 0.3);
 }
 // dove sta lo schermo del telefono sullo schermo vero (per lo zoom col dito)
 function toccaSchermo(x, y) {
@@ -1876,6 +2029,26 @@ function aggiornaGps(dt, t) {
   GPS.rivelati = GPS.rivelati.filter(v => v.fino > t && !v.f.preso);
   if (tel.fix) { tel.ux = io.x + (GPS.tFinto > 0 ? GPS.fx : 0); tel.uz = io.z + (GPS.tFinto > 0 ? GPS.fz : 0); tel.tUltimo = t; }
   if (tel.aperto && (tel.tDis -= dt) <= 0) { tel.tDis = 0.1; disegnaTelefono(t, q); }
+  else if (!tel.aperto && io.torcia && TEL3D.gesto < 0 && (tel.tDis -= dt) <= 0) { tel.tDis = 1; disegnaBlocco(t); }
+}
+// con la torcia accesa e la mappa chiusa: lo schermo di blocco, l'unico posto dove vedi la batteria
+function disegnaBlocco(t) {
+  if (io.batteria <= 0) { schermoNero(); return; }
+  const cv = TEL3D.cv, W = cv.width, H = cv.height, g = cv.getContext('2d');
+  const font = (px, peso = 500) => { g.font = `${peso} ${px}px "DM Mono", monospace`; };
+  g.fillStyle = '#050607'; g.fillRect(0, 0, W, H);
+  g.textBaseline = 'middle';
+  const min = 187 + Math.floor(t / 60), ora = String(Math.floor(min / 60) % 24).padStart(2, '0') + ':' + String(min % 60).padStart(2, '0');
+  for (let i = 0; i < 4; i++) { g.fillStyle = i < tel.tacche ? '#e9e4d6' : 'rgba(233,228,214,.2)'; g.fillRect(9 + i * 8, 23 - (i + 1) * 4, 6, (i + 1) * 4); }
+  font(19); g.textAlign = 'right'; g.fillStyle = io.batteria < 0.2 ? '#e2574a' : '#e9e4d6'; g.fillText(Math.ceil(io.batteria * 100) + '%', W - 8, 15);
+  g.textAlign = 'center'; font(54, 400); g.fillStyle = '#e9e4d6'; g.fillText(ora, W / 2, 105);
+  font(15); g.fillStyle = '#9a968b'; g.fillText('lunedì 16 novembre', W / 2, 145);
+  // la pila grande
+  const bw = 96, bh = 40, bx = (W - bw) / 2, by = 196;
+  g.strokeStyle = '#e9e4d6'; g.lineWidth = 3; g.strokeRect(bx, by, bw, bh); g.fillStyle = '#e9e4d6'; g.fillRect(bx + bw + 2, by + 12, 6, 16);
+  g.fillStyle = io.batteria < 0.2 ? '#e2574a' : '#72d590'; g.fillRect(bx + 5, by + 5, (bw - 10) * Math.max(0.02, io.batteria), bh - 10);
+  font(17); g.fillStyle = '#e9e4d6'; g.fillText('torcia accesa', W / 2, 270);
+  TEL3D.tex.needsUpdate = true;
 }
 
 function sbagliaGps() {
@@ -2148,7 +2321,7 @@ function creaRoncolaMia(r) {
 function dammiRoncola() {
   io.roncola = true;
   if (guerrino.roncola) guerrino.roncola.visible = false;
-  setTimeout(() => didascalia(TOCCO ? 'Hai la roncola: COLPISCI per menare.' : 'Hai la roncola: clic o E per menare.', 4500), 7000);
+  setTimeout(() => didascalia(`Hai la roncola: ${tasto('mena')} per menare.`, 4500), 7000);
 }
 function colpisci() {
   if (!io.roncola || RONCOLA.t >= 0 || tel.aperto || fase !== 'gioco') return;
@@ -2157,7 +2330,10 @@ function colpisci() {
 }
 function animaRoncola(dt) {
   const r = RONCOLA.g; if (!r) return;
-  r.visible = !!io.roncola && TEL3D.su < 0.3;
+  r.visible = !!io.roncola && !tel.aperto;
+  // il telefono sta nella destra: con la torcia accesa la roncola passa alla sinistra
+  const sx = TEL3D.su > 0.3 ? -1 : 1;
+  r.position.x += (0.3 * sx - r.position.x) * Math.min(1, dt * 8); r.rotation.z = -0.35 * sx; r.scale.x = sx;
   let a = 0;
   if (RONCOLA.t >= 0) {
     const k = RONCOLA.t += dt;
@@ -2347,6 +2523,7 @@ function leggiPad(dt) {
   const nuovo = i => giu[i] && !pad.prima[i];
   const lx = asse(gp.axes[0] || 0), ly = asse(gp.axes[1] || 0), rx = asse(gp.axes[2] || 0), ry = asse(gp.axes[3] || 0);
   if (!pad.attivo && (giu.some(Boolean) || lx || ly || rx || ry)) pad.attivo = true;
+  if (giu.some(Boolean) || lx || ly || rx || ry) usaIngresso('pad');
   try {
     if (fase === 'gioco') {
       pad.x = lx; pad.y = ly;
@@ -2499,6 +2676,7 @@ function costruisci(bin, bosco, colori, osm, modello, roncola, modelloPapi, texA
     const d = distFosso(i * CELLA - HALF, j * CELLA - HALF);
     if (d < 3.4) { const k = Math.min(1, (3.4 - d) / 2.4); Q[j * N + i] -= 0.5 * k * k * (3 - 2 * k); }
   }
+  preparaFossiEPonti(osm);
   // lo spiazzo della casa di Papi: terreno in piano sotto la casa, raccordato intorno
   {
     const h0 = quota(CASA.x - 15, CASA.z);   // alla quota di chi arriva da ponente: la casa si incassa nel pendio, a monte
@@ -2514,6 +2692,7 @@ function costruisci(bin, bosco, colori, osm, modello, roncola, modelloPapi, texA
   creaCasa();
   creaSottobosco(bosco);
   creaAcqua();
+  creaPonti();
   creaCinghiale();
   creaFogli();
   creaPowerUp();
@@ -2533,7 +2712,7 @@ function costruisci(bin, bosco, colori, osm, modello, roncola, modelloPapi, texA
   mostra('caricamento', false); mostra('menu', true);
   document.body.classList.remove('carica'); document.body.classList.add('fuori', 'lobby');
   disegnaClassifica($('classifica-menu'));
-  window.__crevil = { PROVA, quota, guarda: (x, z) => { io.yaw = Math.atan2(-(x - io.x), -(z - io.z)); }, info: () => renderer.info.render, io, guerrino, papi, recita, posa, disegna, scena, camera, renderer, salta: s => { storia = s; tStoria = 0; }, caccia: () => { iniziaCaccia(tGioco); papi.prossimo = 0; }, tel, apriTelefono, quotaVera, TEL3D, CASA, BOSS, POWER, cambiaTorcia, colpisci, entraCasa: () => entraCasa(tGioco), dammiRoncola, GPS, BUIO, pad, apriPannello, chiudiPannello, toccaSchermo, disegnaSfondo, MIX, sfondo: o => { preparaSfondo(SFONDO.bosco, o); return SFONDO.base.toDataURL(); }, FONTE, FOGLI, MUS, cinghiale, tronchiVicini, statico: v => { staticoOb = v; }, lanciaCinghiale: () => lanciaCinghiale(tGioco), papiInPiedi, mostraPapi, PAPI_FERMO, attacca: c => attacca(tGioco, c), suSentiero, distFosso, alSicuro, FOSSI, stato: () => ({ storia, boss: BOSS.stato, vita: BOSS.vita, roncola: !!io.roncola, fase, attesa, livello, staticoV, faseG: guerrino.fase, az: guerrino.nomeAz, papi: papi.stato, vis: papi.vis, pres: papi.pres, visto: papi.visto, dPapi: Math.round(Math.hypot(io.x - papi.x, io.z - papi.z)), mus: Object.fromEntries(Object.entries(MUS.pezzi).map(([n, z]) => [n, z.pronto ? +z.ob.toFixed(2) : 'carico'])) }) };
+  window.__crevil = { PROVA, quota, PONTI, FOGLI_ANCORE, PROFILI, sulPonte, RONCOLA, guarda: (x, z) => { io.yaw = Math.atan2(-(x - io.x), -(z - io.z)); }, info: () => renderer.info.render, io, guerrino, papi, recita, posa, disegna, scena, camera, renderer, salta: s => { storia = s; tStoria = 0; }, caccia: () => { iniziaCaccia(tGioco); papi.prossimo = 0; }, tel, apriTelefono, quotaVera, TEL3D, CASA, BOSS, POWER, cambiaTorcia, colpisci, entraCasa: () => entraCasa(tGioco), dammiRoncola, GPS, BUIO, pad, apriPannello, chiudiPannello, toccaSchermo, disegnaSfondo, MIX, sfondo: o => { preparaSfondo(SFONDO.bosco, o); return SFONDO.base.toDataURL(); }, FONTE, FOGLI, MUS, cinghiale, tronchiVicini, statico: v => { staticoOb = v; }, lanciaCinghiale: () => lanciaCinghiale(tGioco), papiInPiedi, mostraPapi, PAPI_FERMO, attacca: c => attacca(tGioco, c), suSentiero, distFosso, alSicuro, FOSSI, stato: () => ({ storia, boss: BOSS.stato, vita: BOSS.vita, roncola: !!io.roncola, fase, attesa, livello, staticoV, faseG: guerrino.fase, az: guerrino.nomeAz, papi: papi.stato, vis: papi.vis, pres: papi.pres, visto: papi.visto, dPapi: Math.round(Math.hypot(io.x - papi.x, io.z - papi.z)), mus: Object.fromEntries(Object.entries(MUS.pezzi).map(([n, z]) => [n, z.pronto ? +z.ob.toFixed(2) : 'carico'])) }) };
 }
 pronto.catch(e => { console.error(e); $('prog-testo').textContent = 'Il bosco non si carica: ricarica la pagina.'; });
 
@@ -2541,7 +2720,7 @@ $('gioca').addEventListener('click', () => {
   mostra('menu', false); mostra('pannello', false); document.body.classList.remove('fuori', 'lobby'); fuocoPad(null);
   fase = 'gioco'; tStoria = 0; tel.tUltimo = tGioco;
   ascolto.context.resume?.(); avviaLoop(); avviaMusica();
-  setTimeout(() => { if (!io.torcia && fase === 'gioco') didascalia(TOCCO ? 'Il tasto 🔦 accende la torcia.' : 'Premi F per accendere la torcia.', 6000); }, 9000);
+  setTimeout(() => { if (!io.torcia && fase === 'gioco') didascalia(INGRESSO === 'tocco' ? 'Il tasto 🔦 accende la torcia.' : `Premi ${tasto('torcia')} per accendere la torcia.`, 6000); }, 9000);
   if (TOCCO) {
     mostra('touch', true);
     document.documentElement.requestFullscreen?.().then(() => screen.orientation?.lock?.('landscape').catch(() => {})).catch(() => {});
