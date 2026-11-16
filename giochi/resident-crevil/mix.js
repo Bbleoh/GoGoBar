@@ -19,6 +19,8 @@ export const CANALI = [
   { id: 'papiPassi', nome: 'Passi di Papi', gruppo: 'Papi', def: -12, prova: { nastro: 'passi', caselle: [5, 6, 7, 8, 9], vol: 0.8, rate: 0.52 } },
   { id: 'papiVersi', nome: 'Frasche e rami', gruppo: 'Papi', def: -21, prova: { file: 'sfx/scricchiolio.mp3', vol: 0.8, rate: 0.75 } },
   { id: 'statico', nome: 'Statico', gruppo: 'Papi', def: -24, prova: { rumore: true, vol: 0.2 } },
+  { id: 'temporale', nome: 'Temporale (pioggia e tuoni)', gruppo: 'Eventi', def: -6, prova: { rumore: true, vol: 0.32 } },
+  { id: 'squillo', nome: 'Telefono che squilla', gruppo: 'Eventi', def: -6 },
   { id: 'cinghiale', nome: 'Cinghiale', gruppo: 'Eventi', def: -7.5, prova: { nastro: 'passi', caselle: [33, 34, 35, 33, 34, 35, 22], vol: 0.9, ogni: 0.09 } },
   { id: 'musica', nome: 'Colonna (tutta)', gruppo: 'Colonna sonora', def: -0.5 },
   { id: 'mus-foglio1', nome: 'Foglio 1', gruppo: 'Colonna sonora', def: -7.5, prova: { pezzo: 'foglio1' } },

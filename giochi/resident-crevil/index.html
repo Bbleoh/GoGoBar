@@ -11,13 +11,14 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Special+Elite&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="stile.css?v=8"/>
+  <link rel="stylesheet" href="stile.css?v=9"/>
 </head>
 <body class="carica">
   <canvas id="scena"></canvas>
   <canvas id="statico" width="160" height="90"></canvas>
   <div id="buio"></div>
 
+  <div id="lampo"></div>
   <!-- HUD -->
   <div id="hud">
     <div class="hud-sx">
@@ -61,6 +62,8 @@
       <p class="titoletto">Morte sul greppo</p>
       <nav class="voci">
         <button id="gioca" class="voce">Gioca</button>
+        <button id="modo" class="voce modo">Difficoltà: <b>Normale</b></button>
+        <p id="modo-nota" class="modo-nota"></p>
         <button class="voce" data-pannello="controlli">Controlli</button>
         <button class="voce" data-pannello="impostazioni">Impostazioni</button>
         <button class="voce" data-pannello="crediti">Crediti</button>
@@ -137,7 +140,7 @@
   </section>
 
   <section id="morte" class="schermo nascosto">
-    <h2>Papi t'ha preso</h2>
+    <h2 id="morte-titolo">Papi t'ha preso</h2>
     <p id="morte-frase" class="sotto"></p>
     <button id="riprova" class="btn">Riprova dall'ultimo foglio</button>
   </section>
@@ -161,8 +164,8 @@
 
   <script src="../../js/account.js?v=5"></script>
   <script src="../../js/gogoldbar.js?v=7"></script>
-  <script src="classifica.js?v=2" onerror="window.ResidentCrevilClassifica = null"></script>
+  <script src="classifica.js?v=3" onerror="window.ResidentCrevilClassifica = null"></script>
   <script type="importmap">{ "imports": { "three": "./lib/three.module.min.js" } }</script>
-  <script type="module" src="gioco.js?v=11"></script>
+  <script type="module" src="gioco.js?v=12"></script>
 </body>
 </html>

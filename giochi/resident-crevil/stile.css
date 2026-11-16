@@ -131,3 +131,13 @@ body.lobby #menu { align-items: flex-start; padding-left: max(24px, 8vw, env(saf
 body.in-tastiera .per-pad, body.in-tastiera .per-tocco,
 body.in-pad .per-tastiera, body.in-pad .per-tocco,
 body.in-tocco .per-tastiera, body.in-tocco .per-pad { display: none; }
+
+/* il telefono in mano, disegnato sopra al gioco a piena risoluzione */
+#telefono3d { position: fixed; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+/* Normale / Incubo */
+.voce.modo { font-size: 15px; }
+.voce.modo b { font-weight: 400; color: var(--carta); }
+.voce.modo.incubo b { color: #d9483b; }
+.modo-nota { margin: -2px 0 6px; font: 12px var(--mono); color: rgba(233,228,214,.6); text-align: center; letter-spacing: .02em; }
+/* il lampo del temporale */
+#lampo { position: fixed; inset: 0; background: #c9d2e6; opacity: 0; pointer-events: none; mix-blend-mode: screen; }
