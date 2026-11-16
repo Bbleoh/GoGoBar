@@ -48,7 +48,7 @@ const CONTENUTI = {
       descrizione: "Vai vai, segui il signore ultraottantenne vai... ottima idea.",
       tag: ['Paura', 'Bosco', 'Papi'],
       link: 'giochi/resident-crevil/',
-      immagine: 'giochi/resident-crevil/copertina.jpg?v=3',
+      immagine: 'giochi/resident-crevil/copertina.jpg?v=4',
     },
   ],
 
