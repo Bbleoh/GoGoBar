@@ -230,7 +230,7 @@ const pronto = Promise.all([
   TEX_PS1.forEach((n, i) => { TEX[n] = texPs1(resto[i]); });
   costruisci(bin, bosco, colori, osm, modello, roncola, modelloPapi, [TEX.corteccia, TEX.fronde]);
   // i figli di Papi arrivano dopo, mentre giochi già
-  Promise.all([promessa(gltf, 'modelli/caro.glb'), promessa(gltf, 'modelli/bimba.glb')])
+  Promise.all([promessa(gltf, 'modelli/caro.glb?v=2'), promessa(gltf, 'modelli/bimba.glb?v=2')])
     .then(([c, b]) => { creaFiglio(caro, c); creaFiglio(bimba, b); })
     .catch(e => console.warn('figli di Papi non caricati', e));
 });
@@ -723,6 +723,66 @@ function preparaFossiEPonti(osm) {
     const acqua = pr.liv[i] + 0.14, tQ = aQ / L + 0.5;
     const arco = Math.max(0.3, acqua + 1.75 - (yA + (yB - yA) * tQ));   // sotto ci passa l'acqua con un metro e mezzo d'aria
     PONTI.push({ x: cx, z: cz, rx: ux, rz: uz, L, W: tipo === 't' || tipo === 'p' ? 2.4 : 3.4, yA, yB, arco, aQ, acqua });
+  }
+}
+// Il sentiero del Greppo l'ha disegnato Leo sulla mappa, non segue il terreno: qui gli rifaccio il terreno
+// intorno (Leo, 17/11). Lungo il sentiero il profilo è lisciato, di traverso è in piano (una cengia scavata
+// nel pendio), e vicino al ponte sale o scende con calma fino alle spalle, alla loro quota.
+function spianaSentiero(s) {
+  const pts = [], prog = [];   // un punto ogni metro, con i metri fatti dall'inizio
+  for (let i = 1; i < s.length; i++) {
+    const [ax, az] = s[i - 1], [bx, bz] = s[i], l = Math.hypot(bx - ax, bz - az), n = Math.max(1, Math.round(l));
+    for (let k = i === 1 ? 0 : 1; k <= n; k++) { pts.push([ax + (bx - ax) * k / n, az + (bz - az) * k / n]); prog.push((prog.length ? prog[prog.length - 1] : 0) + (k ? l / n : 0)); }
+  }
+  const n = pts.length, h0 = pts.map(([x, z]) => quota(x, z));
+  // profilo lisciato (media su ±8 m, due passate), al massimo 2 m sopra o sotto il terreno vero
+  let h = h0.slice();
+  for (let pass = 0; pass < 2; pass++) {
+    const o = h.slice();
+    for (let k = 0; k < n; k++) { let t = 0, c = 0; for (let q = Math.max(0, k - 8); q <= Math.min(n - 1, k + 8); q++) { t += o[q]; c++; } h[k] = t / c; }
+  }
+  for (let k = 0; k < n; k++) h[k] = Math.max(h0[k] - 2, Math.min(h0[k] + 2, h[k]));
+  // i ponti: il tratto sopra il fosso non lo tocco; davanti alle spalle 3 m in piano, poi al massimo il 40% di pendenza
+  const salta = new Uint8Array(n), vicino = (x, z) => { let b = 0, m = Infinity; for (let k = 0; k < n; k++) { const d = Math.hypot(pts[k][0] - x, pts[k][1] - z); if (d < m) { m = d; b = k; } } return [b, m]; };
+  for (const p of PONTI) {
+    if (vicino(p.x, p.z)[1] > 1.5) continue;
+    const ends = [[p.x - p.rx * p.L / 2, p.z - p.rz * p.L / 2, p.yA], [p.x + p.rx * p.L / 2, p.z + p.rz * p.L / 2, p.yB]].map(([x, z, y]) => [vicino(x, z)[0], y]);
+    const lo = Math.min(ends[0][0], ends[1][0]), hi = Math.max(ends[0][0], ends[1][0]);
+    for (let k = lo + 1; k < hi; k++) salta[k] = 1;
+    for (const [ke, y] of ends) for (let k = 0; k < n; k++) {
+      if (k > lo && k < hi) continue;
+      const d = Math.max(0, Math.abs(prog[k] - prog[ke]) - 3);   // 3 m in piano davanti alla spalla
+      h[k] = Math.max(y - 0.4 * d, Math.min(y + 0.4 * d, h[k]));
+    }
+  }
+  // sul terreno: ogni nodo prende il punto di sentiero più vicino; in piano fino a 1,7 m, raccordo fino a 6 m
+  const best = new Map();
+  for (let k = 0; k < n; k++) {
+    const [x, z] = pts[k], i0 = Math.floor((x - 6 + HALF) / CELLA), j0 = Math.floor((z - 6 + HALF) / CELLA);
+    for (let j = j0; j <= j0 + 5; j++) for (let i = i0; i <= i0 + 5; i++) {
+      if (i < 0 || j < 0 || i >= N || j >= N) continue;
+      const d = Math.hypot(i * CELLA - HALF - x, j * CELLA - HALF - z), id = j * N + i, b = best.get(id);
+      if (d < 6 && (!b || d < b[0])) best.set(id, [d, k]);
+    }
+  }
+  for (const [id, [d, k]] of best) {
+    if (salta[k]) continue;
+    const kk = d < 1.7 ? 1 : 1 - (d - 1.7) / 4.3, w = kk * kk * (3 - 2 * kk);
+    let y = Q[id] + (h[k] - Q[id]) * w;
+    // vicino all'acqua il terreno può solo scendere: il letto dei fossi resta sgombro
+    if (y > Q[id] && distFosso((id % N) * CELLA - HALF, (id / N | 0) * CELLA - HALF) < 3.6) y = Q[id];
+    Q[id] = y;
+  }
+  // sotto le spalle (la muratura piena, fuori dall'arco) il terreno arriva alla quota del ponte:
+  // la griglia è di 2,5 m e senza questo, appena sceso dal ponte, ci sarebbe una buca verso il fosso
+  for (const p of PONTI) {
+    if (vicino(p.x, p.z)[1] > 1.5) continue;
+    const luce = Math.min(p.L / 2 - 1.1, 2.6), i0 = Math.floor((p.x - p.L + HALF) / CELLA), j0 = Math.floor((p.z - p.L + HALF) / CELLA);
+    for (let j = j0; j <= j0 + Math.ceil(2 * p.L / CELLA); j++) for (let i = i0; i <= i0 + Math.ceil(2 * p.L / CELLA); i++) {
+      if (i < 0 || j < 0 || i >= N || j >= N) continue;
+      const dx = i * CELLA - HALF - p.x, dz = j * CELLA - HALF - p.z, a = dx * p.rx + dz * p.rz, b = -dx * p.rz + dz * p.rx;
+      if (Math.abs(b) < p.W / 2 + 1.2 && Math.abs(a) > luce + 0.5 && Math.abs(a) <= p.L / 2 + 0.3) Q[j * N + i] = (a < 0 ? p.yA : p.yB) - 0.05;
+    }
   }
 }
 // il piano del ponte sotto i piedi (null se non ci sei sopra)
@@ -2001,17 +2061,16 @@ function aggiornaCaccia(dt, t) {
    si gira e scappa guardandosi indietro, e poco dopo arriva Papi arrabbiato, già di corsa.
    Bimba a volte sta seduta sul parapetto di un ponte e muove il piede; oppure gioca in giro. Appena
    ti vede ti viene incontro a calci: se ti prende ti stende, e ti risvegli col 15% di batteria in meno.
-   I modelli di Leo (modelli/caro.glb, bimba.glb) sono alleggeriti; per ora senza texture. */
-const caro = { g: new THREE.Group(), x: 0, z: 0, rot: 0, vel: 0, tinta: 0x6a645c, scala: 1, stato: 'assente', prossimo: 0, ballo: 0 };
-const bimba = { g: new THREE.Group(), x: 0, z: 0, rot: 0, vel: 0, tinta: 0x6e6460, scala: 1, stato: 'assente', prossimo: 0 };
+   I modelli di Leo (modelli/caro.glb, bimba.glb) sono alleggeriti, con le texture di Leo. Caro è alto 1,40 m, Bimba 2 m. */
+const caro = { g: new THREE.Group(), x: 0, z: 0, rot: 0, vel: 0, tinta: 0x77716a, altezza: 1.4, scala: 1, stato: 'assente', prossimo: 0, ballo: 0 };
+const bimba = { g: new THREE.Group(), x: 0, z: 0, rot: 0, vel: 0, tinta: 0x77716a, altezza: 2.0, scala: 1, stato: 'assente', prossimo: 0 };
 const BALLI = ['balla1', 'balla2', 'windmill', 'balla3'];
 const CALCI = ['calcioVolante', 'calcioAlto', 'calcioLato', 'calcio'];
 const GIOCHI_BIMBA = ['saltella', 'fermo', 'saltoBraccia', 'gironzola'];
 const COLPO_CALCIO = { calcioVolante: 0.32, calcioAlto: 0.4, calcioLato: 0.42, calcio: 0.4 };   // quando il piede arriva
-const ALTEZZA_FIGLI = 1.35;
 function creaFiglio(p, modello) {
   const bb = new THREE.Box3().setFromObject(modello.scene);
-  p.scala = ALTEZZA_FIGLI / Math.max(0.5, bb.max.y - bb.min.y);
+  p.scala = p.altezza / Math.max(0.5, bb.max.y - bb.min.y);
   preparaPersonaggio(p, modello);
   p.g.visible = false;
   const anca = p.corpo.getObjectByName('Hips');
@@ -3220,6 +3279,7 @@ function costruisci(bin, bosco, colori, osm, modello, roncola, modelloPapi, texA
     if (d < 3.4) { const k = Math.min(1, (3.4 - d) / 2.4); Q[j * N + i] -= 0.5 * k * k * (3 - 2 * k); }
   }
   preparaFossiEPonti(osm);
+  spianaSentiero(SENTIERO_GREPPO);
   scavaGreppo();
   // lo spiazzo della casa di Papi: terreno in piano sotto la casa, raccordato intorno
   {
