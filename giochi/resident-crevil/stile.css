@@ -22,6 +22,11 @@ body.carica #hud, body.fuori #hud, body.fuori #mirino { display: none; }
 .barra i { display: block; width: 110px; height: 6px; background: rgba(255,255,255,.12); border-radius: 3px; overflow: hidden; }
 .barra em { display: block; height: 100%; width: 100%; background: var(--carta); transition: background .3s; }
 .barra em.basso { background: var(--rosso); }
+.carica { display: flex; align-items: center; gap: 6px; opacity: .85; }
+.carica span { width: 18px; font-size: 13px; }
+.carica b { font-weight: 500; }
+.carica b.basso { color: var(--rosso); }
+#effetti { color: var(--oro); font-size: 12px; min-height: 1em; }
 .tondo { pointer-events: auto; background: rgba(0,0,0,.45); color: var(--carta); border: 1px solid rgba(233,228,214,.35); border-radius: 50%; width: 44px; height: 44px; font: 600 14px var(--mono); cursor: pointer; }
 #mirino { position: fixed; left: 50%; top: 50%; width: 4px; height: 4px; margin: -2px; border-radius: 50%; background: rgba(255,255,255,.35); pointer-events: none; }
 #prendi { position: fixed; left: 50%; top: 58%; transform: translateX(-50%); font-family: var(--mono); font-size: 14px; background: rgba(0,0,0,.55); padding: 6px 12px; border-radius: 6px; pointer-events: none; }

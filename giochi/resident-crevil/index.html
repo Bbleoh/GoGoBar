@@ -11,7 +11,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Special+Elite&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="stile.css?v=6"/>
+  <link rel="stylesheet" href="stile.css?v=7"/>
 </head>
 <body class="carica">
   <canvas id="scena"></canvas>
@@ -22,8 +22,9 @@
   <div id="hud">
     <div class="hud-sx">
       <div id="fogli">Fogli <b>0</b>/10</div>
-      <div class="barra" title="Batteria della torcia"><span>🔦</span><i><em id="batteria"></em></i></div>
+      <div class="carica" title="Carica del telefono"><span>📱</span><b id="batteria">100%</b></div>
       <div class="barra" title="Fiato"><span>💨</span><i><em id="fiato"></em></i></div>
+      <div id="effetti"></div>
     </div>
     <button id="pausa-btn" class="tondo" aria-label="Pausa">II</button>
   </div>
@@ -92,8 +93,8 @@
           <dt><kbd>Shift</kbd></dt><dd>corri</dd>
           <dt><kbd>Spazio</kbd></dt><dd>salta</dd>
           <dt><kbd>C</kbd> o <kbd>Ctrl</kbd></dt><dd>accovacciati</dd>
-          <dt><kbd>F</kbd></dt><dd>torcia</dd>
-          <dt><kbd>E</kbd> o clic</dt><dd>prendi il foglio</dd>
+          <dt><kbd>F</kbd></dt><dd>torcia del telefono</dd>
+          <dt><kbd>E</kbd> o clic</dt><dd>prendi (fogli e oggetti); con la roncola, mena</dd>
           <dt><kbd>M</kbd></dt><dd>telefono con la mappa (<kbd>Z</kbd> zoom)</dd>
           <dt><kbd>Esc</kbd></dt><dd>pausa</dd>
         </dl>
@@ -143,7 +144,7 @@
   </section>
 
   <section id="vittoria" class="schermo nascosto">
-    <h2>Dieci fogli</h2>
+    <h2>Papi è a terra</h2>
     <p id="vittoria-testo" class="sotto"></p>
     <div id="salva-box">
       <input id="nome" maxlength="20" placeholder="Il tuo nome" autocomplete="off"/>
@@ -163,6 +164,6 @@
   <script src="../../js/gogoldbar.js?v=7"></script>
   <script src="classifica.js?v=2" onerror="window.ResidentCrevilClassifica = null"></script>
   <script type="importmap">{ "imports": { "three": "./lib/three.module.min.js" } }</script>
-  <script type="module" src="gioco.js?v=9"></script>
+  <script type="module" src="gioco.js?v=10"></script>
 </body>
 </html>
