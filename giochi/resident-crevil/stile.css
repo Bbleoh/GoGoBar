@@ -126,3 +126,8 @@ body.lobby #menu { align-items: flex-start; padding-left: max(24px, 8vw, env(saf
   #menu .classifica { display: none; }
   .cornice.larga { max-height: calc(100vh - 24px); padding: 16px 18px; }
 }
+
+/* Controlli: si vedono quelli di ciò che stai usando (tastiera, controller o dita) */
+body.in-tastiera .per-pad, body.in-tastiera .per-tocco,
+body.in-pad .per-tastiera, body.in-pad .per-tocco,
+body.in-tocco .per-tastiera, body.in-tocco .per-pad { display: none; }

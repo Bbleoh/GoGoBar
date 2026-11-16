@@ -11,7 +11,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Special+Elite&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="stile.css?v=7"/>
+  <link rel="stylesheet" href="stile.css?v=8"/>
 </head>
 <body class="carica">
   <canvas id="scena"></canvas>
@@ -22,7 +22,6 @@
   <div id="hud">
     <div class="hud-sx">
       <div id="fogli">Fogli <b>0</b>/10</div>
-      <div class="carica" title="Carica del telefono"><span>📱</span><b id="batteria">100%</b></div>
       <div class="barra" title="Fiato"><span>💨</span><i><em id="fiato"></em></i></div>
       <div id="effetti"></div>
     </div>
@@ -86,8 +85,8 @@
     <div class="cornice larga">
       <h2 id="pannello-titolo">Controlli</h2>
       <div id="p-controlli" class="pagina">
-        <h3>Tastiera e mouse</h3>
-        <dl>
+        <h3 class="per-tastiera">Tastiera e mouse</h3>
+        <dl class="per-tastiera">
           <dt><kbd>W A S D</kbd></dt><dd>cammina</dd>
           <dt><kbd>Mouse</kbd></dt><dd>guarda</dd>
           <dt><kbd>Shift</kbd></dt><dd>corri</dd>
@@ -98,20 +97,20 @@
           <dt><kbd>M</kbd></dt><dd>telefono con la mappa (<kbd>Z</kbd> zoom)</dd>
           <dt><kbd>Esc</kbd></dt><dd>pausa</dd>
         </dl>
-        <h3>Controller</h3>
-        <dl>
+        <h3 class="per-pad">Controller</h3>
+        <dl class="per-pad">
           <dt>Levetta sinistra</dt><dd>cammina (premila per correre)</dd>
           <dt>Levetta destra</dt><dd>guarda</dd>
           <dt>LT</dt><dd>corri</dd>
           <dt>A</dt><dd>salta</dd>
           <dt>B</dt><dd>accovacciati</dd>
-          <dt>X</dt><dd>prendi il foglio</dd>
+          <dt>X</dt><dd>prendi (fogli e oggetti); con la roncola, mena</dd>
           <dt>Y</dt><dd>telefono (LB zoom)</dd>
           <dt>RB</dt><dd>torcia</dd>
           <dt>Start</dt><dd>pausa</dd>
         </dl>
-        <h3>Telefono</h3>
-        <dl>
+        <h3 class="per-tocco">Telefono</h3>
+        <dl class="per-tocco">
           <dt>Pollice sinistro</dt><dd>cammina</dd>
           <dt>Destra</dt><dd>trascina per guardare</dd>
           <dt>GPS</dt><dd>la mappa: tocca lo schermo per lo zoom</dd>
@@ -164,6 +163,6 @@
   <script src="../../js/gogoldbar.js?v=7"></script>
   <script src="classifica.js?v=2" onerror="window.ResidentCrevilClassifica = null"></script>
   <script type="importmap">{ "imports": { "three": "./lib/three.module.min.js" } }</script>
-  <script type="module" src="gioco.js?v=10"></script>
+  <script type="module" src="gioco.js?v=11"></script>
 </body>
 </html>
