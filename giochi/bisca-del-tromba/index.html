@@ -14,7 +14,8 @@
 <link rel="stylesheet" href="plinko.css?v=3">
 <link rel="stylesheet" href="portiere.css?v=2">
 <link rel="stylesheet" href="mine.css?v=1">
-<link rel="stylesheet" href="originali.css?v=1">
+<link rel="stylesheet" href="originali.css?v=2">
+<link rel="stylesheet" href="tromba-time.css?v=1">
 <style>
   :root{
     --gold:#d4af5a; --gold-light:#f3dc9a; --gold-dim:rgba(212,175,90,.35);
@@ -601,6 +602,11 @@
         <div class="tavolo-testo"><b>Keno</b><small>Scegli da 1 a 10 numeri su 40: il Tromba ne estrae 10. Più ne prendi, più paga.</small></div>
         <kbd>K</kbd>
       </button>
+      <button class="tavolo" onclick="vaiA('ttime')">
+        <div class="tavolo-img og-img"><div class="mini-ttime-box"><div class="mini-ttime"></div></div></div>
+        <div class="tavolo-testo"><b>Tromba Time</b><small>La ruota dei bonus: punta su 1, 2, 5, 10 o sui quattro bonus. Il Top Slot moltiplica fino a 20 volte.</small></div>
+        <kbd>W</kbd>
+      </button>
     </div>
     </div>
   </section>
@@ -732,6 +738,7 @@
   <section id="torre" class="og-sez" aria-label="Torre del Drago"></section>
   <section id="talpe" class="og-sez" aria-label="Moles"></section>
   <section id="keno" class="og-sez" aria-label="Keno"></section>
+  <section id="ttime" class="og-sez" aria-label="Tromba Time"></section>
 
   <!-- ══ MINE (logica in mine.js) ══ -->
   <section id="mine" aria-label="Mine">
@@ -904,7 +911,7 @@ function slotOccupata() { return typeof sOccupata === 'function' && sOccupata();
 function plinkoOccupato() { return typeof pOccupata === 'function' && pOccupata(); }
 function portiereOccupato() { return typeof ptOccupato === 'function' && ptOccupato(); }
 function mineOccupato() { return typeof mnOccupato === 'function' && mnOccupato(); }
-// Hi-Lo, Dice, Torre del Drago, Moles e Keno si registrano qui (originali.js): id → gioco
+// Hi-Lo, Dice, Torre del Drago, Moles, Keno e Tromba Time si registrano qui (originali.js): id → gioco
 const ORIGINALI = {};
 function originaliOccupati() { return Object.values(ORIGINALI).some(g => g.occupato()); }
 function tavoloLibero() { return phase === 'bet' && !rouletteOccupata() && !slotOccupata() && !plinkoOccupato() && !portiereOccupato() && !mineOccupato() && !originaliOccupati(); }
@@ -1740,7 +1747,9 @@ const STATS_ZERO = {
   dcPartite:0, dcVinte:0, dcVincitaMax:0, dcMoltMax:0,
   trPartite:0, trVinte:0, trVincitaMax:0, trMoltMax:0,
   tlPartite:0, tlVinte:0, tlVincitaMax:0, tlMoltMax:0,
-  knPartite:0, knVinte:0, knVincitaMax:0, knMoltMax:0
+  knPartite:0, knVinte:0, knVincitaMax:0, knMoltMax:0,
+  // tromba time (tromba-time.js)
+  ttPartite:0, ttVinte:0, ttVincitaMax:0, ttMoltMax:0, ttBonus:0
 };
 let stats  = Object.assign({}, STATS_ZERO);
 let trofei = {}; // id → data ISO di sblocco
@@ -2537,7 +2546,7 @@ document.addEventListener('keydown', e => {
   if (e.key === 'Escape' && document.getElementById('lb-panel').classList.contains('open')) { toggleLeaderboard(); return; }
   if (document.getElementById('overlay').classList.contains('show')) return;
   if (gioco === 'lobby') {
-    const t = { b: 'blackjack', r: 'roulette', s: 'slot', p: 'plinko', g: 'portiere', m: 'mine', h: 'hilo', d: 'dado', t: 'torre', o: 'talpe', k: 'keno' }[e.key.toLowerCase()];
+    const t = { b: 'blackjack', r: 'roulette', s: 'slot', p: 'plinko', g: 'portiere', m: 'mine', h: 'hilo', d: 'dado', t: 'torre', o: 'talpe', k: 'keno', w: 'ttime' }[e.key.toLowerCase()];
     if (t && run) { e.preventDefault(); vaiA(t); }
     return;
   }
@@ -2666,5 +2675,6 @@ setCroupier('init');
 <script src="torre.js?v=1"></script>
 <script src="talpe.js?v=1"></script>
 <script src="keno.js?v=1"></script>
+<script src="tromba-time.js?v=1"></script>
 </body>
 </html>

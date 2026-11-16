@@ -27,6 +27,7 @@ body[data-gioco="talpe"] #talpe,body[data-gioco="keno"] #keno{display:flex;}
 .mn-seg .bet-tool.scelto{background:rgba(212,175,90,.25);border-color:var(--gold);color:#fff3c4;}
 .og-vincita.pos{color:var(--win);text-shadow:0 0 8px rgba(61,220,132,.4);} .og-vincita.neg{color:var(--lose);text-shadow:none;}
 .og-azioni{display:grid;grid-template-columns:1fr 1.6fr 1fr;gap:8px;align-items:center;}
+.og-azioni>*{min-width:0;}
 .og-azioni.senza-auto{grid-template-columns:1fr 1.6fr;}
 .og-azioni .og-sec[hidden]+.og-gioca{grid-column:1 / span 2;}
 .og-auto{min-height:52px;padding:0 8px;font-size:.72rem;}
