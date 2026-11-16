@@ -28,19 +28,19 @@ const CONTENUTI = {
 
   giochi: [
     {
-      titolo: 'Corri Marf!',
-      descrizione: "Allora, è un gioco stra mega divertente perché c'è Marf che corre e scappa dalle femmine.",
-      tag: ['Follia', 'Divertimento', 'Wow'],
-      link: 'giochi/corri-marf/',
-      immagine: 'giochi/corri-marf/copertina.jpg?v=5',
-      inEvidenza: true,
-    },
-    {
       titolo: 'La Bisca der Tromba',
       descrizione: 'Godi popolo',
       link: 'giochi/bisca-del-tromba/',
       immagine: 'giochi/bisca-del-tromba/assets/copertina.jpg?v=2',
       tag: ['Bighelloni', 'Dipendenza', 'Salute'],
+      inEvidenza: true,
+    },
+    {
+      titolo: 'Corri Marf!',
+      descrizione: "Allora, è un gioco stra mega divertente perché c'è Marf che corre e scappa dalle femmine.",
+      tag: ['Follia', 'Divertimento', 'Wow'],
+      link: 'giochi/corri-marf/',
+      immagine: 'giochi/corri-marf/copertina.jpg?v=5',
       inEvidenza: true,
     },
     {
