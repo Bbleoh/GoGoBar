@@ -11,7 +11,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Special+Elite&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="stile.css?v=9"/>
+  <link rel="stylesheet" href="stile.css?v=10"/>
 </head>
 <body class="carica">
   <canvas id="scena"></canvas>
@@ -28,7 +28,6 @@
     </div>
     <button id="pausa-btn" class="tondo" aria-label="Pausa">II</button>
   </div>
-  <div id="mirino"></div>
   <div id="prendi" class="nascosto">Prendi il foglio <kbd>E</kbd></div>
   <div id="dialogo" class="nascosto"><b id="chi">Guerrino</b><p id="battuta"></p></div>
   <div id="didascalia" class="nascosto"></div>
@@ -63,7 +62,6 @@
       <nav class="voci">
         <button id="gioca" class="voce">Gioca</button>
         <button id="modo" class="voce modo">Difficoltà: <b>Normale</b></button>
-        <p id="modo-nota" class="modo-nota"></p>
         <button class="voce" data-pannello="controlli">Controlli</button>
         <button class="voce" data-pannello="impostazioni">Impostazioni</button>
         <button class="voce" data-pannello="crediti">Crediti</button>
@@ -166,6 +164,6 @@
   <script src="../../js/gogoldbar.js?v=7"></script>
   <script src="classifica.js?v=3" onerror="window.ResidentCrevilClassifica = null"></script>
   <script type="importmap">{ "imports": { "three": "./lib/three.module.min.js" } }</script>
-  <script type="module" src="gioco.js?v=12"></script>
+  <script type="module" src="gioco.js?v=13"></script>
 </body>
 </html>

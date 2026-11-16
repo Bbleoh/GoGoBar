@@ -1,6 +1,6 @@
 /* Il mixer di Resident Crevil: un fader per canale (mix.js), anteprima dei suoni, mix salvato nel
    browser e mandato in diretta al gioco aperto in un'altra scheda. */
-import { CANALI, PEZZI, GIRO, INIZIO_GIRO, CHIAVE, CANALE_DIRETTA, caricaMix, lineare } from './mix.js?v=3';
+import { CANALI, PEZZI, GIRO, INIZIO_GIRO, CHIAVE, CANALE_DIRETTA, caricaMix, lineare } from './mix.js?v=4';
 
 const $ = id => document.getElementById(id);
 const MIN = -48, MAX = 12;           // in fondo al fader = spento

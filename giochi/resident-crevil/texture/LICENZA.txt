@@ -7,3 +7,5 @@ corteccia, fronde: ricavate dalle texture del modello "Island Tree 01" di Poly H
   (https://polyhaven.com/a/island_tree_01), CC0: rimpicciolite e ridotte a pochi colori.
 
 Licenza: https://creativecommons.org/publicdomain/zero/1.0/
+
+papi-chiama.jpg: la foto di Papi quando ti chiama sul telefono, data da Leo (Bbleoh).

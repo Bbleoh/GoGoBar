@@ -16,7 +16,7 @@ import * as THREE from 'three';
 import { GLTFLoader } from './lib/addons/loaders/GLTFLoader.js';
 import { MeshoptDecoder } from './lib/addons/libs/meshopt_decoder.module.js';
 import { mergeGeometries } from './lib/addons/utils/BufferGeometryUtils.js';
-import { PEZZI, GIRO, INIZIO_GIRO, CANALE_DIRETTA, caricaMix, lineare } from './mix.js?v=3';
+import { PEZZI, GIRO, INIZIO_GIRO, CANALE_DIRETTA, caricaMix, lineare } from './mix.js?v=4';
 
 const VELOCE = /veloce/.test(location.search);
 const PROVA = { congela: false, tempo: 1 };   // per i test: ferma la storia (Guerrino e Papi), accelera il tempo
@@ -81,6 +81,7 @@ const BATTUTE = {
     "Mo' me so' stancato pure d'esse stanco.",
     "'St'albero me guarda storto da quarant'anni. Mo' je faccio vede' io.",
   ],
+  pausa: ["Pausa. Er pugno ce l'ho, er fiato no.", "Mezzo minuto e ricomincio, eh.", "Me riposo, ma l'albero nun se ne va."],
   mena: ["Pija questa!", "E questa è pe' mi' cognato!", "Nun me guardà, cerca i fogli!", "Quarant'anni che me guardi storto!", "Ahia. Vabbè, continuo.", "Er fiato nun ce l'ho, ma er pugno sì."],
   indietro: ["Daje, che c'hai le gambe de ricotta?", "Ahò, de qua!", "Nun me fa' tornà indietro.", "Sbrighete, che fa freddo."],
   caccia: ["CRIVO! È ARIVATA L'ALTRA BESTIA!", "Nun la guardà fissa, che je piace!", "Corri, Crivo! L'altra bestia è arta quattro metri e mezzo, mica è scema!", "Ahò, bestia! Lassalo stà, che è er fijo de...!", "Viè alla Fonticella, che qua l'altra bestia nun ce mette piede!"],
@@ -117,8 +118,8 @@ const camera = new THREE.PerspectiveCamera(70, innerWidth / innerHeight, 0.08, 9
 scena.add(camera);
 // il telefono in mano si disegna a parte, sopra, a piena risoluzione: la mappa sullo schermo deve leggersi
 const telCanvas = document.createElement('canvas'); telCanvas.id = 'telefono3d'; canvas.after(telCanvas);
-const rendTel = new THREE.WebGLRenderer({ canvas: telCanvas, alpha: true, antialias: true });
-rendTel.setPixelRatio(Math.min(devicePixelRatio || 1, 1.5)); rendTel.outputColorSpace = THREE.SRGBColorSpace; rendTel.setClearColor(0x000000, 0);
+const rendTel = new THREE.WebGLRenderer({ canvas: telCanvas, alpha: true, antialias: false });
+rendTel.setPixelRatio(1); rendTel.outputColorSpace = THREE.SRGBColorSpace; rendTel.setClearColor(0x000000, 0);
 const scenaTel = new THREE.Scene(), camTel = new THREE.PerspectiveCamera(70, innerWidth / innerHeight, 0.01, 3);
 let telDisegnato = false;
 
@@ -150,7 +151,9 @@ function ridimensiona() {
   PS1.ris.value.set(w / 2, h / 2);
   camera.aspect = innerWidth / innerHeight;
   camera.updateProjectionMatrix();
-  rendTel.setSize(innerWidth, innerHeight, false); camTel.aspect = camera.aspect; camTel.updateProjectionMatrix();
+  // il telefono a metà strada: pixel il doppio più piccoli del bosco (PS1.altezza), ma sempre pixel
+  const hT = Math.min(innerHeight * (devicePixelRatio || 1), PS1.altezza * 2);
+  rendTel.setSize(Math.round(hT * innerWidth / innerHeight), hT, false); camTel.aspect = camera.aspect; camTel.updateProjectionMatrix();
 }
 ridimensiona();
 const cielo = new THREE.HemisphereLight(0x4a5a7a, 0x10120c, 1.1);
@@ -1064,10 +1067,39 @@ function creaPapi(modello) {
   for (const m of papi.mat) m.fog = false;   // la nebbia gliela metto io: vedi aspettoPapi
   papi.g.visible = false;
   recita(papi, 'gattona');
+  // gli occhi: un filo di luce verde, che nell'ombra delle fratte lo tradisce
+  papi.testa = papi.corpo.getObjectByName('Head');
+  const cv = document.createElement('canvas'); cv.width = cv.height = 32;
+  const c2 = cv.getContext('2d'), gr = c2.createRadialGradient(16, 16, 0, 16, 16, 16);
+  gr.addColorStop(0, 'rgba(255,255,255,1)'); gr.addColorStop(0.25, 'rgba(255,255,255,.55)'); gr.addColorStop(1, 'rgba(255,255,255,0)');
+  c2.fillStyle = gr; c2.fillRect(0, 0, 32, 32);
+  const tex = new THREE.CanvasTexture(cv); tex.generateMipmaps = false; tex.minFilter = THREE.LinearFilter;   // piccolo da lontano: senza mipmap non si spegne
+  papi.occhi = [-1, 1].map(lato => {
+    const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, color: 0x7dff70, blending: THREE.AdditiveBlending, transparent: true, depthWrite: false, fog: false, opacity: 0 }));
+    s.userData.lato = lato; s.visible = false; scena.add(s); return s;
+  });
+}
+const _occhio = new THREE.Vector3(), OCCHI = [0.04, 0, 0.19];
+function occhiPapi() {
+  if (!papi.occhi || !papi.testa) return;
+  const su = papi.g.visible && papi.pres > 0.02 && papi.stato !== 'assente' && papi.stato !== 'preso';
+  for (const s of papi.occhi) s.visible = su;
+  if (!su) return;
+  papi.testa.updateWorldMatrix(true, false);
+  const d = Math.hypot(io.x - papi.x, io.z - papi.z), nebbia = Math.exp(-Math.pow(scena.fog.density * d, 2) * 0.6);
+  for (const s of papi.occhi) {
+    // in coordinate della testa (modello alto 1,89; l'asse y dell'osso guarda in giù): sopra l'osso e un dito in avanti
+    papi.testa.localToWorld(_occhio.set(s.userData.lato * OCCHI[0], OCCHI[1], OCCHI[2]));
+    s.position.copy(_occhio);
+    const lato = 0.03 + Math.min(d, 60) * 0.014;    // mai meno di un paio di pixel, anche da lontano
+    s.scale.set(lato, lato, 1);
+    s.material.opacity = 0.75 * papi.pres * Math.max(0.3, nebbia) * Math.max(0, Math.min(1, (d - 2.5) / 3));   // da vicino lo vedi in faccia: il riflesso sparisce
+  }
 }
 // Da lontano Papi è una sagoma nera contro la nebbia grigia (prende meno nebbia degli alberi, così
 // stacca); da vicino, alla torcia, si vede com'è. Compare e sparisce sfumando nella nebbia.
 function aspettoPapi(dt) {
+  occhiPapi();
   if (!papi.g.visible) return;
   const passo = dt / 1.1;
   papi.pres += Math.max(-passo, Math.min(passo, papi.presV - papi.pres));
@@ -1093,7 +1125,7 @@ const papiGiu = (fade = 0.3) => papiInPiedi(fade, PAPI_GIU);
 function animaGuerrino(dt) {
   if (!guerrino.mixer) return;
   guerrino.g.visible = Math.hypot(guerrino.x - io.x, guerrino.z - io.z) < 75;
-  if (!guerrino.g.visible) return;
+  if (!guerrino.g.visible && !guerrino.mena) return;
   const cam = guerrino.az.cammina;
   if (guerrino.corrente === cam && cam) {
     const v = guerrino.vel || 0;
@@ -1154,7 +1186,7 @@ function preparaAudio() {
     dove.add(a); return a;
   };
   // i colpi di Guerrino sull'albero rimbombano nel bosco: si sentono da lontano e ti riportano da lui
-  pugnoAudio = posizionale(guerrino.g, 10, 1.2); pugnoAudio.setRolloffFactor(0.55);
+  pugnoAudio = posizionale(guerrino.g, 10, 1.2); pugnoAudio.setDistanceModel('linear'); pugnoAudio.setRolloffFactor(0);   // il volume lo fa colpiLontano()
   { const f = eco(ascolto.context); pugnoAudio.setFilters(f); pugnoUmido = f.umido; }
   papiVoce = posizionale(papi.g, 8, 2);
   papiPassi = posizionale(papi.g, 7, 0.2);
@@ -1283,7 +1315,7 @@ function aggiornaMusica(dt) {
   ob['papi-in-vista'] = ce && papi.vis > 0 ? 1 : 0;
   ob.fiato = lim((1 - io.fiato) * 1.3);   // il battito: sale mentre consumi il fiato, scende mentre lo recuperi
   ob.torcia = io.torcia ? 1 : 0;
-  ob.distanza = lim((Math.hypot(io.x - tel.paese[0], io.z - tel.paese[1]) - 90) / 330);   // zitto in paese, pieno in fondo alla mappa
+  ob.distanza = lim((380 - Math.hypot(io.x - CASA.x, io.z - CASA.z)) / 330);   // più ti avvicini alla casa di Papi, più sale (pieno a 50 m)
   const ora = ascolto.context.currentTime;
   for (const n in MUS.pezzi) {
     const pz = MUS.pezzi[n], v = ob[n] || 0;
@@ -1442,6 +1474,11 @@ function muoviGiocatore(dt) {
     if (d < m && d > 0.0001) { p.x = t.x + ddx / d * m; p.z = t.z + ddz / d * m; }
   });
   spingiFuoriCase(p, 0.35);
+  // Guerrino è ciccia e ossa: non gli passi attraverso
+  if (guerrino.mixer) {
+    const gx = p.x - guerrino.x, gz = p.z - guerrino.z, gd = Math.hypot(gx, gz), gm = 0.62;
+    if (gd < gm && gd > 1e-4) { p.x = guerrino.x + gx / gd * gm; p.z = guerrino.z + gz / gd * gm; }
+  }
   p.x = Math.max(-LIMITE, Math.min(LIMITE, p.x)); p.z = Math.max(-LIMITE, Math.min(LIMITE, p.z));
   // giù dal ciglio: sulla parete del Greppo non si sta in piedi
   if (!io.alto && sulPonte(p.x, p.z) === null && pendenza(p.x, p.z) > 1.4 && suoloIo(p.x, p.z) < suoloIo(io.x, io.z) - 0.02) { io.x = p.x; io.z = p.z; cadi(); return; }
@@ -1521,18 +1558,20 @@ function provaPrendere() {
 const coda = []; let parlando = null, tParla = 0, tScrivi = 0, tBlip = 0;
 // Guerrino da lontano non lo senti, tranne quando urla dell'altra bestia
 const UDITO = 22;
-function dici(testo, durata) { coda.push({ testo, durata: durata || 2600 + testo.length * 45, urla: /altra bestia/i.test(testo) }); }
+// forte = si sente da lontano (le urla dell'altra bestia, il "vabbè" quando te ne vai)
+function dici(testo, durata, forte) { coda.push({ testo, durata: durata || 2600 + testo.length * 45, urla: forte || /altra bestia/i.test(testo) }); }
+let dialogoSu = false;
 function aggiornaDialogo(dt) {
   while (!parlando && coda.length && !coda[0].urla && storia !== 'casa' && Math.hypot(io.x - guerrino.x, io.z - guerrino.z) > UDITO) coda.shift();
-  if (!parlando && coda.length) { parlando = coda.shift(); tParla = 0; tScrivi = 0; tBlip = -2; ui.battuta.textContent = ''; mostra('dialogo', true); }
-  if (!parlando) return;
+  if (!parlando && coda.length) { parlando = coda.shift(); tParla = 0; tScrivi = 0; tBlip = -2; ui.battuta.textContent = ''; mostra('dialogo', true); dialogoSu = true; }
+  if (!parlando) { if (dialogoSu) { dialogoSu = false; mostra('dialogo', false); } return; }
   tParla += dt * 1000;
   const n = Math.min(parlando.testo.length, Math.floor(tParla / 28));
   if (n !== tScrivi) {
     tScrivi = n; ui.battuta.textContent = parlando.testo.slice(0, n);
     if (n - tBlip >= 2 && /[a-zàèéìòù]/i.test(parlando.testo[n - 1] || '')) { tBlip = n; blip(); }
   }
-  if (tParla > parlando.durata) { parlando = null; if (!coda.length) mostra('dialogo', false); }
+  if (tParla > parlando.durata) parlando = null;
 }
 let tDid = null;
 function didascalia(testo, ms = 4500) {
@@ -1596,9 +1635,19 @@ function conLaRoncola(tr) {
   const d = o => o ? Math.hypot(o.getWorldPosition(_a).x - tr.x, _a.z - tr.z) : Infinity;
   return d(dx) < Math.min(d(sx), d(pd), d(ps));
 }
+// i colpi da lontano: −6 dB ogni 100 metri, senza scalini (a 600 m −36 dB, ma si sentono)
+const colpiLontano = d => Math.pow(10, -6 * d / 100 / 20);
 // Guerrino mena l'albero, per sempre: una mossa dopo l'altra, col botto a tempo
 function aggiornaMena(dt, t) {
   const tr = guerrino.albero;
+  if (guerrino.riposo) { riposoGuerrino(dt, t); return; }
+  guerrino.tMena = (guerrino.tMena || 0) + dt;
+  if (guerrino.tMena > 60 && guerrino.corrente && (finita(guerrino) || guerrino.colpiFatti >= (COLPI[guerrino.nomeAz] || []).length)) {
+    guerrino.riposo = 1; guerrino.tappa = 0; guerrino.posto = [guerrino.x, guerrino.z];
+    guerrino.giro = [daFonte(-1.7, 1.1), SEDILE];
+    recita(guerrino, 'cammina', false, 0.4);
+    return;
+  }
   if (!guerrino.corrente || finita(guerrino) || guerrino.nomeAz === 'cammina') {
     guerrino.mossa = (guerrino.mossa + 1) % MOSSE.length;
     const nome = MOSSE[guerrino.mossa];
@@ -1616,7 +1665,7 @@ function aggiornaMena(dt, t) {
       let k; do { k = Math.random() * 12 | 0; } while (k === guerrino.ultimoColpo);
       guerrino.ultimoColpo = k;
       pugnoAudio.setBuffer(buf[tipo + k]);
-      pugnoAudio.setPlaybackRate(0.96 + Math.random() * 0.08); pugnoAudio.setVolume(0.9 * mixG('colpi'));
+      pugnoAudio.setPlaybackRate(0.96 + Math.random() * 0.08); pugnoAudio.setVolume(0.9 * mixG('colpi') * colpiLontano(Math.hypot(io.x - guerrino.x, io.z - guerrino.z)));
       if (pugnoAudio.isPlaying) pugnoAudio.stop();
       pugnoAudio.play();
     }
@@ -1627,11 +1676,42 @@ function aggiornaMena(dt, t) {
   if (d < 7 && t > guerrino.prossimo && storia !== 'caccia') { guerrino.prossimo = t + 14; dici(pesca(BATTUTE.mena), 2600); }
 }
 
+// la pausa: va alla vasca, si siede trenta secondi, torna all'albero
+function riposoGuerrino(dt, t) {
+  const r = guerrino.riposo;
+  if (r === 1) { if (camminaSu(guerrino.giro, dt, 0.9, 0.08)) guerrino.riposo = 2; }
+  else if (r === 2) {
+    giraVerso(FONTE.rot, dt, 5);
+    if (Math.abs(Math.sin((FONTE.rot - guerrino.rot) / 2)) < 0.04) {
+      guerrino.riposo = 3; guerrino.tRiposo = 0;
+      guerrino.x = SEDILE[0]; guerrino.z = SEDILE[1]; guerrino.rot = FONTE.rot;
+      recita(guerrino, 'stanco', false, 0.5);
+      if (storia !== 'caccia') dici(pesca(BATTUTE.pausa), 2600);
+    }
+  } else if (r === 3) {
+    if ((guerrino.tRiposo += dt) > (VELOCE ? 8 : 30)) {
+      guerrino.riposo = 4; guerrino.tappa = 0; guerrino.giro = [daFonte(-1.7, 1.1), guerrino.posto];
+      recita(guerrino, 'cammina', false, 0.5);
+    }
+  } else if (camminaSu(guerrino.giro, dt, 0.9, 0.08)) {
+    guerrino.riposo = 0; guerrino.tMena = 0; guerrino.mossa = -1; guerrino.prossimo = t + 10;
+  }
+  disegna(guerrino);
+  if (guerrino.riposo === 3) guerrino.g.position.y = quota(FONTE.x, FONTE.z);   // seduto sulla vasca
+}
+
 function aggiornaStoria(dt, t) {
   tStoria += dt;
   guerrino.vel = 0;
   if (guerrino.mena) aggiornaMena(dt, t);
   const dGioc = Math.hypot(io.x - guerrino.x, io.z - guerrino.z);
+  // te ne vai mentre ti spiega le cose (oltre 50 m): "vabbè, fa' come te pare", e va a menare l'albero in silenzio
+  if (!guerrino.zitto && dGioc > 50 && (storia === 'intro' || storia === 'strada' || (storia === 'fonte' && guerrino.fase < 5))) {
+    guerrino.zitto = true; coda.length = 0; parlando = null;
+    dici("Vabbè, fa' come te pare.", 2800, true);
+    if (storia === 'intro') { storia = 'strada'; tStoria = 0; guerrino.tappa = 0; }
+    else if (storia === 'fonte') { guerrino.fase = 5; recita(guerrino, 'cammina', false, 0.5); }
+  }
   if (storia === 'intro') {
     giraVerso(guardaVerso(io.x, io.z), dt, 3);
     disegna(guerrino);
@@ -1643,8 +1723,8 @@ function aggiornaStoria(dt, t) {
     // non ti aspetta: va alla Fonticella per conto suo
     const prima = guerrino.tappa;
     const arrivato = camminaSu(PERCORSO, dt, 1.25);
-    if (guerrino.tappa !== prima && TAPPE_FRASI[guerrino.tappa] !== undefined) dici(BATTUTE.strada[TAPPE_FRASI[guerrino.tappa]]);
-    if (arrivato) { storia = 'fonte'; tStoria = 0; guerrino.fase = 0; }
+    if (guerrino.tappa !== prima && !guerrino.zitto && TAPPE_FRASI[guerrino.tappa] !== undefined) dici(BATTUTE.strada[TAPPE_FRASI[guerrino.tappa]]);
+    if (arrivato) { storia = 'fonte'; tStoria = 0; guerrino.fase = guerrino.zitto ? 5 : 0; }
     disegna(guerrino);
     return;
   }
@@ -1856,6 +1936,21 @@ function passoPapi(ogni, vol) {
 }
 
 let staticoOb = 0, dettoSicuro = false;
+// scappato davvero: lontano, e da un po' non lo vedi più
+const FUGA = 34;
+function scappato(d, vis) { return vis === 0 && (d > 48 || (d > FUGA && papi.tPerso > 2.5)); }
+// se lo guardi dritto in faccia si innervosisce: trema, sbuffa, e parte prima
+function nervosoPapi(dt, vis) {
+  const dritto = vis > 0 && Math.abs(_v.x) < 0.3 && Math.abs(_v.y) < 0.45;
+  papi.nervoso = Math.max(0, Math.min(1, (papi.nervoso || 0) + (dritto ? dt * 0.55 : -dt * 0.25)));
+  if (papi.nervoso > 0.45 && !papi.sbuffato) { papi.sbuffato = true; versoPapi('frasche', 0.9, 1.35); }
+  if (papi.nervoso < 0.15) papi.sbuffato = false;
+  if (papi.stato !== 'assente' && papi.nervoso > 0.05) {
+    const n = papi.nervoso;
+    papi.g.rotation.y = papi.rot + (Math.random() - 0.5) * 0.2 * n;
+    papi.g.rotation.z = (Math.random() - 0.5) * 0.07 * n;
+  }
+}
 function aggiornaCaccia(dt, t) {
   tCaccia += dt;
   livello = io.fogli + tCaccia / 120;
@@ -1864,6 +1959,8 @@ function aggiornaCaccia(dt, t) {
   const basso = papi.stato === 'agguato' || (papi.stato === 'osserva' && papi.giu);
   const vis = papi.vis = papi.stato === 'assente' ? 0 : visibileDaMe(papi, 45, basso ? 1.2 : 3.2);
   const sicuro = alSicuro();
+  papi.tPerso = vis > 0 ? 0 : (papi.tPerso || 0) + dt;
+  const ner = 1 + (papi.nervoso || 0) * 0.35;   // nervoso va più svelto
   // quanti secondi lo puoi fissare prima che parta (accovacciato ti nota meno; la luce del telefono di più)
   const fissa = 5.5 - Math.min(3, livello * 0.25) + (io.giu ? 2 : 0) - (tel.aperto ? 1.5 : 0) + (io.tDrummini > 0 ? 1.5 : 0);
   const pausa = Math.max(8, 26 - livello * 1.6);     // quanto ti lascia in pace quando se ne va
@@ -1882,15 +1979,15 @@ function aggiornaCaccia(dt, t) {
     giraVerso(guardaVerso(io.x, io.z, papi), dt, 2, papi); disegna(papi);
     if (vis > 0) { papi.tVista += dt; papi.tVia = 0; if (!papi.visto && papi.tVista > 0.5) papi.visto = papi.cicloVisto = true; }
     else papi.tVia += dt;
-    if (sicuro) { if (t > papi.fine) sparisce(t, 12); }
-    else if (papi.visto && (papi.tVista > fissa || d < 9)) attacca(t, true);        // lo fissi, o gli vai addosso: ti corre incontro
+    if (sicuro) { if (t > papi.fine && vis === 0) sparisce(t, 12); }
+    else if (papi.visto && (papi.tVista + (papi.nervoso || 0) * 2.5 > fissa || d < 9)) attacca(t, true);        // lo fissi, o gli vai addosso: ti corre incontro
     else if (papi.visto && papi.tVia > 0.7) {
       // ti sei girato
       const pAtt = Math.min(0.85, (0.1 + livello * 0.07) * (io.giu ? 0.5 : 1) * (io.tDrummini > 0 ? 0.6 : 1) + (tel.aperto ? 0.2 : 0)), q = Math.random();
       const vicino = papi.salti < 2 && q >= pAtt && q < pAtt + 0.5 ? postoPerPapi(Math.max(11, d * 0.62)) : null;
-      if (q < pAtt) attacca(t, false);
-      else if (vicino) { papi.salti++; viaPapi(true); appare(vicino, t); }
-      else sparisce(t, pausa);
+      // ti sei girato: o ti viene dietro, o si rimette più vicino (mai mentre lo vedi). Andarsene no.
+      if (vicino && q >= pAtt) { papi.salti++; viaPapi(true); appare(vicino, t); }
+      else attacca(t, false);
     } else if (!papi.visto && t > papi.fine && vis === 0) {
       // non l'hai notato: si rimette davanti a te (se l'avevi già visto, alla terza perde la pazienza)
       const posto = postoPerPapi(Math.max(13, d * 0.85));
@@ -1900,14 +1997,14 @@ function aggiornaCaccia(dt, t) {
     }
   } else if (papi.stato === 'agguato') {
     // a quattro zampe: se lo guardi si ferma, se ti giri ti viene dietro svelto
-    if (vis === 0) { avanzaPapi(dt, (papi.nomeAz === 'gattona' ? 3.0 : 2.5) + livello * 0.08); passoPapi(2.2, 0.35); papi.tFisso = Math.max(0, papi.tFisso - dt); }
+    if (vis === 0) { avanzaPapi(dt, ((papi.nomeAz === 'gattona' ? 3.0 : 2.5) + livello * 0.08) * ner); passoPapi(2.2, 0.35); papi.tFisso = Math.max(0, papi.tFisso - dt); }
     else { giraVerso(guardaVerso(io.x, io.z, papi), dt, 3, papi); papi.tFisso += dt; }
     disegna(papi);
     if (d < 9 + livello * 0.3) {
       papi.stato = 'salta'; papi.tSalto = 0; const a = recita(papi, 'salto', true, 0.1); if (a) a.timeScale = 1.25;
       versoPapi('frasche', 1, 0.6);
-    } else if (papi.tFisso > fissa + 1.5 && d < 20) attacca(t, true);
-    else if (t > papi.fine && vis === 0) sparisce(t, pausa);
+    } else if (papi.tFisso + (papi.nervoso || 0) * 2 > fissa + 1.5 && d < 20) attacca(t, true);
+    else if (scappato(d, vis)) sparisce(t, pausa);
   } else if (papi.stato === 'salta') {
     // il balzo: nella parte in volo dell'animazione ti viene addosso
     papi.tSalto += dt;
@@ -1917,14 +2014,19 @@ function aggiornaCaccia(dt, t) {
     disegna(papi);
     if (fr > 0.62 || finita(papi)) { papi.stato = 'insegue'; papi.fine = t + 8 + Math.random() * 5; papi.tSaltoOk = t + 3; recita(papi, 'corsa', false, 0.3); }
   } else if (papi.stato === 'insegue') {
-    avanzaPapi(dt, 3.4 + livello * 0.14);
+    avanzaPapi(dt, Math.min(4.4, 3.4 + livello * 0.12) * ner);
     passoPapi(1.9, 1);
     disegna(papi);
     // abbastanza vicino: si lancia
     if (d < 10 && t > (papi.tSaltoOk || 0)) { papi.stato = 'salta'; papi.tSalto = 0; const a = recita(papi, 'salto', true, 0.12); if (a) a.timeScale = 1.25; versoPapi('frasche', 1, 0.6); }
-    if ((t > papi.fine && vis === 0) || t > papi.fine + 7) sparisce(t, pausa);
+    if (scappato(d, vis)) sparisce(t, pausa);
+    else if (papi.stato === 'insegue' && t > papi.fine) {
+      // la corsa lo stanca: torna giù a quattro zampe, ma non molla
+      papi.stato = 'agguato'; papi.tFisso = 0; recita(papi, Math.random() < 0.5 ? 'gattona' : 'striscia', false, 0.35);
+    }
   }
 
+  nervosoPapi(dt, vis);
   // lo statico: poco, e solo quando ce l'hai addosso. Ti prende se ti tocca.
   const c = papi.stato !== 'assente' && !sicuro ? Math.max(0, 1 - d / 18) : 0;
   staticoOb = c * c * (vis > 0 ? 0.9 : 0.5) * papi.pres;
@@ -1935,7 +2037,7 @@ function aggiornaCaccia(dt, t) {
 const sg = ui.statico.getContext('2d');
 const sImg = sg.createImageData(160, 90);
 function disegnaStatico(dt) {
-  const ob = fase === 'morto' ? 1 : storia === 'caccia' ? staticoOb : 0;
+  const ob = fase === 'morto' ? (PRESA.t >= 0 && !PRESA.fatto ? 0.35 : 1) : storia === 'caccia' ? staticoOb : 0;
   staticoV += Math.max(-dt * 0.55, Math.min(dt * 3, ob - staticoV));
   const k = staticoV;
   ui.statico.style.opacity = (k * k * 0.85).toFixed(3);
@@ -1990,8 +2092,9 @@ TEL3D.tex.colorSpace = THREE.SRGBColorSpace; TEL3D.tex.minFilter = THREE.LinearM
   g.visible = false; scenaTel.add(g);
 }
 function schermoNero() { const g = TEL3D.cv.getContext('2d'); g.fillStyle = '#030404'; g.fillRect(0, 0, TEL3D.cv.width, TEL3D.cv.height); TEL3D.tex.needsUpdate = true; }
+const _qTel = new THREE.Quaternion(), _qOcchio = new THREE.Quaternion();
 function animaTelefono(dt) {
-  let ob = (tel.aperto || io.torcia) && fase !== 'menu' ? 1 : 0, scossa = 0;   // con la torcia accesa il telefono resta in mano
+  let ob = (tel.aperto || io.torcia || chiamaPapi()) && fase !== 'menu' && fase !== 'morto' ? 1 : 0, scossa = 0;   // con la torcia accesa il telefono resta in mano; quando chiama Papi lo tiri su
   if (TEL3D.gesto >= 0) {
     const k = TEL3D.gesto += dt;
     ob = 1;
@@ -2013,8 +2116,16 @@ function animaTelefono(dt) {
   const bob = Math.sin(io.dondolo) * 0.004 * Math.min(1, io.vel);
   // in basso a destra; sullo schermo stretto (telefono in verticale) si avvicina al centro
   const mezzoL = 0.2 * Math.tan(camTel.fov * Math.PI / 360) * camera.aspect, px = Math.max(0.015, Math.min(0.15, mezzoL - 0.06));
-  g.position.set(px + scossa * 0.035, -0.27 + s * 0.18 + bob, -0.2);
+  const verso = tel.aperto && !io.torcia && TEL3D.gesto < 0 ? 1 : 0;
+  TEL3D.verso = (TEL3D.verso || 0) + (verso - (TEL3D.verso || 0)) * Math.min(1, dt * 7);
+  const v = TEL3D.verso;
+  g.position.set(px + scossa * 0.035, -0.27 + s * 0.18 + bob + 0.025 * v, -0.2);   // dritto è più alto: lo alzo un filo
   g.rotation.set(-0.12 - (1 - s) * 0.6, 0.22 + scossa * 0.55, 0.06 + Math.sin(io.dondolo * 0.5) * 0.01 - scossa * 0.3);
+  if (v > 0.001) {
+    // girato verso l'occhio: lo schermo guarda dritto la camera, senza storcersi
+    _qTel.copy(g.quaternion); g.lookAt(0, 0, 0); g.rotateX(-(1 - s) * 0.6);
+    _qOcchio.copy(g.quaternion); g.quaternion.slerpQuaternions(_qTel, _qOcchio, v);
+  }
 }
 // dove sta lo schermo del telefono sullo schermo vero (per lo zoom col dito)
 function toccaSchermo(x, y) {
@@ -2111,11 +2222,35 @@ function aggiornaGps(dt, t) {
   GPS.rivelati = GPS.rivelati.filter(v => v.fino > t && !v.f.preso);
   if (tel.fix) { tel.ux = io.x + (GPS.tFinto > 0 ? GPS.fx : 0); tel.uz = io.z + (GPS.tFinto > 0 ? GPS.fz : 0); tel.tUltimo = t; }
   if (tel.aperto && (tel.tDis -= dt) <= 0) { tel.tDis = 0.1; disegnaTelefono(t, q); }
-  else if (!tel.aperto && io.torcia && TEL3D.gesto < 0 && (tel.tDis -= dt) <= 0) { tel.tDis = 1; disegnaBlocco(t); }
+  else if (!tel.aperto && (io.torcia || chiamaPapi()) && TEL3D.gesto < 0 && (tel.tDis -= dt) <= 0) { tel.tDis = chiamaPapi() ? 0.2 : 1; disegnaBlocco(t); }
 }
 // con la torcia accesa e la mappa chiusa: lo schermo di blocco, l'unico posto dove vedi la batteria
+// Papi che ti chiama: la sua foto a tutto schermo
+const FOTO_PAPI = new Image(); FOTO_PAPI.src = 'texture/papi-chiama.jpg';
+function chiamaPapi() { return EV.attivo === 'telefono' && tGioco < EV.fine && io.batteria > 0 && !tel.aperto && fase === 'gioco'; }
+function disegnaChiamata(t) {
+  const cv = TEL3D.cv, W = 192, H = 344, g = cv.getContext('2d'); g.setTransform(2, 0, 0, 2, 0, 0);
+  const font = (px, peso = 500) => { g.font = `${peso} ${px}px "DM Mono", monospace`; };
+  g.fillStyle = '#050607'; g.fillRect(0, 0, W, H);
+  if (FOTO_PAPI.complete && FOTO_PAPI.naturalWidth) g.drawImage(FOTO_PAPI, 0, 0, W, 269);
+  const sf = g.createLinearGradient(0, 190, 0, 280); sf.addColorStop(0, 'rgba(5,6,7,0)'); sf.addColorStop(1, 'rgba(5,6,7,1)');
+  g.fillStyle = sf; g.fillRect(0, 190, W, 90);
+  g.textAlign = 'center'; g.textBaseline = 'middle';
+  g.fillStyle = 'rgba(5,6,7,.55)'; g.fillRect(0, 0, W, 26);
+  font(13); g.fillStyle = Math.sin(t * 6) > -0.3 ? '#e9e4d6' : 'rgba(233,228,214,.35)'; g.fillText('chiamata in arrivo', W / 2, 13);
+  font(34, 500); g.fillStyle = '#e9e4d6'; g.fillText('Papi', W / 2, 252);
+  font(12); g.fillStyle = '#9a968b'; g.fillText('cellulare', W / 2, 276);
+  // rispondi (verde) e rifiuta (rosso): si risponde solo a Papi, e a Papi non si risponde
+  const tondo = (x, col) => { g.fillStyle = col; g.beginPath(); g.arc(x, 312, 15, 0, Math.PI * 2); g.fill(); };
+  tondo(52, '#3e9a5c'); tondo(140, '#c2443a');
+  g.strokeStyle = '#e9e4d6'; g.lineWidth = 3; g.lineCap = 'round';
+  g.beginPath(); g.arc(52, 315, 7, Math.PI * 1.15, Math.PI * 1.85); g.stroke();
+  g.beginPath(); g.arc(140, 309, 7, Math.PI * 0.15, Math.PI * 0.85); g.stroke();
+  TEL3D.tex.needsUpdate = true;
+}
 function disegnaBlocco(t) {
   if (io.batteria <= 0) { schermoNero(); return; }
+  if (chiamaPapi()) { disegnaChiamata(t); return; }
   const cv = TEL3D.cv, W = 192, H = 344, g = cv.getContext('2d'); g.setTransform(2, 0, 0, 2, 0, 0);
   const font = (px, peso = 500) => { g.font = `${peso} ${px}px "DM Mono", monospace`; };
   g.fillStyle = '#050607'; g.fillRect(0, 0, W, H);
@@ -2522,7 +2657,6 @@ function mostraModo() {
   const b = $('modo'); if (!b) return;
   b.innerHTML = `Difficoltà: <b>${MODO === 'incubo' ? 'Incubo' : 'Normale'}</b>`;
   b.classList.toggle('incubo', MODO === 'incubo');
-  $('modo-nota').textContent = MODO === 'incubo' ? 'Se Papi ti prende, ricominci da capo.' : 'Se Papi ti prende, riparti dall’ultimo foglio.';
   disegnaClassifica($('classifica-menu'));
 }
 $('modo').addEventListener('click', () => {
@@ -2556,7 +2690,7 @@ function lanciaEvento(cosa, t) {
   EV.attivo = cosa; EV.t = t;
   if (cosa === 'nebbia') { EV.fine = t + 60 + Math.random() * 40; didascalia('Sale una nebbia fitta.', 3500); }
   if (cosa === 'temporale') { EV.fine = t + 70 + Math.random() * 40; EV.tLampo = t + 4; avviaPioggia(); didascalia('Si mette a piovere.', 3500); }
-  if (cosa === 'telefono') { EV.fine = t + 12; EV.tSquillo = 0; didascalia(INGRESSO === 'tocco' ? 'Il telefono squilla! Tocca GPS per zittirlo.' : `Il telefono squilla! ${tasto('telefono')} per zittirlo.`, 4500); }
+  if (cosa === 'telefono') { EV.fine = t + 12; EV.tSquillo = 0; EV.persa = false; tel.tDis = 0; didascalia(INGRESSO === 'tocco' ? 'Ti chiama Papi. Tocca GPS per rifiutare.' : `Ti chiama Papi. ${tasto('telefono')} per rifiutare.`, 4500); }
 }
 // il temporale: pioggia (rumore filtrato) e lampi con il tuono che arriva dopo
 function avviaPioggia() {
@@ -2598,8 +2732,8 @@ function tuono() {
 // il telefono squilla: si sente da lontano (Papi arriva prima); aprendolo lo zittisci
 function aggiornaSquillo(dt, t) {
   if (t > EV.fine || tel.aperto || io.batteria <= 0) {
-    if (tel.aperto && t < EV.fine) didascalia('Chiamata persa: numero sconosciuto.', 3000);
-    EV.fine = Math.min(EV.fine, t); return;
+    if (!EV.persa && io.batteria > 0) { EV.persa = true; didascalia('Chiamata persa: Papi.', 3000); }
+    EV.fine = Math.min(EV.fine, t); if (!tel.aperto) tel.tDis = 0; return;
   }
   if ((EV.tSquillo -= dt) <= 0) { EV.tSquillo = 2.2; squilla(); }
   if (storia === 'caccia' && papi.stato === 'assente') papi.prossimo = Math.min(papi.prossimo, t + 4);
@@ -2615,25 +2749,51 @@ function squilla() {
 }
 
 /* ════════ STATI DEL GIOCO ════════ */
+const PRESA = { t: -1, luce: new THREE.PointLight(0xc8d8b0, 0, 2.5, 2) };
+PRESA.luce.position.set(0, -0.15, -0.05); camera.add(PRESA.luce);
 function preso() {
   if (fase !== 'gioco') return;
   fase = 'morto'; io.morti++; apriTelefono(false);
-  // ultimo sguardo: girati verso di lui, e guarda in su (è alto tre metri)
+  // dove sta lui: se sei di spalle (o di lato) la visuale ti viene girata a forza
   const a = Math.atan2(-(papi.x - io.x), -(papi.z - io.z));
-  io.yaw = a; io.pitch = 0.72;
-  posa(papi, io.x - Math.sin(a) * 3, io.z - Math.cos(a) * 3, a);
-  papi.g.visible = true; papi.pres = papi.presV = 1; papi.vel = 0; papi.stato = 'preso';
-  const sl = recita(papi, 'salto', true, 0.05);
-  if (sl) { sl.time = sl.getClip().duration * 0.4; sl.paused = true; }   // braccia alzate
-  papi.mixer.update(0.3);
-  camera.rotation.set(io.pitch, io.yaw, 0, 'YXZ');
+  let dy = a - io.yaw; dy = Math.atan2(Math.sin(dy), Math.cos(dy));
+  Object.assign(PRESA, { t: 0, yaw0: io.yaw, dy, pitch0: io.pitch, dietro: Math.abs(dy) > 1.1, fatto: false });
+  PRESA.giro = PRESA.dietro ? 0.5 : 0.2;
+  papi.g.visible = true; papi.pres = papi.presV = 1; papi.vel = 0; papi.stato = 'preso'; papi.nervoso = 0;
+  papiGiu(0.12);   // si china su di te
+  PRESA.d0 = Math.max(1.4, Math.min(3, Math.hypot(papi.x - io.x, papi.z - io.z)));
   suono('colpo', 0.6, 1, 'papiVersi'); suono('scricchiolio', 0.4, 1, 'papiVersi');
-  setTimeout(() => {
-    ui.buio.style.opacity = 1;
-    setTimeout(() => {
-      mostraMorte("Papi t'ha preso", pesca(BATTUTE.preso));
-    }, 700);
-  }, 450);
+}
+const _testa = new THREE.Vector3();
+function animaPresa(dt) {
+  if (PRESA.t < 0) return;
+  const T = PRESA.t += dt, liscio = x => x * x * (3 - 2 * x);
+  const kG = liscio(Math.min(1, T / PRESA.giro));
+  // la testa girata a forza: svelta, con uno strattone
+  const strappo = PRESA.dietro ? Math.sin(Math.min(1, T / PRESA.giro) * Math.PI) * 0.06 : 0;
+  io.yaw = PRESA.yaw0 + PRESA.dy * kG;
+  io.pitch = PRESA.pitch0 + (0.04 - PRESA.pitch0) * kG;
+  camera.rotation.set(io.pitch + (Math.random() - 0.5) * strappo, io.yaw, (Math.random() - 0.5) * strappo * 2, 'YXZ');
+  // lui: la faccia viene avanti fino a un palmo dalla tua
+  const kV = liscio(Math.max(0, Math.min(1, (T - PRESA.giro * 0.4) / 0.9)));
+  const dist = PRESA.d0 + (0.5 - PRESA.d0) * kV;
+  const fx = -Math.sin(PRESA.yaw0 + PRESA.dy), fz = -Math.cos(PRESA.yaw0 + PRESA.dy);
+  papi.rot = Math.atan2(-fx, -fz);
+  papi.g.rotation.set(0, papi.rot, 0);
+  papi.g.updateMatrixWorld(true);
+  if (papi.testa) {
+    papi.testa.localToWorld(_testa.set(0, OCCHI[1], OCCHI[2] - 0.05));   // in mezzo agli occhi
+    papi.g.position.x += camera.position.x + fx * dist - _testa.x;
+    papi.g.position.z += camera.position.z + fz * dist - _testa.z;
+    papi.g.position.y += camera.position.y - _testa.y;
+  }
+  papi.x = papi.g.position.x; papi.z = papi.g.position.z;
+  // un filo di luce sul viso, man mano che si avvicina
+  PRESA.luce.intensity = 1.1 * kV;
+  if (T > PRESA.giro + 1.5 && !PRESA.fatto) {
+    PRESA.fatto = true; ui.buio.style.opacity = 1;
+    setTimeout(() => { PRESA.t = -1; PRESA.luce.intensity = 0; mostraMorte("Papi t'ha preso", pesca(BATTUTE.preso)); }, 700);
+  }
 }
 function riprova() {
   if (MODO === 'incubo') { ui.buio.style.opacity = 1; location.reload(); return; }   // Incubo: da capo
@@ -2922,7 +3082,7 @@ function costruisci(bin, bosco, colori, osm, modello, roncola, modelloPapi, texA
   mostra('caricamento', false); mostra('menu', true);
   document.body.classList.remove('carica'); document.body.classList.add('fuori', 'lobby');
   disegnaClassifica($('classifica-menu'));
-  window.__crevil = { PROVA, quota, EV, lanciaEvento: c => lanciaEvento(c, tGioco), GREPPO, cadi, suoloIo, MODO: () => MODO, PONTI, FOGLI_ANCORE, PROFILI, sulPonte, RONCOLA, guarda: (x, z) => { io.yaw = Math.atan2(-(x - io.x), -(z - io.z)); }, info: () => renderer.info.render, io, guerrino, papi, recita, posa, disegna, scena, camera, renderer, salta: s => { storia = s; tStoria = 0; }, caccia: () => { iniziaCaccia(tGioco); papi.prossimo = 0; }, tel, apriTelefono, quotaVera, TEL3D, CASA, BOSS, POWER, cambiaTorcia, colpisci, entraCasa: () => entraCasa(tGioco), dammiRoncola, GPS, BUIO, pad, apriPannello, chiudiPannello, toccaSchermo, disegnaSfondo, MIX, sfondo: o => { preparaSfondo(SFONDO.bosco, o); return SFONDO.base.toDataURL(); }, FONTE, FOGLI, MUS, cinghiale, tronchiVicini, statico: v => { staticoOb = v; }, lanciaCinghiale: () => lanciaCinghiale(tGioco), papiInPiedi, mostraPapi, PAPI_FERMO, attacca: c => attacca(tGioco, c), suSentiero, distFosso, alSicuro, FOSSI, stato: () => ({ storia, boss: BOSS.stato, vita: BOSS.vita, roncola: !!io.roncola, fase, attesa, livello, staticoV, faseG: guerrino.fase, az: guerrino.nomeAz, papi: papi.stato, vis: papi.vis, pres: papi.pres, visto: papi.visto, dPapi: Math.round(Math.hypot(io.x - papi.x, io.z - papi.z)), mus: Object.fromEntries(Object.entries(MUS.pezzi).map(([n, z]) => [n, z.pronto ? +z.ob.toFixed(2) : 'carico'])) }) };
+  window.__crevil = { OCCHI, PRESA, PROVA, quota, EV, lanciaEvento: c => lanciaEvento(c, tGioco), GREPPO, cadi, suoloIo, MODO: () => MODO, PONTI, FOGLI_ANCORE, PROFILI, sulPonte, RONCOLA, guarda: (x, z) => { io.yaw = Math.atan2(-(x - io.x), -(z - io.z)); }, info: () => renderer.info.render, io, guerrino, papi, recita, posa, disegna, scena, camera, renderer, salta: s => { storia = s; tStoria = 0; }, caccia: () => { iniziaCaccia(tGioco); papi.prossimo = 0; }, tel, apriTelefono, quotaVera, TEL3D, CASA, BOSS, POWER, cambiaTorcia, colpisci, entraCasa: () => entraCasa(tGioco), dammiRoncola, GPS, BUIO, pad, apriPannello, chiudiPannello, toccaSchermo, disegnaSfondo, MIX, sfondo: o => { preparaSfondo(SFONDO.bosco, o); return SFONDO.base.toDataURL(); }, FONTE, FOGLI, MUS, cinghiale, tronchiVicini, statico: v => { staticoOb = v; }, lanciaCinghiale: () => lanciaCinghiale(tGioco), papiInPiedi, mostraPapi, PAPI_FERMO, attacca: c => attacca(tGioco, c), suSentiero, distFosso, alSicuro, FOSSI, stato: () => ({ storia, boss: BOSS.stato, vita: BOSS.vita, roncola: !!io.roncola, fase, attesa, livello, staticoV, faseG: guerrino.fase, az: guerrino.nomeAz, papi: papi.stato, vis: papi.vis, pres: papi.pres, visto: papi.visto, dPapi: Math.round(Math.hypot(io.x - papi.x, io.z - papi.z)), mus: Object.fromEntries(Object.entries(MUS.pezzi).map(([n, z]) => [n, z.pronto ? +z.ob.toFixed(2) : 'carico'])) }) };
 }
 pronto.catch(e => { console.error(e); $('prog-testo').textContent = 'Il bosco non si carica: ricarica la pagina.'; });
 
@@ -2961,7 +3121,7 @@ function ciclo() {
   if (FONTE.acqua) FONTE.acqua.offset.y = -t * 0.12;
   if (fase === 'gioco') { animaPowerUp(t); animaRoncola(dt); aggiornaEffetti(dt); }
   if (acquaFossi) acquaFossi.offset.y = -t * 0.55;
-  if (fase === 'gioco' || fase === 'morto') { disegnaStatico(dt); animaGuerrino(dt); animaPapi(dt); aspettoPapi(dt); aggiornaScossi(dt); }
+  if (fase === 'gioco' || fase === 'morto') { disegnaStatico(dt); animaGuerrino(dt); animaPapi(dt); if (fase === 'morto') animaPresa(dt); aspettoPapi(dt); aggiornaScossi(dt); }
   if (fase !== 'menu') aggiornaMusica(dt);
   animaTelefono(dt);
   // accendi solo i pezzi di bosco vicini

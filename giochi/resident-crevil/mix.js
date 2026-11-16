@@ -30,9 +30,9 @@ export const CANALI = [
   { id: 'mus-foglio5', nome: 'Foglio 5', gruppo: 'Colonna sonora', def: -3.5, prova: { pezzo: 'foglio5' } },
   { id: 'mus-prossimita', nome: 'Prossimità', gruppo: 'Colonna sonora', def: -0.5, prova: { pezzo: 'prossimita' } },
   { id: 'mus-papi-in-vista', nome: 'Papi in vista', gruppo: 'Colonna sonora', def: -9, prova: { pezzo: 'papi-in-vista' } },
-  { id: 'mus-fiato', nome: 'Battito (fiato)', gruppo: 'Colonna sonora', def: 6, prova: { pezzo: 'fiato' } },
+  { id: 'mus-fiato', nome: 'Battito (fiato)', gruppo: 'Colonna sonora', def: 0, prova: { pezzo: 'fiato' } },
   { id: 'mus-torcia', nome: 'Torcia accesa', gruppo: 'Colonna sonora', def: -1, prova: { pezzo: 'torcia' } },
-  { id: 'mus-distanza', nome: 'Distanza Capricchia', gruppo: 'Colonna sonora', def: -1, prova: { pezzo: 'distanza' } },
+  { id: 'mus-distanza', nome: 'Vicino alla casa di Papi', gruppo: 'Colonna sonora', def: -1, prova: { pezzo: 'distanza' } },
 ];
 // volume di base di ogni pezzo della colonna nel gioco (lineare): i tre più bassi nel mix di Leo sono alzati
 export const PEZZI = {
