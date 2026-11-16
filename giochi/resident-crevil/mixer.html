@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
+  <title>Mixer · Resident Crevil</title>
+  <meta name="robots" content="noindex"/>
+  <link rel="icon" href="../../favicon.ico"/>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Special+Elite&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --fondo: #0b0d0e; --pannello: #141719; --riga: #23282b; --testo: #e9e4d6; --muted: #8d897e;
+      --rosso: #d9483b; --oro: #d6b25e; --verde: #6fd08c; --mono: "DM Mono", ui-monospace, monospace;
+      color-scheme: dark;
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; background: var(--fondo); color: var(--testo); font: 13px/1.4 var(--mono); }
+    body { padding: 18px max(16px, env(safe-area-inset-right)) 40px max(16px, env(safe-area-inset-left)); }
+    header { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 18px; margin-bottom: 14px; }
+    h1 { font: 26px "Special Elite", serif; margin: 0; letter-spacing: .02em; }
+    h1 small { font: 12px var(--mono); color: var(--muted); letter-spacing: .2em; text-transform: uppercase; margin-left: 8px; }
+    .stato { display: inline-flex; align-items: center; gap: 7px; padding: 4px 10px; border: 1px solid var(--riga); color: var(--muted); }
+    .stato i { width: 8px; height: 8px; border-radius: 50%; background: #555; }
+    .stato.si { color: var(--verde); border-color: rgba(111,208,140,.4); }
+    .stato.si i { background: var(--verde); box-shadow: 0 0 8px var(--verde); }
+    .azioni { display: flex; flex-wrap: wrap; gap: 8px; margin-left: auto; }
+    button, .bottone { font: 500 12px var(--mono); color: var(--testo); background: var(--pannello); border: 1px solid #343b3f; padding: 7px 12px; cursor: pointer; text-decoration: none; letter-spacing: .04em; }
+    button:hover, .bottone:hover { border-color: var(--testo); }
+    .aiuto { color: var(--muted); max-width: 78ch; margin: 0 0 16px; }
+    .aiuto b { color: var(--testo); font-weight: 500; }
+    #gruppi { display: flex; flex-wrap: wrap; gap: 14px; align-items: flex-start; }
+    .gruppo { background: var(--pannello); border: 1px solid var(--riga); padding: 10px 10px 12px; }
+    .gruppo h2 { margin: 0 0 8px; font: 500 11px var(--mono); letter-spacing: .2em; text-transform: uppercase; color: var(--oro); }
+    .strisce { display: flex; gap: 6px; flex-wrap: wrap; }
+    .striscia { width: 82px; display: grid; grid-template-rows: 30px auto 22px auto; justify-items: center; gap: 6px; padding: 6px 4px 8px; border: 1px solid var(--riga); background: #0f1213; }
+    .striscia.bus { background: #171b1d; border-color: #3a3326; }
+    .nome { font-size: 11px; line-height: 1.25; text-align: center; color: #cfc9b8; align-self: center; }
+    .corpo { display: flex; gap: 5px; align-items: stretch; height: 190px; }
+    .fader { writing-mode: vertical-lr; direction: rtl; width: 26px; height: 190px; margin: 0; accent-color: var(--testo); cursor: ns-resize; }
+    .metro { width: 7px; background: #070809; border: 1px solid #222; position: relative; overflow: hidden; }
+    .metro i { position: absolute; left: 0; right: 0; bottom: 0; height: 0; background: linear-gradient(to top, #4fa66a 0 65%, #d6b25e 65% 88%, var(--rosso) 88%); }
+    .db { font-size: 12px; min-width: 64px; text-align: center; padding: 2px 0; border: 1px solid transparent; cursor: text; }
+    .db.cambiato { color: var(--oro); }
+    .db input { width: 60px; font: 12px var(--mono); background: #000; color: var(--testo); border: 1px solid var(--testo); text-align: center; }
+    .tasti { display: flex; gap: 3px; }
+    .tasti button { padding: 3px 0; width: 23px; font-size: 11px; }
+    .tasti .suona.on { background: var(--verde); color: #000; border-color: var(--verde); }
+    .tasti .muto.on { background: var(--rosso); border-color: var(--rosso); }
+    .tasti .solo.on { background: var(--oro); color: #000; border-color: var(--oro); }
+    #copia-box { margin-top: 18px; display: none; }
+    #copia-box.su { display: block; }
+    #copia-box textarea { width: 100%; max-width: 760px; height: 110px; background: #000; color: var(--testo); border: 1px solid var(--riga); font: 12px var(--mono); padding: 8px; }
+    .esito { color: var(--verde); margin-left: 6px; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Mixer <small>Resident Crevil</small></h1>
+    <span id="stato" class="stato"><i></i><span>Gioco non aperto</span></span>
+    <div class="azioni">
+      <a class="bottone" href="./" target="_blank" rel="noopener">Apri il gioco</a>
+      <button id="ferma">■ Ferma tutto</button>
+      <button id="azzera">Azzera</button>
+      <button id="copia">Copia il mix</button><span id="esito" class="esito"></span>
+    </div>
+  </header>
+  <p class="aiuto">
+    Ogni fader alza o abbassa un gruppo di suoni rispetto a com'è adesso nel gioco (0 dB = com'è).
+    <b>▶</b> fa sentire il suono qui, <b>M</b> lo spegne, <b>S</b> lo lascia da solo. Doppio clic sul fader lo rimette com'era,
+    la rotella sposta di mezzo dB (con Shift di 3), un clic sul numero lo scrivi a mano.
+    Se il gioco è aperto in un'altra scheda di questo browser, senti le modifiche lì in diretta.
+    Il mix resta salvato in questo browser; quando ti piace, <b>Copia il mix</b> e incollamelo in chat: lo faccio diventare quello di tutti.
+  </p>
+  <div id="gruppi"></div>
+  <div id="copia-box"><textarea id="copia-testo" readonly></textarea></div>
+  <script type="module" src="mixer.js?v=1"></script>
+</body>
+</html>

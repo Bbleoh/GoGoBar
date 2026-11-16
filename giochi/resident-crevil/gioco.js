@@ -16,6 +16,7 @@ import * as THREE from 'three';
 import { GLTFLoader } from './lib/addons/loaders/GLTFLoader.js';
 import { MeshoptDecoder } from './lib/addons/libs/meshopt_decoder.module.js';
 import { mergeGeometries } from './lib/addons/utils/BufferGeometryUtils.js';
+import { PEZZI, GIRO, INIZIO_GIRO, CANALE_DIRETTA, caricaMix, lineare } from './mix.js';
 
 const VELOCE = /veloce/.test(location.search);
 const PROVA = { congela: false, tempo: 1 };   // per i test: ferma la storia (Guerrino e Papi), accelera il tempo
@@ -66,6 +67,12 @@ const ui = {
   foglioGrande: $('foglio-grande'), statico: $('statico'), buio: $('buio'),
 };
 function mostra(id, si) { $(id).classList.toggle('nascosto', !si); }
+// impostazioni di chi gioca (menu Impostazioni), salvate nel browser
+const IMPOSTA = { sens: 1, volume: 1, musica: 1, invertiY: false };
+try { Object.assign(IMPOSTA, JSON.parse(localStorage.getItem('residentcrevil.impostazioni') || '{}')); } catch (e) {}
+function salvaImpostazioni() { try { localStorage.setItem('residentcrevil.impostazioni', JSON.stringify(IMPOSTA)); } catch (e) {} }
+// il controller (Xbox 360 e simili, mappatura standard): letto a ogni fotogramma in leggiPad()
+const pad = { x: 0, y: 0, gx: 0, gy: 0, corri: false, attivo: false, prima: [] };
 
 /* ════════ RENDERER E SCENA ════════ */
 const canvas = $('scena');
@@ -109,8 +116,19 @@ function ridimensiona() {
   camera.updateProjectionMatrix();
 }
 ridimensiona();
-scena.add(new THREE.HemisphereLight(0x4a5a7a, 0x10120c, 1.1));
+const cielo = new THREE.HemisphereLight(0x4a5a7a, 0x10120c, 1.1);
+scena.add(cielo);
 const luna = new THREE.DirectionalLight(0x8090b0, 0.25);
+// all'inizio la notte è chiara; più vai avanti (fogli presi e tempo nel bosco) più si fa buio
+const BUIO = { k: 0, chiaro: new THREE.Color(0x262a2e), scuro: new THREE.Color(0x040506) };
+function aggiornaBuio(dt) {
+  const ob = storia === 'intro' || storia === 'strada' || storia === 'fonte' ? 0 : Math.min(1, io.fogli / 9 + io.tempo / 1500);
+  BUIO.k += (ob - BUIO.k) * Math.min(1, dt / 8);
+  const k = BUIO.k;
+  NEBBIA.copy(BUIO.chiaro).lerp(BUIO.scuro, k); scena.fog.color.copy(NEBBIA);
+  cielo.intensity = 1.1 - k * 0.8; luna.intensity = 0.25 - k * 0.21;
+  scena.fog.density = 0.034 + k * 0.01;
+}
 luna.position.set(-0.4, 1, 0.3);
 scena.add(luna);
 // la torcia di Crivo
@@ -152,7 +170,7 @@ caricaFile.setResponseType('arraybuffer');
 
 // texture da PS1 (Kenney e Poly Haven, CC0): vedi texture/LICENZA.txt
 const TEX_PS1 = ['erba', 'terra', 'roccia', 'ciottoli', 'acqua', 'tetto', 'muro', 'corteccia', 'fronde'], TEX = {};
-const SUONI = ['notte', 'fosso', 'colpo', 'foglio', 'fiatone', 'scricchiolio', 'frasche', 'passi', 'pugno1', 'pugno2', 'pugno3'];
+const SUONI = ['notte', 'fosso', 'colpo', 'foglio', 'fiatone', 'scricchiolio', 'frasche', 'passi', 'colpi'];
 const buf = {};
 
 const pronto = Promise.all([
@@ -391,6 +409,7 @@ function creaBosco(bosco, osm, fogliPos, texAlberi) {
     const px = x + r() * 7, pz = z + r() * 7;
     if (r() > dens(px, pz) * 0.55 || !libero(px, pz)) continue;
     lista.push([px, pz, 3, 0.6 + r() * 0.9, r() * 6.28]);
+    CESPUGLI.push([px, pz, lista[lista.length - 1][3]]);
   }
   // gli alberi dei fogli: tronchi grossi e sicuri
   for (const f of fogliPos) lista.push([f[0], f[1], 0, 1.35, f[2]]);
@@ -423,6 +442,7 @@ function creaBosco(bosco, osm, fogliPos, texAlberi) {
   FRONDE_MAT = mats[1];
 }
 let FRONDE_MAT = null;
+const CESPUGLI = [];   // [x, z, scala]: dove Papi si accovaccia
 
 /* ════════ SOTTOBOSCO: STERPAGLIE E PIETRE ════════ */
 // due ciuffi disegnati a mano a 64 px: a sinistra sterpi secchi, a destra erba alta e felci
@@ -524,8 +544,8 @@ function creaSottobosco(bosco) {
 // una striscia d'acqua lungo ogni fosso, che scorre in discesa (la texture cammina)
 let acquaFossi = null;
 function creaAcqua() {
-  acquaFossi = TEX.acqua.clone(); acquaFossi.needsUpdate = true; texPs1(acquaFossi, 1, 1);
-  const mat = ps1(new THREE.MeshLambertMaterial({ map: acquaFossi, color: 0x86aabb, emissive: 0x13232b }));
+  acquaFossi = TEX.acqua.clone(); texPs1(acquaFossi, 1, 1); acquaFossi.generateMipmaps = true; acquaFossi.minFilter = THREE.NearestMipmapNearestFilter; acquaFossi.needsUpdate = true;
+  const mat = ps1(new THREE.MeshLambertMaterial({ map: acquaFossi, color: 0x86aabb, emissive: 0x13232b, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -6 }));
   for (const f of FOSSI) {
     if (f.length < 2) continue;
     const pts = [];   // un punto ogni metro e un quarto
@@ -542,7 +562,8 @@ function creaAcqua() {
         const a = pts[Math.max(0, i - 1)], b = pts[Math.min(pts.length - 1, i + 1)], pt = pts[i];
         let tx = b[0] - a[0], tz = b[1] - a[1]; const l = Math.hypot(tx, tz) || 1; tx /= l; tz /= l;
         if (i > i0) lung += Math.hypot(pt[0] - pts[i - 1][0], pt[1] - pts[i - 1][1]);
-        const w = 0.85, y = quota(pt[0], pt[1]) + 0.16, vv = lung / 1.7 * verso;
+        const w = 0.85, vv = lung / 1.7 * verso;
+        const y = Math.max(quota(pt[0], pt[1]), quota(pt[0] + tz * w, pt[1] - tx * w), quota(pt[0] - tz * w, pt[1] + tx * w)) + 0.1;   // sopra tutte e due le sponde
         pos.push(pt[0] + tz * w, y, pt[1] - tx * w, pt[0] - tz * w, y, pt[1] + tx * w);
         uv.push(0, vv, 1, vv); nor.push(0, 1, 0, 0, 1, 0);
         const k = (i - i0) * 2;
@@ -587,8 +608,8 @@ function lanciaCinghiale(t) {
   // parte di lato, a 25-35 m davanti a te, e attraversa
   const av = avanti(), lato = Math.random() < 0.5 ? 1 : -1, D = 24 + Math.random() * 10;
   cinghiale.dx = -av.z * lato; cinghiale.dz = av.x * lato;
-  cinghiale.x = io.x + av.x * D - cinghiale.dx * 34; cinghiale.z = io.z + av.z * D - cinghiale.dz * 34;
-  cinghiale.attivo = true; cinghiale.fine = t + 11; cinghiale.fase = 0; cinghiale.grugnito = t + 0.6; cinghiale.rumore = 0;
+  cinghiale.x = io.x + av.x * D - cinghiale.dx * 45; cinghiale.z = io.z + av.z * D - cinghiale.dz * 45;
+  cinghiale.attivo = true; cinghiale.fine = t + 7; cinghiale.fase = 0; cinghiale.grugnito = t + 0.6; cinghiale.rumore = 0;
   cinghiale.g.visible = true;
   cinghiale.prossimo = t + (VELOCE ? 40 : 150) + Math.random() * (VELOCE ? 20 : 200);
 }
@@ -598,14 +619,14 @@ function aggiornaCinghiale(dt, t) {
     if (t > cinghiale.prossimo && quieto && Math.hypot(io.x - tel.paese[0], io.z - tel.paese[1]) > 60) lanciaCinghiale(t);
     return;
   }
-  const c = cinghiale, V = 7.5;
+  const c = cinghiale, V = 15;
   let dx = c.dx, dz = c.dz;
   tronchiVicini(c.x + dx * 1.2, c.z + dz * 1.2, 1.6, tr => {   // schiva tronchi e pietre
     const ox = c.x + dx * 1.2 - tr.x, oz = c.z + dz * 1.2 - tr.z, od = Math.hypot(ox, oz) || 1;
     if (od < tr.r + 0.7) { dx += ox / od * 0.9; dz += oz / od * 0.9; }
   });
   const l = Math.hypot(dx, dz) || 1; dx /= l; dz /= l;
-  c.x += dx * V * dt; c.z += dz * V * dt; c.fase += dt * 15;
+  c.x += dx * V * dt; c.z += dz * V * dt; c.fase += dt * 24;
   const y = quota(c.x, c.z);
   c.g.position.set(c.x, y, c.z);
   c.g.rotation.y = Math.atan2(dx, dz);
@@ -616,14 +637,20 @@ function aggiornaCinghiale(dt, t) {
   if (c.voce && t > c.grugnito && buf.cing1) {
     c.grugnito = t + 2.2 + Math.random() * 2;
     if (c.voce.isPlaying) c.voce.stop();
-    c.voce.setBuffer(buf[Math.random() < 0.5 ? 'cing1' : 'cing2']); c.voce.setPlaybackRate(0.85 + Math.random() * 0.25); c.voce.setVolume(0.9); c.voce.play();
+    c.voce.setBuffer(buf[Math.random() < 0.5 ? 'cing1' : 'cing2']); c.voce.setPlaybackRate(0.85 + Math.random() * 0.25); c.voce.setVolume(0.9 * mixG('cinghiale')); c.voce.play();
   }
-  if (c.passi && (c.rumore -= dt) < 0 && buf.sc1) {
-    c.rumore = 0.17;
-    if (c.passi.isPlaying) c.passi.stop();
-    c.passi.setBuffer(buf['sc' + (1 + (Math.random() * 5 | 0))]); c.passi.setPlaybackRate(1.5 + Math.random() * 0.3); c.passi.setVolume(0.7); c.passi.play();
+  // il galoppo: tre zoccoli ravvicinati e una pausa (ta-ta-tam), un giro ogni 0,26 s
+  if (c.passi && (c.rumore -= dt) < 0 && buf.zoc1) {
+    c.colpo = ((c.colpo || 0) + 1) % 4;
+    c.rumore = c.colpo === 3 ? 0.11 : 0.05;
+    if (c.colpo !== 3) {
+      const a = new THREE.PositionalAudio(ascolto);
+      a.setRefDistance(7); a.setRolloffFactor(0.9); a.setBuffer(buf['zoc' + (1 + c.colpo)]);
+      a.setPlaybackRate(0.9 + Math.random() * 0.2); a.setVolume((c.colpo === 2 ? 1 : 0.7) * mixG('cinghiale'));
+      c.g.add(a); a.play(); a.onEnded = () => { a.isPlaying = false; c.g.remove(a); a.disconnect(); };
+    }
   }
-  if (t > c.fine || Math.hypot(c.x - io.x, c.z - io.z) > 70) { c.attivo = false; c.g.visible = false; }
+  if (t > c.fine || Math.hypot(c.x - io.x, c.z - io.z) > 80) { c.attivo = false; c.g.visible = false; }
 }
 
 /* ════════ PAESE ════════ */
@@ -683,9 +710,10 @@ function creaFonte() {
   const g = new THREE.Group();
   const vasca = new THREE.Mesh(new THREE.BoxGeometry(2.2, 0.55, 1), pietra); vasca.position.y = 0.275; g.add(vasca);   // bordo all'altezza di una seduta
   const muro = new THREE.Mesh(new THREE.BoxGeometry(1.4, 1.6, 0.4), pietra); muro.position.set(0, 0.8, -0.6); g.add(muro);
-  const acqua = new THREE.Mesh(new THREE.PlaneGeometry(2, 0.8), ps1(new THREE.MeshLambertMaterial({ map: texPs1(TEX.acqua, 2, 1), color: 0x4a6a78, emissive: 0x04080a })));
-  FONTE.acqua = TEX.acqua;
-  acqua.rotation.x = -Math.PI / 2; acqua.position.y = 0.56; g.add(acqua);   // a filo del bordo
+  const tAcqua = texPs1(TEX.acqua.clone(), 2, 1); tAcqua.generateMipmaps = true; tAcqua.minFilter = THREE.NearestMipmapNearestFilter; tAcqua.needsUpdate = true;
+  const acqua = new THREE.Mesh(new THREE.PlaneGeometry(2, 0.8), ps1(new THREE.MeshLambertMaterial({ map: tAcqua, color: 0x4a6a78, emissive: 0x04080a, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -6 })));
+  FONTE.acqua = tAcqua;
+  acqua.rotation.x = -Math.PI / 2; acqua.position.y = 0.6; g.add(acqua);   // un dito sopra il bordo: niente sfarfallio
   const tubo = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.4, 6), ps1(new THREE.MeshLambertMaterial({ color: 0x333333 })));
   tubo.rotation.x = Math.PI / 2; tubo.position.set(0, 1.1, -0.3); g.add(tubo);
   g.position.set(FONTE.x, quota(FONTE.x, FONTE.z), FONTE.z);
@@ -731,7 +759,7 @@ function creaFogli() {
 // (jab, combo, affondo, stanco, calcioAlto, pugno, calcio, calcio2, cammina).
 // Papi: alto 3 metri, animazioni gattona, salto, corsa, striscia.
 const guerrino = { g: new THREE.Group(), x: 0, z: 0, rot: 0, tappa: 0, vel: 0, prossimo: 0, mena: false, tinta: 0x77716a, scala: 1 };
-const papi = { g: new THREE.Group(), x: 0, z: 0, rot: 0, vel: 0, stato: 'assente', prossimo: 0, fine: 0, tinta: 0x5c5a58, scala: 3 / 1.89, pres: 0, presV: 0, vis: 0 };
+const papi = { g: new THREE.Group(), x: 0, z: 0, rot: 0, vel: 0, stato: 'assente', prossimo: 0, fine: 0, tinta: 0x5c5a58, scala: 4.5 / 1.89, pres: 0, presV: 0, vis: 0 };
 function preparaPersonaggio(p, modello) {
   const m = modello.scene;
   p.mat = [];
@@ -826,12 +854,13 @@ function aspettoPapi(dt) {
 }
 function mostraPapi() { papi.g.visible = true; papi.pres = 0; papi.presV = 1; }
 function viaPapi(subito) { papi.presV = 0; if (subito) { papi.pres = 0; papi.g.visible = false; } }
-// in piedi, fermo: non ha un'animazione da fermo, tengo un fotogramma
-const PAPI_FERMO = ['salto', 0];
-function papiInPiedi(fade = 0.3) {
-  const a = recita(papi, PAPI_FERMO[0], true, fade);
-  if (a) { a.time = a.getClip().duration * PAPI_FERMO[1]; a.paused = true; }
+// fermo: non ha un'animazione da fermo, tengo un fotogramma. Accovacciato: quello della strisciata
+const PAPI_FERMO = ['salto', 0], PAPI_GIU = ['striscia', 0.35];
+function papiInPiedi(fade = 0.3, posa = PAPI_FERMO) {
+  const a = recita(papi, posa[0], true, fade);
+  if (a) { a.time = a.getClip().duration * posa[1]; a.paused = true; }
 }
+const papiGiu = (fade = 0.3) => papiInPiedi(fade, PAPI_GIU);
 
 function animaGuerrino(dt) {
   if (!guerrino.mixer) return;
@@ -860,15 +889,32 @@ function animaPapi(dt) {
 const ascolto = new THREE.AudioListener();
 camera.add(ascolto);
 let ambiente, fosso, fiatone, rumore, rumoreGain;
-function suono(nome, vol = 1, rate = 1) {
-  if (!buf[nome]) return;
-  const a = new THREE.Audio(ascolto); a.setBuffer(buf[nome]); a.setVolume(vol); a.setPlaybackRate(rate); a.play();
+// il mix (mix.js): un volume in dB per ogni gruppo di suoni, che Leo regola dal mixer (mixer.html)
+const MIX = caricaMix();
+const mixG = id => lineare(MIX[id] ?? 0);
+function applicaMix() {
+  ascolto.setMasterVolume(mixG('generale') * IMPOSTA.volume);
+  if (ambiente) ambiente.setVolume(0.275 * mixG('ambiente'));
+  if (MUS.bus) MUS.bus.gain.value = mixG('musica') * IMPOSTA.musica;
+  for (const n in MUS.pezzi) MUS.pezzi[n].ob = -1;   // al prossimo giro riprendono il volume nuovo
+}
+// il mixer aperto in un'altra scheda manda il mix in diretta
+try {
+  const bc = new BroadcastChannel(CANALE_DIRETTA);
+  bc.onmessage = e => {
+    if (e.data && e.data.mix) { Object.assign(MIX, e.data.mix); applicaMix(); }
+    if (e.data && e.data.chi) bc.postMessage({ gioco: true });
+  };
+} catch (e) {}
+function suono(nome, vol = 1, rate = 1, canale = null) {
+  if (!buf[nome]) return null;
+  const a = new THREE.Audio(ascolto); a.setBuffer(buf[nome]); a.setVolume(vol * (canale ? mixG(canale) : 1)); a.setPlaybackRate(rate); a.play();
+  return a;
 }
 function preparaAudio() {
   const loop = (nome, vol) => { if (!buf[nome]) return null; const a = new THREE.Audio(ascolto); a.setBuffer(buf[nome]); a.setLoop(true); a.setVolume(vol); return a; };
-  ambiente = loop('notte', 0.275);   // −6 dB (Leo)
+  ambiente = loop('notte', 0.275 * mixG('ambiente'));   // −6 dB (Leo)
   fosso = loop('fosso', 0);
-  fiatone = loop('fiatone', 0);
   // statico: rumore bianco generato
   const ctx = ascolto.context, len = ctx.sampleRate * 2;
   const b = ctx.createBuffer(1, len, ctx.sampleRate), d = b.getChannelData(0);
@@ -879,30 +925,61 @@ function preparaAudio() {
     a.setRefDistance(rif); a.setRolloffFactor(0.9); a.setDistanceModel('inverse'); a.position.set(0, y, 0);
     dove.add(a); return a;
   };
-  pugnoAudio = posizionale(guerrino.g, 5, 1.2);     // i pugni sull'albero si sentono da lontano
+  // i colpi di Guerrino sull'albero rimbombano nel bosco: si sentono da lontano e ti riportano da lui
+  pugnoAudio = posizionale(guerrino.g, 10, 1.2); pugnoAudio.setRolloffFactor(0.55);
+  pugnoAudio.setFilters(eco(ascolto.context));
   papiVoce = posizionale(papi.g, 8, 2);
   papiPassi = posizionale(papi.g, 7, 0.2);
   cinghiale.voce = posizionale(cinghiale.g, 9, 0.6);
   cinghiale.passi = posizionale(cinghiale.g, 7, 0.2);
   tagliaPassi();
+  applicaMix();
+}
+// eco del bosco: una coda di rimbombo generata (rumore che si spegne, più scuro verso la fine)
+function eco(ctx) {
+  const R = ctx.sampleRate, n = R * 2.6 | 0, ir = ctx.createBuffer(2, n, R);
+  for (let c = 0; c < 2; c++) {
+    const d = ir.getChannelData(c); let basso = 0;
+    for (let i = 0; i < n; i++) {
+      const t = i / R, k = Math.min(1, t / 0.05);
+      basso += (Math.random() * 2 - 1 - basso) * (0.5 - 0.42 * t / 2.6);   // si scurisce
+      d[i] = basso * k * Math.exp(-t * 2.4) * (i < R * 0.012 ? 0 : 1);
+    }
+  }
+  const dentro = ctx.createGain(), fuori = ctx.createGain(), conv = ctx.createConvolver(), umido = ctx.createGain();
+  conv.buffer = ir; umido.gain.value = 0.5;
+  dentro.connect(conv); conv.connect(umido); umido.connect(fuori);
+  return [dentro, fuori];   // three collega dentro → fuori: è il suono asciutto; l'eco ci si somma
 }
 // sfx/passi.mp3 è un nastro a caselle da 1,2 s: 5 passi sul sottobosco, 5 di corsa, 5 sul sentiero,
-// 5 di corsa, i due atterraggi del salto e i due grugniti del cinghiale (Oculus Audio Pack, CC BY 4.0)
-const NASTRO = ['s1', 's2', 's3', 's4', 's5', 'sc1', 'sc2', 'sc3', 'sc4', 'sc5', 't1', 't2', 't3', 't4', 't5', 'tc1', 'tc2', 'tc3', 'tc4', 'tc5', 'giuS', 'giuT', 'cing1', 'cing2'];
-function tagliaPassi() {
-  const b = buf.passi; if (!b) return;
-  const ctx = ascolto.context, R = b.sampleRate, d = b.getChannelData(0), len = Math.round(1.12 * R);
-  NASTRO.forEach((n, k) => {
-    const da = Math.round((k * 1.2 + 0.05) * R), o = ctx.createBuffer(1, len, R);
+// 5 di corsa, i due atterraggi del salto, i due grugniti del cinghiale, 5 passi nell'acqua, 3 di corsa,
+// l'atterraggio nell'acqua e 3 zoccoli (Oculus Audio Pack, CC BY 4.0, e il Nature Sounds Pack di Leo).
+// sfx/colpi.mp3: 12 colpi di roncola e 12 pugni sull'albero, caselle da 1,7 s (registrati da Leo)
+const NASTRO = ['s1', 's2', 's3', 's4', 's5', 'sc1', 'sc2', 'sc3', 'sc4', 'sc5', 't1', 't2', 't3', 't4', 't5', 'tc1', 'tc2', 'tc3', 'tc4', 'tc5', 'giuS', 'giuT', 'cing1', 'cing2',
+  'a1', 'a2', 'a3', 'a4', 'a5', 'ac1', 'ac2', 'ac3', 'giuA', 'zoc1', 'zoc2', 'zoc3'];
+function taglia(b, nomi, casella, lung) {
+  if (!b) return;
+  const ctx = ascolto.context, R = b.sampleRate, d = b.getChannelData(0), len = Math.round(lung * R);
+  nomi.forEach((n, k) => {
+    const da = Math.round((k * casella + 0.01) * R), o = ctx.createBuffer(1, len, R);
     o.getChannelData(0).set(d.subarray(da, Math.min(d.length, da + len)));
     buf[n] = o;
   });
 }
+function tagliaPassi() {
+  taglia(buf.passi, NASTRO.map(n => n), 1.2, 1.16);
+  taglia(buf.colpi, Array.from({ length: 24 }, (_, k) => (k < 12 ? 'ron' : 'pug') + (k % 12)), 1.7, 1.66);
+}
+// dove metti i piedi: sentiero, acqua (guadi il fosso) o sottobosco
+function suolo() { return distFosso(io.x, io.z) < 1.1 ? 'acqua' : suSentiero(io.x, io.z) ? 'sentiero' : 'sottobosco'; }
 let ultimoPasso = 0;
 function suonoPasso(corre) {
-  let n; do { n = 1 + (Math.random() * 5 | 0); } while (n === ultimoPasso);
+  const s = suolo(), max = s === 'acqua' && corre ? 3 : 5;
+  let n; do { n = 1 + (Math.random() * max | 0); } while (n === ultimoPasso && max > 1);
   ultimoPasso = n;
-  suono((suSentiero(io.x, io.z) ? 't' : 's') + (corre ? 'c' : '') + n, corre ? 0.5 : 0.4, 0.94 + Math.random() * 0.12);
+  const nome = s === 'acqua' ? 'a' + (corre ? 'c' : '') + n : (s === 'sentiero' ? 't' : 's') + (corre ? 'c' : '') + n;
+  const canale = s === 'acqua' ? 'passiAcqua' : s === 'sentiero' ? 'passiSentiero' : 'passiSottobosco';
+  suono(nome, (corre ? 0.5 : 0.4) * (io.giu ? 0.45 : 1), 0.94 + Math.random() * 0.12, canale);
 }
 // la voce di Guerrino: un colpetto d'onda quadra a ogni lettera, come nei giochi vecchi
 let blipBuf = null;
@@ -914,7 +991,7 @@ function blip() {
     for (let i = 0; i < n; i++) d[i] = ((i / ctx.sampleRate * 132) % 1 < 0.5 ? 1 : -1) * Math.min(1, i / 30) * Math.pow(1 - i / n, 1.6);
   }
   const s = ctx.createBufferSource(), g = ctx.createGain();
-  s.buffer = blipBuf; s.playbackRate.value = 0.86 + Math.random() * 0.3; g.gain.value = 0.085;
+  s.buffer = blipBuf; s.playbackRate.value = 0.86 + Math.random() * 0.3; g.gain.value = 0.085 * mixG('voce');
   s.connect(g); g.connect(ascolto.getInput()); s.start();
 }
 
@@ -930,18 +1007,18 @@ function blip() {
    Nei file il giro ha 0,25 s di coda prima e 0,25 s di testa dopo: una finestra lunga un giro si chiude
    senza scatto ovunque cada, anche col ritardo che aggiunge l'mp3. */
 const MUS = {
-  giro: 85.24, da: 0.3, t0: 0, bus: null, tic: 0, pezzi: {},
-  // frequenza del file, volume, secondi di salita e di discesa. I tre pezzi più bassi nel mix di Leo
-  // (papi-in-vista a −56 dB, torcia a −57, distanza a −49) sono alzati di 18, 12 e 12 dB: se no non si sentono
+  giro: GIRO, da: INIZIO_GIRO, t0: 0, bus: null, tic: 0, pezzi: {},
+  // frequenza del file, secondi di salita e di discesa. Il volume di base è in mix.js (PEZZI): i tre pezzi
+  // più bassi nel mix di Leo (papi-in-vista, torcia, distanza) sono alzati, se no non si sentono
   elenco: {
-    foglio1: [24000, 1, 1.4, 1.4], foglio2: [24000, 1, 1.4, 1.4], foglio3: [24000, 1, 1.4, 1.4], foglio4: [24000, 1, 1.4, 1.4], foglio5: [24000, 1, 1.4, 1.4],
-    prossimita: [24000, 1, 0.35, 0.6], 'papi-in-vista': [44100, 8, 0.15, 0.5], fiato: [24000, 1, 0.25, 0.5], torcia: [44100, 4, 0.06, 0.12], distanza: [24000, 4, 1, 1],
+    foglio1: [24000, 1.4, 1.4], foglio2: [24000, 1.4, 1.4], foglio3: [24000, 1.4, 1.4], foglio4: [24000, 1.4, 1.4], foglio5: [24000, 1.4, 1.4],
+    prossimita: [24000, 0.35, 0.6], 'papi-in-vista': [44100, 0.15, 0.5], fiato: [24000, 0.12, 0.12], torcia: [44100, 0.06, 0.12], distanza: [24000, 1, 1],
   },
 };
 function caricaPezzo(nome) {
   if (MUS.pezzi[nome] || !MUS.bus) return;
-  const ctx = ascolto.context, [hz, vol] = MUS.elenco[nome];
-  const pz = MUS.pezzi[nome] = { g: ctx.createGain(), vol, ob: 0, pronto: false };
+  const ctx = ascolto.context, [hz] = MUS.elenco[nome];
+  const pz = MUS.pezzi[nome] = { g: ctx.createGain(), ob: 0, pronto: false };
   pz.g.gain.value = 0; pz.g.connect(MUS.bus);
   fetch('musica/' + nome + '.mp3').then(r => { if (!r.ok) throw new Error(r.status); return r.arrayBuffer(); }).then(dati => {
     // decodifico alla frequenza del file e non a quella della scheda audio: metà della memoria
@@ -960,7 +1037,7 @@ function caricaPezzo(nome) {
 }
 function avviaMusica() {
   if (MUS.bus) return;
-  MUS.bus = ascolto.context.createGain(); MUS.bus.gain.value = 1; MUS.bus.connect(ascolto.getInput());
+  MUS.bus = ascolto.context.createGain(); MUS.bus.gain.value = mixG('musica') * IMPOSTA.musica; MUS.bus.connect(ascolto.getInput());
   for (const n of ['torcia', 'distanza', 'fiato']) caricaPezzo(n);
 }
 function aggiornaMusica(dt) {
@@ -975,7 +1052,7 @@ function aggiornaMusica(dt) {
   const ce = papi.stato !== 'assente' && papi.g.visible && fase !== 'vinto';
   ob.prossimita = ce ? lim((30 - Math.hypot(io.x - papi.x, io.z - papi.z)) / 28) * papi.pres : 0;
   ob['papi-in-vista'] = ce && papi.vis > 0 ? 1 : 0;
-  ob.fiato = io.recupera ? lim((1 - io.fiato) * 3) : 0;
+  ob.fiato = lim((1 - io.fiato) * 1.3);   // il battito: sale mentre consumi il fiato, scende mentre lo recuperi
   ob.torcia = io.torcia ? 1 : 0;
   ob.distanza = lim((Math.hypot(io.x - tel.paese[0], io.z - tel.paese[1]) - 90) / 330);   // zitto in paese, pieno in fondo alla mappa
   const ora = ascolto.context.currentTime;
@@ -983,18 +1060,18 @@ function aggiornaMusica(dt) {
     const pz = MUS.pezzi[n], v = ob[n] || 0;
     if (!pz.pronto || Math.abs(v - pz.ob) < 0.004) continue;
     const e = MUS.elenco[n];
-    pz.g.gain.setTargetAtTime(v * pz.vol, ora, (v > pz.ob ? e[2] : e[3]) / 3);
+    pz.g.gain.setTargetAtTime(v * PEZZI[n] * mixG('mus-' + n), ora, (v > pz.ob ? e[1] : e[2]) / 3);
     pz.ob = v;
   }
 }
 function avviaLoop() {
-  for (const a of [ambiente, fosso, fiatone, rumore]) if (a && !a.isPlaying) a.play();
+  for (const a of [ambiente, fosso, rumore]) if (a && !a.isPlaying) a.play();
 }
 
 /* ════════ GIOCATORE ════════ */
 const io = {
   x: -75, z: 192, yaw: -Math.PI / 2, pitch: -0.05, fiato: 1, sfinito: false, batteria: 1, torcia: false,   // si parte a torcia spenta
-  passi: 0, dondolo: 0, fogli: 0, check: { x: -75, z: 192 }, morti: 0, tempo: 0, vel: 0, alto: 0, vy: 0, botta: 0, recupera: false,
+  passi: 0, dondolo: 0, fogli: 0, check: { x: -75, z: 192 }, morti: 0, tempo: 0, vel: 0, alto: 0, vy: 0, botta: 0, recupera: false, giu: false, hGiu: 0, fiatoneFatto: false,
 };
 const tasti = {};
 const joy = { x: 0, y: 0, attivo: false, id: null, ox: 0, oy: 0 };
@@ -1013,11 +1090,14 @@ addEventListener('keydown', e => {
   if (e.code === 'KeyE') provaPrendere();
   if (e.code === 'KeyM') apriTelefono();
   if (e.code === 'KeyZ' && tel.aperto) zoomTelefono();
+  if ((e.code === 'KeyC' || e.code === 'ControlLeft' || e.code === 'ControlRight') && !e.repeat) accovacciati();
 });
 addEventListener('keyup', e => { tasti[e.code] = false; });
-function cambiaTorcia() { if (io.batteria > 0) { io.torcia = !io.torcia; suono('colpo', 0.08, 2.6); } }
+function cambiaTorcia() { if (io.batteria > 0) { io.torcia = !io.torcia; suono('colpo', 0.08, 2.6, 'interfaccia'); } }
+function accovacciati(si = !io.giu) { if (fase === 'gioco') { io.giu = si; $('t-giu')?.classList.toggle('premuto', si); } }
 function salta() {
   if (fase !== 'gioco' || io.alto > 0 || io.sfinito) return;
+  if (io.giu) { accovacciati(false); return; }   // da accovacciato: ti rialzi
   io.vy = 3.4; io.alto = 0.001; io.fiato = Math.max(0, io.fiato - 0.04);   // mezzo metro, e costa un po' di fiato
 }
 
@@ -1031,7 +1111,8 @@ document.addEventListener('pointerlockchange', () => {
 });
 addEventListener('mousemove', e => {
   if (fase !== 'gioco' || document.pointerLockElement !== canvas) return;
-  io.yaw -= e.movementX * 0.0022; io.pitch -= e.movementY * 0.0022;
+  const k = 0.0022 * IMPOSTA.sens;
+  io.yaw -= e.movementX * k; io.pitch -= e.movementY * k * (IMPOSTA.invertiY ? -1 : 1);
   io.pitch = Math.max(-1.3, Math.min(1.3, io.pitch));
 });
 
@@ -1040,7 +1121,8 @@ const sguardo = { id: null, x: 0, y: 0 };
 addEventListener('touchstart', e => {
   if (fase !== 'gioco') return;
   for (const t of e.changedTouches) {
-    if (t.target.closest && t.target.closest('button, #telefono')) continue;
+    if (t.target.closest && t.target.closest('button')) continue;
+    if (tel.aperto && toccaSchermo(t.clientX, t.clientY)) { zoomTelefono(); continue; }   // lo zoom: un tocco sullo schermo del telefono
     if (t.clientX < innerWidth * 0.45 && joy.id === null) {
       joy.id = t.identifier; joy.ox = t.clientX; joy.oy = t.clientY; joy.x = joy.y = 0;
       const j = $('joy'); j.style.left = t.clientX + 'px'; j.style.top = t.clientY + 'px'; j.classList.add('on');
@@ -1055,7 +1137,7 @@ addEventListener('touchmove', e => {
       joy.x = dx / M; joy.y = dy / M;
       $('joy-pomello').style.transform = `translate(${dx}px,${dy}px)`;
     } else if (t.identifier === sguardo.id) {
-      io.yaw -= (t.clientX - sguardo.x) * 0.0055; io.pitch -= (t.clientY - sguardo.y) * 0.0045;
+      io.yaw -= (t.clientX - sguardo.x) * 0.0055 * IMPOSTA.sens; io.pitch -= (t.clientY - sguardo.y) * 0.0045 * IMPOSTA.sens * (IMPOSTA.invertiY ? -1 : 1);
       io.pitch = Math.max(-1.2, Math.min(1.2, io.pitch));
       sguardo.x = t.clientX; sguardo.y = t.clientY;
     }
@@ -1073,6 +1155,7 @@ bCorri.addEventListener('touchstart', e => { e.preventDefault(); corriTouch = !c
 $('t-torcia').addEventListener('touchstart', e => { e.preventDefault(); cambiaTorcia(); });
 $('t-prendi').addEventListener('touchstart', e => { e.preventDefault(); provaPrendere(); });
 $('t-salta').addEventListener('touchstart', e => { e.preventDefault(); salta(); });
+$('t-giu').addEventListener('touchstart', e => { e.preventDefault(); accovacciati(); });
 
 function muoviGiocatore(dt) {
   let ax = 0, az = 0;
@@ -1081,13 +1164,19 @@ function muoviGiocatore(dt) {
   if (tasti.KeyA || tasti.ArrowLeft) ax -= 1;
   if (tasti.KeyD || tasti.ArrowRight) ax += 1;
   if (joy.id !== null) { ax += joy.x; az += joy.y; }
+  ax += pad.x; az += pad.y;
   let l = Math.hypot(ax, az); if (l > 1) { ax /= l; az /= l; l = 1; }
-  const vuoleCorrere = (tasti.ShiftLeft || tasti.ShiftRight || corriTouch) && l > 0.3 && az < 0.2;
+  const vuoleCorrere = (tasti.ShiftLeft || tasti.ShiftRight || corriTouch || pad.corri) && l > 0.3 && az < 0.2;
+  if (vuoleCorrere && io.giu) accovacciati(false);
   const corre = vuoleCorrere && !io.sfinito && io.fiato > 0;
   if (corre) { io.fiato -= dt / 7.5; if (io.fiato <= 0) { io.fiato = 0; io.sfinito = true; } }
   else { io.fiato = Math.min(1, io.fiato + dt / (io.sfinito ? 14 : 10)); if (io.sfinito && io.fiato > 0.35) io.sfinito = false; }
+  // senza fiato: un fiatone solo, non in loop
+  if (io.fiato < 0.3 && !io.fiatoneFatto) { io.fiatoneFatto = true; suono('fiatone', 0.25, 0.95 + Math.random() * 0.1, 'fiatone'); }
+  if (io.fiato > 0.7) io.fiatoneFatto = false;
   io.recupera = !corre && io.fiato < 1;
-  const vmax = corre ? 4.7 : 2.3;
+  const acqua = distFosso(io.x, io.z) < 1.1;
+  const vmax = (corre ? 4.7 : io.giu ? 1.15 : 2.3) * (acqua ? 0.7 : 1);
   const s = Math.sin(io.yaw), c = Math.cos(io.yaw);
   let dx = (ax * c + az * s) * vmax * dt, dz = (-ax * s + az * c) * vmax * dt;
   // pendenza: in salita ripida si rallenta, oltre i 40° non si sale
@@ -1110,16 +1199,16 @@ function muoviGiocatore(dt) {
   // il salto
   if (io.alto > 0) {
     io.vy -= 11 * dt; io.alto += io.vy * dt;
-    if (io.alto <= 0) { io.alto = 0; io.vy = 0; io.botta = 1; io.passi = 0; suono(suSentiero(io.x, io.z) ? 'giuT' : 'giuS', 0.55, 0.95 + Math.random() * 0.1); }
+    if (io.alto <= 0) { io.alto = 0; io.vy = 0; io.botta = 1; io.passi = 0; const s = suolo(); suono(s === 'acqua' ? 'giuA' : s === 'sentiero' ? 'giuT' : 'giuS', 0.55, 0.95 + Math.random() * 0.1, s === 'acqua' ? 'passiAcqua' : 'salto'); }
   } else io.passi += fatto;
   io.botta = Math.max(0, io.botta - dt * 5);
-  const lungo = corre ? 1.25 : 0.8;
+  const lungo = corre ? 1.25 : io.giu ? 0.6 : 0.8;
   if (io.passi > lungo) { io.passi = 0; suonoPasso(corre); }
   if (!io.alto) io.dondolo += fatto * (corre ? 5.2 : 6.5);
   const bob = Math.sin(io.dondolo) * (corre ? 0.07 : 0.035) * Math.min(1, io.vel);
-  camera.position.set(io.x, quota(io.x, io.z) + 1.65 + bob + io.alto - Math.sin(io.botta * Math.PI) * 0.09, io.z);
+  io.hGiu += ((io.giu ? 1 : 0) - io.hGiu) * Math.min(1, dt * 8);
+  camera.position.set(io.x, quota(io.x, io.z) + 1.65 - io.hGiu * 0.7 + bob + io.alto - Math.sin(io.botta * Math.PI) * 0.09 - (acqua ? 0.12 : 0), io.z);
   camera.rotation.set(io.pitch, io.yaw, Math.sin(io.dondolo * 0.5) * 0.006 * io.vel, 'YXZ');
-  if (fiatone) fiatone.setVolume(io.fiato < 0.35 ? (0.35 - io.fiato) * 0.25 : Math.max(0, fiatone.getVolume() - dt * 0.03));   // −6 dB e poi altri −10 dB (Leo)
 }
 
 function aggiornaTorcia(dt, t) {
@@ -1151,7 +1240,7 @@ function provaPrendere() {
   if (!foglioVicino) return;
   const f = foglioVicino; f.preso = true; f.m.visible = false; foglioVicino = null;
   io.fogli++; io.check = { x: io.x, z: io.z };
-  suono('foglio', 0.9);
+  suono('foglio', 0.9, 1, 'foglio');
   ui.fogli.innerHTML = `Fogli <b>${io.fogli}</b>/10`;
   ui.foglioGrande.classList.remove('nascosto');
   const carta = ui.foglioGrande.firstElementChild; carta.style.animation = 'none'; void carta.offsetWidth; carta.style.animation = '';
@@ -1226,6 +1315,16 @@ function alberoDiGuerrino() {
   return best;
 }
 
+// colpisce con la mano destra (quella della roncola)? La guardo nel momento del colpo
+const _a = new THREE.Vector3(), _b = new THREE.Vector3();
+function conLaRoncola(tr) {
+  const m = guerrino.corpo; if (!tr || !m) return false;
+  const dx = m.getObjectByName('RightHand'), sx = m.getObjectByName('LeftHand'), pd = m.getObjectByName('RightFoot'), ps = m.getObjectByName('LeftFoot');
+  if (!dx) return false;
+  m.updateMatrixWorld(true);
+  const d = o => o ? Math.hypot(o.getWorldPosition(_a).x - tr.x, _a.z - tr.z) : Infinity;
+  return d(dx) < Math.min(d(sx), d(pd), d(ps));
+}
 // Guerrino mena l'albero, per sempre: una mossa dopo l'altra, col botto a tempo
 function aggiornaMena(dt, t) {
   const tr = guerrino.albero;
@@ -1239,9 +1338,13 @@ function aggiornaMena(dt, t) {
   while (guerrino.colpiFatti < lista.length && fr >= lista[guerrino.colpiFatti]) {
     guerrino.colpiFatti++;
     scuoti(tr, 0.6);
-    if (pugnoAudio && guerrino.g.visible) {
-      pugnoAudio.setBuffer(buf['pugno' + (1 + (Math.random() * 3 | 0))]);
-      pugnoAudio.setPlaybackRate(0.9 + Math.random() * 0.2);
+    if (pugnoAudio && buf.ron0) {
+      // round robin: mai lo stesso colpo due volte di fila
+      const tipo = conLaRoncola(tr) ? 'ron' : 'pug';
+      let k; do { k = Math.random() * 12 | 0; } while (k === guerrino.ultimoColpo);
+      guerrino.ultimoColpo = k;
+      pugnoAudio.setBuffer(buf[tipo + k]);
+      pugnoAudio.setPlaybackRate(0.96 + Math.random() * 0.08); pugnoAudio.setVolume(0.9 * mixG('colpi'));
       if (pugnoAudio.isPlaying) pugnoAudio.stop();
       pugnoAudio.play();
     }
@@ -1303,8 +1406,9 @@ function aggiornaStoria(dt, t) {
       guerrino.g.position.y = quota(FONTE.x, FONTE.z);   // seduto sulla vasca, non sul pendio
       if (tStoria > SEDUTA) { guerrino.fase = 5; recita(guerrino, 'cammina', false, 0.5); BATTUTE.sfogo.forEach(b => dici(b)); }
     } else if (guerrino.fase === 5) {
+      // si alza e, mentre dice le sue, s'avvia già verso l'albero
       disegna(guerrino);
-      if (!coda.length && !parlando) {
+      {
         guerrino.fase = 6;
         const tr = alberoDiGuerrino(); guerrino.albero = tr;
         // gira intorno alla vasca e si pianta a un braccio dal tronco
@@ -1314,7 +1418,7 @@ function aggiornaStoria(dt, t) {
         guerrino.tappa = 0;
       }
     } else if (guerrino.fase === 6) {
-      if (camminaSu(guerrino.verso, dt, 1.1, 0.08)) {
+      if (camminaSu(guerrino.verso, dt, 0.9, 0.08) && !coda.length && !parlando) {
         guerrino.mena = true; guerrino.mossa = -1; guerrino.corrente = guerrino.az.cammina; guerrino.prossimo = t + 10;
         storia = 'solo'; tStoria = 0; io.check = { x: io.x, z: io.z };
         attesa = VELOCE ? 25 : 240;
@@ -1372,7 +1476,7 @@ function iniziaCaccia(t) {
 function versoPapi(nome, vol = 1, rate = 1) {
   if (!papiVoce || !buf[nome]) return;
   if (papiVoce.isPlaying) papiVoce.stop();
-  papiVoce.setBuffer(buf[nome]); papiVoce.setVolume(vol); papiVoce.setPlaybackRate(rate); papiVoce.play();
+  papiVoce.setBuffer(buf[nome]); papiVoce.setVolume(vol * mixG('papiVersi')); papiVoce.setPlaybackRate(rate); papiVoce.play();
 }
 
 const _v = new THREE.Vector3();
@@ -1402,10 +1506,22 @@ function visibileDaMe(p, maxD, altezza = 1.3) {
   return coperto(p.x, p.z) ? 0 : 1 - Math.abs(_v.x) * 0.5;
 }
 
-// un posto per farsi vedere: dietro un albero davanti a me, a quella distanza, sporgendo di lato
+// un posto per farsi vedere: accovacciato dietro un cespuglio davanti a me, a quella distanza;
+// se lì non ci sono cespugli, dietro un albero
 function postoPerPapi(dist) {
   const av = avanti(), base = Math.atan2(av.x, av.z);
-  let riserva = null;
+  let riserva = null, scelta = null, bs = Infinity;
+  for (const c of CESPUGLI) {
+    const ux = c[0] - io.x, uz = c[1] - io.z, d = Math.hypot(ux, uz);
+    if (d < 10 || Math.abs(d - dist) > dist * 0.25 || Math.hypot(c[0] - FONTE.x, c[1] - FONTE.z) < SICURO + 6) continue;
+    let da = Math.atan2(ux, uz) - base; da = Math.abs(Math.atan2(Math.sin(da), Math.cos(da)));
+    if (da > 0.8) continue;
+    const posto = { x: c[0] + ux / d * (0.7 * c[2] + 0.5), z: c[1] + uz / d * (0.7 * c[2] + 0.5), tr: null, giu: true };
+    if (coperto(posto.x, posto.z)) continue;
+    const s = da + Math.random() * 0.5;
+    if (s < bs) { bs = s; scelta = posto; }
+  }
+  if (scelta) return scelta;
   for (let k = 0; k < 36; k++) {
     const a = base + (Math.random() - 0.5) * (k < 24 ? 1.3 : 2.6), dd = dist * (0.9 + Math.random() * 0.2);
     const x = io.x + Math.sin(a) * dd, z = io.z + Math.cos(a) * dd;
@@ -1425,8 +1541,9 @@ function appare(posto, t) {
   posa(papi, posto.x, posto.z, 0);
   papi.rot = guardaVerso(io.x, io.z, papi); disegna(papi);
   papi.stato = 'osserva'; papi.fine = t + 9 + Math.random() * 5;
-  papi.visto = false; papi.tVista = 0; papi.tVia = 0; papi.tFisso = 0;
-  papiInPiedi(0.05); mostraPapi();
+  papi.visto = false; papi.tVista = 0; papi.tVia = 0; papi.tFisso = 0; papi.giu = !!posto.giu;
+  if (papi.giu) papiGiu(0.05); else papiInPiedi(0.05);
+  mostraPapi();
   scuoti(posto.tr, 0.7);
   versoPapi('scricchiolio', 0.8, 0.7 + Math.random() * 0.15);   // un ramo che si spezza: ti fa girare
 }
@@ -1436,8 +1553,8 @@ function sparisce(t, pausa) {
 }
 // si ferma dov'è e resta a guardare (al bordo della Fonticella)
 function siFerma(t) {
-  papi.stato = 'osserva'; papi.fine = t + 5 + Math.random() * 4; papi.visto = true; papi.tVista = 0; papi.tVia = 0;
-  papiInPiedi(0.4);
+  papi.stato = 'osserva'; papi.fine = t + 5 + Math.random() * 4; papi.visto = true; papi.tVista = 0; papi.tVia = 0; papi.giu = true;
+  papiGiu(0.4);
 }
 function attacca(t, diCorsa) {
   papi.tFisso = 0;
@@ -1463,7 +1580,7 @@ function passoPapi(ogni, vol) {
   if (papi.passo < ogni || !papiPassi) return;
   papi.passo = 0;
   papiPassi.setBuffer(buf['sc' + (1 + (Math.random() * 5 | 0))]);
-  papiPassi.setPlaybackRate(0.5 + Math.random() * 0.08); papiPassi.setVolume(vol);
+  papiPassi.setPlaybackRate(0.5 + Math.random() * 0.08); papiPassi.setVolume(vol * mixG('papiPassi'));
   if (papiPassi.isPlaying) papiPassi.stop();
   papiPassi.play();
 }
@@ -1474,10 +1591,11 @@ function aggiornaCaccia(dt, t) {
   livello = io.fogli + tCaccia / 120;
   papi.vel = 0;
   const d = Math.hypot(io.x - papi.x, io.z - papi.z);
-  const inPiedi = papi.stato !== 'agguato';
-  const vis = papi.vis = papi.stato === 'assente' ? 0 : visibileDaMe(papi, 45, inPiedi ? 2.2 : 0.9);
+  const basso = papi.stato === 'agguato' || (papi.stato === 'osserva' && papi.giu);
+  const vis = papi.vis = papi.stato === 'assente' ? 0 : visibileDaMe(papi, 45, basso ? 1.2 : 3.2);
   const sicuro = alSicuro();
-  const fissa = 5.5 - Math.min(3, livello * 0.25);   // quanti secondi lo puoi fissare prima che parta
+  // quanti secondi lo puoi fissare prima che parta (accovacciato ti nota meno; la luce del telefono di più)
+  const fissa = 5.5 - Math.min(3, livello * 0.25) + (io.giu ? 2 : 0) - (tel.aperto ? 1.5 : 0);
   const pausa = Math.max(8, 26 - livello * 1.6);     // quanto ti lascia in pace quando se ne va
 
   // alla Fonticella non viene: se ti stava addosso si ferma al bordo e resta a guardare
@@ -1498,7 +1616,7 @@ function aggiornaCaccia(dt, t) {
     else if (papi.visto && (papi.tVista > fissa || d < 9)) attacca(t, true);        // lo fissi, o gli vai addosso: ti corre incontro
     else if (papi.visto && papi.tVia > 0.7) {
       // ti sei girato
-      const pAtt = Math.min(0.8, 0.1 + livello * 0.07), q = Math.random();
+      const pAtt = Math.min(0.85, (0.1 + livello * 0.07) * (io.giu ? 0.5 : 1) + (tel.aperto ? 0.2 : 0)), q = Math.random();
       const vicino = papi.salti < 2 && q >= pAtt && q < pAtt + 0.5 ? postoPerPapi(Math.max(11, d * 0.62)) : null;
       if (q < pAtt) attacca(t, false);
       else if (vicino) { papi.salti++; viaPapi(true); appare(vicino, t); }
@@ -1515,8 +1633,8 @@ function aggiornaCaccia(dt, t) {
     if (vis === 0) { avanzaPapi(dt, (papi.nomeAz === 'gattona' ? 3.0 : 2.5) + livello * 0.08); passoPapi(2.2, 0.35); papi.tFisso = Math.max(0, papi.tFisso - dt); }
     else { giraVerso(guardaVerso(io.x, io.z, papi), dt, 3, papi); papi.tFisso += dt; }
     disegna(papi);
-    if (d < 8 + livello * 0.3) {
-      papi.stato = 'salta'; papi.tSalto = 0; recita(papi, 'salto', true, 0.1);
+    if (d < 9 + livello * 0.3) {
+      papi.stato = 'salta'; papi.tSalto = 0; const a = recita(papi, 'salto', true, 0.1); if (a) a.timeScale = 1.25;
       versoPapi('frasche', 1, 0.6);
     } else if (papi.tFisso > fissa + 1.5 && d < 20) attacca(t, true);
     else if (t > papi.fine && vis === 0) sparisce(t, pausa);
@@ -1524,21 +1642,23 @@ function aggiornaCaccia(dt, t) {
     // il balzo: nella parte in volo dell'animazione ti viene addosso
     papi.tSalto += dt;
     const fr = papi.corrente.time / papi.corrente.getClip().duration;
-    if (fr > 0.12 && fr < 0.42 && d > 2) avanzaPapi(dt, 7);
+    if (fr > 0.12 && fr < 0.42 && d > 2.5) avanzaPapi(dt, 9);
     else giraVerso(guardaVerso(io.x, io.z, papi), dt, 4, papi);
     disegna(papi);
-    if (fr > 0.62 || finita(papi)) { papi.stato = 'insegue'; papi.fine = t + 8 + Math.random() * 5; recita(papi, 'corsa', false, 0.3); }
+    if (fr > 0.62 || finita(papi)) { papi.stato = 'insegue'; papi.fine = t + 8 + Math.random() * 5; papi.tSaltoOk = t + 3; recita(papi, 'corsa', false, 0.3); }
   } else if (papi.stato === 'insegue') {
-    avanzaPapi(dt, 3.1 + livello * 0.14);
-    passoPapi(1.6, 1);
+    avanzaPapi(dt, 3.4 + livello * 0.14);
+    passoPapi(1.9, 1);
     disegna(papi);
+    // abbastanza vicino: si lancia
+    if (d < 10 && t > (papi.tSaltoOk || 0)) { papi.stato = 'salta'; papi.tSalto = 0; const a = recita(papi, 'salto', true, 0.12); if (a) a.timeScale = 1.25; versoPapi('frasche', 1, 0.6); }
     if ((t > papi.fine && vis === 0) || t > papi.fine + 7) sparisce(t, pausa);
   }
 
   // lo statico: poco, e solo quando ce l'hai addosso. Ti prende se ti tocca.
-  const c = papi.stato !== 'assente' && !sicuro ? Math.max(0, 1 - d / 16) : 0;
+  const c = papi.stato !== 'assente' && !sicuro ? Math.max(0, 1 - d / 18) : 0;
   staticoOb = c * c * (vis > 0 ? 0.9 : 0.5) * papi.pres;
-  if (papi.stato !== 'assente' && papi.stato !== 'osserva' && !sicuro && d < 2.3) preso();
+  if (papi.stato !== 'assente' && papi.stato !== 'osserva' && !sicuro && d < 3.2) preso();
 }
 
 /* ── statico a schermo: sale svelto, scende in dissolvenza; al centro resta una finestra (vedi stile.css) ── */
@@ -1549,7 +1669,7 @@ function disegnaStatico(dt) {
   staticoV += Math.max(-dt * 0.55, Math.min(dt * 3, ob - staticoV));
   const k = staticoV;
   ui.statico.style.opacity = (k * k * 0.85).toFixed(3);
-  if (rumore) rumore.setVolume(k * k * 0.2);   // −8 dB (Leo)
+  if (rumore) rumore.setVolume(k * k * 0.2 * mixG('statico'));   // −8 dB (Leo)
   if (k < 0.02) return;
   const d = sImg.data;
   for (let i = 0; i < d.length; i += 4) { const v = Math.random() * 255 | 0; d[i] = d[i + 1] = d[i + 2] = v; d[i + 3] = 255; }
@@ -1573,7 +1693,55 @@ function distFosso(x, z) {
 // sotto GPS_QUOTA vedi la carta e l'ultima posizione nota, non dove sei adesso.
 const GPS_QUOTA = 1170;   // metri veri sul mare (il paese sta a 1126)
 const tel = { aperto: false, fix: false, tFix: 0, tacche: 0, ux: io.x, uz: io.z, tUltimo: 0, zoom: 0, mappa: null, tDis: 0, paese: [0, 0] };
-const telUI = { box: $('telefono'), cv: $('tel-mappa'), ora: $('tel-ora'), tacche: $('tel-tacche'), batt: $('tel-batt'), gps: $('tel-gps'), quota: $('tel-quota'), nota: $('tel-nota') };
+// Il telefono in mano: un parallelepipedo nero con lo schermo acceso e la mano destra che lo tiene.
+// Lo schermo fa un filo di luce: con il telefono aperto Papi ti vede meglio.
+const TEL3D = { g: new THREE.Group(), su: 0, cv: document.createElement('canvas') };
+TEL3D.cv.width = 192; TEL3D.cv.height = 344;
+TEL3D.tex = new THREE.CanvasTexture(TEL3D.cv);
+TEL3D.tex.colorSpace = THREE.SRGBColorSpace; TEL3D.tex.minFilter = THREE.LinearMipmapLinearFilter; TEL3D.tex.magFilter = THREE.LinearFilter;
+{
+  // la mano e il telefono non prendono le luci della scena (a un palmo dalla torcia verrebbero bianchi):
+  // ogni faccia ha la sua ombra fissa, e il colore si scurisce col buio (animaTelefono)
+  const ombre = geo => { const n = geo.attributes.normal, col = []; for (let i = 0; i < n.count; i++) { const y = n.getY(i), z = n.getZ(i), x = n.getX(i); const k = y > 0.5 ? 1 : y < -0.5 ? 0.45 : z > 0.5 ? 0.82 : x > 0.5 ? 0.62 : 0.55; col.push(k, k, k); } geo.setAttribute('color', new THREE.Float32BufferAttribute(col, 3)); return geo; };
+  const g = TEL3D.g, nero = new THREE.MeshBasicMaterial({ color: 0x18191b, vertexColors: true }), pelle = new THREE.MeshBasicMaterial({ color: 0x9a7058, vertexColors: true });
+  TEL3D.pelle = pelle;
+  const box = (w, h, d, m, x, y, z, rx = 0, ry = 0, rz = 0) => { const b = new THREE.Mesh(ombre(new THREE.BoxGeometry(w, h, d)), m); b.position.set(x, y, z); b.rotation.set(rx, ry, rz); g.add(b); return b; };
+  box(0.074, 0.15, 0.009, nero, 0, 0, 0);
+  const schermo = new THREE.Mesh(new THREE.PlaneGeometry(0.066, 0.118), new THREE.MeshBasicMaterial({ map: TEL3D.tex, fog: false }));
+  schermo.position.set(0, 0.004, 0.0047); g.add(schermo);
+  // il palmo dietro, il pollice sul bordo destro, le dita che spuntano a sinistra, il polso che scende
+  box(0.07, 0.08, 0.022, pelle, 0.008, -0.04, -0.016);
+  box(0.017, 0.055, 0.016, pelle, 0.041, -0.036, 0.003, 0, 0, 0.32);
+  for (let i = 0; i < 4; i++) box(0.017, 0.015, 0.015, pelle, -0.039, 0.006 - i * 0.017, -0.006);
+  box(0.058, 0.13, 0.05, pelle, 0.022, -0.125, -0.03, 0.35, 0, -0.18);
+  TEL3D.luce = new THREE.PointLight(0x9cc0ff, 0, 2.5, 2); TEL3D.luce.position.set(0, 0.02, 0.06); g.add(TEL3D.luce);
+  g.visible = false; g.renderOrder = 5; camera.add(g);
+}
+function animaTelefono(dt) {
+  const ob = tel.aperto && fase !== 'menu' ? 1 : 0;
+  TEL3D.su += (ob - TEL3D.su) * Math.min(1, dt * 9);
+  const s = TEL3D.su, g = TEL3D.g;
+  g.visible = s > 0.01;
+  TEL3D.luce.intensity = 0.7 * s * s;
+  if (!g.visible) return;
+  // la mano: la luce dello schermo, più la torcia se è accesa, meno il buio della notte
+  TEL3D.pelle.color.setHex(0x9a7058).multiplyScalar(0.55 + (io.torcia ? 0.35 : 0) - BUIO.k * 0.2);
+  const bob = Math.sin(io.dondolo) * 0.004 * Math.min(1, io.vel);
+  g.position.set(0.01, -0.2 + s * 0.172 + bob, -0.155);
+  g.rotation.set(-0.12 - (1 - s) * 0.6, 0.04, Math.sin(io.dondolo * 0.5) * 0.01);
+}
+// dove sta lo schermo del telefono sullo schermo vero (per lo zoom col dito)
+function toccaSchermo(x, y) {
+  if (TEL3D.su < 0.8) return false;
+  const v = new THREE.Vector3(); let x0 = 1e9, x1 = -1e9, y0 = 1e9, y1 = -1e9;
+  TEL3D.g.updateMatrixWorld(true);
+  for (const [a, b] of [[-1, -1], [1, -1], [1, 1], [-1, 1]]) {
+    v.set(a * 0.037, b * 0.075, 0); TEL3D.g.localToWorld(v); v.project(camera);
+    const px = (v.x + 1) / 2 * innerWidth, py = (1 - v.y) / 2 * innerHeight;
+    x0 = Math.min(x0, px); x1 = Math.max(x1, px); y0 = Math.min(y0, py); y1 = Math.max(y1, py);
+  }
+  return x >= x0 && x <= x1 && y >= y0 && y <= y1;
+}
 function quotaVera() { return quota(io.x, io.z) / SCALA; }
 
 // la carta, disegnata una volta sola dal terreno vero: ombre, curve di livello, bosco, fossi, strade, case
@@ -1615,84 +1783,124 @@ function creaMappaTelefono(bosco, osm) {
 function apriTelefono(si = !tel.aperto) {
   if (si === tel.aperto) return;
   tel.aperto = si; tel.tDis = 0;
-  telUI.box.classList.toggle('su', si);
-  suono('colpo', 0.05, 3.4);
+  if (si) disegnaTelefono(tGioco, quotaVera());
+  suono('colpo', 0.05, 3.4, 'interfaccia');
 }
 function zoomTelefono() { tel.zoom ^= 1; tel.tDis = 0; }
 
+// Il GPS non è preciso: in quota ogni tanto si perde; in basso certi punti prendono e ogni tanto
+// aggancia a caso; e a volte sbaglia e ti mette da un'altra parte (più fogli hai, più succede).
+// Quando aggancia, i fogli dentro il cerchio tratteggiato compaiono sulla mappa per 15 secondi.
+const GPS = { buchi: [], tCaduta: 0, tLampo: 0, tFinto: 0, fx: 0, fz: 0, rivelati: [] };
+function preparaGps() {
+  const r = rand(909);
+  for (let k = 0; GPS.buchi.length < 7 && k < 400; k++) {
+    const x = (r() - 0.5) * LIMITE * 1.8, z = (r() - 0.5) * LIMITE * 1.8;
+    if (quota(x, z) / SCALA < GPS_QUOTA - 15) GPS.buchi.push({ x, z, r: 9 + r() * 8 });
+  }
+}
 function aggiornaGps(dt, t) {
   const q = quotaVera();
-  tel.tacche = q >= GPS_QUOTA + 25 ? 4 : q >= GPS_QUOTA ? 3 : q >= GPS_QUOTA - 15 ? 2 : q >= GPS_QUOTA - 35 ? 1 : 0;
-  // ci mette un paio di secondi ad agganciare, e lo perde appena scendi
-  tel.tFix = Math.max(0, Math.min(3, tel.tFix + (q >= GPS_QUOTA ? dt : -dt * 1.5)));
-  if (!tel.fix && tel.tFix >= 2.5) tel.fix = true;
+  let segnale = q >= GPS_QUOTA;
+  if (segnale) { if (GPS.tCaduta <= 0 && Math.random() < dt / 30) GPS.tCaduta = 4 + Math.random() * 10; if (GPS.tCaduta > 0) segnale = false; }
+  else {
+    if (GPS.tLampo <= 0 && Math.random() < dt / 60) GPS.tLampo = 3 + Math.random() * 3;
+    if (GPS.tLampo > 0 || GPS.buchi.some(b => Math.hypot(io.x - b.x, io.z - b.z) < b.r)) segnale = true;
+  }
+  GPS.tCaduta = Math.max(0, GPS.tCaduta - dt); GPS.tLampo = Math.max(0, GPS.tLampo - dt);
+  tel.tacche = segnale ? (q >= GPS_QUOTA + 25 ? 4 : 3) : q >= GPS_QUOTA - 15 ? 2 : q >= GPS_QUOTA - 35 ? 1 : 0;
+  // ci mette un paio di secondi ad agganciare, e lo perde appena il segnale va via
+  tel.tFix = Math.max(0, Math.min(3, tel.tFix + (segnale ? dt : -dt * 1.5)));
+  if (!tel.fix && tel.tFix >= 2.5) {
+    tel.fix = true;
+    const raggio = Math.min(80, 8 + (t - tel.tUltimo) * 1.4);   // il cerchio tratteggiato di adesso
+    for (const f of FOGLI) if (!f.preso && Math.hypot(f.x - io.x, f.z - io.z) < raggio && !GPS.rivelati.some(v => v.f === f)) GPS.rivelati.push({ f, fino: t + 15 });
+    if (Math.random() < Math.min(0.6, io.fogli * 0.06)) sbagliaGps();
+  }
   if (tel.fix && tel.tFix <= 1) tel.fix = false;
-  if (tel.fix) { tel.ux = io.x; tel.uz = io.z; tel.tUltimo = t; }
+  if (tel.fix && GPS.tFinto <= 0 && Math.random() < dt / 50 * io.fogli / 10) sbagliaGps();
+  GPS.tFinto = Math.max(0, GPS.tFinto - dt);
+  GPS.rivelati = GPS.rivelati.filter(v => v.fino > t && !v.f.preso);
+  if (tel.fix) { tel.ux = io.x + (GPS.tFinto > 0 ? GPS.fx : 0); tel.uz = io.z + (GPS.tFinto > 0 ? GPS.fz : 0); tel.tUltimo = t; }
   if (tel.aperto && (tel.tDis -= dt) <= 0) { tel.tDis = 0.1; disegnaTelefono(t, q); }
 }
 
+function sbagliaGps() {
+  const a = Math.random() * 6.28, d = 40 + Math.random() * 100;
+  GPS.fx = Math.sin(a) * d; GPS.fz = Math.cos(a) * d; GPS.tFinto = 6 + Math.random() * 10;
+}
 function disegnaTelefono(t, q) {
   if (!tel.mappa) return;
-  const cv = telUI.cv, S = Math.round((cv.clientWidth || 150) * Math.min(2, devicePixelRatio || 1));
-  if (cv.width !== S) cv.width = cv.height = S;
-  const g = cv.getContext('2d'), u = S / 230;   // u = un punto dello schermo del telefono
-  const campo = tel.zoom ? HALF * 2 : 170;      // metri di mappa nello schermo
+  const cv = TEL3D.cv, W = cv.width, H = cv.height, g = cv.getContext('2d');
+  const font = (px, peso = 500) => { g.font = `${peso} ${px}px "DM Mono", monospace`; };
+  g.fillStyle = '#07090a'; g.fillRect(0, 0, W, H);
+  g.textBaseline = 'middle'; g.lineJoin = 'round';
+  // barra di stato: ora, tacche, batteria
+  const min = 187 + Math.floor(t / 60);
+  font(19); g.textAlign = 'left'; g.fillStyle = '#e9e4d6';
+  g.fillText(String(Math.floor(min / 60) % 24).padStart(2, '0') + ':' + String(min % 60).padStart(2, '0'), 9, 15);
+  for (let i = 0; i < 4; i++) { g.fillStyle = i < tel.tacche ? '#e9e4d6' : 'rgba(233,228,214,.2)'; g.fillRect(W - 96 + i * 8, 23 - (i + 1) * 4, 6, (i + 1) * 4); }
+  g.textAlign = 'right'; g.fillStyle = io.batteria < 0.2 ? '#e2574a' : '#e9e4d6'; g.fillText(Math.round(io.batteria * 100) + '%', W - 8, 15);
+  // l'app: il nome e lo stato del GPS
+  g.textAlign = 'left'; font(23); g.fillStyle = '#e9e4d6'; g.fillText('Mappe', 9, 45);
+  const cerca = !tel.fix && tel.tFix > 0.3;
+  const [scr, col] = tel.fix ? ['GPS', '#72d590'] : cerca ? ['cerco', '#e6b450'] : ['no GPS', '#e2574a'];
+  font(17); const lw = g.measureText(scr).width + 14;
+  g.fillStyle = col; g.globalAlpha = 0.2; g.fillRect(W - 8 - lw, 33, lw, 24); g.globalAlpha = 1;
+  g.textAlign = 'right'; g.fillText(scr, W - 15, 45);
+  // la carta
+  const M0 = 64, S = W, u = S / 150;
+  const campo = tel.zoom ? HALF * 2 : 170;      // metri di mappa nel riquadro
   const cx = tel.zoom ? 0 : tel.ux, cz = tel.zoom ? 0 : tel.uz;
   const sx = x => ((x - cx) / campo + 0.5) * S, sy = z => ((z - cz) / campo + 0.5) * S;
+  g.save(); g.beginPath(); g.rect(0, M0, S, S); g.clip(); g.translate(0, M0);
   g.fillStyle = '#0c0f0e'; g.fillRect(0, 0, S, S);
-  // ritaglio a mano: fuori dalla carta resta nero
   const k = tel.mappa.width / (HALF * 2);
   const x0 = Math.max(-HALF, cx - campo / 2), x1 = Math.min(HALF, cx + campo / 2), z0 = Math.max(-HALF, cz - campo / 2), z1 = Math.min(HALF, cz + campo / 2);
   if (x1 > x0 && z1 > z0) g.drawImage(tel.mappa, (x0 + HALF) * k, (z0 + HALF) * k, (x1 - x0) * k, (z1 - z0) * k, sx(x0), sy(z0), sx(x1) - sx(x0), sy(z1) - sy(z0));
-  g.textBaseline = 'middle'; g.lineJoin = 'round';
-  const scritta = (testo, x, y, col = '#e9e4d6', corpo = 10) => {
-    g.font = `500 ${Math.round(corpo * u)}px "DM Mono", monospace`;
-    g.lineWidth = 3 * u; g.strokeStyle = 'rgba(8,10,9,.9)'; g.strokeText(testo, x, y); g.fillStyle = col; g.fillText(testo, x, y);
+  const scritta = (testo, x, y, colore = '#e9e4d6', corpo = 16) => {
+    font(corpo); g.textAlign = 'left';
+    g.lineWidth = 4; g.strokeStyle = 'rgba(8,10,9,.9)'; g.strokeText(testo, x, y); g.fillStyle = colore; g.fillText(testo, x, y);
   };
-  scritta('Capricchia', sx(tel.paese[0]) - 30 * u, sy(tel.paese[1]) + 22 * u, '#d8d2c0', 11);
-  // Fonticella Petri
-  g.fillStyle = '#5fb7ea'; g.strokeStyle = '#fff'; g.lineWidth = 1.5 * u;
-  g.beginPath(); g.arc(sx(FONTE.x), sy(FONTE.z), 4 * u, 0, 6.3); g.fill(); g.stroke();
-  scritta('Fonticella Petri', sx(FONTE.x) + 7 * u, sy(FONTE.z), '#bfe2f7');
-  // i fogli già presi
-  for (const f of FOGLI) if (f.preso) {
-    g.fillStyle = '#efeadb'; g.strokeStyle = '#1a1812'; g.lineWidth = u;
-    g.beginPath(); g.rect(sx(f.x) - 3 * u, sy(f.z) - 4 * u, 6 * u, 8 * u); g.fill(); g.stroke();
+  scritta('Capricchia', sx(tel.paese[0]) - 40, sy(tel.paese[1]) + 22, '#d8d2c0');
+  g.fillStyle = '#5fb7ea'; g.strokeStyle = '#fff'; g.lineWidth = 2;
+  g.beginPath(); g.arc(sx(FONTE.x), sy(FONTE.z), 3.5 * u, 0, 6.3); g.fill(); g.stroke();
+  scritta('Fonticella', sx(FONTE.x) + 7 * u, sy(FONTE.z), '#bfe2f7');
+  const foglio = (x, y, bordo) => { g.fillStyle = '#efeadb'; g.strokeStyle = bordo; g.lineWidth = 1.5; g.beginPath(); g.rect(x - 3 * u, y - 4 * u, 6 * u, 8 * u); g.fill(); g.stroke(); };
+  for (const f of FOGLI) if (f.preso) foglio(sx(f.x), sy(f.z), '#1a1812');
+  // i fogli che il GPS ha visto nel cerchio: restano segnati per 15 secondi
+  const batti = 0.5 + 0.5 * Math.sin(t * 6);
+  for (const v of GPS.rivelati) {
+    const x = sx(v.f.x), y = sy(v.f.z);
+    g.strokeStyle = `rgba(226,87,74,${0.35 + batti * 0.65})`; g.lineWidth = 2.5;
+    g.beginPath(); g.arc(x, y, (7 + batti * 5) * u, 0, 6.3); g.stroke();
+    foglio(x, y, '#e2574a');
   }
-  // tu: pallino blu se il GPS prende; se no, l'ultima posizione e un cerchio che si allarga
+  // tu: se il GPS prende, pallino e direzione; se no, l'ultima posizione e un cerchio che si allarga
   const px = sx(tel.ux), py = sy(tel.uz);
   if (tel.fix) {
-    const a = avanti(), ang = Math.atan2(a.z, a.x);
-    g.fillStyle = 'rgba(86,160,255,.3)'; g.beginPath(); g.moveTo(px, py); g.arc(px, py, 30 * u, ang - 0.5, ang + 0.5); g.closePath(); g.fill();
-    g.fillStyle = 'rgba(86,160,255,.2)'; g.beginPath(); g.arc(px, py, 10 * u, 0, 6.3); g.fill();
-    g.fillStyle = '#4c9bff'; g.strokeStyle = '#fff'; g.lineWidth = 2 * u; g.beginPath(); g.arc(px, py, 5 * u, 0, 6.3); g.fill(); g.stroke();
+    const av = avanti(), ang = Math.atan2(av.z, av.x);
+    g.fillStyle = 'rgba(86,160,255,.3)'; g.beginPath(); g.moveTo(px, py); g.arc(px, py, 26 * u, ang - 0.5, ang + 0.5); g.closePath(); g.fill();
+    g.fillStyle = '#4c9bff'; g.strokeStyle = '#fff'; g.lineWidth = 2.5; g.beginPath(); g.arc(px, py, 4.5 * u, 0, 6.3); g.fill(); g.stroke();
   } else {
     const inc = Math.min(HALF, 8 + (t - tel.tUltimo) * 1.4) / campo * S;
-    g.setLineDash([4 * u, 4 * u]); g.strokeStyle = 'rgba(233,228,214,.6)'; g.lineWidth = 1.3 * u; g.beginPath(); g.arc(px, py, inc, 0, 6.3); g.stroke(); g.setLineDash([]);
-    g.fillStyle = '#8b8f88'; g.strokeStyle = '#e9e4d6'; g.lineWidth = 1.5 * u; g.beginPath(); g.arc(px, py, 4.5 * u, 0, 6.3); g.fill(); g.stroke();
+    g.setLineDash([6, 6]); g.strokeStyle = 'rgba(233,228,214,.65)'; g.lineWidth = 2; g.beginPath(); g.arc(px, py, inc, 0, 6.3); g.stroke(); g.setLineDash([]);
+    g.fillStyle = '#8b8f88'; g.strokeStyle = '#e9e4d6'; g.lineWidth = 2; g.beginPath(); g.arc(px, py, 4 * u, 0, 6.3); g.fill(); g.stroke();
   }
-  // nord e scala
-  g.fillStyle = 'rgba(8,10,9,.7)'; g.beginPath(); g.arc(S - 16 * u, 16 * u, 11 * u, 0, 6.3); g.fill();
-  g.fillStyle = '#e9e4d6'; g.beginPath(); g.moveTo(S - 16 * u, 8 * u); g.lineTo(S - 12 * u, 17 * u); g.lineTo(S - 20 * u, 17 * u); g.closePath(); g.fill();
-  g.font = `500 ${Math.round(7 * u)}px "DM Mono", monospace`; g.textAlign = 'center'; g.fillText('N', S - 16 * u, 22 * u); g.textAlign = 'left';
+  // il nord e la scala
+  g.fillStyle = 'rgba(8,10,9,.75)'; g.beginPath(); g.arc(S - 18, 18, 13, 0, 6.3); g.fill();
+  g.fillStyle = '#e9e4d6'; g.beginPath(); g.moveTo(S - 18, 7); g.lineTo(S - 12, 20); g.lineTo(S - 24, 20); g.closePath(); g.fill();
   const metri = tel.zoom ? 200 : 50, lung = metri / campo * S;
-  g.strokeStyle = '#e9e4d6'; g.lineWidth = 1.5 * u; g.beginPath(); g.moveTo(8 * u, 9 * u); g.lineTo(8 * u, 13 * u); g.lineTo(8 * u + lung, 13 * u); g.lineTo(8 * u + lung, 9 * u); g.stroke();
-  scritta(metri + ' m', 12 * u + lung, 11 * u, '#e9e4d6', 9);
-
-  // le scritte intorno alla carta
-  const min = 187 + Math.floor(t / 60);
-  telUI.ora.textContent = String(Math.floor(min / 60) % 24).padStart(2, '0') + ':' + String(min % 60).padStart(2, '0');
-  telUI.tacche.dataset.n = tel.tacche;
-  telUI.batt.textContent = Math.round(io.batteria * 100) + '%';
-  const cerca = !tel.fix && q >= GPS_QUOTA;
-  telUI.gps.textContent = tel.fix ? 'GPS agganciato' : cerca ? 'Cerco i satelliti...' : 'GPS assente';
-  telUI.gps.className = tel.fix ? 'si' : cerca ? 'cerca' : 'no';
-  telUI.quota.textContent = `Quota ${Math.round(q)} m`;
+  g.strokeStyle = '#e9e4d6'; g.lineWidth = 2; g.beginPath(); g.moveTo(8, 9); g.lineTo(8, 15); g.lineTo(8 + lung, 15); g.lineTo(8 + lung, 9); g.stroke();
+  scritta(metri + ' m', 13 + lung, 12, '#e9e4d6', 15);
+  g.restore();
+  // sotto la carta: la quota, e da quanto non sa dove sei
+  g.textAlign = 'left'; font(19); g.fillStyle = '#e9e4d6'; g.fillText(`Quota ${Math.round(q)} m`, 9, M0 + S + 24);
   const fa = Math.floor((t - tel.tUltimo) / 60);
-  telUI.nota.textContent = tel.fix ? 'Il pallino blu sei tu.' : `Prende sopra i ${GPS_QUOTA} m. Ultima posizione: ${fa < 1 ? 'meno di un minuto fa' : fa === 1 ? 'un minuto fa' : fa + ' minuti fa'}.`;
+  if (!tel.fix) { font(15); g.fillStyle = '#9a968b'; g.fillText('Ultima posizione:', 9, M0 + S + 52); g.fillText(fa < 1 ? 'meno di 1 min fa' : fa === 1 ? '1 minuto fa' : fa + ' minuti fa', 9, M0 + S + 72); }
+  TEL3D.tex.needsUpdate = true;
 }
 $('t-mappa').addEventListener('touchstart', e => { e.preventDefault(); apriTelefono(); });
-telUI.cv.addEventListener('touchstart', e => { e.preventDefault(); zoomTelefono(); });
 
 /* ════════ STATI DEL GIOCO ════════ */
 function preso() {
@@ -1700,14 +1908,14 @@ function preso() {
   fase = 'morto'; io.morti++; apriTelefono(false);
   // ultimo sguardo: girati verso di lui, e guarda in su (è alto tre metri)
   const a = Math.atan2(-(papi.x - io.x), -(papi.z - io.z));
-  io.yaw = a; io.pitch = 0.5;
-  posa(papi, io.x - Math.sin(a) * 2.1, io.z - Math.cos(a) * 2.1, a);
+  io.yaw = a; io.pitch = 0.72;
+  posa(papi, io.x - Math.sin(a) * 3, io.z - Math.cos(a) * 3, a);
   papi.g.visible = true; papi.pres = papi.presV = 1; papi.vel = 0; papi.stato = 'preso';
   const sl = recita(papi, 'salto', true, 0.05);
   if (sl) { sl.time = sl.getClip().duration * 0.4; sl.paused = true; }   // braccia alzate
   papi.mixer.update(0.3);
   camera.rotation.set(io.pitch, io.yaw, 0, 'YXZ');
-  suono('colpo', 0.6); suono('scricchiolio', 0.4);
+  suono('colpo', 0.6, 1, 'papiVersi'); suono('scricchiolio', 0.4, 1, 'papiVersi');
   setTimeout(() => {
     ui.buio.style.opacity = 1;
     setTimeout(() => {
@@ -1749,15 +1957,174 @@ function pausa(si) {
   if (fase !== 'gioco' && fase !== 'pausa') return;
   fase = si ? 'pausa' : 'gioco';
   mostra('pausa', si); document.body.classList.toggle('fuori', si);
-  if (si) { ascolto.context.suspend?.(); if (document.pointerLockElement) document.exitPointerLock(); }
-  else { ascolto.context.resume?.(); if (!TOCCO) canvas.requestPointerLock?.(); }
+  if (si) { ascolto.context.suspend?.(); if (document.pointerLockElement) document.exitPointerLock(); if (pad.attivo) fuocoPad(vociMenu()[0]); }
+  else { mostra('pannello', false); ascolto.context.resume?.(); if (!TOCCO) canvas.requestPointerLock?.()?.catch?.(() => {}); }
 }
 $('pausa-btn').addEventListener('click', () => pausa(true));
 $('riprendi').addEventListener('click', () => pausa(false));
 $('riprova').addEventListener('click', riprova);
 $('ancora').addEventListener('click', () => location.reload());
 document.addEventListener('visibilitychange', () => { if (document.hidden && fase === 'gioco') pausa(true); });
-addEventListener('keydown', e => { if (e.code === 'Escape' && fase === 'pausa') pausa(false); });
+addEventListener('keydown', e => {
+  if (e.code !== 'Escape') return;
+  if (!$('pannello').classList.contains('nascosto')) chiudiPannello();
+  else if (fase === 'pausa') pausa(false);
+});
+
+/* ── i pannelli del menu: controlli, impostazioni, crediti ── */
+let pannelloDa = 'menu';
+function apriPannello(nome) {
+  pannelloDa = fase === 'pausa' ? 'pausa' : 'menu';
+  for (const pg of document.querySelectorAll('#pannello .pagina')) pg.classList.toggle('su', pg.id === 'p-' + nome);
+  $('pannello-titolo').textContent = { controlli: 'Controlli', impostazioni: 'Impostazioni', crediti: 'Crediti' }[nome];
+  mostra(pannelloDa, false); mostra('pannello', true);
+  if (pad.attivo) fuocoPad(vociMenu()[0]);
+}
+function chiudiPannello() {
+  mostra('pannello', false); mostra(pannelloDa, true);
+  if (pad.attivo) fuocoPad(vociMenu()[0]);
+}
+for (const b of document.querySelectorAll('[data-pannello]')) b.addEventListener('click', () => apriPannello(b.dataset.pannello));
+$('pannello-chiudi').addEventListener('click', chiudiPannello);
+{
+  const iSens = $('i-sens'), iVol = $('i-volume'), iMus = $('i-musica'), iInv = $('i-inverti');
+  iSens.value = IMPOSTA.sens; iVol.value = IMPOSTA.volume; iMus.value = IMPOSTA.musica; iInv.checked = IMPOSTA.invertiY;
+  const leggi = () => {
+    IMPOSTA.sens = +iSens.value; IMPOSTA.volume = +iVol.value; IMPOSTA.musica = +iMus.value; IMPOSTA.invertiY = iInv.checked;
+    salvaImpostazioni(); applicaMix();
+  };
+  for (const el of [iSens, iVol, iMus, iInv]) { el.addEventListener('input', leggi); el.addEventListener('change', leggi); }
+}
+
+/* ── controller (Xbox 360 e simili, mappatura standard) ──
+   A salta, B accovacciati, X (o RT) prendi, Y (o Back) telefono, LB zoom, RB torcia, LT o levetta premuta
+   corri, Start pausa. Nei menu: croce o levetta per scegliere, A conferma, B indietro. */
+pad.tieni = -1;
+const asse = v => { const a = Math.abs(v); return a < 0.2 ? 0 : Math.sign(v) * (a - 0.2) / 0.8; };
+function vociMenu() {
+  const s = [...document.querySelectorAll('.schermo:not(.nascosto)')].filter(e => e.id !== 'caricamento' && e.id !== 'ruota').pop();
+  return s ? [...s.querySelectorAll('button, a.voce, input')].filter(e => e.offsetParent !== null && !e.disabled) : [];
+}
+function fuocoPad(el) {
+  for (const e of document.querySelectorAll('.fuoco')) e.classList.remove('fuoco');
+  if (!el) return;
+  el.classList.add('fuoco'); el.focus({ preventScroll: false });
+}
+function leggiPad(dt) {
+  const gp = navigator.getGamepads ? [...navigator.getGamepads()].find(g => g && g.connected && g.buttons.length >= 10) : null;
+  if (!gp) { pad.x = pad.y = 0; pad.corri = false; return; }
+  const giu = gp.buttons.map(b => b.pressed || b.value > 0.5);
+  const nuovo = i => giu[i] && !pad.prima[i];
+  const lx = asse(gp.axes[0] || 0), ly = asse(gp.axes[1] || 0), rx = asse(gp.axes[2] || 0), ry = asse(gp.axes[3] || 0);
+  if (!pad.attivo && (giu.some(Boolean) || lx || ly || rx || ry)) pad.attivo = true;
+  try {
+    if (fase === 'gioco') {
+      pad.x = lx; pad.y = ly;
+      if (nuovo(10)) pad.l3 = true;
+      if (Math.hypot(lx, ly) < 0.3) pad.l3 = false;
+      pad.corri = giu[6] || !!pad.l3;
+      const k = IMPOSTA.sens * dt;
+      io.yaw -= Math.sign(rx) * rx * rx * 2.8 * k;
+      io.pitch -= Math.sign(ry) * ry * ry * 2.0 * k * (IMPOSTA.invertiY ? -1 : 1);
+      io.pitch = Math.max(-1.3, Math.min(1.3, io.pitch));
+      if (nuovo(0)) salta();
+      if (nuovo(1)) accovacciati();
+      if (nuovo(2) || nuovo(7)) provaPrendere();
+      if (nuovo(3) || nuovo(8)) apriTelefono();
+      if (nuovo(4) && tel.aperto) zoomTelefono();
+      if (nuovo(5)) cambiaTorcia();
+      if (nuovo(9)) pausa(true);
+      return;
+    }
+    pad.x = pad.y = 0; pad.corri = false;
+    const voci = vociMenu(); if (!voci.length) return;
+    const qui = voci.indexOf(document.activeElement);
+    const vy = ly || (giu[12] ? -1 : giu[13] ? 1 : 0), vx = lx || (giu[14] ? -1 : giu[15] ? 1 : 0);
+    const spinta = Math.abs(vy) > 0.5 ? ['y', Math.sign(vy)] : Math.abs(vx) > 0.5 ? ['x', Math.sign(vx)] : null;
+    let muovi = false;
+    if (!spinta) pad.tieni = -1;
+    else if (pad.tieni < 0) { pad.tieni = 0.35; muovi = true; }
+    else if ((pad.tieni -= dt) <= 0) { pad.tieni = 0.12; muovi = true; }
+    if (muovi) {
+      const el = voci[qui];
+      if (spinta[0] === 'x' && el && el.type === 'range') {
+        el.value = +el.value + spinta[1] * (el.max - el.min) / 20; el.dispatchEvent(new Event('input'));
+      } else if (spinta[0] === 'y') fuocoPad(qui < 0 ? voci[0] : voci[(qui + spinta[1] + voci.length) % voci.length]);
+    }
+    if (nuovo(0)) { const el = voci[qui]; if (!el) fuocoPad(voci[0]); else if (el.type !== 'range') el.click(); }
+    if (nuovo(1)) { if (!$('pannello').classList.contains('nascosto')) chiudiPannello(); else if (fase === 'pausa') pausa(false); }
+    if (nuovo(9)) { if (fase === 'pausa') pausa(false); else if (fase === 'menu' && !$('menu').classList.contains('nascosto')) $('gioca').click(); }
+  } finally { pad.prima = giu; }
+}
+
+/* ── lo sfondo del menu: le montagne della mappa viste da alto, di profilo ──
+   Un raggio per colonna come nei vecchi simulatori di volo: le creste più lontane sbiadiscono nella
+   nebbia, il bosco fa la cresta seghettata. Il disegno si fa una volta; si muove solo la foschia. */
+const SFONDO = { base: null, foschia: null };
+function preparaSfondo(bosco, o = {}) {
+  const W = 480, H = 270, c = SFONDO.base || document.createElement('canvas'); c.width = W; c.height = H;
+  const g = c.getContext('2d'), img = g.createImageData(W, H), d = img.data;
+  SFONDO.bosco = bosco;
+  let qmin = 1e9, qmax = -1e9; for (let i = 0; i < Q.length; i++) { qmin = Math.min(qmin, Q[i]); qmax = Math.max(qmax, Q[i]); }
+  // fuori dalla mappa le montagne continuano a specchio, e la nebbia se le mangia
+  const spec = v => { const L = HALF * 2; let u = ((v + HALF) % (2 * L) + 2 * L) % (2 * L); if (u > L) u = 2 * L - u; return u - HALF; };
+  const E = o.E ?? 2.2, alt = o.alt ?? 30, dist = o.dist ?? 40, oriz = H * (o.oriz ?? 0.42), scala = H * (o.scala ?? 1.4), fov = o.fov ?? 1.1;
+  const lato = o.lato ?? 2, yaw = [Math.PI, 0, Math.PI / 2, -Math.PI / 2][lato] + (o.yaw ?? 0.3);
+  const cx = [0, 0, -1, 1][lato] * (HALF + dist), cz = [1, -1, 0, 0][lato] * (HALF + dist);
+  const ch = (qmax - qmin) * E + alt;
+  const dens = (x, z) => { const i = Math.floor((x + HALF) / (2 * HALF) * bosco.w), j = Math.floor((z + HALF) / (2 * HALF) * bosco.h); return i < 0 || j < 0 || i >= bosco.w || j >= bosco.h ? 0 : bosco.d[(j * bosco.w + i) * 4] / 255; };
+  const nebbia = [46, 53, 59], cresta = [5, 6, 7], fondo = o.fondo ?? 650;
+  // il cielo: dal buio in alto alla nebbia sull'orizzonte, e la luna
+  const lx = W * 0.84, ly = H * 0.16;
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+    const k = Math.min(1, Math.max(0, y / oriz)), o4 = (y * W + x) * 4, dl = Math.hypot(x - lx, y - ly);
+    const alone = Math.max(0, 1 - dl / 80) ** 2 * 24 + (dl < 8 ? 150 : dl < 9.5 ? 70 : 0);
+    for (let c3 = 0; c3 < 3; c3++) d[o4 + c3] = [5, 7, 10][c3] + (nebbia[c3] - [5, 7, 10][c3]) * k * k + alone;
+    d[o4 + 3] = 255;
+  }
+  for (let x = 0; x < W; x++) {
+    const a = yaw + (x / W - 0.5) * fov, dx = Math.sin(a), dz = Math.cos(a);
+    let ymin = H, dietro = true;
+    for (let z = 4; z < 2200; z += 0.6 + z * 0.006) {
+      const px = spec(cx + dx * z), pz = spec(cz + dz * z);
+      const cella = Math.sin(Math.floor(px / 2.5) * 12.9898 + Math.floor(pz / 2.5) * 78.233) * 43758.5;
+      const h = (quota(px, pz) - qmin) * E + dens(px, pz) * (8 + (cella - Math.floor(cella)) * 8);
+      const y = Math.floor(oriz + (ch - h) / z * scala);
+      if (y >= ymin) { dietro = true; continue; }
+      const f = 1 - Math.exp(-z / fondo), filo = dietro && ymin - y > 4;
+      dietro = false;
+      for (let yy = Math.max(0, y); yy < ymin; yy++) {
+        const bordo = !filo ? 1 : yy - y < 1 ? 1.8 : yy - y < 2 ? 1.3 : 1;   // la luna sul filo delle creste
+        const o4 = (yy * W + x) * 4;
+        for (let c3 = 0; c3 < 3; c3++) d[o4 + c3] = (cresta[c3] + (nebbia[c3] - cresta[c3]) * f) * bordo;
+      }
+      ymin = Math.max(0, y);
+      if (ymin === 0) break;
+    }
+  }
+  g.putImageData(img, 0, 0);
+  SFONDO.base = c; SFONDO.oriz = oriz;
+  if (SFONDO.foschia) return;
+  // la foschia: macchie morbide che scorrono piano fra le creste
+  const f = document.createElement('canvas'); f.width = W * 2; f.height = 120;
+  const gf = f.getContext('2d'), r = rand(77);
+  for (let i = 0; i < 70; i++) {
+    const x = r() * W, y = 45 + r() * 30, rr = 16 + r() * 28;
+    for (const ox of [0, W]) { const gr = gf.createRadialGradient(x + ox, y, 0, x + ox, y, rr); gr.addColorStop(0, 'rgba(70,78,84,.2)'); gr.addColorStop(1, 'rgba(70,78,84,0)'); gf.fillStyle = gr; gf.fillRect(x + ox - rr, y - rr, rr * 2, rr * 2); }
+  }
+  SFONDO.foschia = f;
+}
+function disegnaSfondo(t) {
+  if (!SFONDO.base) return;
+  const g = $('sfondo').getContext('2d'), W = 480;
+  g.drawImage(SFONDO.base, 0, 0);
+  for (let i = 0; i < 3; i++) {
+    const o = ((t * (3 + i * 2.5) + i * 150) % W);
+    g.globalAlpha = 0.9 - i * 0.2;
+    g.drawImage(SFONDO.foschia, -o, SFONDO.oriz - 40 + i * 30);
+  }
+  g.globalAlpha = 1;
+}
 
 function controllaOrizzontale() {
   mostra('ruota', TOCCO && innerHeight > innerWidth && (fase === 'gioco'));
@@ -1811,6 +2178,8 @@ function costruisci(bin, bosco, colori, osm, modello, roncola, modelloPapi, texA
   creaCinghiale();
   creaFogli();
   creaMappaTelefono(bosco, osm);
+  preparaGps();
+  preparaSfondo(bosco);
   creaGuerrino(modello, roncola);
   creaPapi(modelloPapi);
   preparaAudio();
@@ -1822,21 +2191,21 @@ function costruisci(bin, bosco, colori, osm, modello, roncola, modelloPapi, texA
   renderer.compile(scena, camera);
   renderer.render(scena, camera);
   mostra('caricamento', false); mostra('menu', true);
-  document.body.classList.remove('carica'); document.body.classList.add('fuori');
+  document.body.classList.remove('carica'); document.body.classList.add('fuori', 'lobby');
   disegnaClassifica($('classifica-menu'));
-  window.__crevil = { PROVA, quota, guarda: (x, z) => { io.yaw = Math.atan2(-(x - io.x), -(z - io.z)); }, info: () => renderer.info.render, io, guerrino, papi, recita, posa, disegna, scena, camera, renderer, salta: s => { storia = s; tStoria = 0; }, caccia: () => { iniziaCaccia(tGioco); papi.prossimo = 0; }, tel, apriTelefono, quotaVera, FONTE, FOGLI, MUS, cinghiale, tronchiVicini, statico: v => { staticoOb = v; }, lanciaCinghiale: () => lanciaCinghiale(tGioco), papiInPiedi, mostraPapi, PAPI_FERMO, attacca: c => attacca(tGioco, c), suSentiero, distFosso, alSicuro, FOSSI, stato: () => ({ storia, fase, attesa, livello, staticoV, faseG: guerrino.fase, az: guerrino.nomeAz, papi: papi.stato, vis: papi.vis, pres: papi.pres, visto: papi.visto, dPapi: Math.round(Math.hypot(io.x - papi.x, io.z - papi.z)), mus: Object.fromEntries(Object.entries(MUS.pezzi).map(([n, z]) => [n, z.pronto ? +z.ob.toFixed(2) : 'carico'])) }) };
+  window.__crevil = { PROVA, quota, guarda: (x, z) => { io.yaw = Math.atan2(-(x - io.x), -(z - io.z)); }, info: () => renderer.info.render, io, guerrino, papi, recita, posa, disegna, scena, camera, renderer, salta: s => { storia = s; tStoria = 0; }, caccia: () => { iniziaCaccia(tGioco); papi.prossimo = 0; }, tel, apriTelefono, quotaVera, TEL3D, GPS, BUIO, pad, apriPannello, chiudiPannello, toccaSchermo, disegnaSfondo, MIX, sfondo: o => { preparaSfondo(SFONDO.bosco, o); return SFONDO.base.toDataURL(); }, FONTE, FOGLI, MUS, cinghiale, tronchiVicini, statico: v => { staticoOb = v; }, lanciaCinghiale: () => lanciaCinghiale(tGioco), papiInPiedi, mostraPapi, PAPI_FERMO, attacca: c => attacca(tGioco, c), suSentiero, distFosso, alSicuro, FOSSI, stato: () => ({ storia, fase, attesa, livello, staticoV, faseG: guerrino.fase, az: guerrino.nomeAz, papi: papi.stato, vis: papi.vis, pres: papi.pres, visto: papi.visto, dPapi: Math.round(Math.hypot(io.x - papi.x, io.z - papi.z)), mus: Object.fromEntries(Object.entries(MUS.pezzi).map(([n, z]) => [n, z.pronto ? +z.ob.toFixed(2) : 'carico'])) }) };
 }
 pronto.catch(e => { console.error(e); $('prog-testo').textContent = 'Il bosco non si carica: ricarica la pagina.'; });
 
 $('gioca').addEventListener('click', () => {
-  mostra('menu', false); document.body.classList.remove('fuori');
+  mostra('menu', false); mostra('pannello', false); document.body.classList.remove('fuori', 'lobby'); fuocoPad(null);
   fase = 'gioco'; tStoria = 0; tel.tUltimo = tGioco;
   ascolto.context.resume?.(); avviaLoop(); avviaMusica();
   setTimeout(() => { if (!io.torcia && fase === 'gioco') didascalia(TOCCO ? 'Il tasto 🔦 accende la torcia.' : 'Premi F per accendere la torcia.', 6000); }, 9000);
   if (TOCCO) {
     mostra('touch', true);
     document.documentElement.requestFullscreen?.().then(() => screen.orientation?.lock?.('landscape').catch(() => {})).catch(() => {});
-  } else canvas.requestPointerLock?.();
+  } else canvas.requestPointerLock?.()?.catch?.(() => {});
   controllaOrizzontale();
 });
 
@@ -1845,7 +2214,10 @@ function ciclo() {
   requestAnimationFrame(ciclo);
   const dt = Math.min(0.05, orologio.getDelta()) * PROVA.tempo, t = (tGioco += dt);
   if (!Q) return;
+  leggiPad(dt / PROVA.tempo);
+  if (document.body.classList.contains('lobby')) { disegnaSfondo(t); return; }   // nel menu si vedono solo le montagne
   if (fase === 'gioco') {
+    aggiornaBuio(dt);
     if (storia === 'solo' || storia === 'caccia') io.tempo += dt;   // il tempo parte quando Guerrino se ne va
     muoviGiocatore(dt);
     aggiornaTorcia(dt, t);
@@ -1854,12 +2226,13 @@ function ciclo() {
     aggiornaCinghiale(dt, t);
     aggiornaDialogo(dt);
     cercaFoglio();
-    if ((tFosso -= dt) < 0) { tFosso = 0.5; if (fosso) fosso.setVolume(Math.max(0, 1 - distFosso(io.x, io.z) / 45) * 0.6); }
+    if ((tFosso -= dt) < 0) { tFosso = 0.5; if (fosso) fosso.setVolume(Math.max(0, 1 - distFosso(io.x, io.z) / 45) * 0.6 * mixG('fosso')); }
   }
   if (FONTE.acqua) FONTE.acqua.offset.y = -t * 0.12;
   if (acquaFossi) acquaFossi.offset.y = -t * 0.55;
   if (fase === 'gioco' || fase === 'morto') { disegnaStatico(dt); animaGuerrino(dt); animaPapi(dt); aspettoPapi(dt); aggiornaScossi(dt); }
   if (fase !== 'menu') aggiornaMusica(dt);
+  animaTelefono(dt);
   // accendi solo i pezzi di bosco vicini
   // oltre gli 80 m la nebbia copre tutto: conta il punto del blocco più vicino a me
   const LB = HALF / NB;
