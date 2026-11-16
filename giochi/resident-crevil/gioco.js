@@ -1119,7 +1119,7 @@ function muoviGiocatore(dt) {
   const bob = Math.sin(io.dondolo) * (corre ? 0.07 : 0.035) * Math.min(1, io.vel);
   camera.position.set(io.x, quota(io.x, io.z) + 1.65 + bob + io.alto - Math.sin(io.botta * Math.PI) * 0.09, io.z);
   camera.rotation.set(io.pitch, io.yaw, Math.sin(io.dondolo * 0.5) * 0.006 * io.vel, 'YXZ');
-  if (fiatone) fiatone.setVolume(io.fiato < 0.35 ? (0.35 - io.fiato) * 0.8 : Math.max(0, fiatone.getVolume() - dt * 0.1));   // −6 dB (Leo)
+  if (fiatone) fiatone.setVolume(io.fiato < 0.35 ? (0.35 - io.fiato) * 0.25 : Math.max(0, fiatone.getVolume() - dt * 0.03));   // −6 dB e poi altri −10 dB (Leo)
 }
 
 function aggiornaTorcia(dt, t) {
