@@ -16,7 +16,7 @@ import * as THREE from 'three';
 import { GLTFLoader } from './lib/addons/loaders/GLTFLoader.js';
 import { MeshoptDecoder } from './lib/addons/libs/meshopt_decoder.module.js';
 import { mergeGeometries } from './lib/addons/utils/BufferGeometryUtils.js';
-import { PEZZI, GIRO, INIZIO_GIRO, CANALE_DIRETTA, caricaMix, lineare } from './mix.js';
+import { PEZZI, GIRO, INIZIO_GIRO, CANALE_DIRETTA, caricaMix, lineare } from './mix.js?v=2';
 
 const VELOCE = /veloce/.test(location.search);
 const PROVA = { congela: false, tempo: 1 };   // per i test: ferma la storia (Guerrino e Papi), accelera il tempo
@@ -119,10 +119,10 @@ ridimensiona();
 const cielo = new THREE.HemisphereLight(0x4a5a7a, 0x10120c, 1.1);
 scena.add(cielo);
 const luna = new THREE.DirectionalLight(0x8090b0, 0.25);
-// all'inizio la notte è chiara; più vai avanti (fogli presi e tempo nel bosco) più si fa buio
+// all'inizio la notte è chiara; più vai avanti più si fa buio: tutto nero dopo 3 minuti nel bosco (o 9 fogli)
 const BUIO = { k: 0, chiaro: new THREE.Color(0x262a2e), scuro: new THREE.Color(0x040506) };
 function aggiornaBuio(dt) {
-  const ob = storia === 'intro' || storia === 'strada' || storia === 'fonte' ? 0 : Math.min(1, io.fogli / 9 + io.tempo / 1500);
+  const ob = storia === 'intro' || storia === 'strada' || storia === 'fonte' ? 0 : Math.min(1, io.fogli / 9 + io.tempo / 180);
   BUIO.k += (ob - BUIO.k) * Math.min(1, dt / 8);
   const k = BUIO.k;
   NEBBIA.copy(BUIO.chiaro).lerp(BUIO.scuro, k); scena.fog.color.copy(NEBBIA);
@@ -708,12 +708,17 @@ function daFonte(lx, lz) { const c = Math.cos(FONTE.rot), s = Math.sin(FONTE.rot
 function creaFonte() {
   const pietra = ps1(new THREE.MeshLambertMaterial({ map: TEX.ciottoli, color: 0x8f8a80 }));
   const g = new THREE.Group();
-  const vasca = new THREE.Mesh(new THREE.BoxGeometry(2.2, 0.55, 1), pietra); vasca.position.y = 0.275; g.add(vasca);   // bordo all'altezza di una seduta
+  // la vasca è cava: fondo e quattro sponde, il bordo all'altezza di una seduta (55 cm)
+  const pezzo = (w, h, d, x, y, z) => { const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), pietra); m.position.set(x, y, z); g.add(m); };
+  const L = 2.2, P = 1, H = 0.55, S = 0.14;
+  pezzo(L, 0.18, P, 0, 0.09, 0);
+  pezzo(L, H, S, 0, H / 2, P / 2 - S / 2); pezzo(L, H, S, 0, H / 2, -P / 2 + S / 2);
+  pezzo(S, H, P - 2 * S, L / 2 - S / 2, H / 2, 0); pezzo(S, H, P - 2 * S, -L / 2 + S / 2, H / 2, 0);
   const muro = new THREE.Mesh(new THREE.BoxGeometry(1.4, 1.6, 0.4), pietra); muro.position.set(0, 0.8, -0.6); g.add(muro);
   const tAcqua = texPs1(TEX.acqua.clone(), 2, 1); tAcqua.generateMipmaps = true; tAcqua.minFilter = THREE.NearestMipmapNearestFilter; tAcqua.needsUpdate = true;
-  const acqua = new THREE.Mesh(new THREE.PlaneGeometry(2, 0.8), ps1(new THREE.MeshLambertMaterial({ map: tAcqua, color: 0x4a6a78, emissive: 0x04080a, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -6 })));
+  const acqua = new THREE.Mesh(new THREE.PlaneGeometry(L - 2 * S, P - 2 * S), ps1(new THREE.MeshLambertMaterial({ map: tAcqua, color: 0x4a6a78, emissive: 0x04080a })));
   FONTE.acqua = tAcqua;
-  acqua.rotation.x = -Math.PI / 2; acqua.position.y = 0.6; g.add(acqua);   // un dito sopra il bordo: niente sfarfallio
+  acqua.rotation.x = -Math.PI / 2; acqua.position.y = H - 0.1; g.add(acqua);   // dieci centimetri sotto il labbro
   const tubo = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.4, 6), ps1(new THREE.MeshLambertMaterial({ color: 0x333333 })));
   tubo.rotation.x = Math.PI / 2; tubo.position.set(0, 1.1, -0.3); g.add(tubo);
   g.position.set(FONTE.x, quota(FONTE.x, FONTE.z), FONTE.z);
@@ -1295,6 +1300,7 @@ function giraVerso(target, dt, vel = 4, p = guerrino) {
 
 // preciso = quanto vicino all'ultimo punto deve arrivare (le tappe in mezzo le sfiora e basta)
 function camminaSu(lista, dt, vel, preciso = 0.6) {
+  if (guerrino.tappa >= lista.length) return true;   // già arrivato
   const [tx, tz] = lista[guerrino.tappa];
   const dx = tx - guerrino.x, dz = tz - guerrino.z, d = Math.hypot(dx, dz);
   if (d < (guerrino.tappa === lista.length - 1 ? preciso : 0.6)) { guerrino.tappa++; return guerrino.tappa >= lista.length; }
