@@ -11,7 +11,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Special+Elite&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="stile.css?v=5"/>
+  <link rel="stylesheet" href="stile.css?v=6"/>
 </head>
 <body class="carica">
   <canvas id="scena"></canvas>
@@ -33,18 +33,6 @@
   <div id="didascalia" class="nascosto"></div>
   <div id="foglio-grande" class="nascosto"><div class="carta"></div></div>
 
-  <!-- il telefono di chi gioca: app mappa -->
-  <div id="telefono" aria-hidden="true">
-    <div class="tel-stato"><span id="tel-ora">03:07</span><span class="tel-dx"><span id="tel-tacche" data-n="0"><i></i><i></i><i></i><i></i></span><span id="tel-batt">100%</span></span></div>
-    <div class="tel-app"><b>Mappe</b><span id="tel-gps" class="no">GPS assente</span></div>
-    <canvas id="tel-mappa" width="300" height="300"></canvas>
-    <div class="tel-piede">
-      <p id="tel-quota">Quota 1126 m</p>
-      <p id="tel-nota"></p>
-      <p class="tel-aiuto"><span class="solo-pc"><kbd>Z</kbd> zoom · <kbd>M</kbd> metti via</span><span class="solo-tocco">Tocca la mappa per lo zoom</span></p>
-    </div>
-  </div>
-
   <!-- comandi da telefono -->
   <div id="touch" class="nascosto">
     <div id="joy"><div id="joy-pomello"></div></div>
@@ -52,6 +40,7 @@
     <button id="t-torcia" class="tondo">🔦</button>
     <button id="t-mappa" class="tondo">GPS</button>
     <button id="t-salta" class="tondo">SALTA</button>
+    <button id="t-giu" class="tondo">GIÙ</button>
     <button id="t-prendi" class="tondo grande nascosto">PRENDI</button>
   </div>
 
@@ -63,30 +52,88 @@
     <p id="prog-testo" class="piccolo">Carico il bosco...</p>
   </section>
 
+  <canvas id="sfondo" width="480" height="270"></canvas>
+
   <section id="menu" class="schermo nascosto">
     <a class="indietro" href="../../#giochi">← GoGoBar</a>
-    <h1>Resident Crevil</h1>
-    <p class="titoletto">Morte sul greppo</p>
-    <p class="sotto">Vai vai, segui il signore ultraottantenne vai... ottima idea.</p>
-    <button id="gioca" class="btn">Entra nel bosco</button>
-    <div class="comandi pc">
-      <p><kbd>W A S D</kbd> cammina · <kbd>Mouse</kbd> guarda · <kbd>Shift</kbd> corri · <kbd>Spazio</kbd> salta</p>
-      <p><kbd>F</kbd> torcia · <kbd>E</kbd> prendi il foglio · <kbd>Esc</kbd> pausa</p>
-      <p><kbd>M</kbd> mappa sul telefono: il GPS prende solo in quota</p>
+    <div class="cornice">
+      <h1>Resident Crevil</h1>
+      <p class="titoletto">Morte sul greppo</p>
+      <nav class="voci">
+        <button id="gioca" class="voce">Gioca</button>
+        <button class="voce" data-pannello="controlli">Controlli</button>
+        <button class="voce" data-pannello="impostazioni">Impostazioni</button>
+        <button class="voce" data-pannello="crediti">Crediti</button>
+      </nav>
+      <div id="classifica-menu" class="classifica"></div>
     </div>
-    <div class="comandi tel">
-      <p>Pollice sinistro: cammina · Destra: trascina per guardare</p>
-      <p>Tasto GPS: la mappa. Il segnale prende solo in quota.</p>
-      <p>Tieni il telefono in orizzontale e alza il volume.</p>
-    </div>
-    <p class="piccolo">Prototipo. Cuffie consigliate.</p>
-    <div id="classifica-menu" class="classifica"></div>
   </section>
 
   <section id="pausa" class="schermo nascosto">
-    <h2>Pausa</h2>
-    <button id="riprendi" class="btn">Riprendi</button>
-    <a class="btn btn-sec" href="../../#giochi">Esci</a>
+    <div class="cornice">
+      <h2>Pausa</h2>
+      <nav class="voci">
+        <button id="riprendi" class="voce">Riprendi</button>
+        <button class="voce" data-pannello="controlli">Controlli</button>
+        <button class="voce" data-pannello="impostazioni">Impostazioni</button>
+        <a class="voce" href="../../#giochi">Esci</a>
+      </nav>
+    </div>
+  </section>
+
+  <section id="pannello" class="schermo nascosto">
+    <div class="cornice larga">
+      <h2 id="pannello-titolo">Controlli</h2>
+      <div id="p-controlli" class="pagina">
+        <h3>Tastiera e mouse</h3>
+        <dl>
+          <dt><kbd>W A S D</kbd></dt><dd>cammina</dd>
+          <dt><kbd>Mouse</kbd></dt><dd>guarda</dd>
+          <dt><kbd>Shift</kbd></dt><dd>corri</dd>
+          <dt><kbd>Spazio</kbd></dt><dd>salta</dd>
+          <dt><kbd>C</kbd> o <kbd>Ctrl</kbd></dt><dd>accovacciati</dd>
+          <dt><kbd>F</kbd></dt><dd>torcia</dd>
+          <dt><kbd>E</kbd> o clic</dt><dd>prendi il foglio</dd>
+          <dt><kbd>M</kbd></dt><dd>telefono con la mappa (<kbd>Z</kbd> zoom)</dd>
+          <dt><kbd>Esc</kbd></dt><dd>pausa</dd>
+        </dl>
+        <h3>Controller</h3>
+        <dl>
+          <dt>Levetta sinistra</dt><dd>cammina (premila per correre)</dd>
+          <dt>Levetta destra</dt><dd>guarda</dd>
+          <dt>LT</dt><dd>corri</dd>
+          <dt>A</dt><dd>salta</dd>
+          <dt>B</dt><dd>accovacciati</dd>
+          <dt>X</dt><dd>prendi il foglio</dd>
+          <dt>Y</dt><dd>telefono (LB zoom)</dd>
+          <dt>RB</dt><dd>torcia</dd>
+          <dt>Start</dt><dd>pausa</dd>
+        </dl>
+        <h3>Telefono</h3>
+        <dl>
+          <dt>Pollice sinistro</dt><dd>cammina</dd>
+          <dt>Destra</dt><dd>trascina per guardare</dd>
+          <dt>GPS</dt><dd>la mappa: tocca lo schermo per lo zoom</dd>
+        </dl>
+        <p class="nota">Il GPS prende male in basso. Tieni il telefono in orizzontale e usa le cuffie.</p>
+      </div>
+      <div id="p-impostazioni" class="pagina">
+        <label class="riga"><span>Sensibilità</span><input type="range" id="i-sens" min="0.3" max="2.5" step="0.05"></label>
+        <label class="riga"><span>Volume</span><input type="range" id="i-volume" min="0" max="1" step="0.01"></label>
+        <label class="riga"><span>Musica</span><input type="range" id="i-musica" min="0" max="1" step="0.01"></label>
+        <label class="riga"><span>Inverti asse Y</span><input type="checkbox" id="i-inverti"></label>
+      </div>
+      <div id="p-crediti" class="pagina">
+        <p>Un gioco di GoGoBar.</p>
+        <p>Musica: Leo</p>
+        <p>Colpi sull'albero e foley: registrazioni di Leo e Nature Sounds Pack</p>
+        <p>Suoni e passi: Oculus Audio Pack (Meta), CC BY 4.0</p>
+        <p>Texture: Kenney, CC0 · alberi: Poly Haven, CC0</p>
+        <p>Mappa: © OpenStreetMap · quote Mapzen / AWS Terrain Tiles</p>
+        <p>three.js (MIT)</p>
+      </div>
+      <button id="pannello-chiudi" class="voce">Indietro</button>
+    </div>
   </section>
 
   <section id="morte" class="schermo nascosto">
@@ -111,12 +158,11 @@
     <p class="sotto">Gira il telefono in orizzontale</p>
   </section>
 
-  <p id="crediti">Musica: Leo · Suoni e passi: Oculus Audio Pack (Meta), CC BY 4.0 · pugni e texture: Kenney, CC0 · alberi: texture Poly Haven, CC0 · Mappa: © OpenStreetMap, quote Mapzen/AWS Terrain Tiles · three.js (MIT)</p>
 
   <script src="../../js/account.js?v=5"></script>
   <script src="../../js/gogoldbar.js?v=7"></script>
   <script src="classifica.js?v=2" onerror="window.ResidentCrevilClassifica = null"></script>
   <script type="importmap">{ "imports": { "three": "./lib/three.module.min.js" } }</script>
-  <script type="module" src="gioco.js?v=7"></script>
+  <script type="module" src="gioco.js?v=8"></script>
 </body>
 </html>

@@ -49,34 +49,8 @@ body.tocco #dialogo p { font-size: 15px; }
 .tondo.grande { width: 80px; height: 80px; font-size: 13px; letter-spacing: .08em; }
 .tondo.premuto { background: rgba(233,228,214,.35); }
 #t-mappa { position: fixed; right: calc(max(24px, env(safe-area-inset-right)) + 156px); bottom: max(36px, env(safe-area-inset-bottom)); width: 52px; height: 52px; font-size: 12px; letter-spacing: .06em; }
+#t-giu { position: fixed; right: calc(max(24px, env(safe-area-inset-right)) + 156px); bottom: calc(max(36px, env(safe-area-inset-bottom)) + 66px); width: 52px; height: 52px; font-size: 11px; }
 #t-salta { position: fixed; right: calc(max(24px, env(safe-area-inset-right)) + 92px); bottom: calc(max(36px, env(safe-area-inset-bottom)) + 66px); width: 52px; height: 52px; font-size: 10px; letter-spacing: .04em; }
-
-/* il telefono con l'app mappa: sale dal basso, come tenuto in mano */
-#telefono { position: fixed; right: max(22px, env(safe-area-inset-right)); bottom: 0; width: min(260px, 56vh); aspect-ratio: 9 / 14.4; display: flex; flex-direction: column; gap: 6px; padding: 12px 9px 0; background: #08090a; border: 2px solid #2b2d30; border-bottom: 0; border-radius: 24px 24px 0 0; box-shadow: 0 0 46px rgba(110,150,200,.16), 0 10px 40px #000; font-family: var(--mono); color: var(--carta); pointer-events: none; transform: translateY(108%) rotate(-2deg); transform-origin: 50% 100%; transition: transform .26s cubic-bezier(.2,.8,.3,1); }
-#telefono.su { transform: translateY(0) rotate(-2deg); }
-body.carica #telefono, body.fuori #telefono { display: none; }
-body.tocco #telefono { right: auto; left: 50%; margin-left: calc(min(260px, 56vh) / -2); transform: translateY(108%); }
-body.tocco #telefono.su { transform: translateY(0); }
-body.tocco #telefono.su #tel-mappa { pointer-events: auto; }
-.tel-stato { display: flex; justify-content: space-between; align-items: center; font-size: 11px; padding: 0 6px; color: #cfc9b8; }
-.tel-dx { display: inline-flex; gap: 8px; align-items: center; }
-#tel-tacche { display: inline-flex; gap: 2px; align-items: flex-end; height: 10px; }
-#tel-tacche i { display: block; width: 3px; background: rgba(233,228,214,.22); border-radius: 1px; }
-#tel-tacche i:nth-child(1) { height: 4px; } #tel-tacche i:nth-child(2) { height: 6px; } #tel-tacche i:nth-child(3) { height: 8px; } #tel-tacche i:nth-child(4) { height: 10px; }
-#tel-tacche[data-n="1"] i:nth-child(-n+1), #tel-tacche[data-n="2"] i:nth-child(-n+2), #tel-tacche[data-n="3"] i:nth-child(-n+3), #tel-tacche[data-n="4"] i { background: var(--carta); }
-.tel-app { display: flex; justify-content: space-between; align-items: center; gap: 6px; padding: 0 4px; }
-.tel-app b { font-size: 14px; font-weight: 500; letter-spacing: .04em; }
-#tel-gps { font-size: 10px; padding: 2px 6px; border-radius: 9px; white-space: nowrap; }
-#tel-gps.no { background: rgba(179,38,30,.3); color: #f0a8a2; }
-#tel-gps.cerca { background: rgba(228,179,60,.22); color: var(--oro); }
-#tel-gps.si { background: rgba(76,155,255,.25); color: #a9cdff; }
-#tel-mappa { width: 100%; aspect-ratio: 1 / 1; height: auto; display: block; border-radius: 6px; background: #0c0f0e; }
-.tel-piede { display: flex; flex-direction: column; gap: 3px; padding: 0 4px; font-size: 10.5px; line-height: 1.3; color: #b9b4a5; min-height: 0; overflow: hidden; }
-#tel-quota { font-size: 13px; color: var(--carta); }
-.tel-aiuto { color: var(--muted); font-size: 10px; }
-.tel-aiuto kbd { font-size: 9px; }
-.solo-tocco, body.tocco .solo-pc { display: none; }
-body.tocco .solo-tocco { display: inline; }
 
 /* schermate */
 .schermo { position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; padding: 24px 16px; text-align: center; background: radial-gradient(ellipse at 50% 40%, rgba(20,24,22,.82), rgba(0,0,0,.94)); overflow-y: auto; }
@@ -104,6 +78,46 @@ body.tocco .comandi.pc { display: none; }
 .classifica li { display: flex; justify-content: space-between; gap: 24px; padding: 2px 0; counter-increment: c; }
 .classifica li::before { content: counter(c) "."; color: var(--muted); width: 22px; text-align: left; }
 .classifica li span:first-of-type { flex: 1; text-align: left; }
-#crediti { position: fixed; bottom: 4px; left: 0; right: 0; text-align: center; font: 10px var(--mono); color: #555; pointer-events: none; }
-body:not(.fuori) #crediti { display: none; }
+/* lobby e pausa: le montagne di profilo dietro, i pulsanti in una cornice */
+#sfondo { position: fixed; inset: 0; width: 100%; height: 100%; object-fit: cover; image-rendering: pixelated; display: none; }
+body.lobby #sfondo { display: block; }
+body.lobby #menu, body.lobby #pannello { background: linear-gradient(90deg, rgba(0,0,0,.6), rgba(0,0,0,.1) 55%, rgba(0,0,0,0)); }
+/* nel menu la cornice sta a sinistra: a destra si vedono le montagne */
+body.lobby #menu { align-items: flex-start; padding-left: max(24px, 8vw, env(safe-area-inset-left)); }
+#menu .cornice { width: min(340px, 100%); }
+#menu .cornice h1 { font-size: clamp(34px, 5.5vw, 54px); }
+@media (max-width: 560px) { body.lobby #menu { align-items: center; padding-left: 16px; } }
+.cornice { position: relative; display: flex; flex-direction: column; align-items: center; gap: 12px; width: min(420px, 100%); padding: 26px 26px 22px; background: rgba(6,7,8,.74); border: 2px solid rgba(233,228,214,.55); outline: 1px solid rgba(233,228,214,.22); outline-offset: 5px; box-shadow: 0 0 60px rgba(0,0,0,.8); }
+.cornice::before, .cornice::after { content: ""; position: absolute; width: 18px; height: 18px; border: 2px solid var(--carta); pointer-events: none; }
+.cornice::before { top: -9px; left: -9px; border-right: 0; border-bottom: 0; }
+.cornice::after { bottom: -9px; right: -9px; border-left: 0; border-top: 0; }
+.cornice.larga { width: min(560px, 100%); max-height: calc(100vh - 40px); overflow-y: auto; }
+.cornice h1 { font-size: clamp(38px, 7vw, 64px); line-height: .95; }
+.voci { display: flex; flex-direction: column; gap: 6px; width: 100%; margin-top: 6px; }
+.voce { display: block; width: 100%; font: 400 20px var(--scritta); letter-spacing: .14em; text-transform: uppercase; color: var(--carta); background: transparent; border: 1px solid transparent; padding: 8px 12px; cursor: pointer; text-decoration: none; text-align: center; }
+.voce:hover, .voce:focus-visible, .voce.fuoco { border-color: rgba(233,228,214,.5); background: rgba(233,228,214,.08); outline: none; }
+.voce:hover::before, .voce:focus-visible::before, .voce.fuoco::before { content: "› "; color: #d9483b; }
+#gioca { color: #f3eee0; font-size: 24px; }
+.pagina { display: none; width: 100%; text-align: left; font-family: var(--mono); font-size: 13px; color: #c9c3b2; }
+.pagina.su { display: block; }
+.pagina h3 { font: 12px var(--mono); letter-spacing: .18em; text-transform: uppercase; color: var(--oro); margin: 12px 0 6px; }
+.pagina dl { display: grid; grid-template-columns: auto 1fr; gap: 4px 14px; }
+.pagina dt { color: var(--carta); white-space: nowrap; }
+.pagina p { margin: 6px 0; line-height: 1.45; }
+.pagina .nota { color: var(--muted); margin-top: 12px; }
+.riga { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 10px 0; border-bottom: 1px solid rgba(233,228,214,.12); color: var(--carta); font-size: 14px; }
+.riga input[type=range] { width: 55%; accent-color: #d9483b; }
+.riga input[type=checkbox] { width: 20px; height: 20px; accent-color: #d9483b; }
+#pannello { z-index: 3; }
 @media (max-height: 460px) { .schermo { gap: 8px; } .schermo h1 { font-size: 40px; } .sotto { font-size: 15px; } }
+@media (max-height: 460px) {
+  .schermo { justify-content: safe center; }
+  #menu .cornice, #pausa .cornice { padding: 14px 18px 12px; gap: 4px; }
+  #menu .cornice h1 { font-size: 30px; }
+  .titoletto { font-size: 12px; }
+  .voci { gap: 2px; margin-top: 2px; }
+  .voce { font-size: 16px; padding: 5px 10px; }
+  #gioca { font-size: 19px; }
+  #menu .classifica { display: none; }
+  .cornice.larga { max-height: calc(100vh - 24px); padding: 16px 18px; }
+}

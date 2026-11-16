@@ -1,0 +1,2 @@
+colpi.mp3: colpi di roncola e pugni sull'albero registrati da Leo (GoGoBar).
+passi.mp3: oltre ai suoni Oculus Audio Pack (vedi LICENZA-oculus-audio-pack.txt) contiene passi e fruscii del Nature Sounds Pack fornito da Leo.
