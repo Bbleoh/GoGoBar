@@ -6,7 +6,8 @@
 html, body { width: 100%; height: 100%; overflow: hidden; background: var(--bg); color: var(--carta); font-family: var(--scritta); }
 body { touch-action: none; user-select: none; -webkit-user-select: none; }
 canvas#scena { position: fixed; inset: 0; width: 100%; height: 100%; display: block; image-rendering: pixelated; image-rendering: crisp-edges; image-rendering: pixelated; }
-#statico { position: fixed; inset: 0; width: 100%; height: 100%; image-rendering: pixelated; opacity: 0; pointer-events: none; mix-blend-mode: screen; }
+/* lo statico lascia una finestra al centro: Papi che ti viene addosso si deve vedere */
+#statico { position: fixed; inset: 0; width: 100%; height: 100%; image-rendering: pixelated; opacity: 0; pointer-events: none; mix-blend-mode: screen; -webkit-mask-image: radial-gradient(ellipse 46% 60% at 50% 46%, transparent 0, transparent 52%, #000 100%); mask-image: radial-gradient(ellipse 46% 60% at 50% 46%, transparent 0, transparent 52%, #000 100%); }
 #buio { position: fixed; inset: 0; background: #000; opacity: 0; pointer-events: none; transition: opacity .6s; }
 .nascosto { display: none !important; }
 
@@ -48,6 +49,7 @@ body.tocco #dialogo p { font-size: 15px; }
 .tondo.grande { width: 80px; height: 80px; font-size: 13px; letter-spacing: .08em; }
 .tondo.premuto { background: rgba(233,228,214,.35); }
 #t-mappa { position: fixed; right: calc(max(24px, env(safe-area-inset-right)) + 156px); bottom: max(36px, env(safe-area-inset-bottom)); width: 52px; height: 52px; font-size: 12px; letter-spacing: .06em; }
+#t-salta { position: fixed; right: calc(max(24px, env(safe-area-inset-right)) + 92px); bottom: calc(max(36px, env(safe-area-inset-bottom)) + 66px); width: 52px; height: 52px; font-size: 10px; letter-spacing: .04em; }
 
 /* il telefono con l'app mappa: sale dal basso, come tenuto in mano */
 #telefono { position: fixed; right: max(22px, env(safe-area-inset-right)); bottom: 0; width: min(260px, 56vh); aspect-ratio: 9 / 14.4; display: flex; flex-direction: column; gap: 6px; padding: 12px 9px 0; background: #08090a; border: 2px solid #2b2d30; border-bottom: 0; border-radius: 24px 24px 0 0; box-shadow: 0 0 46px rgba(110,150,200,.16), 0 10px 40px #000; font-family: var(--mono); color: var(--carta); pointer-events: none; transform: translateY(108%) rotate(-2deg); transform-origin: 50% 100%; transition: transform .26s cubic-bezier(.2,.8,.3,1); }

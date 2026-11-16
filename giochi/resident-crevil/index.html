@@ -11,7 +11,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Special+Elite&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="stile.css?v=4"/>
+  <link rel="stylesheet" href="stile.css?v=5"/>
 </head>
 <body class="carica">
   <canvas id="scena"></canvas>
@@ -51,6 +51,7 @@
     <button id="t-corri" class="tondo grande">CORRI</button>
     <button id="t-torcia" class="tondo">🔦</button>
     <button id="t-mappa" class="tondo">GPS</button>
+    <button id="t-salta" class="tondo">SALTA</button>
     <button id="t-prendi" class="tondo grande nascosto">PRENDI</button>
   </div>
 
@@ -69,7 +70,7 @@
     <p class="sotto">Vai vai, segui il signore ultraottantenne vai... ottima idea.</p>
     <button id="gioca" class="btn">Entra nel bosco</button>
     <div class="comandi pc">
-      <p><kbd>W A S D</kbd> cammina · <kbd>Mouse</kbd> guarda · <kbd>Shift</kbd> corri</p>
+      <p><kbd>W A S D</kbd> cammina · <kbd>Mouse</kbd> guarda · <kbd>Shift</kbd> corri · <kbd>Spazio</kbd> salta</p>
       <p><kbd>F</kbd> torcia · <kbd>E</kbd> prendi il foglio · <kbd>Esc</kbd> pausa</p>
       <p><kbd>M</kbd> mappa sul telefono: il GPS prende solo in quota</p>
     </div>
@@ -110,12 +111,12 @@
     <p class="sotto">Gira il telefono in orizzontale</p>
   </section>
 
-  <p id="crediti">Suoni: Oculus Audio Pack (Meta), CC BY 4.0 · passi, pugni e texture: Kenney, CC0 · alberi: texture Poly Haven, CC0 · Mappa: © OpenStreetMap, quote Mapzen/AWS Terrain Tiles · three.js (MIT)</p>
+  <p id="crediti">Musica: Leo · Suoni e passi: Oculus Audio Pack (Meta), CC BY 4.0 · pugni e texture: Kenney, CC0 · alberi: texture Poly Haven, CC0 · Mappa: © OpenStreetMap, quote Mapzen/AWS Terrain Tiles · three.js (MIT)</p>
 
   <script src="../../js/account.js?v=5"></script>
   <script src="../../js/gogoldbar.js?v=7"></script>
   <script src="classifica.js?v=2" onerror="window.ResidentCrevilClassifica = null"></script>
   <script type="importmap">{ "imports": { "three": "./lib/three.module.min.js" } }</script>
-  <script type="module" src="gioco.js?v=5"></script>
+  <script type="module" src="gioco.js?v=6"></script>
 </body>
 </html>
