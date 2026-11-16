@@ -6,7 +6,7 @@
  *  Suona i brani della sezione Musica (contenuti.js) dentro un gioco.
  *  Per aggiungerla a una pagina basta una riga prima di </body>:
  *
- *      <script src="../../js/radio.js?v=15"></script>
+ *      <script src="../../js/radio.js?v=16"></script>
  *
  *  Il pulsante:
  *   - se nella pagina c'è un elemento con  data-gogobar-radio
@@ -267,7 +267,7 @@
         salva();
         if ('mediaSession' in navigator) {
           navigator.mediaSession.metadata = new MediaMetadata({
-            title: b.titolo, artist: b.artisti || 'Collettivo M.I.A.O.', album: b.album || 'GoGoBar',
+            title: b.titolo, artist: 'Collettivo M.I.A.O.', album: b.album || 'GoGoBar',
             artwork: b.copertina
               ? [{ src: new URL(b.copertina, radice).href }]
               : [{ src: new URL('img/maneki-neko.webp', radice).href, sizes: '689x900', type: 'image/webp' }]
