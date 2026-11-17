@@ -239,7 +239,7 @@ const pronto = Promise.all([
   TEX_PS1.forEach((n, i) => { TEX[n] = texPs1(resto[i]); });
   costruisci(bin, bosco, colori, osm, modello, roncola, modelloPapi, [TEX.corteccia, TEX.fronde]);
   const statue = promessa(gltf, 'modelli/statuetta.glb').then(creaStatuette, e => console.warn('statuetta non caricata', e));
-  promessa(gltf, 'modelli/mano.glb').then(creaMano, e => console.warn('mano non caricata', e));
+  promessa(gltf, 'modelli/mano-telefono.glb').then(creaManoTelefono, e => console.warn('mano col telefono non caricata', e));
   // i figli di Papi arrivano dopo, mentre giochi già
   Promise.all([promessa(gltf, 'modelli/caro.glb?v=2'), promessa(gltf, 'modelli/bimba.glb?v=2')])
     .then(([c, b]) => { creaFiglio(caro, c); creaFiglio(bimba, b); })
@@ -2325,7 +2325,7 @@ TEL3D.tex.colorSpace = THREE.SRGBColorSpace; TEL3D.tex.minFilter = THREE.LinearM
   const schermo = new THREE.Mesh(new THREE.PlaneGeometry(0.066, 0.118), new THREE.MeshBasicMaterial({ map: TEL3D.tex, fog: false }));
   schermo.position.set(0, 0.004, 0.0047); g.add(schermo);
   // il palmo dietro, il pollice sul bordo destro, le dita che spuntano a sinistra, il polso che scende
-  // (è la mano di riserva: appena arriva modelli/mano.glb la sostituisce, vedi creaMano)
+  // (è la mano di riserva: appena arriva modelli/mano-telefono.glb la sostituisce, vedi creaManoTelefono)
   const prima = g.children.length;
   box(0.07, 0.08, 0.022, pelle, 0.008, -0.04, -0.016);
   // pollice e dita: salsicciotti (cilindri con le punte tonde)
@@ -2338,47 +2338,31 @@ TEL3D.tex.colorSpace = THREE.SRGBColorSpace; TEL3D.tex.minFilter = THREE.LinearM
   TEL3D.luce = new THREE.PointLight(0x9cc0ff, 0, 2.5, 2); TEL3D.luce.position.set(0.09, -0.04, -0.12); camera.add(TEL3D.luce);   // il filo di luce dello schermo resta nel bosco
   g.visible = false; scenaTel.add(g);
 }
-/* La mano vera (Leo, 17/11): la "generic hand" dei profili WebXR (MIT, Amazon), una mano destra con le ossa.
-   Le ossa stanno tutte allo stesso livello (in WebXR le muove il visore), quindi la posa la calcolo io,
-   falange per falange: le dita girano intorno al bordo sinistro del telefono, il pollice sale sul destro. */
-const POSA_MANO = { mcp: 0.3, pip: 0.88, dip: 0.22, tq: [[[1, 0, 0, 0.75], [0, 1, 0, 0.55]], [[0, 1, 0, 0.35]], [[0, 1, 0, 0.35]], 0] };
-function posaMano(root, P, stringi = 0) {
-  const os = n => root.getObjectByName(n);
-  if (!root.userData.riposo) { const R = root.userData.riposo = {}; root.traverse(o => { if (/finger|thumb|wrist/.test(o.name)) R[o.name] = { p: o.position.clone(), q: o.quaternion.clone() }; }); }
-  const R = root.userData.riposo, asse = new THREE.Vector3(0, 0, -1), tmp = new THREE.Quaternion(), v = new THREE.Vector3();
-  const catena = (nomi, angoli) => {
-    const qc = new THREE.Quaternion(); let p = R[nomi[0]].p.clone();
-    nomi.forEach((n, k) => {
-      const o = os(n), r = R[n]; if (!o || !r) return;
-      if (k > 0) p.add(v.copy(r.p).sub(R[nomi[k - 1]].p).applyQuaternion(qc));
-      const a = angoli[k];
-      if (Array.isArray(a)) for (const [x, y, z, w] of a) qc.premultiply(tmp.setFromAxisAngle(v.set(x, y, z).normalize(), w));
-      else if (a) qc.premultiply(tmp.setFromAxisAngle(asse, a));
-      o.position.copy(p); o.quaternion.copy(r.q).premultiply(qc);
-    });
-  };
-  for (const d of ['index-finger', 'middle-finger', 'ring-finger', 'pinky-finger'])
-    catena([d + '-metacarpal', d + '-phalanx-proximal', d + '-phalanx-intermediate', d + '-phalanx-distal', d + '-tip'], [0, P.mcp + stringi * 0.12, P.pip + stringi * 0.1, P.dip, 0]);
-  catena(['thumb-metacarpal', 'thumb-phalanx-proximal', 'thumb-phalanx-distal', 'thumb-tip'], P.tq);
-}
-function creaMano(m) {
-  const mat = new THREE.MeshLambertMaterial({ color: 0xb08068, map: TEL3D.cute });
-  m.scene.traverse(o => { if (o.isMesh) { o.material = mat; o.frustumCulled = false; } });
-  posaMano(m.scene, POSA_MANO);
-  // l'avambraccio: la mano del modello finisce al polso
-  const polso = m.scene.getObjectByName('wrist');
-  if (polso) { const b = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.03, 0.2, 10), mat); b.scale.set(0.78, 1, 1); b.position.copy(polso.position).add(new THREE.Vector3(0.004, 0.1, 0)); m.scene.add(b); }
-  const mg = new THREE.Group(); mg.add(m.scene);
-  // il modello ha le dita verso −Y, il palmo verso −X, il pollice verso −Z: le dita a sinistra dietro il telefono, il palmo contro il dorso
-  mg.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(new THREE.Vector3(0, 0, -1), new THREE.Vector3(1, 0, 0), new THREE.Vector3(0, -1, 0)));
-  mg.quaternion.premultiply(new THREE.Quaternion().setFromEuler(new THREE.Euler(0, 0, -0.7)));   // il polso scende a destra
-  mg.position.set(0.028, -0.035, -0.019);
-  TEL3D.g.add(mg); TEL3D.mano = m.scene;
-  for (const o of TEL3D.riserva) o.visible = false;
-  TEL3D.pelle = mat;
-  // la mano prende due luci sue (la scena del telefono non ne ha)
-  scenaTel.add(new THREE.HemisphereLight(0xffffff, 0x50443c, 1.4));
-  const d = new THREE.DirectionalLight(0xffffff, 1.1); d.position.set(0.4, 1, 0.8); scenaTel.add(d);
+/* La mano col telefono di Leo (17/11): modelli/mano-telefono.glb, low poly a colori sui vertici, già in presa.
+   Arriva dopo il resto: finché non c'è resta la mano di riserva fatta qui sopra. Sullo schermo del suo telefono
+   (PHONE_screen_inner) ci metto la stessa canvas di prima, con le UV fatte qui in piano. */
+function creaManoTelefono(m) {
+  // il modello non ha le normali: facce piatte, da low poly
+  const pelle = new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true }), plastica = new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true });
+  m.scene.traverse(o => {
+    if (!o.isMesh) return;
+    o.frustumCulled = false;
+    if (!o.geometry.attributes.normal) o.geometry.computeVertexNormals();
+    if (o.name === 'PHONE_screen_inner') {
+      const g = o.geometry, p = g.attributes.position; g.computeBoundingBox();
+      const bb = g.boundingBox, uv = new Float32Array(p.count * 2);
+      for (let i = 0; i < p.count; i++) { uv[i * 2] = (p.getX(i) - bb.min.x) / (bb.max.x - bb.min.x); uv[i * 2 + 1] = (p.getY(i) - bb.min.y) / (bb.max.y - bb.min.y); }
+      g.setAttribute('uv', new THREE.BufferAttribute(uv, 2));
+      o.material = new THREE.MeshBasicMaterial({ map: TEL3D.tex, fog: false });
+      o.position.z += 0.004;   // un filo sopra il vetro
+    } else o.material = /^HAND/.test(o.name) ? pelle : plastica;
+  });
+  for (const o of TEL3D.g.children) o.visible = false;
+  m.scene.scale.setScalar(0.045);   // il suo telefono è largo 1,75: così fa 8 cm
+  TEL3D.g.add(m.scene);
+  TEL3D.pelle = pelle; TEL3D.plastica = plastica; TEL3D.leo = true;
+  scenaTel.add(new THREE.HemisphereLight(0xffffff, 0x50443c, 1.3));
+  const d = new THREE.DirectionalLight(0xffffff, 1.2); d.position.set(0.4, 1, 0.8); scenaTel.add(d);
 }
 function schermoNero() { const g = TEL3D.cv.getContext('2d'); g.fillStyle = '#030404'; g.fillRect(0, 0, TEL3D.cv.width, TEL3D.cv.height); TEL3D.tex.needsUpdate = true; }
 const _qTel = new THREE.Quaternion(), _qOcchio = new THREE.Quaternion();
@@ -2401,9 +2385,9 @@ function animaTelefono(dt) {
   TEL3D.luce.intensity = 0.7 * s * s;
   if (!g.visible) return;
   // la mano: la luce dello schermo, più la torcia se è accesa, meno il buio della notte; stringe un po' mentre scuoti
-  const stretta = Math.round(Math.abs(scossa) * 20) / 20;
-  if (TEL3D.mano && TEL3D.stretta !== stretta) { TEL3D.stretta = stretta; posaMano(TEL3D.mano, POSA_MANO, stretta); }
-  TEL3D.pelle.color.setHex(0xb08068).multiplyScalar(0.55 + (io.torcia ? 0.35 : 0) - BUIO.k * 0.2);
+  const luceMano = 0.55 + (io.torcia ? 0.35 : 0) - BUIO.k * 0.2;
+  if (TEL3D.leo) { TEL3D.pelle.color.setScalar(luceMano * 0.95); TEL3D.plastica.color.setScalar(0.3 + luceMano * 0.5); }
+  else TEL3D.pelle.color.setHex(0xb08068).multiplyScalar(luceMano);
   const bob = Math.sin(io.dondolo) * 0.004 * Math.min(1, io.vel);
   // in basso a destra; sullo schermo stretto (telefono in verticale) si avvicina al centro
   const mezzoL = 0.2 * Math.tan(camTel.fov * Math.PI / 360) * camera.aspect, px = Math.max(0.015, Math.min(0.15, mezzoL - 0.06));
@@ -2424,7 +2408,7 @@ function toccaSchermo(x, y) {
   const v = new THREE.Vector3(); let x0 = 1e9, x1 = -1e9, y0 = 1e9, y1 = -1e9;
   TEL3D.g.updateMatrixWorld(true);
   for (const [a, b] of [[-1, -1], [1, -1], [1, 1], [-1, 1]]) {
-    v.set(a * 0.037, b * 0.075, 0); TEL3D.g.localToWorld(v); v.project(camTel);
+    v.set(a * 0.04, b * 0.08, 0); TEL3D.g.localToWorld(v); v.project(camTel);
     const px = (v.x + 1) / 2 * innerWidth, py = (1 - v.y) / 2 * innerHeight;
     x0 = Math.min(x0, px); x1 = Math.max(x1, px); y0 = Math.min(y0, py); y1 = Math.max(y1, py);
   }
