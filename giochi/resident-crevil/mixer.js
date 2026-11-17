@@ -153,8 +153,9 @@ async function suona(c) {
       };
       giro();
     } else if (p.file) {
-      const buf = await carica(p.file); if (!vivo()) return;
-      const giro = () => { if (!vivo()) return; sorgente(c.id, buf, { vol: p.vol, rate: p.rate || 1 }); a.timer = setTimeout(giro, (buf.duration / (p.rate || 1) + 0.8) * 1000); };
+      const files = [].concat(p.file), bufs = await Promise.all(files.map(carica)); if (!vivo()) return;
+      let k = 0;
+      const giro = () => { if (!vivo()) return; const buf = bufs[k++ % bufs.length]; sorgente(c.id, buf, { vol: p.vol, rate: p.rate || 1 }); a.timer = setTimeout(giro, (buf.duration / (p.rate || 1) + 0.8) * 1000); };
       giro();
     }
   } catch (e) { console.warn('anteprima', c.id, e); ferma(c.id); }
