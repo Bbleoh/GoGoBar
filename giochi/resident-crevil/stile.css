@@ -17,6 +17,8 @@ body.carica #hud, body.fuori #hud { display: none; }
 .hud-sx { display: flex; flex-direction: column; gap: 6px; font-family: var(--mono); font-size: 13px; text-shadow: 0 1px 3px #000; }
 #fogli { font-family: var(--scritta); font-size: 20px; letter-spacing: .05em; }
 #fogli b { color: #fff; }
+#statuette { font-family: var(--scritta); font-size: 15px; letter-spacing: .05em; color: #d9b77e; }
+#statuette b { color: #ffe2b0; }
 .barra { display: flex; align-items: center; gap: 6px; opacity: .85; }
 .barra span { width: 18px; font-size: 13px; }
 .barra i { display: block; width: 110px; height: 6px; background: rgba(255,255,255,.12); border-radius: 3px; overflow: hidden; }
@@ -54,6 +56,7 @@ body.tocco #dialogo p { font-size: 15px; }
 .tondo.premuto { background: rgba(233,228,214,.35); }
 #t-mappa { position: fixed; right: calc(max(24px, env(safe-area-inset-right)) + 156px); bottom: max(36px, env(safe-area-inset-bottom)); width: 52px; height: 52px; font-size: 12px; letter-spacing: .06em; }
 #t-giu { position: fixed; right: calc(max(24px, env(safe-area-inset-right)) + 156px); bottom: calc(max(36px, env(safe-area-inset-bottom)) + 66px); width: 52px; height: 52px; font-size: 11px; }
+#t-statua { position: fixed; right: calc(max(24px, env(safe-area-inset-right)) + 156px); bottom: calc(max(36px, env(safe-area-inset-bottom)) + 132px); width: 52px; height: 52px; font-size: 10px; background: rgba(217,183,126,.25); }
 #t-salta { position: fixed; right: calc(max(24px, env(safe-area-inset-right)) + 92px); bottom: calc(max(36px, env(safe-area-inset-bottom)) + 66px); width: 52px; height: 52px; font-size: 10px; letter-spacing: .04em; }
 
 /* schermate */
@@ -84,7 +87,7 @@ body.tocco .comandi.pc { display: none; }
 .classifica li span:first-of-type { flex: 1; text-align: left; }
 /* lobby e pausa: le montagne di profilo dietro, i pulsanti in una cornice */
 #sfondo { position: fixed; inset: 0; width: 100%; height: 100%; object-fit: cover; image-rendering: pixelated; display: none; }
-body.lobby #sfondo { display: block; }
+body.lobby #sfondo { display: none; }
 body.lobby #menu, body.lobby #pannello { background: linear-gradient(90deg, rgba(0,0,0,.6), rgba(0,0,0,.1) 55%, rgba(0,0,0,0)); }
 /* nel menu la cornice sta a sinistra: a destra si vedono le montagne */
 body.lobby #menu { align-items: flex-start; padding-left: max(24px, 8vw, env(safe-area-inset-left)); }

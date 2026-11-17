@@ -32,6 +32,7 @@ const TASTI = {
   mena: { tastiera: 'clic o E', pad: 'X', tocco: 'COLPISCI' },
   torcia: { tastiera: 'F', pad: 'RB', tocco: '🔦' },
   telefono: { tastiera: 'M', pad: 'Y', tocco: 'GPS' },
+  statuetta: { tastiera: 'G', pad: 'LB', tocco: 'STATUA' },
 };
 const tasto = a => TASTI[a][INGRESSO];
 function usaIngresso(chi) {
@@ -81,6 +82,12 @@ const BATTUTE = {
     "Mo' me so' stancato pure d'esse stanco.",
     "'St'albero me guarda storto da quarant'anni. Mo' je faccio vede' io.",
   ],
+  statuetta: [
+    "Me dai 'sto disegno? Tie', pìate 'sta statuetta mia. L'ho fatta io, de bronzo. Piantala in terra, che quello nun s'avvicina.",
+    "N'antro scarabocchio? Vabbè. Eccote n'antra statuetta. Somiglia, eh?",
+    "Er foglio a me, la statuetta a te. Piantala dove te pare, ma una vorta sola.",
+  ],
+  statuette: ["Tutti 'sti fogli? Tie', ecco le statuette. Una pe' foglio, so' onesto.", "Quanti! Pìate 'ste statuette, che io c'ho da menà."],
   pausa: ["Pausa. Er pugno ce l'ho, er fiato no.", "Mezzo minuto e ricomincio, eh.", "Me riposo, ma l'albero nun se ne va."],
   mena: ["Pija questa!", "E questa è pe' mi' cognato!", "Nun me guardà, cerca i fogli!", "Quarant'anni che me guardi storto!", "Ahia. Vabbè, continuo.", "Er fiato nun ce l'ho, ma er pugno sì."],
   indietro: ["Daje, che c'hai le gambe de ricotta?", "Ahò, de qua!", "Nun me fa' tornà indietro.", "Sbrighete, che fa freddo."],
@@ -115,6 +122,7 @@ const NEBBIA = new THREE.Color(0x262a2e);   // nebbia grigia: contro, Papi è un
 scena.background = NEBBIA;
 scena.fog = new THREE.FogExp2(NEBBIA, 0.034);
 const camera = new THREE.PerspectiveCamera(70, innerWidth / innerHeight, 0.08, 95);
+const camLobby = new THREE.PerspectiveCamera(50, innerWidth / innerHeight, 1, 1600);   // la lobby: la mappa dall'alto
 scena.add(camera);
 // il telefono in mano si disegna a parte, sopra, a piena risoluzione: la mappa sullo schermo deve leggersi
 const telCanvas = document.createElement('canvas'); telCanvas.id = 'telefono3d'; canvas.after(telCanvas);
@@ -151,6 +159,7 @@ function ridimensiona() {
   PS1.ris.value.set(w / 2, h / 2);
   camera.aspect = innerWidth / innerHeight;
   camera.updateProjectionMatrix();
+  { camLobby.aspect = camera.aspect; camLobby.updateProjectionMatrix(); }
   // il telefono a metà strada: pixel il doppio più piccoli del bosco (PS1.altezza), ma sempre pixel
   const hT = Math.min(innerHeight * (devicePixelRatio || 1), PS1.altezza * 2);
   rendTel.setSize(Math.round(hT * innerWidth / innerHeight), hT, false); camTel.aspect = camera.aspect; camTel.updateProjectionMatrix();
@@ -229,10 +238,13 @@ const pronto = Promise.all([
 ]).then(([bin, bosco, colori, osm, modello, roncola, modelloPapi, ...resto]) => {
   TEX_PS1.forEach((n, i) => { TEX[n] = texPs1(resto[i]); });
   costruisci(bin, bosco, colori, osm, modello, roncola, modelloPapi, [TEX.corteccia, TEX.fronde]);
+  const statue = promessa(gltf, 'modelli/statuetta.glb').then(creaStatuette, e => console.warn('statuetta non caricata', e));
+  promessa(gltf, 'modelli/mano.glb').then(creaMano, e => console.warn('mano non caricata', e));
   // i figli di Papi arrivano dopo, mentre giochi già
   Promise.all([promessa(gltf, 'modelli/caro.glb?v=2'), promessa(gltf, 'modelli/bimba.glb?v=2')])
     .then(([c, b]) => { creaFiglio(caro, c); creaFiglio(bimba, b); })
     .catch(e => console.warn('figli di Papi non caricati', e));
+  return statue;   // le statuette servono già per chi riparte da un salvataggio
 });
 
 /* ════════ TERRENO ════════ */
@@ -1407,7 +1419,7 @@ function avviaLoop() {
 /* ════════ GIOCATORE ════════ */
 const io = {
   x: -75, z: 192, yaw: -Math.PI / 2, pitch: -0.05, fiato: 1, sfinito: false, batteria: 1, torcia: false,   // si parte a torcia spenta
-  passi: 0, dondolo: 0, fogli: 0, check: { x: -75, z: 192 }, morti: 0, tempo: 0, vel: 0, alto: 0, vy: 0, botta: 0, recupera: false, giu: false, hGiu: 0, fiatoneFatto: false,
+  passi: 0, dondolo: 0, fogli: 0, statuette: 0, scambiati: 0, check: { x: -75, z: 192 }, morti: 0, tempo: 0, vel: 0, alto: 0, vy: 0, botta: 0, recupera: false, giu: false, hGiu: 0, fiatoneFatto: false,
 };
 const tasti = {};
 const joy = { x: 0, y: 0, attivo: false, id: null, ox: 0, oy: 0 };
@@ -1425,6 +1437,7 @@ addEventListener('keydown', e => {
   if (e.code === 'KeyF') cambiaTorcia();
   if (e.code === 'KeyE') provaPrendere();
   if (e.code === 'KeyM') apriTelefono();
+  if (e.code === 'KeyG') piantaStatuetta();
   if (e.code === 'KeyZ' && tel.aperto) zoomTelefono();
   if ((e.code === 'KeyC' || e.code === 'ControlLeft' || e.code === 'ControlRight') && !e.repeat) accovacciati();
 });
@@ -1497,6 +1510,7 @@ $('t-torcia').addEventListener('touchstart', e => { e.preventDefault(); cambiaTo
 $('t-prendi').addEventListener('touchstart', e => { e.preventDefault(); provaPrendere(); });
 $('t-salta').addEventListener('touchstart', e => { e.preventDefault(); salta(); });
 $('t-giu').addEventListener('touchstart', e => { e.preventDefault(); accovacciati(); });
+$('t-statua').addEventListener('touchstart', e => { e.preventDefault(); piantaStatuetta(); });
 
 function muoviGiocatore(dt) {
   let ax = 0, az = 0;
@@ -1562,8 +1576,9 @@ function muoviGiocatore(dt) {
 }
 
 function aggiornaTorcia(dt, t) {
-  if (io.torcia) io.batteria = Math.max(0, io.batteria - dt / (VELOCE ? 300 : 900));
-  if (tel.aperto) io.batteria = Math.max(0, io.batteria - dt / (VELOCE ? 600 : 2400));   // anche lo schermo acceso
+  const carica = vicinoStatua();   // vicino a una statuetta il telefono non si scarica
+  if (io.torcia && !carica) io.batteria = Math.max(0, io.batteria - dt / (VELOCE ? 300 : 900));
+  if (tel.aperto && !carica) io.batteria = Math.max(0, io.batteria - dt / (VELOCE ? 600 : 2400));   // anche lo schermo acceso
   if (io.batteria <= 0 && (io.torcia || !io.morto)) { io.torcia = false; if (!io.morto) { io.morto = true; didascalia('Il telefono è morto. Niente torcia, niente GPS.', 5000); } }
   if (io.batteria > 0) io.morto = false;
   let k = io.torcia ? 0.35 + 0.65 * Math.min(1, io.batteria * 3) : 0;
@@ -1604,7 +1619,7 @@ function provaPrendere() {
     return;
   }
   const f = foglioVicino; f.preso = true; f.m.visible = false; foglioVicino = null;
-  io.fogli++; io.check = { x: io.x, z: io.z };
+  io.fogli++;
   suono('foglio', 0.9, 1, 'foglio');
   ui.fogli.innerHTML = `Fogli <b>${io.fogli}</b>/10`;
   ui.foglioGrande.classList.remove('nascosto');
@@ -1642,7 +1657,7 @@ function didascalia(testo, ms = 4500) {
 function pesca(l) { return l[Math.random() * l.length | 0]; }
 
 /* ── percorso di Guerrino: dalla fine del paese, su per la carrareccia, fino alla Fonticella Petri ── */
-const PERCORSO = [[-69, 194], [-58.5, 188.5], [-54, 183.5], [-37.5, 177], [-25, 168.5], [-17, 162.5], daFonte(0.9, 2.2)];
+const PERCORSO = [[-64, 190], [-58.5, 188.5], [-54, 183.5], [-37.5, 177], [-25, 168.5], [-17, 162.5], daFonte(0.9, 2.2)];
 const SEDILE = daFonte(0.55, 0.7);   // il bordo davanti della vasca, dove Guerrino si siede
 const SEDUTA = VELOCE ? 6 : 30;      // secondi seduto prima di menare
 const TAPPE_FRASI = { 1: 0, 3: 1, 4: 2, 5: 3 };
@@ -1766,6 +1781,7 @@ function aggiornaStoria(dt, t) {
   guerrino.vel = 0;
   if (guerrino.mena) aggiornaMena(dt, t);
   const dGioc = Math.hypot(io.x - guerrino.x, io.z - guerrino.z);
+  if ((storia === 'solo' || storia === 'caccia') && dGioc < 4 && io.fogli > io.scambiati) scambiaConGuerrino();
   // te ne vai mentre ti spiega le cose (oltre 50 m): "vabbè, fa' come te pare", e va a menare l'albero in silenzio
   if (!guerrino.zitto && dGioc > 50 && (storia === 'intro' || storia === 'strada' || (storia === 'fonte' && guerrino.fase < 5))) {
     guerrino.zitto = true; coda.length = 0; parlando = null;
@@ -1829,7 +1845,8 @@ function aggiornaStoria(dt, t) {
     } else if (guerrino.fase === 6) {
       if (camminaSu(guerrino.verso, dt, 0.9, 0.08) && !coda.length && !parlando) {
         guerrino.mena = true; guerrino.mossa = -1; guerrino.corrente = guerrino.az.cammina; guerrino.prossimo = t + 10;
-        storia = 'solo'; tStoria = 0; io.check = { x: io.x, z: io.z };
+        storia = 'solo'; tStoria = 0;
+        checkpoint();   // il primo: Guerrino s'è messo a menare
         attesa = VELOCE ? 25 : 240;
         cinghiale.prossimo = t + (VELOCE ? 8 : 50 + Math.random() * 70);
       }
@@ -1871,10 +1888,11 @@ function aggiornaScossi(dt) {
 
 /* ════════ LA CACCIA: PAPI ════════
    Nasce dove non lo vedi e ti raggiunge camminando sul serio: strisciando, poi in piedi, poi di corsa,
-   e alla fine si lancia. Niente teletrasporti. Lo semini solo scappando lontano. Alla Fonticella Petri non entra. */
+   e alla fine si lancia. Niente teletrasporti. Lo semini solo scappando lontano. Alla Fonticella Petri
+   e vicino alle statuette di Guerrino si arrende: si ferma, sbuffa e se ne va saltando (Leo, 17/11). */
 let papiVoce = null, papiPassi = null, pugnoAudio = null, pugnoUmido = null;
 const SICURO = 14;   // metri intorno alla Fonticella dove Papi non mette piede
-function alSicuro(x = io.x, z = io.z) { return Math.hypot(x - FONTE.x, z - FONTE.z) < SICURO; }
+function alSicuro(x = io.x, z = io.z) { return Math.hypot(x - FONTE.x, z - FONTE.z) < SICURO || vicinoStatua(x, z); }
 function iniziaCaccia(t) {
   storia = 'caccia'; tCaccia = 0;
   didascalia('Tra gli alberi si muove qualcosa. Qualcosa di molto alto.', 5500);
@@ -1924,7 +1942,7 @@ function postoNascosto(dmin, dmax) {
     const a = base + Math.PI + (Math.random() - 0.5) * (k < 24 ? 2.4 : 4.8), d = dmin + Math.random() * (dmax - dmin);
     const x = io.x + Math.sin(a) * d, z = io.z + Math.cos(a) * d;
     if (Math.abs(x) > LIMITE - 3 || Math.abs(z) > LIMITE - 3) continue;
-    if (Math.hypot(x - FONTE.x, z - FONTE.z) < SICURO + 8 || distFosso(x, z) < 2 || vicinoCasa(x, z)) continue;
+    if (Math.hypot(x - FONTE.x, z - FONTE.z) < SICURO + 8 || vicinoStatua(x, z, 8) || distFosso(x, z) < 2 || vicinoCasa(x, z)) continue;
     if (inVista(x, z, 2) && !coperto(x, z)) continue;
     return { x, z };
   }
@@ -1957,9 +1975,15 @@ function papiArrabbiato(t) {
   if (Math.random() < 0.6) dici(pesca(BATTUTE.caccia), 2800);
 }
 
+// alla Fonticella o vicino a una statuetta: lascia perdere
+function arrendePapi() {
+  papi.stato = 'arrende'; papi.tArr = 0; papi.saltoVia = false; papi.andatura = ''; papi.nervoso = 0;
+  papiGiu(0.3); versoPapi('frasche', 0.8, 0.6);
+  if (!dettoSicuro) { dettoSicuro = true; didascalia(vicinoStatua() ? 'Vicino alla statuetta di Guerrino, Papi lascia perdere.' : 'Alla Fonticella Petri, Papi lascia perdere.', 5000); }
+}
 // muove Papi verso di te schivando i tronchi; ogni tanto fa tremare l'albero che sfiora
-function avanzaPapi(dt, v) {
-  let dx = io.x - papi.x, dz = io.z - papi.z; const l = Math.hypot(dx, dz) || 1; dx /= l; dz /= l;
+function avanzaPapi(dt, v, via = false) {
+  let dx = (io.x - papi.x) * (via ? -1 : 1), dz = (io.z - papi.z) * (via ? -1 : 1); const l = Math.hypot(dx, dz) || 1; dx /= l; dz /= l;
   tronchiVicini(papi.x + dx * 1.4, papi.z + dz * 1.4, 1.6, tr => {
     const ox = papi.x + dx * 1.4 - tr.x, oz = papi.z + dz * 1.4 - tr.z, od = Math.hypot(ox, oz) || 1;
     if (od < tr.r + 0.8) { dx += ox / od * 0.8; dz += oz / od * 0.8; if (Math.random() < dt * 2) scuoti(tr, 0.5); }
@@ -2008,7 +2032,7 @@ function aggiornaCaccia(dt, t) {
   const ner = 1 + (papi.nervoso || 0) * 0.2;
   const pausa = Math.max(8, 26 - livello * 1.6);     // quanto ti lascia in pace quando lo semini
 
-  if (sicuro && papi.stato !== 'assente' && !dettoSicuro) { dettoSicuro = true; didascalia('Alla Fonticella Petri non si avvicina.', 5000); }
+  if (sicuro && papi.stato !== 'assente' && papi.stato !== 'arrende') arrendePapi();
 
   if (papi.stato === 'assente') {
     if (t > papi.prossimo && !sicuro) {
@@ -2016,10 +2040,7 @@ function aggiornaCaccia(dt, t) {
       if (posto) nascePapi(posto, t, 'striscia'); else papi.prossimo = t + 3;
     }
   } else if (papi.stato === 'arriva') {
-    if (sicuro && Math.hypot(papi.x - FONTE.x, papi.z - FONTE.z) < SICURO + 7) {
-      // alla Fonticella non viene: si ferma al bordo e resta a guardare
-      papi.stato = 'osserva'; papi.fine = t + 5 + Math.random() * 4; papiGiu(0.5); papi.andatura = '';
-    } else {
+    {
       // una volta in piedi resta in piedi
       const vuole = papi.arrabbiato ? 'corsa' : d > 26 ? 'striscia' : d > 15 ? 'cammina' : 'corsa';
       const ordine = { striscia: 0, cammina: 1, corsa: 2 };
@@ -2043,10 +2064,21 @@ function aggiornaCaccia(dt, t) {
     else giraVerso(guardaVerso(io.x, io.z, papi), dt, 4, papi);
     disegna(papi);
     if (fr > 0.62 || finita(papi)) { papi.stato = 'arriva'; papi.andatura = ''; andaturaPapi('corsa'); papi.tSaltoOk = t + 3; }
-  } else if (papi.stato === 'osserva') {
-    giraVerso(guardaVerso(io.x, io.z, papi), dt, 2, papi); disegna(papi);
-    if (!sicuro) { papi.stato = 'arriva'; papi.andatura = ''; andaturaPapi('cammina'); }
-    else if (t > papi.fine && vis === 0) sparisce(t, 12);
+  } else if (papi.stato === 'arrende') {
+    // si arrende: un attimo fermo a guardarti, poi si gira e se ne va saltando
+    papi.tArr += dt;
+    if (papi.tArr < 0.9) giraVerso(guardaVerso(io.x, io.z, papi), dt, 4, papi);
+    else {
+      if (!papi.saltoVia) { papi.saltoVia = true; const s = recita(papi, 'salto', true, 0.15); if (s) s.timeScale = 1.1; versoPapi('frasche', 0.9, 0.75); }
+      if (papi.nomeAz === 'salto') {
+        const fr = papi.corrente.time / papi.corrente.getClip().duration;
+        if (fr < 0.12) giraVerso(Math.atan2(papi.x - io.x, papi.z - io.z), dt, 9, papi);
+        else if (fr < 0.5) avanzaPapi(dt, 8, true);
+        if (fr > 0.62 || finita(papi)) { papi.andatura = ''; andaturaPapi('corsa'); }
+      } else { avanzaPapi(dt, 4.6, true); passoPapi(1.9, 0.7); }
+    }
+    disegna(papi);
+    if (papi.tArr > 2 && ((vis === 0 && d > 22) || d > 45) || papi.tArr > 14) sparisce(t, sicuro ? 16 : pausa);
   }
 
   nervosoPapi(dt, vis);
@@ -2293,14 +2325,60 @@ TEL3D.tex.colorSpace = THREE.SRGBColorSpace; TEL3D.tex.minFilter = THREE.LinearM
   const schermo = new THREE.Mesh(new THREE.PlaneGeometry(0.066, 0.118), new THREE.MeshBasicMaterial({ map: TEL3D.tex, fog: false }));
   schermo.position.set(0, 0.004, 0.0047); g.add(schermo);
   // il palmo dietro, il pollice sul bordo destro, le dita che spuntano a sinistra, il polso che scende
+  // (è la mano di riserva: appena arriva modelli/mano.glb la sostituisce, vedi creaMano)
+  const prima = g.children.length;
   box(0.07, 0.08, 0.022, pelle, 0.008, -0.04, -0.016);
   // pollice e dita: salsicciotti (cilindri con le punte tonde)
   const dito = (r, l, x, y, z, rz) => { const d = new THREE.Mesh(ombre(new THREE.CapsuleGeometry(r, l, 3, 7)), pelle); d.position.set(x, y, z); d.rotation.z = rz; g.add(d); return d; };
   dito(0.0085, 0.04, 0.041, -0.036, 0.004, 0.32);
   for (let i = 0; i < 4; i++) dito(0.0078, 0.011 - (i === 3 ? 0.003 : 0), -0.04, 0.006 - i * 0.0168, -0.005, Math.PI / 2 + 0.08 * (i - 1.5));
   box(0.058, 0.13, 0.05, pelle, 0.022, -0.125, -0.03, 0.35, 0, -0.18);
+  TEL3D.riserva = g.children.slice(prima);
+  TEL3D.cute = cute;
   TEL3D.luce = new THREE.PointLight(0x9cc0ff, 0, 2.5, 2); TEL3D.luce.position.set(0.09, -0.04, -0.12); camera.add(TEL3D.luce);   // il filo di luce dello schermo resta nel bosco
   g.visible = false; scenaTel.add(g);
+}
+/* La mano vera (Leo, 17/11): la "generic hand" dei profili WebXR (MIT, Amazon), una mano destra con le ossa.
+   Le ossa stanno tutte allo stesso livello (in WebXR le muove il visore), quindi la posa la calcolo io,
+   falange per falange: le dita girano intorno al bordo sinistro del telefono, il pollice sale sul destro. */
+const POSA_MANO = { mcp: 0.3, pip: 0.88, dip: 0.22, tq: [[[1, 0, 0, 0.75], [0, 1, 0, 0.55]], [[0, 1, 0, 0.35]], [[0, 1, 0, 0.35]], 0] };
+function posaMano(root, P, stringi = 0) {
+  const os = n => root.getObjectByName(n);
+  if (!root.userData.riposo) { const R = root.userData.riposo = {}; root.traverse(o => { if (/finger|thumb|wrist/.test(o.name)) R[o.name] = { p: o.position.clone(), q: o.quaternion.clone() }; }); }
+  const R = root.userData.riposo, asse = new THREE.Vector3(0, 0, -1), tmp = new THREE.Quaternion(), v = new THREE.Vector3();
+  const catena = (nomi, angoli) => {
+    const qc = new THREE.Quaternion(); let p = R[nomi[0]].p.clone();
+    nomi.forEach((n, k) => {
+      const o = os(n), r = R[n]; if (!o || !r) return;
+      if (k > 0) p.add(v.copy(r.p).sub(R[nomi[k - 1]].p).applyQuaternion(qc));
+      const a = angoli[k];
+      if (Array.isArray(a)) for (const [x, y, z, w] of a) qc.premultiply(tmp.setFromAxisAngle(v.set(x, y, z).normalize(), w));
+      else if (a) qc.premultiply(tmp.setFromAxisAngle(asse, a));
+      o.position.copy(p); o.quaternion.copy(r.q).premultiply(qc);
+    });
+  };
+  for (const d of ['index-finger', 'middle-finger', 'ring-finger', 'pinky-finger'])
+    catena([d + '-metacarpal', d + '-phalanx-proximal', d + '-phalanx-intermediate', d + '-phalanx-distal', d + '-tip'], [0, P.mcp + stringi * 0.12, P.pip + stringi * 0.1, P.dip, 0]);
+  catena(['thumb-metacarpal', 'thumb-phalanx-proximal', 'thumb-phalanx-distal', 'thumb-tip'], P.tq);
+}
+function creaMano(m) {
+  const mat = new THREE.MeshLambertMaterial({ color: 0xb08068, map: TEL3D.cute });
+  m.scene.traverse(o => { if (o.isMesh) { o.material = mat; o.frustumCulled = false; } });
+  posaMano(m.scene, POSA_MANO);
+  // l'avambraccio: la mano del modello finisce al polso
+  const polso = m.scene.getObjectByName('wrist');
+  if (polso) { const b = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.03, 0.2, 10), mat); b.scale.set(0.78, 1, 1); b.position.copy(polso.position).add(new THREE.Vector3(0.004, 0.1, 0)); m.scene.add(b); }
+  const mg = new THREE.Group(); mg.add(m.scene);
+  // il modello ha le dita verso −Y, il palmo verso −X, il pollice verso −Z: le dita a sinistra dietro il telefono, il palmo contro il dorso
+  mg.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(new THREE.Vector3(0, 0, -1), new THREE.Vector3(1, 0, 0), new THREE.Vector3(0, -1, 0)));
+  mg.quaternion.premultiply(new THREE.Quaternion().setFromEuler(new THREE.Euler(0, 0, -0.7)));   // il polso scende a destra
+  mg.position.set(0.028, -0.035, -0.019);
+  TEL3D.g.add(mg); TEL3D.mano = m.scene;
+  for (const o of TEL3D.riserva) o.visible = false;
+  TEL3D.pelle = mat;
+  // la mano prende due luci sue (la scena del telefono non ne ha)
+  scenaTel.add(new THREE.HemisphereLight(0xffffff, 0x50443c, 1.4));
+  const d = new THREE.DirectionalLight(0xffffff, 1.1); d.position.set(0.4, 1, 0.8); scenaTel.add(d);
 }
 function schermoNero() { const g = TEL3D.cv.getContext('2d'); g.fillStyle = '#030404'; g.fillRect(0, 0, TEL3D.cv.width, TEL3D.cv.height); TEL3D.tex.needsUpdate = true; }
 const _qTel = new THREE.Quaternion(), _qOcchio = new THREE.Quaternion();
@@ -2322,7 +2400,9 @@ function animaTelefono(dt) {
   g.visible = s > 0.01;
   TEL3D.luce.intensity = 0.7 * s * s;
   if (!g.visible) return;
-  // la mano: la luce dello schermo, più la torcia se è accesa, meno il buio della notte
+  // la mano: la luce dello schermo, più la torcia se è accesa, meno il buio della notte; stringe un po' mentre scuoti
+  const stretta = Math.round(Math.abs(scossa) * 20) / 20;
+  if (TEL3D.mano && TEL3D.stretta !== stretta) { TEL3D.stretta = stretta; posaMano(TEL3D.mano, POSA_MANO, stretta); }
   TEL3D.pelle.color.setHex(0xb08068).multiplyScalar(0.55 + (io.torcia ? 0.35 : 0) - BUIO.k * 0.2);
   const bob = Math.sin(io.dondolo) * 0.004 * Math.min(1, io.vel);
   // in basso a destra; sullo schermo stretto (telefono in verticale) si avvicina al centro
@@ -2416,6 +2496,8 @@ function aggiornaGps(dt, t) {
     if (GPS.tLampo > 0 || GPS.buchi.some(b => Math.hypot(io.x - b.x, io.z - b.z) < b.r)) segnale = true;
   }
   if (io.aggeggio) segnale = true;            // l'aggeggio de Vito: prende sempre e ovunque
+  const statua = vicinoStatua();
+  if (statua) { segnale = true; GPS.tFinto = 0; }   // vicino a una statuetta: prende, e giusto
   if (io.batteria <= 0) segnale = false;      // telefono morto
   GPS.tCaduta = Math.max(0, GPS.tCaduta - dt); GPS.tLampo = Math.max(0, GPS.tLampo - dt);
   tel.tacche = segnale ? (q >= GPS_QUOTA + 25 ? 4 : 3) : q >= GPS_QUOTA - 15 ? 2 : q >= GPS_QUOTA - 35 ? 1 : 0;
@@ -2425,10 +2507,10 @@ function aggiornaGps(dt, t) {
     tel.fix = true;
     const raggio = Math.min(80, 8 + (t - tel.tUltimo) * 1.4);   // il cerchio tratteggiato di adesso
     for (const f of FOGLI) if (!f.preso && Math.hypot(f.x - io.x, f.z - io.z) < raggio && !GPS.rivelati.some(v => v.f === f)) GPS.rivelati.push({ f, fino: t + 15 });
-    if (Math.random() < Math.min(0.6, io.fogli * 0.06)) sbagliaGps();
+    if (!statua && Math.random() < Math.min(0.6, io.fogli * 0.06)) sbagliaGps();
   }
   if (tel.fix && tel.tFix <= 1) tel.fix = false;
-  if (tel.fix && GPS.tFinto <= 0 && Math.random() < dt / 50 * io.fogli / 10) sbagliaGps();
+  if (tel.fix && !statua && GPS.tFinto <= 0 && Math.random() < dt / 50 * io.fogli / 10) sbagliaGps();
   GPS.tFinto = Math.max(0, GPS.tFinto - dt);
   GPS.rivelati = GPS.rivelati.filter(v => v.fino > t && !v.f.preso);
   if (tel.fix) { tel.ux = io.x + (GPS.tFinto > 0 ? GPS.fx : 0); tel.uz = io.z + (GPS.tFinto > 0 ? GPS.fz : 0); tel.tUltimo = t; }
@@ -2636,6 +2718,136 @@ function prendiPowerUp(pu) {
   if (pu.tipo === 'corndog') { io.tCorndog = 120; didascalia('Corndog: per due minuti il fiato dura il doppio.', 4000); }
   if (pu.tipo === 'drummini') { io.tDrummini = 120; didascalia('Pantofole: per due minuti fai meno rumore.', 4000); }
 }
+
+/* ════════ LE STATUETTE DI GUERRINO ════════
+   (Leo, 17/11) Ogni foglio che prendi lo puoi scambiare con Guerrino per una statuetta sua: lui in A-pose,
+   di metallo, su un piedistallo. La pianti a terra una volta sola e lì resta: fa un po' di luce e Papi non
+   s'avvicina, come alla Fonticella. Vicino alla statuetta il GPS prende sempre e il telefono non si scarica.
+   Lo scambio e la statuetta piantata sono i checkpoint (e il salvataggio). */
+const STATUA_R = 10;   // metri: la zona che protegge
+const STATUE = { modello: null, mat: null, piantate: [], luci: [], alone: null };
+function vicinoStatua(x = io.x, z = io.z, extra = 0) { return STATUE.piantate.some(s => Math.hypot(x - s.x, z - s.z) < STATUA_R + extra); }
+// due luci in tutto, che stanno sulle due statuette più vicine (così gli shader non cambiano mai)
+function creaLuciStatue() {
+  for (let i = 0; i < 2; i++) { const l = new THREE.PointLight(0xffc27a, 0, 9, 1.4); scena.add(l); STATUE.luci.push(l); }
+}
+// il riflesso del metallo: un cielo finto di notte con un paio di lumi caldi
+function texRiflesso() {
+  const cv = document.createElement('canvas'); cv.width = 128; cv.height = 64;
+  const g = cv.getContext('2d'), gr = g.createLinearGradient(0, 0, 0, 64);
+  gr.addColorStop(0, '#1c2433'); gr.addColorStop(0.45, '#56607a'); gr.addColorStop(0.52, '#2a2a24'); gr.addColorStop(1, '#0c0a08');
+  g.fillStyle = gr; g.fillRect(0, 0, 128, 64);
+  for (const [x, y, r, c] of [[30, 22, 7, '#ffd9a0'], [92, 26, 5, '#ffe8c0'], [64, 12, 9, '#9fb4d8']]) {
+    const rg = g.createRadialGradient(x, y, 0, x, y, r); rg.addColorStop(0, c); rg.addColorStop(1, 'rgba(0,0,0,0)');
+    g.fillStyle = rg; g.fillRect(x - r, y - r, r * 2, r * 2);
+  }
+  const t = new THREE.CanvasTexture(cv); t.mapping = THREE.EquirectangularReflectionMapping; t.colorSpace = THREE.SRGBColorSpace;
+  return t;
+}
+function creaStatuette(m) {
+  STATUE.modello = m.scene;
+  STATUE.mat = ps1(new THREE.MeshStandardMaterial({ color: 0xc9a066, metalness: 1, roughness: 0.3, envMap: texRiflesso(), envMapIntensity: 1.1, emissive: 0x1e1406 }));
+  m.scene.traverse(o => { if (o.isMesh) { o.material = STATUE.mat; o.frustumCulled = true; } });
+  STATUE.alone = new THREE.SpriteMaterial({ map: texAlone(), color: 0xffc27a, transparent: true, opacity: 0.45, depthWrite: false, blending: THREE.AdditiveBlending });
+}
+function mettiStatua(x, z, rot) {
+  const g = new THREE.Group();
+  if (STATUE.modello) g.add(STATUE.modello.clone());
+  const al = new THREE.Sprite(STATUE.alone); al.scale.setScalar(1.1); al.position.y = 0.4; g.add(al);
+  g.position.set(x, quota(x, z), z); g.rotation.y = rot; g.scale.setScalar(1.4); scena.add(g);   // 80 cm col piedistallo
+  STATUE.piantate.push({ x, z, rot, g });
+}
+function togliStatue() { for (const s of STATUE.piantate) scena.remove(s.g); STATUE.piantate.length = 0; }
+function aggiornaStatue(t) {
+  // le luci sulle due più vicine, con un respiro lento
+  const vicine = STATUE.piantate.map(s => [Math.hypot(s.x - io.x, s.z - io.z), s]).sort((a, b) => a[0] - b[0]);
+  STATUE.luci.forEach((l, i) => {
+    const v = vicine[i];
+    if (!v || v[0] > 70) { l.intensity = 0; return; }
+    l.position.set(v[1].x, quota(v[1].x, v[1].z) + 1.3, v[1].z);
+    l.intensity = 2.2 + Math.sin(t * 1.3 + i) * 0.25;
+  });
+}
+function mostraStatuette() {
+  const el = $('statuette'); if (!el) return;
+  el.innerHTML = `Statuette <b>${io.statuette}</b>`;
+  mostra('statuette', io.statuette > 0);
+  mostra('t-statua', io.statuette > 0 && TOCCO && fase === 'gioco');
+}
+// Guerrino: ogni foglio che non gli hai ancora dato diventa una statuetta
+function scambiaConGuerrino() {
+  const da = io.fogli - io.scambiati;
+  if (da <= 0 || !guerrino.mena || storia === 'casa') return;
+  io.scambiati += da; io.statuette += da;
+  suono('colpo', 0.14, 1.5, 'foglio');
+  dici(da > 1 ? pesca(BATTUTE.statuette) : pesca(BATTUTE.statuetta));
+  setTimeout(() => didascalia(`${da > 1 ? da + ' statuette' : 'Una statuetta'} de Guerrino. ${tasto('statuetta')} per piantarla: lì Papi nun s'avvicina.`, 5000), 1200);
+  mostraStatuette();
+  checkpoint();
+}
+function piantaStatuetta() {
+  if (fase !== 'gioco' || io.statuette <= 0 || storia === 'casa' || dentroCasa()) return;
+  const av = avanti(), x = io.x + av.x * 1.3, z = io.z + av.z * 1.3;
+  if (distFosso(x, z) < 1.6 || sulPonte(x, z) !== null || Math.abs(x) > LIMITE - 2 || Math.abs(z) > LIMITE - 2) { didascalia('Qui no: cerca un pezzo di terra.', 2500); return; }
+  if (STATUE.piantate.some(s => Math.hypot(s.x - x, s.z - z) < 2)) { didascalia("Ce n'è già una qui.", 2500); return; }
+  io.statuette--;
+  mettiStatua(x, z, Math.atan2(io.x - x, io.z - z));
+  suono('colpo', 0.35, 0.7, 'foglio'); suono('frasche', 0.2, 1.4, 'foglio');
+  didascalia('Statuetta piantata. Qui Papi lascia perdere, il GPS prende e il telefono non si scarica.', 5000);
+  mostraStatuette();
+  checkpoint();
+}
+
+/* ════════ CHECKPOINT E SALVATAGGIO ════════
+   Il checkpoint è una foto della partita: se muori ricominci da lì, se chiudi e rientri riparti da lì
+   ("Continua" nel menu). Il tempo della run invece corre sempre: è il record. In Incubo chi muore
+   ricomincia da capo, ma se chiudi e rientri riparti dal checkpoint. */
+const SALVA = 'residentcrevil.partita';
+let CHECK = null;
+function leggiSalvataggio() { try { const s = JSON.parse(localStorage.getItem(SALVA) || 'null'); return s && s.v === 1 ? s : null; } catch (e) { return null; } }
+function scriviSalvataggio() { if (!CHECK) return; try { localStorage.setItem(SALVA, JSON.stringify({ ...CHECK, tempo: io.tempo, morti: io.morti })); } catch (e) {} }
+function cancellaSalvataggio() { CHECK = null; try { localStorage.removeItem(SALVA); } catch (e) {} }
+function checkpoint(x = io.x, z = io.z) {
+  CHECK = {
+    v: 1, modo: MODO, storia: storia === 'solo' ? 'solo' : 'caccia', attesa, tCaccia, x, z, yaw: io.yaw,
+    batteria: io.batteria, fogli: io.fogli, tuttiFogli: !!io.tuttiFogli, roncola: !!io.roncola, aggeggio: !!io.aggeggio,
+    statuette: io.statuette, scambiati: io.scambiati,
+    fogliPresi: FOGLI.map((f, i) => f.preso ? i : -1).filter(i => i >= 0),
+    powerPresi: POWER.map((p, i) => p.preso ? i : -1).filter(i => i >= 0),
+    piantate: STATUE.piantate.map(s => [+s.x.toFixed(2), +s.z.toFixed(2), +s.rot.toFixed(2)]),
+    casa: CASA.aperta, bossVita: BOSS.vita,
+  };
+  io.check = { x, z };
+  scriviSalvataggio();
+}
+// Guerrino già all'albero, a menare (per chi riparte da un checkpoint)
+function guerrinoAllAlbero(t) {
+  const tr = alberoDiGuerrino(); guerrino.albero = tr;
+  if (tr) { const giro = daFonte(-1.7, 1.1), dx = giro[0] - tr.x, dz = giro[1] - tr.z, d = Math.hypot(dx, dz) || 1, rr = tr.r + 0.55; guerrino.x = tr.x + dx / d * rr; guerrino.z = tr.z + dz / d * rr; }
+  guerrino.fase = 6; guerrino.riposo = 0; guerrino.tMena = 0; guerrino.zitto = false; guerrino.detto = true;
+  guerrino.mena = true; guerrino.mossa = -1; guerrino.corrente = null; guerrino.prossimo = t + 10;
+  if (guerrino.roncola) guerrino.roncola.visible = !io.roncola;
+  disegna(guerrino);
+}
+function ripristina(S, t) {
+  MODO = S.modo === 'incubo' ? 'incubo' : 'normale';
+  Object.assign(io, { x: S.x, z: S.z, yaw: S.yaw, pitch: -0.05, batteria: S.batteria, fogli: S.fogli, tuttiFogli: S.tuttiFogli, roncola: S.roncola, aggeggio: S.aggeggio,
+    statuette: S.statuette, scambiati: S.scambiati, fiato: 1, sfinito: false, alto: 0, vy: 0, giu: false, tCorndog: 0, tDrummini: 0, check: { x: S.x, z: S.z } });
+  FOGLI.forEach((f, i) => { f.preso = S.fogliPresi.includes(i); f.m.visible = !f.preso; });
+  POWER.forEach((p, i) => { p.preso = S.powerPresi.includes(i); p.g.visible = !p.preso; });
+  GPS.rivelati = []; GPS.tFinto = 0;
+  togliStatue(); for (const [x, z, rot] of S.piantate) mettiStatua(x, z, rot);
+  ui.fogli.innerHTML = `Fogli <b>${io.fogli}</b>/10`;
+  mostraStatuette();
+  storia = S.storia; tStoria = 0; attesa = S.attesa; tCaccia = S.tCaccia;
+  guerrinoAllAlbero(t);
+  coda.length = 0; parlando = null;
+  viaPapi(true); papi.stato = 'assente'; papi.prossimo = t + 30;
+  for (const p of [caro, bimba]) if (p.mixer) viaFiglio(p, t, 40);
+  if (S.casa) apriPorta(true);
+  BOSS.vita = Math.min(BOSS.vita, S.bossVita ?? 5);
+  CHECK = S;
+}
 let tEffetti = 0;
 function aggiornaEffetti(dt) {
   io.tCorndog = Math.max(0, (io.tCorndog || 0) - dt); io.tDrummini = Math.max(0, (io.tDrummini || 0) - dt);
@@ -2805,7 +3017,7 @@ function colpoAndato() {
    dalla porta (i colpi dati restano). */
 const BOSS = { vita: 5, stato: 'fermo', t: 0 };
 function entraCasa(t) {
-  storia = 'casa'; io.check = { x: CASA.fuori[0], z: CASA.fuori[1] };
+  storia = 'casa'; checkpoint(CASA.fuori[0], CASA.fuori[1]);
   BOSS.stato = 'fermo'; BOSS.t = 0;
   posa(papi, CASA.x + 4.2, CASA.z, -Math.PI / 2);
   papiInPiedi(0.05); mostraPapi(); papi.stato = 'boss'; papi.visto = true; papi.giu = false;
@@ -2870,7 +3082,7 @@ function cadi() {
 function mostraMorte(titolo, frase) {
   $('morte-titolo').textContent = titolo;
   $('morte-frase').textContent = '«' + frase + '»';
-  $('riprova').textContent = MODO === 'incubo' ? 'Ricomincia da capo' : "Riprova dall'ultimo foglio";
+  $('riprova').textContent = MODO === 'incubo' ? 'Ricomincia da capo' : "Riprova dall'ultimo checkpoint";
   document.body.classList.add('fuori'); mostra('morte', true);
   if (document.pointerLockElement) document.exitPointerLock();
 }
@@ -3022,20 +3234,25 @@ function animaPresa(dt) {
   }
 }
 function riprova() {
-  if (MODO === 'incubo') { ui.buio.style.opacity = 1; location.reload(); return; }   // Incubo: da capo
+  if (MODO === 'incubo') { cancellaSalvataggio(); ui.buio.style.opacity = 1; location.reload(); return; }   // Incubo: da capo
   mostra('morte', false); document.body.classList.remove('fuori');
-  io.x = io.check.x; io.z = io.check.z; io.fiato = 1; io.sfinito = false; io.pitch = -0.05;
+  // si riparte dall'ultimo checkpoint (lo scambio con Guerrino o l'ultima statuetta piantata)
+  if (CHECK) ripristina(CHECK, tGioco);
+  else { io.x = io.check.x; io.z = io.check.z; }
+  io.fiato = 1; io.sfinito = false; io.pitch = -0.05;
   io.batteria = Math.max(io.batteria, 0.25); if (io.batteria > 0) io.torcia = true;
   viaPapi(true); papi.stato = 'assente';   // lo statico se ne va da solo, in dissolvenza
   papi.prossimo = tGioco + 60;   // un minuto senza mostro
   if (storia === 'casa') { io.x = CASA.fuori[0]; io.z = CASA.fuori[1]; io.yaw = -Math.PI / 2; BOSS.stato = 'fermo'; apriPorta(); }
-  if (storia !== 'caccia') { storia = 'caccia'; tCaccia = 0; }
+  if (storia !== 'caccia' && storia !== 'solo') { storia = 'caccia'; tCaccia = 0; }
+  scriviSalvataggio();
   ui.buio.style.opacity = 0;
   fase = 'gioco';
   if (!TOCCO) canvas.requestPointerLock?.();
 }
 function vittoria() {
   fase = 'vinto'; storia = 'fine'; apriTelefono(false);
+  cancellaSalvataggio();   // la run è finita
   viaPapi(false); papi.stato = 'assente';
   const s = Math.round(io.tempo);
   setTimeout(() => {
@@ -3138,6 +3355,7 @@ function leggiPad(dt) {
       if (nuovo(2) || nuovo(7)) provaPrendere();
       if (nuovo(3) || nuovo(8)) apriTelefono();
       if (nuovo(4) && tel.aperto) zoomTelefono();
+      if (nuovo(13) || (nuovo(4) && !tel.aperto)) piantaStatuetta();
       if (nuovo(5)) cambiaTorcia();
       if (nuovo(9)) pausa(true);
       return;
@@ -3159,7 +3377,7 @@ function leggiPad(dt) {
     }
     if (nuovo(0)) { const el = voci[qui]; if (!el) fuocoPad(voci[0]); else if (el.type !== 'range') el.click(); }
     if (nuovo(1)) { if (!$('pannello').classList.contains('nascosto')) chiudiPannello(); else if (fase === 'pausa') pausa(false); }
-    if (nuovo(9)) { if (fase === 'pausa') pausa(false); else if (fase === 'menu' && !$('menu').classList.contains('nascosto')) $('gioca').click(); }
+    if (nuovo(9)) { if (fase === 'pausa') pausa(false); else if (fase === 'menu' && !$('menu').classList.contains('nascosto')) ($('continua').classList.contains('nascosto') ? $('gioca') : $('continua')).click(); }
   } finally { pad.prima = giu; }
 }
 
@@ -3297,6 +3515,7 @@ function costruisci(bin, bosco, colori, osm, modello, roncola, modelloPapi, texA
   creaSottobosco(bosco);
   creaAcqua();
   creaPonti();
+  creaLuciStatue();
   creaCinghiale();
   creaFogli();
   creaPowerUp();
@@ -3320,28 +3539,100 @@ function costruisci(bin, bosco, colori, osm, modello, roncola, modelloPapi, texA
 }
 pronto.catch(e => { console.error(e); $('prog-testo').textContent = 'Il bosco non si carica: ricarica la pagina.'; });
 
-$('gioca').addEventListener('click', () => {
-  mostra('menu', false); mostra('pannello', false); document.body.classList.remove('fuori', 'lobby'); fuocoPad(null);
-  fase = 'gioco'; tStoria = 0; tel.tUltimo = tGioco;
-  ascolto.context.resume?.(); if (!ambiente || !ambiente.isPlaying) sfumaDentro(); avviaLoop(); avviaMusica();
-  setTimeout(() => { if (!io.torcia && fase === 'gioco') didascalia(INGRESSO === 'tocco' ? 'Il tasto 🔦 accende la torcia.' : `Premi ${tasto('torcia')} per accendere la torcia.`, 6000); }, 9000);
-  if (TOCCO) {
-    mostra('touch', true);
-    document.documentElement.requestFullscreen?.().then(() => screen.orientation?.lock?.('landscape').catch(() => {})).catch(() => {});
-  } else canvas.requestPointerLock?.()?.catch?.(() => {});
-  controllaOrizzontale();
+/* ── la lobby: la mappa vista dall'alto a 45°, con la camera che va piano (Leo, 17/11).
+   Quando premi Gioca la camera cade in picchiata dentro la mappa, fino agli occhi di Crivo, e sfuma a nero. */
+const LOBBY = { tuffo: -1, fine: null, da: null, q: new THREE.Quaternion(), m: new THREE.Matrix4(), su: new THREE.Vector3(0, 1, 0), p1: new THREE.Vector3(), mira: new THREE.Vector3(), cx: 0, cz: 0 };
+function posaLobby(t) {
+  // il punto guardato gira lento sulla mappa, e la camera gli gira intorno, sempre a 45°
+  const cx = Math.sin(t * 0.021) * 110 - 10, cz = Math.sin(t * 0.013 + 1.3) * 120 + 10, yaw = t * 0.03 + 0.6, D = 185;
+  const ty = quota(cx, cz);
+  camLobby.position.set(cx + Math.sin(yaw) * D * Math.SQRT1_2, ty + D * Math.SQRT1_2, cz + Math.cos(yaw) * D * Math.SQRT1_2);
+  camLobby.lookAt(cx, ty, cz);
+  LOBBY.cx = cx; LOBBY.cz = cz;
+}
+function tuffo(fine) {
+  LOBBY.tuffo = 0; LOBBY.fine = fine; LOBBY.da = { p: camLobby.position.clone(), q: camLobby.quaternion.clone() };
+  ui.buio.style.transition = 'none';
+}
+function animaTuffo(dt) {
+  const T = (LOBBY.tuffo += dt), k = Math.min(1, T / 2.1), e = k * k * k;   // in picchiata: sempre più svelto
+  LOBBY.p1.set(io.x, suoloIo(io.x, io.z) + 1.65, io.z);
+  camLobby.position.lerpVectors(LOBBY.da.p, LOBBY.p1, e);
+  // si gira a guardare giù, verso il punto dove cade
+  LOBBY.mira.set(io.x, LOBBY.p1.y - 3, io.z);
+  LOBBY.m.lookAt(camLobby.position, LOBBY.mira, LOBBY.su); LOBBY.q.setFromRotationMatrix(LOBBY.m);
+  camLobby.quaternion.slerpQuaternions(LOBBY.da.q, LOBBY.q, Math.min(1, k * 1.8));
+  LOBBY.cx = io.x; LOBBY.cz = io.z;
+  ui.buio.style.opacity = Math.max(0, Math.min(1, (k - 0.55) / 0.35)).toFixed(3);
+  if (k >= 1 && LOBBY.fine) { const f = LOBBY.fine; LOBBY.fine = null; LOBBY.tuffo = -1; f(); }
+}
+function disegnaLobby(dt, t) {
+  scena.fog.color.copy(BUIO.chiaro); scena.fog.density = LOBBY.tuffo >= 0 ? 0.0042 + Math.pow(Math.min(1, LOBBY.tuffo / 2.1), 3) * 0.03 : 0.0042;
+  cielo.intensity = 1.8; luna.intensity = 0.55; torcia.intensity = 0; alone.intensity = 0;   // dall'alto un filo più chiaro
+  if (LOBBY.tuffo >= 0) animaTuffo(dt); else posaLobby(t);
+  const LB = HALF / NB, R = (LOBBY.tuffo >= 0 ? 160 : 190) * (TOCCO ? 0.75 : 1);   // sul telefono un po' meno bosco
+  for (const b of BLOCCHI) b.visible = Math.hypot(Math.max(0, Math.abs(b.userData.cx - LOBBY.cx) - LB), Math.max(0, Math.abs(b.userData.cz - LOBBY.cz) - LB)) < R;
+  if (FONTE.acqua) FONTE.acqua.offset.y = -t * 0.12;
+  if (acquaFossi) acquaFossi.offset.y = -t * 0.55;
+  animaGuerrino(dt);
+  renderer.render(scena, camLobby);
+}
+
+// Gioca (da capo) o Continua (dal checkpoint salvato)
+function avviaPartita(salvato) {
+  if (LOBBY.tuffo >= 0 || fase !== 'menu') return;
+  mostra('menu', false); mostra('pannello', false); fuocoPad(null);
+  ascolto.context.resume?.(); if (!ambiente || !ambiente.isPlaying) sfumaDentro(); avviaLoop();
+  if (salvato) { ripristina(salvato, tGioco); io.tempo = salvato.tempo || 0; io.morti = salvato.morti || 0; mostraModo(); }
+  else cancellaSalvataggio();
+  // schermo intero e mouse vanno chiesti subito, dentro al clic
+  if (TOCCO) document.documentElement.requestFullscreen?.().then(() => screen.orientation?.lock?.('landscape').catch(() => {})).catch(() => {});
+  else canvas.requestPointerLock?.()?.catch?.(() => {});
+  tuffo(() => {
+    document.body.classList.remove('fuori', 'lobby');
+    fase = 'gioco'; tStoria = 0; tel.tUltimo = tGioco;
+    avviaMusica();
+    if (TOCCO) mostra('touch', true);
+    mostraStatuette();
+    if (salvato) setTimeout(() => didascalia(`Si riparte dall'ultimo checkpoint. Tempo: ${mmss(Math.round(io.tempo))}.`, 4500), 800);
+    else setTimeout(() => { if (!io.torcia && fase === 'gioco') didascalia(INGRESSO === 'tocco' ? 'Il tasto 🔦 accende la torcia.' : `Premi ${tasto('torcia')} per accendere la torcia.`, 6000); }, 9000);
+    controllaOrizzontale();
+    ui.buio.style.transition = 'opacity .9s'; requestAnimationFrame(() => { ui.buio.style.opacity = 0; setTimeout(() => { ui.buio.style.transition = ''; }, 1000); });
+  });
+}
+$('gioca').addEventListener('click', () => avviaPartita(null));
+$('continua').addEventListener('click', () => avviaPartita(leggiSalvataggio()));
+pronto.then(() => {
+  const s = leggiSalvataggio();
+  if (s) { mostra('continua', true); $('gioca').textContent = 'Nuovo gioco'; $('continua').innerHTML = `Continua <small>${mmss(Math.round(s.tempo || 0))} · ${s.fogli}/10</small>`; }
 });
 
-let tFosso = 0;
+// schermo intero (dove il browser lo lascia fare: non sull'iPhone)
+function aggiornaSchermoIntero() {
+  for (const b of document.querySelectorAll('.schermo-intero')) {
+    b.hidden = !document.fullscreenEnabled;
+    b.textContent = document.fullscreenElement ? 'Esci dallo schermo intero' : 'Schermo intero';
+  }
+}
+for (const b of document.querySelectorAll('.schermo-intero')) b.addEventListener('click', () => {
+  if (document.fullscreenElement) document.exitFullscreen?.().catch(() => {});
+  else document.documentElement.requestFullscreen?.().catch(() => {});
+});
+document.addEventListener('fullscreenchange', aggiornaSchermoIntero);
+aggiornaSchermoIntero();
+
+let tFosso = 0, tSalva = 5;
 function ciclo() {
   requestAnimationFrame(ciclo);
   const dt = Math.min(0.05, orologio.getDelta()) * PROVA.tempo, t = (tGioco += dt);
   if (!Q) return;
   leggiPad(dt / PROVA.tempo);
-  if (document.body.classList.contains('lobby')) { disegnaSfondo(t); return; }   // nel menu si vedono solo le montagne
+  if (document.body.classList.contains('lobby')) { disegnaLobby(dt, t); return; }   // nel menu: la mappa dall'alto
   if (fase === 'gioco') {
     aggiornaBuio(dt);
-    if (storia === 'solo' || storia === 'caccia') io.tempo += dt;   // il tempo parte quando Guerrino se ne va
+    if (storia === 'solo' || storia === 'caccia' || storia === 'casa') io.tempo += dt;   // il tempo della run parte quando Guerrino se ne va
+    if (CHECK && (tSalva -= dt) < 0) { tSalva = 5; scriviSalvataggio(); }   // il tempo corre anche se chiudi
+    aggiornaStatue(t);
     muoviGiocatore(dt);
     aggiornaTorcia(dt, t);
     aggiornaGps(dt, t);

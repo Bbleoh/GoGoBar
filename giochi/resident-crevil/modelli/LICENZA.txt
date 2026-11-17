@@ -1,0 +1,6 @@
+mano.glb: la "generic hand" (destra) dei WebXR Input Profiles, pacchetto npm @webxr-input-profiles/assets 1.0.20.
+MIT License, Copyright (c) 2019 Amazon. https://github.com/immersive-web/webxr-input-profiles
+Usata così com'è; la posa che tiene il telefono la calcola il gioco (posaMano in gioco.js).
+
+statuetta.glb: Guerrino (dal modello di Leo) nella sua posa di riposo, senza texture, su un piedistallo; alleggerito con gltfpack.
+guerrino.glb, papi.glb, caro.glb, bimba.glb, roncola.glb: modelli di Leo (Bbleoh).
