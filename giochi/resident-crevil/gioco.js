@@ -151,7 +151,7 @@ function ps1Shader(sh) {
 function ps1(mat) { mat.onBeforeCompile = ps1Shader; return mat; }
 // la mano col telefono sta su una tela a risoluzione doppia: stessa filigrana del bosco, coi pixel grandi come i suoi
 PS1.pixTel = { value: 0.5 };
-function ps1ShaderMano(sh) {
+function ps1ShaderMano(sh, grana = 0.22) {
   sh.uniforms.ps1Ris = PS1.ris; sh.uniforms.ps1Pix = PS1.pixTel;
   sh.vertexShader = 'uniform vec2 ps1Ris;\n' + sh.vertexShader.replace('#include <project_vertex>',
     '#include <project_vertex>\n\tgl_Position.xy = floor(gl_Position.xy / gl_Position.w * ps1Ris + 0.5) / ps1Ris * gl_Position.w;');
@@ -161,7 +161,7 @@ function ps1ShaderMano(sh) {
 		vec2 cella = floor(gl_FragCoord.xy * ps1Pix);
 		ivec2 px = ivec2(mod(cella, 4.0));
 		float grana = fract(sin(dot(cella, vec2(12.9898, 78.233))) * 43758.5453) - 0.5;
-		gl_FragColor.rgb *= 1.0 + grana * 0.22;
+		gl_FragColor.rgb *= 1.0 + grana * ${grana.toFixed(2)};
 		gl_FragColor.rgb = floor(gl_FragColor.rgb * 31.0 + (retino[px.x][px.y] + 0.5) / 16.0) / 31.0;
 	}`);
 }
@@ -2472,7 +2472,7 @@ TEL3D.tex.colorSpace = THREE.SRGBColorSpace; TEL3D.tex.minFilter = THREE.LinearM
 function creaManoTelefono(m) {
   // il modello non ha le normali: facce piatte, da low poly
   const pelle = new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true }), plastica = new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true });
-  pelle.onBeforeCompile = plastica.onBeforeCompile = ps1ShaderMano;
+  pelle.onBeforeCompile = plastica.onBeforeCompile = sh => ps1ShaderMano(sh);
   m.scene.traverse(o => {
     if (!o.isMesh) return;
     o.frustumCulled = false;
@@ -2483,6 +2483,7 @@ function creaManoTelefono(m) {
       for (let i = 0; i < p.count; i++) { uv[i * 2] = (p.getX(i) - bb.min.x) / (bb.max.x - bb.min.x); uv[i * 2 + 1] = (p.getY(i) - bb.min.y) / (bb.max.y - bb.min.y); }
       g.setAttribute('uv', new THREE.BufferAttribute(uv, 2));
       o.material = new THREE.MeshBasicMaterial({ map: TEL3D.tex, fog: false });
+      o.material.onBeforeCompile = sh => ps1ShaderMano(sh, 0.12);   // un filo di filigrana anche sullo schermo (Leo, 17/11)
       o.position.z += 0.004;   // un filo sopra il vetro
     } else o.material = /^HAND/.test(o.name) ? pelle : plastica;
   });
