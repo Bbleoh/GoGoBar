@@ -64,6 +64,8 @@ body.tocco #dialogo p { font-size: 15px; }
 .schermo h1 { font-size: clamp(42px, 9vw, 84px); letter-spacing: .06em; font-weight: 400; text-shadow: 0 0 24px rgba(233,228,214,.25); }
 .schermo h2 { font-size: clamp(30px, 6vw, 52px); font-weight: 400; }
 #morte h2 { color: #d9483b; }
+#morte:not(.nascosto) { animation: entraMorte 1.1s ease-out both; }   /* dal nero, senza stacchi */
+@keyframes entraMorte { from { opacity: 0; } }
 .titoletto { font-size: clamp(18px, 3vw, 26px); letter-spacing: .3em; text-transform: uppercase; color: #d9483b; margin-top: -8px; }
 .sotto { font-size: 18px; color: #c9c3b2; max-width: 560px; line-height: 1.4; }
 .piccolo { font-family: var(--mono); font-size: 12px; color: var(--muted); }
