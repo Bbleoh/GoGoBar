@@ -1,2 +1,3 @@
 colpi.mp3: colpi di roncola e pugni sull'albero registrati da Leo (GoGoBar).
 passi.mp3: oltre ai suoni Oculus Audio Pack (vedi LICENZA-oculus-audio-pack.txt) contiene passi e fruscii del Nature Sounds Pack fornito da Leo.
+tempesta.mp3, tuono1.mp3, tuono2.mp3: temporale e tuoni forniti da Leo (storm.wav, thunder.wav, thunder_2.wav), tagliati e convertiti; la tempesta e in loop con 4 s di dissolvenza incrociata.

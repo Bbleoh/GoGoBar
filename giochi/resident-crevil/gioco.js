@@ -19,6 +19,7 @@ import { mergeGeometries } from './lib/addons/utils/BufferGeometryUtils.js';
 import { PEZZI, GIRO, INIZIO_GIRO, CANALE_DIRETTA, caricaMix, lineare } from './mix.js?v=4';
 
 const VELOCE = /veloce/.test(location.search);
+const DEV = /[?&]dev\b/.test(location.search);   // modalità dev provvisoria (Leo, 17/11): con ?dev, V per volare
 const PROVA = { congela: false, tempo: 1 };   // per i test: ferma la storia (Guerrino e Papi), accelera il tempo
 const SCALA = 0.5;   // quanto è rimpicciolita la mappa vera
 const HALF = 650 * SCALA, N = 261, CELLA = 5 * SCALA, LIMITE = 615 * SCALA;
@@ -148,6 +149,22 @@ function ps1Shader(sh) {
 	}`);
 }
 function ps1(mat) { mat.onBeforeCompile = ps1Shader; return mat; }
+// la mano col telefono sta su una tela a risoluzione doppia: stessa filigrana del bosco, coi pixel grandi come i suoi
+PS1.pixTel = { value: 0.5 };
+function ps1ShaderMano(sh) {
+  sh.uniforms.ps1Ris = PS1.ris; sh.uniforms.ps1Pix = PS1.pixTel;
+  sh.vertexShader = 'uniform vec2 ps1Ris;\n' + sh.vertexShader.replace('#include <project_vertex>',
+    '#include <project_vertex>\n\tgl_Position.xy = floor(gl_Position.xy / gl_Position.w * ps1Ris + 0.5) / ps1Ris * gl_Position.w;');
+  sh.fragmentShader = 'uniform float ps1Pix;\n' + sh.fragmentShader.replace('#include <dithering_fragment>', `#include <dithering_fragment>
+	{
+		const mat4 retino = mat4(0., 8., 2., 10., 12., 4., 14., 6., 3., 11., 1., 9., 15., 7., 13., 5.);
+		vec2 cella = floor(gl_FragCoord.xy * ps1Pix);
+		ivec2 px = ivec2(mod(cella, 4.0));
+		float grana = fract(sin(dot(cella, vec2(12.9898, 78.233))) * 43758.5453) - 0.5;
+		gl_FragColor.rgb *= 1.0 + grana * 0.22;
+		gl_FragColor.rgb = floor(gl_FragColor.rgb * 31.0 + (retino[px.x][px.y] + 0.5) / 16.0) / 31.0;
+	}`);
+}
 function texPs1(t, sx = 1, sy = sx) {
   t.magFilter = t.minFilter = THREE.NearestFilter; t.generateMipmaps = false;
   t.colorSpace = THREE.SRGBColorSpace; t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(sx, sy);
@@ -162,7 +179,7 @@ function ridimensiona() {
   { camLobby.aspect = camera.aspect; camLobby.updateProjectionMatrix(); }
   // il telefono a metà strada: pixel il doppio più piccoli del bosco (PS1.altezza), ma sempre pixel
   const hT = Math.min(innerHeight * (devicePixelRatio || 1), PS1.altezza * 2);
-  rendTel.setSize(Math.round(hT * innerWidth / innerHeight), hT, false); camTel.aspect = camera.aspect; camTel.updateProjectionMatrix();
+  rendTel.setSize(Math.round(hT * innerWidth / innerHeight), hT, false); PS1.pixTel.value = PS1.altezza / hT; camTel.aspect = camera.aspect; camTel.updateProjectionMatrix();
 }
 ridimensiona();
 const cielo = new THREE.HemisphereLight(0x4a5a7a, 0x10120c, 1.1);
@@ -794,6 +811,8 @@ function spianaSentiero(s) {
       if (i < 0 || j < 0 || i >= N || j >= N) continue;
       const dx = i * CELLA - HALF - p.x, dz = j * CELLA - HALF - p.z, a = dx * p.rx + dz * p.rz, b = -dx * p.rz + dz * p.rx;
       if (Math.abs(b) < p.W / 2 + 1.2 && Math.abs(a) > luce + 0.5 && Math.abs(a) <= p.L / 2 + 0.3) Q[j * N + i] = (a < 0 ? p.yA : p.yB) - 0.05;
+      // e subito fuori dalle spalle il terreno non resta sotto il piano: niente scalino davanti al ponte
+      else if (Math.abs(b) < p.W / 2 + 1.2 && Math.abs(a) > p.L / 2 && Math.abs(a) <= p.L / 2 + CELLA + 0.2) Q[j * N + i] = Math.max(Q[j * N + i], (a < 0 ? p.yA : p.yB) - 0.05);
     }
   }
 }
@@ -802,6 +821,8 @@ function sulPonte(x, z) {
   for (const p of PONTI) {
     const dx = x - p.x, dz = z - p.z, a = dx * p.rx + dz * p.rz, b = -dx * p.rz + dz * p.rx;
     if (Math.abs(a) < p.L / 2 && Math.abs(b) < p.W / 2) return pianoPonte(p, a / p.L + 0.5);
+    // appena fuori dalle spalle una rampetta invisibile: se il terreno è un filo più basso del piano, ci si sale lo stesso
+    if (Math.abs(a) < p.L / 2 + 1.5 && Math.abs(b) < p.W / 2 + 0.3) return pianoPonte(p, a < 0 ? 0 : 1) - (Math.abs(a) - p.L / 2) * 0.4;
   }
   return null;
 }
@@ -1181,7 +1202,7 @@ function aspettoPapi(dt) {
   papi.pres += Math.max(-passo, Math.min(passo, papi.presV - papi.pres));
   if (papi.pres <= 0 && papi.presV <= 0) { papi.g.visible = false; return; }
   const d = Math.hypot(io.x - papi.x, io.z - papi.z);
-  const luce = fase === 'morto' ? 1 : Math.max(0, Math.min(1, (10 - d) / 5));
+  const luce = fase === 'morto' ? 0.45 : Math.max(0, Math.min(1, (10 - d) / 5));   // nella presa: il viso scuro
   const nebbia = (1 - Math.exp(-Math.pow(scena.fog.density * d, 2))) * 0.4;
   for (const m of papi.mat) {
     m.color.setHex(papi.tinta).multiplyScalar(luce * papi.pres);
@@ -1216,7 +1237,7 @@ function animaPapi(dt) {
   if (a && (papi.nomeAz === 'corsa' || papi.nomeAz === 'gattona' || papi.nomeAz === 'striscia')) {
     const v = papi.vel || 0;
     a.paused = v < 0.05;
-    if (v >= 0.05) a.timeScale = Math.min(3, v / (papi.v0[papi.nomeAz] || 1));
+    if (v >= 0.05) a.timeScale = Math.min(3, v / (papi.v0[papi.nomeAz] || 1)) * (papi.indietro ? -1 : 1);
   }
   papi.mixer.update(dt);
 }
@@ -1232,6 +1253,7 @@ function applicaMix() {
   ascolto.setMasterVolume(mixG('generale') * IMPOSTA.volume);
   if (ambiente) ambiente.setVolume(0.275 * mixG('ambiente'));
   if (MUS.bus) MUS.bus.gain.value = mixG('musica') * IMPOSTA.musica;
+  try { if (EV.pioggia) EV.pioggia.g.gain.setTargetAtTime(EV.pioggia.vol * mixG('temporale'), ascolto.context.currentTime, 0.1); } catch (e) {}   // il temporale in diretta dal mixer
   for (const n in MUS.pezzi) MUS.pezzi[n].ob = -1;   // al prossimo giro riprendono il volume nuovo
 }
 // il mixer aperto in un'altra scheda manda il mix in diretta
@@ -1384,7 +1406,9 @@ function aggiornaMusica(dt) {
   const ce = papi.stato !== 'assente' && papi.g.visible && fase !== 'vinto';
   ob.prossimita = ce ? lim((30 - Math.hypot(io.x - papi.x, io.z - papi.z)) / 28) * papi.pres : 0;
   ob['papi-in-vista'] = ce && papi.vis > 0 ? 1 : 0;
-  ob.fiato = lim((1 - io.fiato) * 1.3);   // il battito: sale mentre consumi il fiato, scende mentre lo recuperi
+  // il battito: sale mentre consumi il fiato, scende mentre lo recuperi; ma solo se Papi è nei dintorni (Leo, 17/11)
+  const vicino = storia === 'casa' ? 1 : ce ? lim((45 - Math.hypot(io.x - papi.x, io.z - papi.z)) / 15) : 0;
+  ob.fiato = lim((1 - io.fiato) * 1.3) * vicino;
   ob.torcia = io.torcia ? 1 : 0;
   ob.distanza = lim((380 - Math.hypot(io.x - CASA.x, io.z - CASA.z)) / 330);   // più ti avvicini alla casa di Papi, più sale (pieno a 50 m)
   const ora = ascolto.context.currentTime;
@@ -1439,8 +1463,36 @@ addEventListener('keydown', e => {
   if (e.code === 'KeyM') apriTelefono();
   if (e.code === 'KeyG') piantaStatuetta();
   if (e.code === 'KeyZ' && tel.aperto) zoomTelefono();
-  if ((e.code === 'KeyC' || e.code === 'ControlLeft' || e.code === 'ControlRight') && !e.repeat) accovacciati();
+  if ((e.code === 'KeyC' || e.code === 'ControlLeft' || e.code === 'ControlRight') && !e.repeat && !io.volo) accovacciati();
+  if (DEV && e.code === 'KeyV' && !e.repeat) cambiaVolo();
 });
+// DEV: volo libero alla Minecraft creativa. Guardi dove vai, Spazio sale, C/Ctrl scende, Shift va a tutta. Papi non ti tocca.
+function cambiaVolo() {
+  io.volo = !io.volo;
+  if (io.volo) { io.voloY = camera.position.y + 2; io.giu = false; io.alto = 0; io.vy = 0; }
+  else io.alto = 0;
+  didascalia(io.volo ? 'DEV: volo acceso (V per spegnere)' : 'DEV: volo spento', 2000);
+}
+function vola(dt) {
+  let ax = 0, az = 0, ay = 0;
+  if (tasti.KeyW || tasti.ArrowUp) az -= 1;
+  if (tasti.KeyS || tasti.ArrowDown) az += 1;
+  if (tasti.KeyA || tasti.ArrowLeft) ax -= 1;
+  if (tasti.KeyD || tasti.ArrowRight) ax += 1;
+  if (joy.id !== null) { ax += joy.x; az += joy.y; }
+  ax += pad.x; az += pad.y;
+  if (tasti.Space) ay += 1;
+  if (tasti.KeyC || tasti.ControlLeft || tasti.ControlRight) ay -= 1;
+  const v = (tasti.ShiftLeft || tasti.ShiftRight || corriTouch || pad.corri ? 90 : 28) * dt;
+  const s = Math.sin(io.yaw), c = Math.cos(io.yaw), cp = Math.cos(io.pitch), sp = Math.sin(io.pitch);
+  // avanti segue anche lo sguardo in su e in giù
+  io.x += (ax * c + az * s * cp) * v; io.z += (-ax * s + az * c * cp) * v; io.voloY += (-az * sp + ay) * v;
+  io.x = Math.max(-LIMITE, Math.min(LIMITE, io.x)); io.z = Math.max(-LIMITE, Math.min(LIMITE, io.z));
+  io.voloY = Math.max(suoloIo(io.x, io.z) + 0.6, Math.min(400, io.voloY));
+  io.vel = 0; io.fiato = 1; io.sfinito = false;
+  camera.position.set(io.x, io.voloY, io.z);
+  camera.rotation.set(io.pitch, io.yaw, 0, 'YXZ');
+}
 addEventListener('keyup', e => { tasti[e.code] = false; });
 function cambiaTorcia() {
   if (io.torcia) { io.torcia = false; suono('colpo', 0.08, 2.6, 'interfaccia'); return; }   // spegnere: subito
@@ -1511,6 +1563,13 @@ $('t-prendi').addEventListener('touchstart', e => { e.preventDefault(); provaPre
 $('t-salta').addEventListener('touchstart', e => { e.preventDefault(); salta(); });
 $('t-giu').addEventListener('touchstart', e => { e.preventDefault(); accovacciati(); });
 $('t-statua').addEventListener('touchstart', e => { e.preventDefault(); piantaStatuetta(); });
+if (DEV) {   // DEV: un bottone per volare anche dal telefono
+  const b = document.createElement('button'); b.textContent = 'VOLA'; b.className = 'tondo';
+  b.style.cssText = 'position:fixed;left:12px;top:50%;z-index:30;opacity:.7';
+  b.addEventListener('touchstart', e => { e.preventDefault(); cambiaVolo(); });
+  b.addEventListener('click', () => cambiaVolo());
+  document.body.appendChild(b);
+}
 
 function muoviGiocatore(dt) {
   let ax = 0, az = 0;
@@ -1524,20 +1583,24 @@ function muoviGiocatore(dt) {
   const vuoleCorrere = (tasti.ShiftLeft || tasti.ShiftRight || corriTouch || pad.corri) && l > 0.3 && az < 0.2;
   if (vuoleCorrere && io.giu) accovacciati(false);
   const corre = vuoleCorrere && !io.sfinito && io.fiato > 0;
+  // senza fiato non cammini: corri piano, fra il passo e la corsa (Leo, 17/11: sennò si scappa a Papi all'infinito), e il fiato torna più lento
+  const lento = vuoleCorrere && io.sfinito;
   if (corre) { io.fiato -= dt / 9 * (io.tCorndog > 0 ? 0.5 : 1); if (io.fiato <= 0) { io.fiato = 0; io.sfinito = true; } }
-  else { io.fiato = Math.min(1, io.fiato + dt / (io.sfinito ? 14 : 10)); if (io.sfinito && io.fiato > 0.35) io.sfinito = false; }
+  else { io.fiato = Math.min(1, io.fiato + dt / (lento ? 32 : io.sfinito ? 14 : 10)); if (io.sfinito && io.fiato > 0.35) io.sfinito = false; }
   // senza fiato: un fiatone solo, non in loop
   if (io.fiato < 0.3 && !io.fiatoneFatto) { io.fiatoneFatto = true; suono('fiatone', 0.25, 0.95 + Math.random() * 0.1, 'fiatone'); }
   if (io.fiato > 0.7) io.fiatoneFatto = false;
   io.recupera = !corre && io.fiato < 1;
   const acqua = distFosso(io.x, io.z) < 1.1 && sulPonte(io.x, io.z) === null;
-  const vmax = (corre ? 5.1 : io.giu ? 1.15 : 2.3) * (acqua ? 0.7 : 1);
+  const vmax = (corre ? 5.1 : lento ? 3.3 : io.giu ? 1.15 : 2.3) * (acqua ? 0.7 : 1);
   const s = Math.sin(io.yaw), c = Math.cos(io.yaw);
   let dx = (ax * c + az * s) * vmax * dt, dz = (-ax * s + az * c) * vmax * dt;
   // pendenza: in salita ripida si rallenta, oltre i 40° non si sale
-  const q0 = suoloIo(io.x, io.z), q1 = suoloIo(io.x + dx, io.z + dz), passo = Math.hypot(dx, dz);
+  // la pendenza la guardo mezzo metro avanti: un gradino di venti centimetri (il bordo di un ponte) si sale, una parete no
+  const passo = Math.hypot(dx, dz);
   if (passo > 0) {
-    const pend = (q1 - q0) / passo;
+    const av = Math.max(passo, 0.5), q0 = suoloIo(io.x, io.z), q1 = suoloIo(io.x + dx / passo * av, io.z + dz / passo * av);
+    const pend = (q1 - q0) / av;
     if (pend > 1.4) { dx = 0; dz = 0; } else if (pend > 0.85) { dx *= 0.15; dz *= 0.15; } else if (pend > 0.3) { const k = 1 - (pend - 0.3) * 0.9; dx *= k; dz *= k; }
   }
   const p = { x: io.x + dx, z: io.z + dz };
@@ -1566,10 +1629,10 @@ function muoviGiocatore(dt) {
     if (io.alto <= 0) { io.alto = 0; io.vy = 0; io.botta = 1; io.passi = 0; const s = suolo(); suono(s === 'acqua' ? 'giuA' : s === 'sentiero' ? 'giuT' : 'giuS', 0.55, 0.95 + Math.random() * 0.1, s === 'acqua' ? 'passiAcqua' : 'salto'); }
   } else io.passi += fatto;
   io.botta = Math.max(0, io.botta - dt * 5);
-  const lungo = corre ? 1.25 : io.giu ? 0.6 : 0.8;
-  if (io.passi > lungo) { io.passi = 0; suonoPasso(corre); }
-  if (!io.alto) io.dondolo += fatto * (corre ? 5.2 : 6.5);
-  const bob = Math.sin(io.dondolo) * (corre ? 0.07 : 0.035) * Math.min(1, io.vel);
+  const lungo = corre ? 1.25 : lento ? 1.05 : io.giu ? 0.6 : 0.8;
+  if (io.passi > lungo) { io.passi = 0; suonoPasso(corre || lento); }
+  if (!io.alto) io.dondolo += fatto * (corre ? 5.2 : lento ? 5.6 : 6.5);
+  const bob = Math.sin(io.dondolo) * (corre ? 0.07 : lento ? 0.055 : 0.035) * Math.min(1, io.vel);
   io.hGiu += ((io.giu ? 1 : 0) - io.hGiu) * Math.min(1, dt * 8);
   camera.position.set(io.x, suoloIo(io.x, io.z) + 1.65 - io.hGiu * 0.7 + bob + io.alto - Math.sin(io.botta * Math.PI) * 0.09 - (acqua ? 0.12 : 0), io.z);
   camera.rotation.set(io.pitch, io.yaw, Math.sin(io.dondolo * 0.5) * 0.006 * io.vel, 'YXZ');
@@ -1892,7 +1955,7 @@ function aggiornaScossi(dt) {
    e vicino alle statuette di Guerrino si arrende: si ferma, sbuffa e se ne va saltando (Leo, 17/11). */
 let papiVoce = null, papiPassi = null, pugnoAudio = null, pugnoUmido = null;
 const SICURO = 14;   // metri intorno alla Fonticella dove Papi non mette piede
-function alSicuro(x = io.x, z = io.z) { return Math.hypot(x - FONTE.x, z - FONTE.z) < SICURO || vicinoStatua(x, z); }
+function alSicuro(x = io.x, z = io.z) { return io.volo || Math.hypot(x - FONTE.x, z - FONTE.z) < SICURO || vicinoStatua(x, z); }
 function iniziaCaccia(t) {
   storia = 'caccia'; tCaccia = 0;
   didascalia('Tra gli alberi si muove qualcosa. Qualcosa di molto alto.', 5500);
@@ -1933,6 +1996,54 @@ function visibileDaMe(p, maxD, altezza = 1.3) {
   return coperto(p.x, p.z) ? 0 : 1 - Math.abs(_v.x) * 0.5;
 }
 
+// Papi ti vede? (Leo, 17/11) Serve una linea diretta dai suoi occhi alla tua testa: la tagliano il terreno,
+// i tronchi, le case e, se stai basso, le pietre. Accovacciato in un cespuglio o sotto le fronde di un albero non ti vede.
+function dentroCase(x, z) {
+  for (const c of CASE) {
+    if (x < c.minx || x > c.maxx || z < c.minz || z > c.maxz) continue;
+    const pts = c.pts; let dentro = false;
+    for (let i = 0, j = pts.length - 1; i < pts.length; j = i++) {
+      const [xi, zi] = pts[i], [xj, zj] = pts[j];
+      if ((zi > z) !== (zj > z) && x < (xj - xi) * (z - zi) / (zj - zi) + xi) dentro = !dentro;
+    }
+    if (dentro) return true;
+  }
+  return false;
+}
+function nascostoQui() {
+  if (io.hGiu < 0.6) return false;
+  for (const c of CESPUGLI) if (Math.abs(c[0] - io.x) < 2 && Math.abs(c[1] - io.z) < 2 && Math.hypot(c[0] - io.x, c[1] - io.z) < 1.1 * c[2] + 0.3) return true;
+  let si = false;
+  tronchiVicini(io.x, io.z, 2, tr => { if (!si && !tr.basso && tr.mesh && Math.hypot(tr.x - io.x, tr.z - io.z) < 1.2 + tr.s * 0.6) si = true; });
+  return si;
+}
+function papiVede(perche = false) {
+  if (nascostoQui()) return perche ? 'nascosto' : false;
+  const occhi = quota(papi.x, papi.z) + (papi.andatura === 'striscia' ? 1.8 : 4.2);
+  const testa = suoloIo(io.x, io.z) + 1.65 - io.hGiu * 0.7;
+  const dx = io.x - papi.x, dz = io.z - papi.z, d = Math.hypot(dx, dz) || 1;
+  const passi = Math.ceil(d / 2);
+  for (let i = 1; i < passi; i++) {
+    const k = i / passi, x = papi.x + dx * k, z = papi.z + dz * k, h = occhi + (testa - occhi) * k;
+    if (quota(x, z) > h - 0.1 || sulPonte(x, z) > h || dentroCase(x, z)) return perche ? 'terreno ' + k.toFixed(2) + ' ' + (quota(x, z) - h).toFixed(2) : false;
+  }
+  // i tronchi contano se ci stai dietro (entro 5 m da te): uno lontano lo scansa con lo sguardo
+  let si = true;
+  {
+    tronchiVicini(io.x, io.z, 5, tr => {
+      if (Math.hypot(tr.x - io.x, tr.z - io.z) > 5) return;
+      if (!si) return;
+      const k = ((tr.x - papi.x) * dx + (tr.z - papi.z) * dz) / (d * d);
+      if (k <= 0.02 || k >= 1 - 0.2 / d) return;
+      const cx = papi.x + dx * k, cz = papi.z + dz * k, off = Math.hypot(tr.x - cx, tr.z - cz);
+      if (tr.basso) { if (off < tr.r && occhi + (testa - occhi) * k - quota(cx, cz) < tr.r * 0.9) si = false; }
+      else if (off < tr.r + 0.12) si = false;
+      if (!si && perche) si = 0;
+    });
+  }
+  return perche ? (si === 0 ? 'tronco' : si) : si;
+}
+
 // È nella mia inquadratura (a prescindere dai tronchi)?
 function inVista(x, z, h = 1.5) { _v.set(x, suoloIo(x, z) + h, z).project(camera); return _v.z < 1 && Math.abs(_v.x) < 1.1 && Math.abs(_v.y) < 1.1; }
 // un posto da cui partire senza farsi vedere: dietro di te o coperto da un tronco, a quella distanza
@@ -1952,7 +2063,7 @@ function postoNascosto(dmin, dmax) {
 function nascePapi(posto, t, andatura) {
   posa(papi, posto.x, posto.z, 0); papi.rot = guardaVerso(io.x, io.z, papi); disegna(papi);
   papi.g.visible = true; papi.pres = papi.presV = 1;
-  papi.stato = 'arriva'; papi.andatura = ''; papi.agganciato = false; papi.arrabbiato = false; papi.tPerso = 0; papi.nervoso = 0;
+  papi.stato = 'arriva'; papi.andatura = ''; papi.agganciato = false; papi.arrabbiato = false; papi.tPerso = 0; papi.nervoso = 0; papi.tCieco = 0; papi.vede = true; papi.tVede = 0; papi.indietro = false;
   andaturaPapi(andatura);
 }
 function andaturaPapi(a) {
@@ -1961,7 +2072,7 @@ function andaturaPapi(a) {
   recita(papi, a === 'striscia' ? 'striscia' : 'corsa', false, a === 'striscia' ? 0.01 : 0.6);   // in piedi: non ha una camminata, è la corsa rallentata
 }
 function sparisce(t, pausa) {
-  viaPapi(true); papi.stato = 'assente';
+  viaPapi(true); papi.stato = 'assente'; papi.indietro = false;
   papi.prossimo = t + pausa * (0.75 + Math.random() * 0.5);
 }
 // Caro è scappato a chiamarlo: Papi arriva arrabbiato, già di corsa
@@ -2033,6 +2144,10 @@ function aggiornaCaccia(dt, t) {
   const pausa = Math.max(8, 26 - livello * 1.6);     // quanto ti lascia in pace quando lo semini
 
   if (sicuro && papi.stato !== 'assente' && papi.stato !== 'arrende') arrendePapi();
+  if (papi.stato === 'arriva' || papi.stato === 'indietreggia') {
+    papi.tVede = (papi.tVede || 0) - dt;
+    if (papi.tVede <= 0) { papi.tVede = 0.25; papi.vede = papiVede(); }
+  }
 
   if (papi.stato === 'assente') {
     if (t > papi.prossimo && !sicuro) {
@@ -2051,11 +2166,24 @@ function aggiornaCaccia(dt, t) {
       passoPapi(a === 'corsa' ? 1.9 : 2.4, a === 'corsa' ? 1 : a === 'cammina' ? 0.6 : 0.3);
       disegna(papi);
       if (d < 22) papi.agganciato = true;
-      if (a === 'corsa' && d < 8.5 && t > (papi.tSaltoOk || 0)) {
+      // ancora lontano e non ti vede da più di 5 secondi: torna indietro e se ne va
+      papi.tCieco = papi.vede || papi.agganciato || papi.arrabbiato ? 0 : (papi.tCieco || 0) + dt;
+      if (papi.tCieco > 5 && d > 18) { papi.stato = 'indietreggia'; papi.tInd = 0; papi.indietro = true; }
+      else if (a === 'corsa' && d < 8.5 && t > (papi.tSaltoOk || 0)) {
         papi.stato = 'salta'; papi.tSalto = 0; const s = recita(papi, 'salto', true, 0.12); if (s) s.timeScale = 1.25; versoPapi('frasche', 1, 0.6);
       } else if (papi.agganciato && scappato(d, vis)) sparisce(t, pausa);
       else if (!papi.agganciato && d > 75 && vis === 0) sparisce(t, 4);   // t'ha perso di vista prima di arrivare
     }
+  } else if (papi.stato === 'indietreggia') {
+    // si ritira all'indietro, sempre rivolto verso dove ti ha perso; se ti rivede ricomincia
+    papi.tInd += dt;
+    avanzaPapi(dt, papi.andatura === 'striscia' ? 1.3 : 1.6, true);
+    papi.rot = guardaVerso(io.x, io.z, papi);
+    passoPapi(2.6, 0.25);
+    disegna(papi);
+    if (papi.vede && papi.tInd > 1 && d < 32) { papi.stato = 'arriva'; papi.indietro = false; papi.tCieco = 0; }
+    else if (papi.tInd > 7 && (vis === 0 || d > 50)) sparisce(t, pausa);
+    else if (papi.tInd > 16) sparisce(t, pausa);
   } else if (papi.stato === 'salta') {
     // il balzo: nella parte in volo dell'animazione ti viene addosso
     papi.tSalto += dt;
@@ -2344,6 +2472,7 @@ TEL3D.tex.colorSpace = THREE.SRGBColorSpace; TEL3D.tex.minFilter = THREE.LinearM
 function creaManoTelefono(m) {
   // il modello non ha le normali: facce piatte, da low poly
   const pelle = new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true }), plastica = new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true });
+  pelle.onBeforeCompile = plastica.onBeforeCompile = ps1ShaderMano;
   m.scene.traverse(o => {
     if (!o.isMesh) return;
     o.frustumCulled = false;
@@ -2361,8 +2490,8 @@ function creaManoTelefono(m) {
   m.scene.scale.setScalar(0.045);   // il suo telefono è largo 1,75: così fa 8 cm
   TEL3D.g.add(m.scene);
   TEL3D.pelle = pelle; TEL3D.plastica = plastica; TEL3D.leo = true;
-  scenaTel.add(new THREE.HemisphereLight(0xffffff, 0x50443c, 1.3));
-  const d = new THREE.DirectionalLight(0xffffff, 1.2); d.position.set(0.4, 1, 0.8); scenaTel.add(d);
+  scenaTel.add(new THREE.HemisphereLight(0xffffff, 0x50443c, 1.0));
+  const d = new THREE.DirectionalLight(0xffffff, 0.85); d.position.set(0.4, 1, 0.8); scenaTel.add(d);
 }
 function schermoNero() { const g = TEL3D.cv.getContext('2d'); g.fillStyle = '#030404'; g.fillRect(0, 0, TEL3D.cv.width, TEL3D.cv.height); TEL3D.tex.needsUpdate = true; }
 const _qTel = new THREE.Quaternion(), _qOcchio = new THREE.Quaternion();
@@ -2386,7 +2515,7 @@ function animaTelefono(dt) {
   if (!g.visible) return;
   // la mano: la luce dello schermo, più la torcia se è accesa, meno il buio della notte; stringe un po' mentre scuoti
   const luceMano = 0.55 + (io.torcia ? 0.35 : 0) - BUIO.k * 0.2;
-  if (TEL3D.leo) { TEL3D.pelle.color.setScalar(luceMano * 0.95); TEL3D.plastica.color.setScalar(0.3 + luceMano * 0.5); }
+  if (TEL3D.leo) { TEL3D.pelle.color.setScalar(luceMano * 0.5); TEL3D.plastica.color.setScalar(0.16 + luceMano * 0.3); }   // più scura (Leo, 17/11)
   else TEL3D.pelle.color.setHex(0xb08068).multiplyScalar(luceMano);
   const bob = Math.sin(io.dondolo) * 0.004 * Math.min(1, io.vel);
   // in basso a destra; sullo schermo stretto (telefono in verticale) si avvicina al centro
@@ -3114,15 +3243,26 @@ function lanciaEvento(cosa, t) {
   if (cosa === 'temporale') { EV.fine = t + 70 + Math.random() * 40; EV.tLampo = t + 4; avviaPioggia(); didascalia('Si mette a piovere.', 3500); }
   if (cosa === 'telefono') { EV.fine = t + 12; EV.tSquillo = 0; EV.persa = false; tel.tDis = 0; didascalia(INGRESSO === 'tocco' ? 'Ti chiama Papi. Tocca GPS per rifiutare.' : `Ti chiama Papi. ${tasto('telefono')} per rifiutare.`, 4500); }
 }
-// il temporale: pioggia (rumore filtrato) e lampi con il tuono che arriva dopo
+// il temporale: la registrazione di Leo in loop (pioggia, vento, tuoni lontani) e lampi col tuono che arriva dopo.
+// La scarico quando parte la partita; se non c'è ancora, pioggia finta (rumore filtrato)
+function caricaTempesta() {
+  for (const n of ['tempesta', 'tuono1', 'tuono2']) if (!buf[n]) caricaAudio.load('sfx/' + n + '.mp3', b => { buf[n] = b; }, undefined, () => {});
+}
 function avviaPioggia() {
-  const ctx = ascolto.context, len = ctx.sampleRate * 3, b = ctx.createBuffer(2, len, ctx.sampleRate);
+  const ctx = ascolto.context;
+  if (buf.tempesta) {
+    const s = ctx.createBufferSource(); s.buffer = buf.tempesta; s.loop = true; s.loopStart = 0.06; s.loopEnd = buf.tempesta.duration - 0.06;
+    const g = ctx.createGain(); g.gain.value = 0; g.gain.setTargetAtTime(0.9 * mixG('temporale'), ctx.currentTime, 2.5);
+    s.connect(g).connect(ascolto.getInput()); s.start(0, Math.random() * 120);
+    EV.pioggia = { s, g, vol: 0.9 }; return;
+  }
+  const len = ctx.sampleRate * 3, b = ctx.createBuffer(2, len, ctx.sampleRate);
   for (let c = 0; c < 2; c++) { const d = b.getChannelData(c); let u = 0; for (let i = 0; i < len; i++) { u = u * 0.6 + (Math.random() * 2 - 1) * 0.4; d[i] = u; } }
   const s = ctx.createBufferSource(); s.buffer = b; s.loop = true;
   const f = ctx.createBiquadFilter(); f.type = 'bandpass'; f.frequency.value = 2200; f.Q.value = 0.4;
   const g = ctx.createGain(); g.gain.value = 0; g.gain.setTargetAtTime(0.32 * mixG('temporale'), ctx.currentTime, 2.5);
   s.connect(f).connect(g).connect(ascolto.getInput()); s.start();
-  EV.pioggia = { s, g };
+  EV.pioggia = { s, g, vol: 0.32 };
 }
 function fermaPioggia() {
   if (!EV.pioggia) return;
@@ -3141,14 +3281,20 @@ function aggiornaTemporale(dt, t) {
   EV.tuoni = EV.tuoni.filter(q => { if (t < q) return true; tuono(); return false; });
 }
 function tuono() {
-  const ctx = ascolto.context, n = ctx.sampleRate * 4, b = ctx.createBuffer(1, n, ctx.sampleRate), d = b.getChannelData(0);
+  const ctx = ascolto.context, vero = buf[Math.random() < 0.5 ? 'tuono1' : 'tuono2'];
+  if (vero) {
+    const s = ctx.createBufferSource(); s.buffer = vero; s.playbackRate.value = 0.88 + Math.random() * 0.2;
+    const g = ctx.createGain(); g.gain.value = (0.55 + Math.random() * 0.35) * mixG('tuoni');
+    s.connect(g).connect(ascolto.getInput()); s.start(); return;
+  }
+  const n = ctx.sampleRate * 4, b = ctx.createBuffer(1, n, ctx.sampleRate), d = b.getChannelData(0);
   let u = 0;
   for (let i = 0; i < n; i++) {
     const tt = i / ctx.sampleRate, inv = Math.min(1, tt / 0.04) * Math.exp(-tt * 1.1) * (1 + 0.6 * Math.sin(tt * 7) * Math.sin(tt * 2.3));
     u += ((Math.random() * 2 - 1) - u) * 0.035; d[i] = u * 9 * inv;
   }
   const s = ctx.createBufferSource(); s.buffer = b; s.playbackRate.value = 0.8 + Math.random() * 0.3;
-  const g = ctx.createGain(); g.gain.value = 0.9 * mixG('temporale');
+  const g = ctx.createGain(); g.gain.value = 0.9 * mixG('tuoni');
   s.connect(g).connect(ascolto.getInput()); s.start();
 }
 // il telefono squilla: si sente da lontano (Papi arriva prima); aprendolo lo zittisci
@@ -3183,22 +3329,33 @@ function preso() {
   PRESA.giro = PRESA.dietro ? 0.5 : 0.2;
   papi.g.visible = true; papi.pres = papi.presV = 1; papi.vel = 0; papi.stato = 'preso'; papi.nervoso = 0;
   papiGiu(0.12);   // si china su di te
-  PRESA.d0 = Math.max(1.4, Math.min(3, Math.hypot(papi.x - io.x, papi.z - io.z)));
+  PRESA.d0 = Math.max(1.6, Math.min(2.6, Math.hypot(papi.x - io.x, papi.z - io.z)));
+  PRESA.neb0 = scena.fog.density; PRESA.torcia0 = torcia.intensity;
   suono('colpo', 0.6, 1, 'papiVersi'); suono('scricchiolio', 0.4, 1, 'papiVersi');
 }
-const _testa = new THREE.Vector3();
+const _testa = new THREE.Vector3(), _nero = new THREE.Color(0);
+// la presa (Leo, 17/11): il bosco sprofonda nel nero, la faccia ne emerge appena, scura,
+// e in un attimo ti viene addosso fino a coprire tutto lo schermo
 function animaPresa(dt) {
   if (PRESA.t < 0) return;
-  const T = PRESA.t += dt, liscio = x => x * x * (3 - 2 * x);
-  const kG = liscio(Math.min(1, T / PRESA.giro));
-  // la testa girata a forza: svelta, con uno strattone
-  const strappo = PRESA.dietro ? Math.sin(Math.min(1, T / PRESA.giro) * Math.PI) * 0.06 : 0;
+  const T = PRESA.t += dt, liscio = x => x * x * (3 - 2 * x), c01 = x => Math.max(0, Math.min(1, x));
+  const kG = liscio(c01(T / PRESA.giro));
+  // la testa girata a forza: svelta, con uno strattone morbido
+  const strappo = PRESA.dietro ? Math.sin(c01(T / PRESA.giro) * Math.PI) * 0.05 : 0;
   io.yaw = PRESA.yaw0 + PRESA.dy * kG;
   io.pitch = PRESA.pitch0 + (0.04 - PRESA.pitch0) * kG;
-  camera.rotation.set(io.pitch + (Math.random() - 0.5) * strappo, io.yaw, (Math.random() - 0.5) * strappo * 2, 'YXZ');
-  // lui: la faccia viene avanti fino a un palmo dalla tua
-  const kV = liscio(Math.max(0, Math.min(1, (T - PRESA.giro * 0.4) / 0.9)));
-  const dist = PRESA.d0 + (0.3 - PRESA.d0) * kV;   // a un palmo
+  camera.rotation.set(io.pitch + Math.sin(T * 41) * strappo * 0.5, io.yaw, Math.sin(T * 29) * strappo, 'YXZ');
+  // tutto intorno si fa nero: nebbia nera e fitta, la torcia quasi spenta
+  const kN = liscio(c01(T / 0.35));
+  scena.fog.color.copy(NEBBIA).lerp(_nero, kN); scena.background = scena.fog.color;
+  scena.fog.density = PRESA.neb0 + (0.75 - PRESA.neb0) * kN;
+  torcia.intensity = PRESA.torcia0 * (1 - 0.9 * kN); alone.intensity = 0.1 * (1 - kN);
+  // lui: emerge dal nero, si ferma un istante a un passo, poi si avventa
+  const u = T - PRESA.giro * 0.5, d1 = 0.95;
+  let dist;
+  if (u < 0.55) dist = PRESA.d0 + (d1 - PRESA.d0) * (1 - Math.pow(1 - c01(u / 0.55), 2));
+  else if (u < 0.8) dist = d1 - (u - 0.55) / 0.25 * 0.2;
+  else dist = (d1 - 0.2) * (1 - Math.pow(c01((u - 0.8) / 0.22), 2.2)) - 0.05;
   const fx = -Math.sin(PRESA.yaw0 + PRESA.dy), fz = -Math.cos(PRESA.yaw0 + PRESA.dy);
   papi.rot = Math.atan2(-fx, -fz);
   papi.g.rotation.set(0, papi.rot, 0);
@@ -3207,14 +3364,16 @@ function animaPresa(dt) {
     papi.testa.localToWorld(_testa.set(0, OCCHI[1], OCCHI[2] - 0.05));   // in mezzo agli occhi
     papi.g.position.x += camera.position.x + fx * dist - _testa.x;
     papi.g.position.z += camera.position.z + fz * dist - _testa.z;
-    papi.g.position.y += camera.position.y - _testa.y;
+    papi.g.position.y += camera.position.y - 0.04 - _testa.y;
   }
   papi.x = papi.g.position.x; papi.z = papi.g.position.z;
-  // un filo di luce sul viso, man mano che si avvicina
-  PRESA.luce.intensity = 1.1 * kV;
-  if (T > PRESA.giro + 1.5 && !PRESA.fatto) {
-    PRESA.fatto = true; ui.buio.style.opacity = 1;
-    setTimeout(() => { PRESA.t = -1; PRESA.luce.intensity = 0; mostraMorte("Papi t'ha preso", pesca(BATTUTE.preso)); }, 700);
+  // appena un filo di luce: il viso resta scuro
+  PRESA.luce.intensity = 0.32 * liscio(c01(u / 0.55));
+  if (u > 1.02 && !PRESA.fatto) {
+    PRESA.fatto = true;
+    ui.buio.style.transition = 'none'; ui.buio.style.opacity = 1; void ui.buio.offsetWidth; ui.buio.style.transition = '';
+    scena.background = NEBBIA;
+    setTimeout(() => { PRESA.t = -1; PRESA.luce.intensity = 0; mostraMorte("Papi t'ha preso", pesca(BATTUTE.preso)); }, 450);
   }
 }
 function riprova() {
@@ -3519,7 +3678,7 @@ function costruisci(bin, bosco, colori, osm, modello, roncola, modelloPapi, texA
   mostra('caricamento', false); mostra('menu', true);
   document.body.classList.remove('carica'); document.body.classList.add('fuori', 'lobby');
   disegnaClassifica($('classifica-menu'));
-  window.__crevil = { caro, bimba, siedi: i => { siediSulPonte(bimba, PONTI[i], tGioco); bimba.g.visible = true; bimba.fine = tGioco + 999; }, stendimi: () => stendimi(tGioco), corrente: (x, z) => corrente(x, z), OCCHI, PRESA, PROVA, quota, EV, lanciaEvento: c => lanciaEvento(c, tGioco), GREPPO, cadi, suoloIo, MODO: () => MODO, PONTI, FOGLI_ANCORE, PROFILI, sulPonte, RONCOLA, guarda: (x, z) => { io.yaw = Math.atan2(-(x - io.x), -(z - io.z)); }, info: () => renderer.info.render, io, guerrino, papi, recita, posa, disegna, scena, camera, renderer, salta: s => { storia = s; tStoria = 0; }, caccia: () => { iniziaCaccia(tGioco); papi.prossimo = 0; }, tel, apriTelefono, quotaVera, TEL3D, CASA, BOSS, POWER, cambiaTorcia, colpisci, entraCasa: () => entraCasa(tGioco), dammiRoncola, GPS, BUIO, pad, apriPannello, chiudiPannello, toccaSchermo, disegnaSfondo, MIX, sfondo: o => { preparaSfondo(SFONDO.bosco, o); return SFONDO.base.toDataURL(); }, FONTE, FOGLI, MUS, cinghiale, tronchiVicini, statico: v => { staticoOb = v; }, lanciaCinghiale: () => lanciaCinghiale(tGioco), papiInPiedi, mostraPapi, PAPI_FERMO, papiArrabbiato: () => papiArrabbiato(tGioco), suSentiero, distFosso, alSicuro, FOSSI, stato: () => ({ storia, boss: BOSS.stato, vita: BOSS.vita, roncola: !!io.roncola, fase, attesa, livello, staticoV, faseG: guerrino.fase, az: guerrino.nomeAz, papi: papi.stato, vis: papi.vis, pres: papi.pres, visto: papi.visto, dPapi: Math.round(Math.hypot(io.x - papi.x, io.z - papi.z)), mus: Object.fromEntries(Object.entries(MUS.pezzi).map(([n, z]) => [n, z.pronto ? +z.ob.toFixed(2) : 'carico'])) }) };
+  window.__crevil = { papiVede, nascostoQui, cambiaVolo, buf, CESPUGLI, preso, caro, bimba, siedi: i => { siediSulPonte(bimba, PONTI[i], tGioco); bimba.g.visible = true; bimba.fine = tGioco + 999; }, stendimi: () => stendimi(tGioco), corrente: (x, z) => corrente(x, z), OCCHI, PRESA, PROVA, quota, EV, lanciaEvento: c => lanciaEvento(c, tGioco), GREPPO, cadi, suoloIo, MODO: () => MODO, PONTI, FOGLI_ANCORE, PROFILI, sulPonte, RONCOLA, guarda: (x, z) => { io.yaw = Math.atan2(-(x - io.x), -(z - io.z)); }, info: () => renderer.info.render, io, guerrino, papi, recita, posa, disegna, scena, camera, renderer, salta: s => { storia = s; tStoria = 0; }, caccia: () => { iniziaCaccia(tGioco); papi.prossimo = 0; }, tel, apriTelefono, quotaVera, TEL3D, CASA, BOSS, POWER, cambiaTorcia, colpisci, entraCasa: () => entraCasa(tGioco), dammiRoncola, GPS, BUIO, pad, apriPannello, chiudiPannello, toccaSchermo, disegnaSfondo, MIX, sfondo: o => { preparaSfondo(SFONDO.bosco, o); return SFONDO.base.toDataURL(); }, FONTE, FOGLI, MUS, cinghiale, tronchiVicini, statico: v => { staticoOb = v; }, lanciaCinghiale: () => lanciaCinghiale(tGioco), papiInPiedi, mostraPapi, PAPI_FERMO, papiArrabbiato: () => papiArrabbiato(tGioco), suSentiero, distFosso, alSicuro, FOSSI, stato: () => ({ storia, boss: BOSS.stato, vita: BOSS.vita, roncola: !!io.roncola, fase, attesa, livello, staticoV, faseG: guerrino.fase, az: guerrino.nomeAz, papi: papi.stato, vis: papi.vis, pres: papi.pres, visto: papi.visto, dPapi: Math.round(Math.hypot(io.x - papi.x, io.z - papi.z)), mus: Object.fromEntries(Object.entries(MUS.pezzi).map(([n, z]) => [n, z.pronto ? +z.ob.toFixed(2) : 'carico'])) }) };
 }
 pronto.catch(e => { console.error(e); $('prog-testo').textContent = 'Il bosco non si carica: ricarica la pagina.'; });
 
@@ -3566,7 +3725,7 @@ function disegnaLobby(dt, t) {
 function avviaPartita(salvato) {
   if (LOBBY.tuffo >= 0 || fase !== 'menu') return;
   mostra('menu', false); mostra('pannello', false); fuocoPad(null);
-  ascolto.context.resume?.(); if (!ambiente || !ambiente.isPlaying) sfumaDentro(); avviaLoop();
+  ascolto.context.resume?.(); if (!ambiente || !ambiente.isPlaying) sfumaDentro(); avviaLoop(); caricaTempesta();
   if (salvato) { ripristina(salvato, tGioco); io.tempo = salvato.tempo || 0; io.morti = salvato.morti || 0; mostraModo(); }
   else cancellaSalvataggio();
   // schermo intero e mouse vanno chiesti subito, dentro al clic
@@ -3617,7 +3776,7 @@ function ciclo() {
     if (storia === 'solo' || storia === 'caccia' || storia === 'casa') io.tempo += dt;   // il tempo della run parte quando Guerrino se ne va
     if (CHECK && (tSalva -= dt) < 0) { tSalva = 5; scriviSalvataggio(); }   // il tempo corre anche se chiudi
     aggiornaStatue(t);
-    muoviGiocatore(dt);
+    if (io.volo) vola(dt); else muoviGiocatore(dt);
     aggiornaTorcia(dt, t);
     aggiornaGps(dt, t);
     if (!PROVA.congela) { aggiornaStoria(dt, t); aggiornaCaro(dt, t); aggiornaBimba(dt, t); }
