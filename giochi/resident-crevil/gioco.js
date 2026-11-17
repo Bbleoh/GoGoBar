@@ -249,7 +249,7 @@ const pronto = Promise.all([
   fetch('mappa/osm.json').then(r => r.json()),
   promessa(gltf, 'modelli/guerrino.glb?v=2'),
   promessa(gltf, 'modelli/roncola.glb').catch(() => null),
-  promessa(gltf, 'modelli/papi.glb'),
+  promessa(gltf, 'modelli/papi.glb?v=2'),
   ...TEX_PS1.map(n => promessa(caricaTex, 'texture/ps1/' + n + '.png')),
   ...SUONI.map(s => promessa(caricaAudio, 'sfx/' + s + '.mp3').then(b => { buf[s] = b; }, () => {})),
 ]).then(([bin, bosco, colori, osm, modello, roncola, modelloPapi, ...resto]) => {
@@ -1086,7 +1086,7 @@ function creaFogli() {
 // (jab, combo, affondo, stanco, calcioAlto, pugno, calcio, calcio2, cammina).
 // Papi: alto 3 metri, animazioni gattona, salto, corsa, striscia.
 const guerrino = { g: new THREE.Group(), x: 0, z: 0, rot: 0, tappa: 0, vel: 0, prossimo: 0, mena: false, tinta: 0x77716a, scala: 1 };
-const papi = { g: new THREE.Group(), x: 0, z: 0, rot: 0, vel: 0, stato: 'assente', prossimo: 0, fine: 0, tinta: 0x5c5a58, scala: 4.5 / 1.89, pres: 0, presV: 0, vis: 0 };
+const papi = { g: new THREE.Group(), x: 0, z: 0, rot: 0, vel: 0, stato: 'assente', prossimo: 0, fine: 0, tinta: 0x9a9690, scala: 4.5 / 1.9, pres: 0, presV: 0, vis: 0 };
 function preparaPersonaggio(p, modello) {
   const m = modello.scene;
   p.mat = [];
@@ -1176,7 +1176,7 @@ function creaPapi(modello) {
     s.userData.lato = lato; s.visible = false; scena.add(s); return s;
   });
 }
-const _occhio = new THREE.Vector3(), OCCHI = [0.04, 0, 0.19];
+const _occhio = new THREE.Vector3(), OCCHI = [0.032, 0.13, 0.17];   // nel modello nuovo (17/11) l'osso della testa ha la y in su
 function occhiPapi() {
   if (!papi.occhi || !papi.testa) return;
   const su = papi.g.visible && papi.pres > 0.02 && papi.stato !== 'assente' && papi.stato !== 'preso';
@@ -1185,7 +1185,7 @@ function occhiPapi() {
   papi.testa.updateWorldMatrix(true, false);
   const d = Math.hypot(io.x - papi.x, io.z - papi.z), nebbia = Math.exp(-Math.pow(scena.fog.density * d, 2) * 0.6);
   for (const s of papi.occhi) {
-    // in coordinate della testa (modello alto 1,89; l'asse y dell'osso guarda in giù): sopra l'osso e un dito in avanti
+    // in coordinate della testa (modello alto 1,9): sopra l'osso e un dito in avanti
     papi.testa.localToWorld(_occhio.set(s.userData.lato * OCCHI[0], OCCHI[1], OCCHI[2]));
     s.position.copy(_occhio);
     const lato = 0.03 + Math.min(d, 60) * 0.014;    // mai meno di un paio di pixel, anche da lontano
@@ -1202,7 +1202,7 @@ function aspettoPapi(dt) {
   papi.pres += Math.max(-passo, Math.min(passo, papi.presV - papi.pres));
   if (papi.pres <= 0 && papi.presV <= 0) { papi.g.visible = false; return; }
   const d = Math.hypot(io.x - papi.x, io.z - papi.z);
-  const luce = fase === 'morto' ? 0.45 : Math.max(0, Math.min(1, (10 - d) / 5));   // nella presa: il viso scuro
+  const luce = fase === 'morto' ? 0.75 : Math.max(0, Math.min(1, (10 - d) / 5));   // nella presa: il viso scuro
   const nebbia = (1 - Math.exp(-Math.pow(scena.fog.density * d, 2))) * 0.4;
   for (const m of papi.mat) {
     m.color.setHex(papi.tinta).multiplyScalar(luce * papi.pres);
@@ -1212,7 +1212,7 @@ function aspettoPapi(dt) {
 function mostraPapi() { papi.g.visible = true; papi.pres = 0; papi.presV = 1; }
 function viaPapi(subito) { papi.presV = 0; if (subito) { papi.pres = 0; papi.g.visible = false; } }
 // fermo: non ha un'animazione da fermo, tengo un fotogramma. Accovacciato: quello della strisciata
-const PAPI_FERMO = ['salto', 0], PAPI_GIU = ['striscia', 0.35];
+const PAPI_FERMO = ['salto', 0], PAPI_GIU = ['urlo', 0.6];   // giù: in ginocchio, dal salto con l'urlo
 function papiInPiedi(fade = 0.3, posa = PAPI_FERMO) {
   const a = recita(papi, posa[0], true, fade);
   if (a) { a.time = a.getClip().duration * posa[1]; a.paused = true; }
@@ -1234,7 +1234,7 @@ function animaGuerrino(dt) {
 function animaPapi(dt) {
   if (!papi.mixer || !papi.g.visible) return;
   const a = papi.corrente;
-  if (a && (papi.nomeAz === 'corsa' || papi.nomeAz === 'gattona' || papi.nomeAz === 'striscia')) {
+  if (a && ANDATURE.includes(papi.nomeAz)) {
     const v = papi.vel || 0;
     a.paused = v < 0.05;
     if (v >= 0.05) a.timeScale = Math.min(3, v / (papi.v0[papi.nomeAz] || 1)) * (papi.indietro ? -1 : 1);
@@ -2019,7 +2019,7 @@ function nascostoQui() {
 }
 function papiVede(perche = false) {
   if (nascostoQui()) return perche ? 'nascosto' : false;
-  const occhi = quota(papi.x, papi.z) + (papi.andatura === 'striscia' ? 1.8 : 4.2);
+  const occhi = quota(papi.x, papi.z) + (strisciaPapi() ? 1.8 : 4.2);
   const testa = suoloIo(io.x, io.z) + 1.65 - io.hGiu * 0.7;
   const dx = io.x - papi.x, dz = io.z - papi.z, d = Math.hypot(dx, dz) || 1;
   const passi = Math.ceil(d / 2);
@@ -2066,10 +2066,24 @@ function nascePapi(posto, t, andatura) {
   papi.stato = 'arriva'; papi.andatura = ''; papi.agganciato = false; papi.arrabbiato = false; papi.tPerso = 0; papi.nervoso = 0; papi.tVisto = -1; papi.tCieco = 0; papi.vede = true; papi.tVede = 0; papi.indietro = false;
   andaturaPapi(andatura);
 }
+const strisciaPapi = () => papi.andatura === 'striscia' || papi.andatura === 'gattona';
+// l'escalation (Leo, 17/11, modello nuovo): da lontano striscia sulla pancia, poi a quattro zampe;
+// a metà strada cammina, poi avanza con le braccia tese; da vicino corre curvo, e coi fogli (o arrabbiato) scatta
+const ANDATURE = ['striscia', 'gattona', 'cammina', 'avanza', 'corsa', 'scatto'];
+function andaturaVoluta(d) {
+  if (papi.arrabbiato) return 'scatto';
+  if (d > 26) return livello < 4 ? 'striscia' : 'gattona';
+  if (d > 15) return livello < 3 ? 'cammina' : 'avanza';
+  return livello >= 6 || (papi.nervoso || 0) > 0.5 ? 'scatto' : 'corsa';
+}
+function velPapi(a) {
+  return a === 'striscia' ? 2.0 + livello * 0.04 : a === 'gattona' ? 2.3 + livello * 0.04 : a === 'cammina' ? 2.3 + livello * 0.03
+    : a === 'avanza' ? 2.7 + livello * 0.03 : a === 'corsa' ? Math.min(4.0, 3.3 + livello * 0.06) : Math.min(4.5, 4.0 + livello * 0.05);
+}
 function andaturaPapi(a) {
   if (papi.andatura === a) return;
   papi.andatura = a;
-  recita(papi, a === 'striscia' ? 'striscia' : 'corsa', false, a === 'striscia' ? 0.01 : 0.6);   // in piedi: non ha una camminata, è la corsa rallentata
+  recita(papi, a, false, a === 'striscia' ? 0.01 : 0.6);
 }
 function sparisce(t, pausa) {
   viaPapi(true); papi.stato = 'assente'; papi.indietro = false;
@@ -2081,7 +2095,7 @@ function papiArrabbiato(t) {
   if (storia !== 'caccia' || alSicuro() || io.fogli >= 10) return;
   if (papi.stato === 'assente') { const p = postoNascosto(24, 34); if (!p) { papi.prossimo = t; return; } nascePapi(p, t, 'corsa'); }
   papi.arrabbiato = true; papi.nervoso = 0.6;
-  if (papi.stato === 'arriva') andaturaPapi('corsa');
+  if (papi.stato === 'arriva') andaturaPapi('scatto');
   versoPapi('frasche', 1, 0.55);
   if (Math.random() < 0.6) dici(pesca(BATTUTE.caccia), 2800);
 }
@@ -2142,7 +2156,7 @@ function aggiornaCaccia(dt, t) {
   livello = io.fogli + tCaccia / 120;
   papi.vel = 0;
   const d = Math.hypot(io.x - papi.x, io.z - papi.z);
-  const vis = papi.vis = papi.stato === 'assente' ? 0 : visibileDaMe(papi, 45, papi.andatura === 'striscia' || papi.stato === 'osserva' ? 1.1 : 3.2);
+  const vis = papi.vis = papi.stato === 'assente' ? 0 : visibileDaMe(papi, 45, strisciaPapi() || papi.stato === 'osserva' ? 1.1 : 3.2);
   const sicuro = alSicuro();
   papi.tPerso = vis > 0 ? 0 : (papi.tPerso || 0) + dt;
   const ner = 1 + (papi.nervoso || 0) * 0.2;
@@ -2167,27 +2181,27 @@ function aggiornaCaccia(dt, t) {
   } else if (papi.stato === 'arriva') {
     {
       // una volta in piedi resta in piedi
-      const vuole = papi.arrabbiato ? 'corsa' : d > 26 ? 'striscia' : d > 15 ? 'cammina' : 'corsa';
-      const ordine = { striscia: 0, cammina: 1, corsa: 2 };
-      if ((ordine[vuole] ?? 0) > (ordine[papi.andatura] ?? -1)) andaturaPapi(vuole);
-      const a = papi.andatura;
-      const v = (a === 'striscia' ? 2.0 + livello * 0.04 : a === 'cammina' ? 2.3 + livello * 0.03 : Math.min(4.0, 3.3 + livello * 0.06)) * ner;
-      avanzaPapi(dt, v);
-      passoPapi(a === 'corsa' ? 1.9 : 2.4, a === 'corsa' ? 1 : a === 'cammina' ? 0.6 : 0.3);
+      const vuole = andaturaVoluta(d);
+      if (ANDATURE.indexOf(vuole) > ANDATURE.indexOf(papi.andatura)) andaturaPapi(vuole);
+      const a = papi.andatura, svelto = a === 'corsa' || a === 'scatto';
+      avanzaPapi(dt, velPapi(a) * ner);
+      passoPapi(svelto ? 1.9 : 2.4, svelto ? 1 : a === 'cammina' || a === 'avanza' ? 0.6 : 0.3);
       disegna(papi);
       if (d < 22) papi.agganciato = true;
       // ancora lontano e non ti vede da più di 5 secondi: torna indietro e se ne va
       papi.tCieco = papi.vede || papi.agganciato || papi.arrabbiato ? 0 : (papi.tCieco || 0) + dt;
       if (papi.tCieco > 5 && d > 18) { papi.stato = 'indietreggia'; papi.tInd = 0; papi.indietro = true; }
-      else if (a === 'corsa' && d < 8.5 && t > (papi.tSaltoOk || 0)) {
-        papi.stato = 'salta'; papi.tSalto = 0; const s = recita(papi, 'salto', true, 0.12); if (s) s.timeScale = 1.25; versoPapi('frasche', 1, 0.6);
+      else if (svelto && d < 8.5 && t > (papi.tSaltoOk || 0)) {
+        // il tuffo: salto la rincorsa dell'animazione e parto da quando si allunga verso di te
+        papi.stato = 'salta'; papi.tSalto = 0; const s = recita(papi, 'salto', true, 0.12);
+        if (s) { s.time = s.getClip().duration * 0.3; s.timeScale = 1.7; } versoPapi('frasche', 1, 0.6);
       } else if (papi.agganciato && scappato(d, vis)) sparisce(t, pausa);
       else if (!papi.agganciato && d > 75 && vis === 0) sparisce(t, 4);   // t'ha perso di vista prima di arrivare
     }
   } else if (papi.stato === 'indietreggia') {
     // si ritira all'indietro, sempre rivolto verso dove ti ha perso; se ti rivede ricomincia
     papi.tInd += dt;
-    avanzaPapi(dt, papi.andatura === 'striscia' ? 1.3 : 1.6, true);
+    avanzaPapi(dt, strisciaPapi() ? 1.3 : 1.6, true);
     papi.rot = guardaVerso(io.x, io.z, papi);
     passoPapi(2.6, 0.25);
     disegna(papi);
@@ -2198,21 +2212,22 @@ function aggiornaCaccia(dt, t) {
     // il balzo: nella parte in volo dell'animazione ti viene addosso
     papi.tSalto += dt;
     const fr = papi.corrente.time / papi.corrente.getClip().duration;
-    if (fr > 0.12 && fr < 0.42 && d > 2.5) avanzaPapi(dt, 9);
-    else giraVerso(guardaVerso(io.x, io.z, papi), dt, 4, papi);
+    if (fr > 0.36 && fr < 0.58 && d > 2.2) avanzaPapi(dt, 9);
+    else if (fr < 0.36) giraVerso(guardaVerso(io.x, io.z, papi), dt, 4, papi);
     disegna(papi);
-    if (fr > 0.62 || finita(papi)) { papi.stato = 'arriva'; papi.andatura = ''; andaturaPapi('corsa'); papi.tSaltoOk = t + 3; }
+    // mancato: resta lungo per terra un attimo, poi si rialza a quattro zampe e ricomincia
+    if (fr > 0.72 || finita(papi)) { papi.stato = 'arriva'; papi.andatura = ''; andaturaPapi('gattona'); papi.tSaltoOk = t + 4; }
   } else if (papi.stato === 'arrende') {
     // si arrende: un attimo fermo a guardarti, poi si gira e se ne va saltando
     papi.tArr += dt;
     if (papi.tArr < 0.9) giraVerso(guardaVerso(io.x, io.z, papi), dt, 4, papi);
     else {
-      if (!papi.saltoVia) { papi.saltoVia = true; const s = recita(papi, 'salto', true, 0.15); if (s) s.timeScale = 1.1; versoPapi('frasche', 0.9, 0.75); }
-      if (papi.nomeAz === 'salto') {
+      if (!papi.saltoVia) { papi.saltoVia = true; const s = recita(papi, 'urlo', true, 0.15); if (s) s.timeScale = 1.2; versoPapi('frasche', 0.9, 0.75); }
+      if (papi.nomeAz === 'urlo') {
         const fr = papi.corrente.time / papi.corrente.getClip().duration;
         if (fr < 0.12) giraVerso(Math.atan2(papi.x - io.x, papi.z - io.z), dt, 9, papi);
-        else if (fr < 0.5) avanzaPapi(dt, 8, true);
-        if (fr > 0.62 || finita(papi)) { papi.andatura = ''; andaturaPapi('corsa'); }
+        else if (fr < 0.4) avanzaPapi(dt, 8, true);
+        if (fr > 0.8 || finita(papi)) { papi.andatura = ''; andaturaPapi('corsa'); }
       } else { avanzaPapi(dt, 4.6, true); passoPapi(1.9, 0.7); }
     }
     disegna(papi);
@@ -3131,8 +3146,8 @@ function colpoAndato() {
     if (BOSS.stato === 'morto') return;
     BOSS.vita--; BOSS.t = 0; staticoOb = 0.8;
     versoPapi('scricchiolio', 1, 0.5 + Math.random() * 0.2);
-    if (BOSS.vita <= 0) { BOSS.stato = 'morto'; papi.presV = 0; didascalia('Papi crolla. La ninna nanna si ferma.', 5000); }
-    else { BOSS.stato = 'colpito'; papiInPiedi(0.1); didascalia(['Ancora.', "Non s'arrende.", 'Barcolla.', 'Un altro.'][4 - BOSS.vita] || '', 1800); }
+    if (BOSS.vita <= 0) { BOSS.stato = 'morto'; const c = recita(papi, 'crollo', true, 0.1); if (c) c.timeScale = 1.2; didascalia('Papi crolla. La ninna nanna si ferma.', 5000); }
+    else { BOSS.stato = 'colpito'; const c = recita(papi, 'crollo', true, 0.1); if (c) c.timeScale = 1.3; didascalia(['Ancora.', "Non s'arrende.", 'Barcolla.', 'Un altro.'][4 - BOSS.vita] || '', 1800); }
   } else if (papi.stato !== 'assente') sparisce(tGioco, 20);   // fuori: lo scacci per un po'
 }
 
@@ -3144,7 +3159,8 @@ function entraCasa(t) {
   storia = 'casa'; checkpoint(CASA.fuori[0], CASA.fuori[1]);
   BOSS.stato = 'fermo'; BOSS.t = 0;
   posa(papi, CASA.x + 4.2, CASA.z, -Math.PI / 2);
-  papiInPiedi(0.05); mostraPapi(); papi.stato = 'boss'; papi.visto = true; papi.giu = false;
+  mostraPapi(); papi.stato = 'boss'; papi.visto = true; papi.giu = false;
+  const u = recita(papi, 'urlo', true, 0.05); if (u) u.timeScale = 1.1;   // ti accoglie con un salto e un urlo
   staticoOb = 0;
   didascalia('«Sei venuto a giocà coi fiji mia?»', 4500);
   versoPapi('scricchiolio', 1, 0.55);
@@ -3157,8 +3173,10 @@ function aggiornaBoss(dt, t) {
   papi.vel = 0;
   staticoOb = BOSS.stato === 'carica' ? Math.max(0, 1 - d / 9) * 0.3 : 0;
   if (BOSS.stato === 'fermo') {
+    // in guardia: ti gira intorno a gambe larghe, poi carica (a quattro zampe, poi di scatto quando è ferito)
+    if (papi.nomeAz !== 'guardia' && (papi.nomeAz !== 'urlo' || finita(papi))) recita(papi, 'guardia', false, 0.4);
     giraVerso(verso, dt, 3, papi); disegna(papi);
-    if (BOSS.t > (BOSS.vita === 5 ? 3.5 : 1.6)) { BOSS.stato = 'carica'; BOSS.t = 0; recita(papi, 'gattona', true, 0.3); versoPapi('frasche', 1, 0.7); }
+    if (BOSS.t > (BOSS.vita === 5 ? 4.2 : 1.6)) { BOSS.stato = 'carica'; BOSS.t = 0; recita(papi, BOSS.vita >= 4 ? 'gattona' : 'scatto', false, 0.3); versoPapi('frasche', 1, 0.7); }
   } else if (BOSS.stato === 'carica') {
     const v = (2.3 + (5 - BOSS.vita) * 0.45) * (io.torcia && papi.vis > 0 ? 0.7 : 1);
     papi.x += dx / d * v * dt; papi.z += dz / d * v * dt; papi.vel = v;
@@ -3166,12 +3184,15 @@ function aggiornaBoss(dt, t) {
     giraVerso(verso, dt, 6, papi); disegna(papi);
     if (d < 2.1) preso();
   } else if (BOSS.stato === 'colpito') {
+    // barcolla con la testa all'indietro (l'inizio del crollo), poi torna in guardia
     if (BOSS.t > 0.5 && d < 9) { papi.x -= dx / d * 3.5 * dt; papi.z -= dz / d * 3.5 * dt; dentroSala(papi); }
     giraVerso(verso, dt, 3, papi); disegna(papi);
+    if (BOSS.t > 1.5 && papi.nomeAz === 'crollo') recita(papi, 'guardia', false, 0.5);
     if (BOSS.t > 2) { BOSS.stato = 'fermo'; BOSS.t = 0; }
   } else if (BOSS.stato === 'morto') {
     disegna(papi);
-    if (BOSS.t > 3 && fase === 'gioco') vittoria();
+    if (BOSS.t > 4.2) papi.presV = 0;   // crollato per terra: sfuma nel buio
+    if (BOSS.t > 5.4 && fase === 'gioco') vittoria();
   }
 }
 // la fine: dieci fogli a Guerrino, la roncola, la porta, la sala
@@ -3339,14 +3360,53 @@ function preso() {
   Object.assign(PRESA, { t: 0, yaw0: io.yaw, dy, pitch0: io.pitch, dietro: Math.abs(dy) > 1.1, fatto: false });
   PRESA.giro = PRESA.dietro ? 0.5 : 0.2;
   papi.g.visible = true; papi.pres = papi.presV = 1; papi.vel = 0; papi.stato = 'preso'; papi.nervoso = 0;
-  papiGiu(0.12);   // si china su di te
+  papiInPiedi(0.12, ['cammina', 0]);   // dritto davanti a te, la faccia in faccia
   PRESA.d0 = Math.max(1.6, Math.min(2.6, Math.hypot(papi.x - io.x, papi.z - io.z)));
   PRESA.neb0 = scena.fog.density; PRESA.torcia0 = torcia.intensity;
   suono('colpo', 0.6, 1, 'papiVersi'); suono('scricchiolio', 0.4, 1, 'papiVersi');
 }
+/* la spirale della presa (Leo, 17/11): il bosco viene disegnato in una texture e poi avvitato attorno
+   alla faccia di Papi, sempre più a fondo, finché una spirale nera inghiotte tutto */
+const SPIRALE = { forza: 0, rt: null, c: new THREE.Vector2(0.5, 0.5), t0: 0, scena: new THREE.Scene(), cam: new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1) };
+SPIRALE.mat = new THREE.ShaderMaterial({
+  uniforms: { mappa: { value: null }, centro: { value: SPIRALE.c }, forza: { value: 0 }, aspetto: { value: 1 }, tempo: { value: 0 } },
+  vertexShader: 'varying vec2 vUv; void main() { vUv = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }',
+  fragmentShader: `uniform sampler2D mappa; uniform vec2 centro; uniform float forza, aspetto, tempo; varying vec2 vUv;
+	void main() {
+		vec2 p = vUv - centro; p.x *= aspetto;
+		float r = length(p) + 1e-4, a0 = atan(p.y, p.x), f = forza;
+		// avvitamento: più stretto vicino al centro; e lo sguardo cade dentro (zoom verso la faccia)
+		float a = a0 + f * (2.0 + 7.0 * f) / (0.12 + r * 2.2) + tempo * f * 1.5;
+		vec2 q = vec2(cos(a), sin(a)) * r * mix(1.0, 0.3, f * f); q.x /= aspetto;
+		vec3 col = texture2D(mappa, clamp(centro + q, 0.001, 0.999)).rgb;
+		// bracci scuri che girano verso il centro
+		float bracci = 0.5 + 0.5 * sin(3.0 * a0 + 11.0 * log(r) - tempo * 7.0);
+		col *= 1.0 - f * 0.75 * bracci;
+		// il buco nero si allarga a spirale fino a coprire tutto
+		float orlo = f * f * 1.25 + 0.07 * f * sin(3.0 * a0 + 12.0 * log(r) - tempo * 8.0);
+		col *= smoothstep(orlo - 0.06, orlo + 0.06, r);
+		gl_FragColor = vec4(col, 1.0);
+		#include <colorspace_fragment>
+	}`,
+  depthTest: false, depthWrite: false
+});
+SPIRALE.scena.add(new THREE.Mesh(new THREE.PlaneGeometry(2, 2), SPIRALE.mat));
+const _dim = new THREE.Vector2();
+function disegnaSpirale() {
+  renderer.getDrawingBufferSize(_dim);
+  if (!SPIRALE.rt || SPIRALE.rt.width !== _dim.x || SPIRALE.rt.height !== _dim.y) {
+    SPIRALE.rt?.dispose();
+    SPIRALE.rt = new THREE.WebGLRenderTarget(_dim.x, _dim.y, { minFilter: THREE.NearestFilter, magFilter: THREE.NearestFilter });
+    SPIRALE.rt.texture.colorSpace = THREE.SRGBColorSpace;   // come la tela: gli shader già compilati vanno bene così
+  }
+  renderer.setRenderTarget(SPIRALE.rt); renderer.render(scena, camera); renderer.setRenderTarget(null);
+  const u = SPIRALE.mat.uniforms;
+  u.mappa.value = SPIRALE.rt.texture; u.forza.value = Math.min(1, SPIRALE.forza); u.aspetto.value = _dim.x / _dim.y; u.tempo.value = tGioco - SPIRALE.t0;
+  renderer.render(SPIRALE.scena, SPIRALE.cam);
+}
 const _testa = new THREE.Vector3(), _nero = new THREE.Color(0);
-// la presa (Leo, 17/11): il bosco sprofonda nel nero, la faccia ne emerge appena, scura,
-// e in un attimo ti viene addosso fino a coprire tutto lo schermo
+// la presa (Leo, 17/11): il bosco sprofonda nel nero, la faccia si vede per un attimo mentre ti viene
+// addosso, poi tutto comincia ad avvitarsi in una spirale profonda che inghiotte la visuale
 function animaPresa(dt) {
   if (PRESA.t < 0) return;
   const T = PRESA.t += dt, liscio = x => x * x * (3 - 2 * x), c01 = x => Math.max(0, Math.min(1, x));
@@ -3357,16 +3417,15 @@ function animaPresa(dt) {
   io.pitch = PRESA.pitch0 + (0.04 - PRESA.pitch0) * kG;
   camera.rotation.set(io.pitch + Math.sin(T * 41) * strappo * 0.5, io.yaw, Math.sin(T * 29) * strappo, 'YXZ');
   // tutto intorno si fa nero: nebbia nera e fitta, la torcia quasi spenta
-  const kN = liscio(c01(T / 0.35));
+  const kN = liscio(c01(T / 0.3));
   scena.fog.color.copy(NEBBIA).lerp(_nero, kN); scena.background = scena.fog.color;
-  scena.fog.density = PRESA.neb0 + (0.75 - PRESA.neb0) * kN;
+  scena.fog.density = PRESA.neb0 + (0.45 - PRESA.neb0) * kN;
   torcia.intensity = PRESA.torcia0 * (1 - 0.9 * kN); alone.intensity = 0.1 * (1 - kN);
-  // lui: emerge dal nero, si ferma un istante a un passo, poi si avventa
-  const u = T - PRESA.giro * 0.5, d1 = 0.95;
-  let dist;
-  if (u < 0.55) dist = PRESA.d0 + (d1 - PRESA.d0) * (1 - Math.pow(1 - c01(u / 0.55), 2));
-  else if (u < 0.8) dist = d1 - (u - 0.55) / 0.25 * 0.2;
-  else dist = (d1 - 0.2) * (1 - Math.pow(c01((u - 0.8) / 0.22), 2.2)) - 0.05;
+  // lui: una manciata di fotogrammi mentre si avvicina, poi la spirale
+  const u = T - PRESA.giro * 0.5, d1 = 0.95, VORTICE = 1.15;
+  const dist = u < 0.4 ? PRESA.d0 + (d1 - PRESA.d0) * (1 - Math.pow(1 - c01(u / 0.4), 2)) : d1 - 0.4 * liscio(c01((u - 0.4) / VORTICE));
+  if (u > 0.4 && !SPIRALE.forza) SPIRALE.t0 = tGioco;
+  SPIRALE.forza = u > 0.4 ? Math.max(0.001, Math.pow(c01((u - 0.4) / VORTICE), 1.4)) : 0;
   const fx = -Math.sin(PRESA.yaw0 + PRESA.dy), fz = -Math.cos(PRESA.yaw0 + PRESA.dy);
   papi.rot = Math.atan2(-fx, -fz);
   papi.g.rotation.set(0, papi.rot, 0);
@@ -3379,9 +3438,11 @@ function animaPresa(dt) {
   }
   papi.x = papi.g.position.x; papi.z = papi.g.position.z;
   // appena un filo di luce: il viso resta scuro
-  PRESA.luce.intensity = 0.32 * liscio(c01(u / 0.55));
-  if (u > 1.02 && !PRESA.fatto) {
-    PRESA.fatto = true;
+  PRESA.luce.intensity = 0.9 * liscio(c01(u / 0.3));
+  // il centro della spirale: la faccia
+  _v.set(camera.position.x + fx * dist, camera.position.y - 0.04, camera.position.z + fz * dist).project(camera); SPIRALE.c.set(Math.min(0.8, Math.max(0.2, _v.x * 0.5 + 0.5)), Math.min(0.8, Math.max(0.2, _v.y * 0.5 + 0.5)));
+  if (u > 0.4 + VORTICE + 0.08 && !PRESA.fatto) {
+    PRESA.fatto = true; SPIRALE.forza = 0;
     ui.buio.style.transition = 'none'; ui.buio.style.opacity = 1; void ui.buio.offsetWidth; ui.buio.style.transition = '';
     scena.background = NEBBIA;
     setTimeout(() => { PRESA.t = -1; PRESA.luce.intensity = 0; mostraMorte("Papi t'ha preso", pesca(BATTUTE.preso)); }, 450);
@@ -3808,7 +3869,7 @@ function ciclo() {
   // oltre gli 80 m la nebbia copre tutto: conta il punto del blocco più vicino a me
   const LB = HALF / NB;
   for (const b of BLOCCHI) b.visible = Math.hypot(Math.max(0, Math.abs(b.userData.cx - io.x) - LB), Math.max(0, Math.abs(b.userData.cz - io.z) - LB)) < (TOCCO ? 70 : 80);
-  renderer.render(scena, camera);
+  if (SPIRALE.forza > 0) disegnaSpirale(); else renderer.render(scena, camera);
   if (TEL3D.g.visible) { rendTel.render(scenaTel, camTel); telDisegnato = true; }
   else if (telDisegnato) { rendTel.clear(); telDisegnato = false; }
 }
