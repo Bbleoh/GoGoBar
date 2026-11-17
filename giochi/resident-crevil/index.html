@@ -11,7 +11,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Special+Elite&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="stile.css?v=10"/>
+  <link rel="stylesheet" href="stile.css?v=11"/>
 </head>
 <body class="carica">
   <canvas id="scena"></canvas>
@@ -23,6 +23,7 @@
   <div id="hud">
     <div class="hud-sx">
       <div id="fogli">Fogli <b>0</b>/10</div>
+      <div id="statuette" class="nascosto">Statuette <b>0</b></div>
       <div class="barra" title="Fiato"><span>💨</span><i><em id="fiato"></em></i></div>
       <div id="effetti"></div>
     </div>
@@ -42,6 +43,7 @@
     <button id="t-salta" class="tondo">SALTA</button>
     <button id="t-giu" class="tondo">GIÙ</button>
     <button id="t-prendi" class="tondo grande nascosto">PRENDI</button>
+    <button id="t-statua" class="tondo nascosto">STATUA</button>
   </div>
 
   <!-- schermate -->
@@ -60,10 +62,12 @@
       <h1>Resident Crevil</h1>
       <p class="titoletto">Morte sul greppo</p>
       <nav class="voci">
+        <button id="continua" class="voce nascosto">Continua</button>
         <button id="gioca" class="voce">Gioca</button>
         <button id="modo" class="voce modo">Difficoltà: <b>Normale</b></button>
         <button class="voce" data-pannello="controlli">Controlli</button>
         <button class="voce" data-pannello="impostazioni">Impostazioni</button>
+        <button class="voce schermo-intero">Schermo intero</button>
         <button class="voce" data-pannello="crediti">Crediti</button>
       </nav>
       <div id="classifica-menu" class="classifica"></div>
@@ -77,6 +81,7 @@
         <button id="riprendi" class="voce">Riprendi</button>
         <button class="voce" data-pannello="controlli">Controlli</button>
         <button class="voce" data-pannello="impostazioni">Impostazioni</button>
+        <button class="voce schermo-intero">Schermo intero</button>
         <a class="voce" href="../../#giochi">Esci</a>
       </nav>
     </div>
@@ -96,6 +101,7 @@
           <dt><kbd>F</kbd></dt><dd>torcia del telefono</dd>
           <dt><kbd>E</kbd> o clic</dt><dd>prendi (fogli e oggetti); con la roncola, mena</dd>
           <dt><kbd>M</kbd></dt><dd>telefono con la mappa (<kbd>Z</kbd> zoom)</dd>
+          <dt><kbd>G</kbd></dt><dd>pianta una statuetta di Guerrino</dd>
           <dt><kbd>Esc</kbd></dt><dd>pausa</dd>
         </dl>
         <h3 class="per-pad">Controller</h3>
@@ -107,6 +113,7 @@
           <dt>B</dt><dd>accovacciati</dd>
           <dt>X</dt><dd>prendi (fogli e oggetti); con la roncola, mena</dd>
           <dt>Y</dt><dd>telefono (LB zoom)</dd>
+          <dt>LB o croce giù</dt><dd>pianta una statuetta di Guerrino</dd>
           <dt>RB</dt><dd>torcia</dd>
           <dt>Start</dt><dd>pausa</dd>
         </dl>
@@ -115,6 +122,7 @@
           <dt>Pollice sinistro</dt><dd>cammina</dd>
           <dt>Destra</dt><dd>trascina per guardare</dd>
           <dt>GPS</dt><dd>la mappa: tocca lo schermo per lo zoom</dd>
+          <dt>STATUA</dt><dd>pianta una statuetta di Guerrino</dd>
         </dl>
         <p class="nota">Il GPS prende male in basso. Tieni il telefono in orizzontale e usa le cuffie.</p>
       </div>
@@ -131,6 +139,7 @@
         <p>Suoni e passi: Oculus Audio Pack (Meta), CC BY 4.0</p>
         <p>Texture: Kenney, CC0 · alberi: Poly Haven, CC0</p>
         <p>Mappa: © OpenStreetMap · quote Mapzen / AWS Terrain Tiles</p>
+        <p>Mano: generic hand dei WebXR Input Profiles (Amazon), MIT</p>
         <p>three.js (MIT)</p>
       </div>
       <button id="pannello-chiudi" class="voce">Indietro</button>
@@ -140,7 +149,7 @@
   <section id="morte" class="schermo nascosto">
     <h2 id="morte-titolo">Papi t'ha preso</h2>
     <p id="morte-frase" class="sotto"></p>
-    <button id="riprova" class="btn">Riprova dall'ultimo foglio</button>
+    <button id="riprova" class="btn">Riprova dall'ultimo checkpoint</button>
   </section>
 
   <section id="vittoria" class="schermo nascosto">
@@ -164,6 +173,6 @@
   <script src="../../js/gogoldbar.js?v=7"></script>
   <script src="classifica.js?v=3" onerror="window.ResidentCrevilClassifica = null"></script>
   <script type="importmap">{ "imports": { "three": "./lib/three.module.min.js" } }</script>
-  <script type="module" src="gioco.js?v=15"></script>
+  <script type="module" src="gioco.js?v=16"></script>
 </body>
 </html>
