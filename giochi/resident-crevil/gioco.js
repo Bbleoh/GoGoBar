@@ -2063,7 +2063,7 @@ function postoNascosto(dmin, dmax) {
 function nascePapi(posto, t, andatura) {
   posa(papi, posto.x, posto.z, 0); papi.rot = guardaVerso(io.x, io.z, papi); disegna(papi);
   papi.g.visible = true; papi.pres = papi.presV = 1;
-  papi.stato = 'arriva'; papi.andatura = ''; papi.agganciato = false; papi.arrabbiato = false; papi.tPerso = 0; papi.nervoso = 0; papi.tCieco = 0; papi.vede = true; papi.tVede = 0; papi.indietro = false;
+  papi.stato = 'arriva'; papi.andatura = ''; papi.agganciato = false; papi.arrabbiato = false; papi.tPerso = 0; papi.nervoso = 0; papi.tVisto = -1; papi.tCieco = 0; papi.vede = true; papi.tVede = 0; papi.indietro = false;
   andaturaPapi(andatura);
 }
 function andaturaPapi(a) {
@@ -2078,7 +2078,7 @@ function sparisce(t, pausa) {
 // Caro è scappato a chiamarlo: Papi arriva arrabbiato, già di corsa
 function papiArrabbiato(t) {
   if (storia === 'solo') iniziaCaccia(t);
-  if (storia !== 'caccia' || alSicuro()) return;
+  if (storia !== 'caccia' || alSicuro() || io.fogli >= 10) return;
   if (papi.stato === 'assente') { const p = postoNascosto(24, 34); if (!p) { papi.prossimo = t; return; } nascePapi(p, t, 'corsa'); }
   papi.arrabbiato = true; papi.nervoso = 0.6;
   if (papi.stato === 'arriva') andaturaPapi('corsa');
@@ -2086,11 +2086,16 @@ function papiArrabbiato(t) {
   if (Math.random() < 0.6) dici(pesca(BATTUTE.caccia), 2800);
 }
 
-// alla Fonticella o vicino a una statuetta: lascia perdere
-function arrendePapi() {
-  papi.stato = 'arrende'; papi.tArr = 0; papi.saltoVia = false; papi.andatura = ''; papi.nervoso = 0;
+// perdita d'interesse (Leo, 17/11): dalla prima volta che lo vedi, un inseguimento dura al massimo
+// tanti secondi quanti ne dice questa tabella, secondo i fogli presi (anche se è arrabbiato per i figli).
+// Con 10 fogli non ti insegue più: ti aspetta alla casa.
+const INTERESSE = [10, 15, 20, 25, 30, 40, 50, 60, 70, 80];
+const interesse = () => INTERESSE[Math.min(io.fogli, 9)];
+// alla Fonticella o vicino a una statuetta (o quando si è stufato): lascia perdere
+function arrendePapi(stufo = false) {
+  papi.stato = 'arrende'; papi.tArr = 0; papi.saltoVia = false; papi.andatura = ''; papi.nervoso = 0; papi.indietro = false;
   papiGiu(0.3); versoPapi('frasche', 0.8, 0.6);
-  if (!dettoSicuro) { dettoSicuro = true; didascalia(vicinoStatua() ? 'Vicino alla statuetta di Guerrino, Papi lascia perdere.' : 'Alla Fonticella Petri, Papi lascia perdere.', 5000); }
+  if (!stufo && !dettoSicuro) { dettoSicuro = true; didascalia(vicinoStatua() ? 'Vicino alla statuetta di Guerrino, Papi lascia perdere.' : 'Alla Fonticella Petri, Papi lascia perdere.', 5000); }
 }
 // muove Papi verso di te schivando i tronchi; ogni tanto fa tremare l'albero che sfiora
 function avanzaPapi(dt, v, via = false) {
@@ -2144,13 +2149,18 @@ function aggiornaCaccia(dt, t) {
   const pausa = Math.max(8, 26 - livello * 1.6);     // quanto ti lascia in pace quando lo semini
 
   if (sicuro && papi.stato !== 'assente' && papi.stato !== 'arrende') arrendePapi();
+  // si stufa: il conto parte la prima volta che lo vedi; con 10 fogli lascia perdere subito
+  if (papi.stato === 'arriva' || papi.stato === 'salta' || papi.stato === 'indietreggia') {
+    if (vis > 0 && papi.tVisto < 0) papi.tVisto = t;
+    if (io.fogli >= 10 || (papi.tVisto >= 0 && t - papi.tVisto > interesse())) arrendePapi(true);
+  }
   if (papi.stato === 'arriva' || papi.stato === 'indietreggia') {
     papi.tVede = (papi.tVede || 0) - dt;
     if (papi.tVede <= 0) { papi.tVede = 0.25; papi.vede = papiVede(); }
   }
 
   if (papi.stato === 'assente') {
-    if (t > papi.prossimo && !sicuro) {
+    if (t > papi.prossimo && !sicuro && io.fogli < 10) {
       const posto = postoNascosto(36, 50);
       if (posto) nascePapi(posto, t, 'striscia'); else papi.prossimo = t + 3;
     }
