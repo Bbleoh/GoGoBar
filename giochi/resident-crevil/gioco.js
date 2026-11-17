@@ -257,6 +257,7 @@ const pronto = Promise.all([
   costruisci(bin, bosco, colori, osm, modello, roncola, modelloPapi, [TEX.corteccia, TEX.fronde]);
   const statue = promessa(gltf, 'modelli/statuetta.glb').then(creaStatuette, e => console.warn('statuetta non caricata', e));
   promessa(gltf, 'modelli/mano-telefono.glb').then(creaManoTelefono, e => console.warn('mano col telefono non caricata', e));
+  promessa(gltf, 'modelli/papi-testa.glb').then(creaTestaPapi, e => console.warn('testa di Papi non caricata', e));
   // i figli di Papi arrivano dopo, mentre giochi già
   Promise.all([promessa(gltf, 'modelli/caro.glb?v=2'), promessa(gltf, 'modelli/bimba.glb?v=2')])
     .then(([c, b]) => { creaFiglio(caro, c); creaFiglio(bimba, b); })
@@ -696,6 +697,8 @@ function zonaGreppo(x, z) {
 // e dove una strada passa sopra al fosso c'è un ponticello di legno (Leo, 16/11).
 let PROFILI = [];   // [{pts: [[x,z]...], liv: [quota dell'acqua...], verso}]
 const PONTI = [];   // {x, z, rx, rz, L, W, yA, yB, arco}
+// mezza luce dell'arco (attorno al fosso, in aQ): resta sempre almeno una cella di muratura piena fra l'arco e la testata
+const luceP = p => Math.max(0.9, Math.min(2.6, p.L / 2 - 2.9 - Math.abs(p.aQ)));
 function preparaFossiEPonti(osm) {
   PROFILI = [];
   for (const f of FOSSI) {
@@ -743,8 +746,14 @@ function preparaFossiEPonti(osm) {
     if (!q || Math.max(Math.abs(q[0]), Math.abs(q[1])) > LIMITE - 4 || PONTI.some(o => Math.hypot(o.x - q[0], o.z - q[1]) < 8)) continue;
     let fx = pr.pts[i][0] - pr.pts[i - 1][0], fz = pr.pts[i][1] - pr.pts[i - 1][1]; const lf = Math.hypot(fx, fz) || 1; fx /= lf; fz /= lf;
     let rx = s[j][0] - s[j - 1][0], rz = s[j][1] - s[j - 1][1]; const l0 = Math.hypot(rx, rz) || 1; rx /= l0; rz /= l0;
-    const seno = Math.max(0.45, Math.abs(rx * fz - rz * fx)), mezza = Math.min(6.5, 3.9 / seno);
-    const A = lungo(s, j, q[2], mezza, -1), B = lungo(s, j, q[2], mezza, 1);
+    const seno = Math.max(0.45, Math.abs(rx * fz - rz * fx)), mezza = Math.min(7.5, 4.9 / seno);   // un metro in più per lato: le spalle poggiano sul terreno pieno
+    let A = lungo(s, j, q[2], mezza, -1), B = lungo(s, j, q[2], mezza, 1);
+    // se il fosso cade lontano dal mezzo, allungo il lato corto: fra l'arco e ogni testata almeno una cella di muratura
+    {
+      const dA = Math.hypot(A[0] - q[0], A[1] - q[1]), dB = Math.hypot(B[0] - q[0], B[1] - q[1]), lato = Math.max(dA, dB, 3.8);
+      if (dA < lato) A = lungo(s, j, q[2], mezza + lato - dA, -1);
+      if (dB < lato) B = lungo(s, j, q[2], mezza + lato - dB, 1);
+    }
     const cx = (A[0] + B[0]) / 2, cz = (A[1] + B[1]) / 2, L = Math.hypot(B[0] - A[0], B[1] - A[1]);
     if (L < 4) continue;
     const ux = (B[0] - A[0]) / L, uz = (B[1] - A[1]) / L;
@@ -806,13 +815,36 @@ function spianaSentiero(s) {
   // la griglia è di 2,5 m e senza questo, appena sceso dal ponte, ci sarebbe una buca verso il fosso
   for (const p of PONTI) {
     if (vicino(p.x, p.z)[1] > 1.5) continue;
-    const luce = Math.min(p.L / 2 - 1.1, 2.6), i0 = Math.floor((p.x - p.L + HALF) / CELLA), j0 = Math.floor((p.z - p.L + HALF) / CELLA);
+    const luce = luceP(p), i0 = Math.floor((p.x - p.L + HALF) / CELLA), j0 = Math.floor((p.z - p.L + HALF) / CELLA);
     for (let j = j0; j <= j0 + Math.ceil(2 * p.L / CELLA); j++) for (let i = i0; i <= i0 + Math.ceil(2 * p.L / CELLA); i++) {
       if (i < 0 || j < 0 || i >= N || j >= N) continue;
       const dx = i * CELLA - HALF - p.x, dz = j * CELLA - HALF - p.z, a = dx * p.rx + dz * p.rz, b = -dx * p.rz + dz * p.rx;
-      if (Math.abs(b) < p.W / 2 + 1.2 && Math.abs(a) > luce + 0.5 && Math.abs(a) <= p.L / 2 + 0.3) Q[j * N + i] = (a < 0 ? p.yA : p.yB) - 0.05;
+      if (Math.abs(b) < p.W / 2 + 1.2 && Math.abs(a - p.aQ) > luce + 0.3 && Math.abs(a) <= p.L / 2 + 0.3) Q[j * N + i] = (a < 0 ? p.yA : p.yB) - 0.05;
       // e subito fuori dalle spalle il terreno non resta sotto il piano: niente scalino davanti al ponte
       else if (Math.abs(b) < p.W / 2 + 1.2 && Math.abs(a) > p.L / 2 && Math.abs(a) <= p.L / 2 + CELLA + 0.2) Q[j * N + i] = Math.max(Q[j * N + i], (a < 0 ? p.yA : p.yB) - 0.05);
+    }
+  }
+}
+// tutti i ponti (Leo, 17/11): il terreno che tocca il ponte sta alla quota del piano, ai due lati.
+// Sotto la muratura delle spalle un filo più basso (niente sfarfallio col selciato), fuori in piano
+// per una cella e poi un raccordo di qualche metro col terreno vero
+function raccordaPonti() {
+  for (const p of PONTI) {
+    const luce = luceP(p), R = p.L / 2 + 8;
+    const i0 = Math.floor((p.x - R + HALF) / CELLA), j0 = Math.floor((p.z - R + HALF) / CELLA), nn = Math.ceil(2 * R / CELLA);
+    for (let j = j0; j <= j0 + nn; j++) for (let i = i0; i <= i0 + nn; i++) {
+      if (i < 0 || j < 0 || i >= N || j >= N) continue;
+      const dx = i * CELLA - HALF - p.x, dz = j * CELLA - HALF - p.z, a = dx * p.rx + dz * p.rz, b = -dx * p.rz + dz * p.rx;
+      const fuori = Math.abs(a) - p.L / 2, y = pianoPonte(p, a < 0 ? 0 : 1), id = j * N + i;
+      const lat = Math.abs(b) - p.W / 2;
+      if (lat > 3.5 || Math.abs(a - p.aQ) <= luce + 0.3) continue;
+      if (fuori <= 0) { if (lat < 1.2) Q[id] = y - 0.03; continue; }
+      if (fuori > 7) continue;
+      const wa = fuori < CELLA + 0.2 ? 1 : 1 - (fuori - CELLA - 0.2) / (7 - CELLA - 0.2), wb = lat < 1 ? 1 : 1 - (lat - 1) / 2.5;
+      const w = Math.max(0, Math.min(1, wa)) * Math.max(0, Math.min(1, wb)), k = w * w * (3 - 2 * w);
+      let nuovo = Q[id] + (y - Q[id]) * k;
+      if (nuovo > Q[id] && distFosso(i * CELLA - HALF, j * CELLA - HALF) < 2.2) nuovo = Q[id];   // il letto del fosso resta sgombro
+      Q[id] = nuovo;
     }
   }
 }
@@ -840,7 +872,7 @@ function creaPonti() {
   for (const p of PONTI) {
     const ry = Math.atan2(p.rx, p.rz), n = Math.max(6, Math.round(p.L / 0.8));
     // il corpo: profilo lungo il ponte (sopra il piano, sotto un arco ribassato sul fosso) estruso per la larghezza
-    const fondo = p.acqua - 1.6, sp = p.acqua + 0.05, luce = Math.min(p.L / 2 - 1.1, 2.6);
+    const fondo = p.acqua - 1.6, sp = p.acqua + 0.05, luce = luceP(p);
     const sotto = pianoPonte(p, p.aQ / p.L + 0.5) - 0.42, freccia = Math.max(0.35, Math.min(luce, sotto - sp));
     const R = (luce * luce + freccia * freccia) / (2 * freccia), cy = sp + freccia - R, a0 = Math.asin(Math.min(1, luce / R));
     const forma = new THREE.Shape();
@@ -1161,7 +1193,7 @@ function creaGuerrino(modello, roncola) {
 }
 function creaPapi(modello) {
   preparaPersonaggio(papi, modello);
-  for (const m of papi.mat) m.fog = false;   // la nebbia gliela metto io: vedi aspettoPapi
+  for (const m of papi.mat) { m.fog = false; m.onBeforeCompile = sh => shaderPapi(sh, 0.3); }   // la nebbia gliela metto io: vedi aspettoPapi
   papi.g.visible = false;
   recita(papi, 'gattona');
   // gli occhi: un filo di luce verde, che nell'ombra delle fratte lo tradisce
@@ -1175,6 +1207,29 @@ function creaPapi(modello) {
     const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, color: 0x7dff70, blending: THREE.AdditiveBlending, transparent: true, depthWrite: false, fog: false, opacity: 0 }));
     s.userData.lato = lato; s.visible = false; scena.add(s); return s;
   });
+}
+// la testa ad alta definizione (tagliata dal modello originale di Leo): serve solo nella presa, dove la
+// faccia riempie lo schermo e si avvita. Sta attaccata all'osso della testa, nella posa di riferimento
+const TESTA_BIND = [0.99766582, 0.00951965, -0.0676183, 0, -0.01065195, 0.99980855, -0.01640457, 0, 0.06744922, 0.01708659, 0.9975763, 0, 0.00537155, -1.64805567, 0.03404692, 1];
+function creaTestaPapi(m) {
+  let pelle = null; papi.corpo.traverse(o => { if (o.isSkinnedMesh) pelle = o; });
+  let mesh = null; m.scene.traverse(o => { if (o.isMesh) mesh = o; });
+  if (!pelle || !mesh) return;
+  const i = pelle.skeleton.bones.indexOf(papi.testa); if (i < 0) return;
+  const tela = new THREE.Group(); tela.matrixAutoUpdate = false;
+  // la testa fine è in metri, come il modello originale: le serve la bind inversa originale dell'osso Head
+  // (quella di papi.glb è compressa da gltfpack). Un filo più grande, così copre la testa leggera che ci sta sotto
+  tela.matrix.makeScale(1.015, 1.015, 1.015).multiply(new THREE.Matrix4().fromArray(TESTA_BIND));
+  const mat = ps1(new THREE.MeshLambertMaterial({ map: papi.mat[0].map || mesh.material.map, color: papi.tinta }));
+  mat.fog = false; mat.onBeforeCompile = sh => shaderPapi(sh, 1);
+  // il viso va spezzato fitto, se no la spirale lo piega a triangoloni: attorno agli occhi ogni triangolo diventa 16
+  mesh.material = mat; mesh.frustumCulled = false; papi.mat.push(mat);
+  tela.add(mesh); papi.testa.add(tela); papi.testaHD = tela;
+  // (la distanza dagli occhi si misura nel mondo, in metri)
+  papi.g.updateMatrixWorld(true);
+  try { mesh.geometry = suddividiViso(mesh.geometry, mesh.matrixWorld, papi.testa.localToWorld(new THREE.Vector3(0, OCCHI[1] - 0.03, OCCHI[2])), 0.11, 2); } catch (e) { console.warn(e); }
+  try { renderer.compile(tela, camera, scena); } catch (e) {}   // lo shader pronto subito, non al momento della presa
+  tela.visible = false;
 }
 const _occhio = new THREE.Vector3(), OCCHI = [0.032, 0.13, 0.17];   // nel modello nuovo (17/11) l'osso della testa ha la y in su
 function occhiPapi() {
@@ -1284,8 +1339,8 @@ function preparaAudio() {
     dove.add(a); return a;
   };
   // i colpi di Guerrino sull'albero rimbombano nel bosco: si sentono da lontano e ti riportano da lui
-  pugnoAudio = posizionale(guerrino.g, 10, 1.2); pugnoAudio.setDistanceModel('linear'); pugnoAudio.setRolloffFactor(0);   // il volume lo fa colpiLontano()
-  { const f = eco(ascolto.context); pugnoAudio.setFilters(f); pugnoUmido = f.umido; }
+  pugnoAudio = posizionale(guerrino.g, 10, 1.2); pugnoAudio.setDistanceModel('linear'); pugnoAudio.setRolloffFactor(0);   // volume, eco e passa-alto li fa colpiDistanza()
+  { const f = eco(ascolto.context); pugnoAudio.setFilters(f); f.umido.connect(pugnoAudio.getOutput()); pugnoUmido = f; }
   papiVoce = posizionale(papi.g, 8, 2);
   papiPassi = posizionale(papi.g, 7, 0.2);
   cinghiale.voce = posizionale(cinghiale.g, 9, 0.6);
@@ -1296,14 +1351,22 @@ function preparaAudio() {
 // l'eco del bosco (Leo, 16/11): non un riverbero ma ripetizioni distinte, sempre più scure, come
 // il colpo che torna indietro dal versante di fronte
 function eco(ctx) {
-  const dentro = ctx.createGain(), fuori = ctx.createGain(), umido = ctx.createGain();
+  // passa-alto (la vicinanza che si perde) → asciutto; dal passa-alto parte anche il ramo delle ripetizioni
+  const hp = ctx.createBiquadFilter(), secco = ctx.createGain(), umido = ctx.createGain();
+  hp.type = 'highpass'; hp.frequency.value = 10; hp.Q.value = 0.7;
   const ritardo = ctx.createDelay(2), ritorno = ctx.createGain(), scuro = ctx.createBiquadFilter();
   ritardo.delayTime.value = 0.42; ritorno.gain.value = 0.42;
   scuro.type = 'lowpass'; scuro.frequency.value = 1700;
-  dentro.connect(ritardo); ritardo.connect(scuro); scuro.connect(ritorno); ritorno.connect(ritardo);
-  scuro.connect(umido); umido.connect(fuori); umido.gain.value = 0.4;
-  const r = [dentro, fuori]; r.umido = umido;
-  return r;   // three collega dentro → fuori: è il suono asciutto; le ripetizioni ci si sommano
+  hp.connect(ritardo); ritardo.connect(scuro); scuro.connect(ritorno); ritorno.connect(ritardo);
+  scuro.connect(umido); umido.gain.value = 0;
+  const r = [hp, secco]; r.hp = hp; r.secco = secco; r.umido = umido;
+  return r;   // three collega hp → secco → uscita; l'umido lo collego io all'uscita
+}
+// i colpi di Guerrino con la distanza (Leo, 17/11): fino a 50 m asciutti; poi ogni 50 m +10% di eco
+// (le montagne), passa-alto +20 Hz e −3 dB, fino a 600 m. In mezzo interpolato (a 75 m eco al 5%)
+function colpiDistanza(d) {
+  const k = Math.max(0, Math.min(11, (d - 50) / 50));
+  return { umido: Math.min(1, 0.1 * k), hp: k > 0 ? 20 + 20 * k : 10, db: -3 * k };
 }
 // sfx/passi.mp3 è un nastro a caselle da 1,2 s: 5 passi sul sottobosco, 5 di corsa, 5 sul sentiero,
 // 5 di corsa, i due atterraggi del salto, i due grugniti del cinghiale, 5 passi nell'acqua, 3 di corsa,
@@ -1775,7 +1838,6 @@ function conLaRoncola(tr) {
   return d(dx) < Math.min(d(sx), d(pd), d(ps));
 }
 // i colpi da lontano: −10 dB ogni 100 metri, senza scalini (Leo, 16/11)
-const colpiLontano = d => Math.pow(10, -10 * d / 100 / 20);
 // Guerrino mena l'albero, per sempre: una mossa dopo l'altra, col botto a tempo
 function aggiornaMena(dt, t) {
   const tr = guerrino.albero;
@@ -1800,11 +1862,12 @@ function aggiornaMena(dt, t) {
     if (pugnoAudio && buf.ron0) {
       // round robin: mai lo stesso colpo due volte di fila
       const tipo = !io.roncola && conLaRoncola(tr) ? 'ron' : 'pug';   // la roncola, dopo, ce l'hai tu
-      if (pugnoUmido) { const dG = Math.hypot(io.x - guerrino.x, io.z - guerrino.z); pugnoUmido.gain.value = Math.min(0.75, 0.2 + dG / 120); }   // da lontano l'eco pesa di più
+      const dG = Math.hypot(io.x - guerrino.x, io.z - guerrino.z), cd = colpiDistanza(dG);
+      if (pugnoUmido) { pugnoUmido.umido.gain.value = cd.umido; pugnoUmido.secco.gain.value = 1 - cd.umido; pugnoUmido.hp.frequency.value = cd.hp; }
       let k; do { k = Math.random() * 12 | 0; } while (k === guerrino.ultimoColpo);
       guerrino.ultimoColpo = k;
       pugnoAudio.setBuffer(buf[tipo + k]);
-      pugnoAudio.setPlaybackRate(0.96 + Math.random() * 0.08); pugnoAudio.setVolume(0.9 * mixG('colpi') * colpiLontano(Math.hypot(io.x - guerrino.x, io.z - guerrino.z)));
+      pugnoAudio.setPlaybackRate(0.96 + Math.random() * 0.08); pugnoAudio.setVolume(0.9 * mixG('colpi') * Math.pow(10, cd.db / 20));
       if (pugnoAudio.isPlaying) pugnoAudio.stop();
       pugnoAudio.play();
     }
@@ -2063,7 +2126,7 @@ function postoNascosto(dmin, dmax) {
 function nascePapi(posto, t, andatura) {
   posa(papi, posto.x, posto.z, 0); papi.rot = guardaVerso(io.x, io.z, papi); disegna(papi);
   papi.g.visible = true; papi.pres = papi.presV = 1;
-  papi.stato = 'arriva'; papi.andatura = ''; papi.agganciato = false; papi.arrabbiato = false; papi.tPerso = 0; papi.nervoso = 0; papi.tVisto = -1; papi.tCieco = 0; papi.vede = true; papi.tVede = 0; papi.indietro = false;
+  papi.stato = 'arriva'; papi.andatura = ''; papi.agganciato = false; papi.arrabbiato = false; papi.tPerso = 0; papi.nervoso = 0; papi.tVisto = -1; papi.ritiro = false; papi.pausaVia = 0; papi.tCieco = 0; papi.vede = true; papi.tVede = 0; papi.indietro = false;
   andaturaPapi(andatura);
 }
 const strisciaPapi = () => papi.andatura === 'striscia' || papi.andatura === 'gattona';
@@ -2108,12 +2171,14 @@ const interesse = () => INTERESSE[Math.min(io.fogli, 9)];
 // alla Fonticella o vicino a una statuetta (o quando si è stufato): lascia perdere
 function arrendePapi(stufo = false) {
   papi.stato = 'arrende'; papi.tArr = 0; papi.saltoVia = false; papi.andatura = ''; papi.nervoso = 0; papi.indietro = false;
+  papi.ritiro = true; papi.tRiprova = tGioco + 4 + Math.random() * 3;
   papiGiu(0.3); versoPapi('frasche', 0.8, 0.6);
   if (!stufo && !dettoSicuro) { dettoSicuro = true; didascalia(vicinoStatua() ? 'Vicino alla statuetta di Guerrino, Papi lascia perdere.' : 'Alla Fonticella Petri, Papi lascia perdere.', 5000); }
 }
 // muove Papi verso di te schivando i tronchi; ogni tanto fa tremare l'albero che sfiora
-function avanzaPapi(dt, v, via = false) {
-  let dx = (io.x - papi.x) * (via ? -1 : 1), dz = (io.z - papi.z) * (via ? -1 : 1); const l = Math.hypot(dx, dz) || 1; dx /= l; dz /= l;
+function avanzaPapi(dt, v, via = false, meta = null) {
+  const mx = meta ? meta[0] : io.x, mz = meta ? meta[1] : io.z;
+  let dx = (mx - papi.x) * (via ? -1 : 1), dz = (mz - papi.z) * (via ? -1 : 1); const l = Math.hypot(dx, dz) || 1; dx /= l; dz /= l;
   tronchiVicini(papi.x + dx * 1.4, papi.z + dz * 1.4, 1.6, tr => {
     const ox = papi.x + dx * 1.4 - tr.x, oz = papi.z + dz * 1.4 - tr.z, od = Math.hypot(ox, oz) || 1;
     if (od < tr.r + 0.8) { dx += ox / od * 0.8; dz += oz / od * 0.8; if (Math.random() < dt * 2) scuoti(tr, 0.5); }
@@ -2164,7 +2229,7 @@ function aggiornaCaccia(dt, t) {
 
   if (sicuro && papi.stato !== 'assente' && papi.stato !== 'arrende') arrendePapi();
   // si stufa: il conto parte la prima volta che lo vedi; con 10 fogli lascia perdere subito
-  if (papi.stato === 'arriva' || papi.stato === 'salta' || papi.stato === 'indietreggia') {
+  if (!papi.ritiro && (papi.stato === 'arriva' || papi.stato === 'salta' || papi.stato === 'indietreggia')) {
     if (vis > 0 && papi.tVisto < 0) papi.tVisto = t;
     if (io.fogli >= 10 || (papi.tVisto >= 0 && t - papi.tVisto > interesse())) arrendePapi(true);
   }
@@ -2206,8 +2271,8 @@ function aggiornaCaccia(dt, t) {
     passoPapi(2.6, 0.25);
     disegna(papi);
     if (papi.vede && papi.tInd > 1 && d < 32) { papi.stato = 'arriva'; papi.indietro = false; papi.tCieco = 0; }
-    else if (papi.tInd > 7 && (vis === 0 || d > 50)) sparisce(t, pausa);
-    else if (papi.tInd > 16) sparisce(t, pausa);
+    else if (papi.tInd > 7 && vis === 0 && papi.tPerso > 0.6) sparisce(t, pausa);
+    else if (papi.tInd > 7) { arrendePapi(true); papi.saltoVia = true; papi.tArr = 0.9; papi.andatura = ''; andaturaPapi('corsa'); }   // lo stai guardando: torna verso casa sua
   } else if (papi.stato === 'salta') {
     // il balzo: nella parte in volo dell'animazione ti viene addosso
     papi.tSalto += dt;
@@ -2216,29 +2281,52 @@ function aggiornaCaccia(dt, t) {
     else if (fr < 0.36) giraVerso(guardaVerso(io.x, io.z, papi), dt, 4, papi);
     disegna(papi);
     // mancato: resta lungo per terra un attimo, poi si rialza a quattro zampe e ricomincia
-    if (fr > 0.72 || finita(papi)) { papi.stato = 'arriva'; papi.andatura = ''; andaturaPapi('gattona'); papi.tSaltoOk = t + 4; }
+    if (fr > 0.72 || finita(papi)) {
+      papi.andatura = ''; andaturaPapi('gattona'); papi.tSaltoOk = t + 4;
+      if (papi.ritiro) { papi.stato = 'arrende'; papi.saltoVia = true; papi.tRiprova = t + 5 + Math.random() * 4; } else papi.stato = 'arriva';
+    }
+  } else if (papi.stato === 'riprova') {
+    // mentre si ritira, se gli stai entro 20 m ogni tanto si gira e prova a prenderti lo stesso
+    papi.tRip += dt;
+    if (papi.andatura !== 'scatto') andaturaPapi('scatto');
+    avanzaPapi(dt, velPapi('scatto')); passoPapi(1.9, 1); disegna(papi);
+    if (d < 8.5) { papi.stato = 'salta'; papi.tSalto = 0; const s = recita(papi, 'salto', true, 0.12); if (s) { s.time = s.getClip().duration * 0.3; s.timeScale = 1.7; } versoPapi('frasche', 1, 0.6); }
+    else if (papi.tRip > 4 || d > 26) { papi.stato = 'arrende'; papi.saltoVia = true; papi.andatura = ''; andaturaPapi('corsa'); papi.tRiprova = t + 5 + Math.random() * 4; }
   } else if (papi.stato === 'arrende') {
-    // si arrende: un attimo fermo a guardarti, poi si gira e se ne va saltando
+    // si arrende: un attimo fermo a guardarti, poi un salto con l'urlo e se ne torna verso casa sua.
+    // Sparisce solo quando non lo vedi più (Leo, 17/11): se lo segui, lo vedi rientrare
     papi.tArr += dt;
+    // verso casa sua; ma se casa sua sta dalla tua parte, prima si allontana da te (non ti passa accanto)
+    let casa = CASA.porta;
+    {
+      const hx = casa[0] - papi.x, hz = casa[1] - papi.z, hl = Math.hypot(hx, hz) || 1, px = io.x - papi.x, pz = io.z - papi.z, pl = Math.hypot(px, pz) || 1;
+      if (pl < 30 && (hx * px + hz * pz) / (hl * pl) > 0.4) casa = [papi.x - px / pl * 10, papi.z - pz / pl * 10];
+    }
     if (papi.tArr < 0.9) giraVerso(guardaVerso(io.x, io.z, papi), dt, 4, papi);
     else {
       if (!papi.saltoVia) { papi.saltoVia = true; const s = recita(papi, 'urlo', true, 0.15); if (s) s.timeScale = 1.2; versoPapi('frasche', 0.9, 0.75); }
       if (papi.nomeAz === 'urlo') {
         const fr = papi.corrente.time / papi.corrente.getClip().duration;
-        if (fr < 0.12) giraVerso(Math.atan2(papi.x - io.x, papi.z - io.z), dt, 9, papi);
-        else if (fr < 0.4) avanzaPapi(dt, 8, true);
+        if (fr < 0.12) giraVerso(Math.atan2(casa[0] - papi.x, casa[1] - papi.z), dt, 9, papi);
+        else if (fr < 0.4) avanzaPapi(dt, 8, false, casa);
         if (fr > 0.8 || finita(papi)) { papi.andatura = ''; andaturaPapi('corsa'); }
-      } else { avanzaPapi(dt, 4.6, true); passoPapi(1.9, 0.7); }
+      } else {
+        if (papi.andatura !== 'corsa') { papi.andatura = ''; andaturaPapi('corsa'); }
+        avanzaPapi(dt, 4.2, false, casa); passoPapi(1.9, 0.7);
+        if (!sicuro && d < 20 && t > papi.tRiprova) { papi.stato = 'riprova'; papi.tRip = 0; versoPapi('frasche', 1, 0.6); }
+      }
     }
     disegna(papi);
-    if (papi.tArr > 2 && ((vis === 0 && d > 22) || d > 45) || papi.tArr > 14) sparisce(t, sicuro ? 16 : pausa);
+    const pausaVia = papi.pausaVia || (sicuro ? 16 : pausa);
+    if (papi.tArr > 1.5 && vis === 0 && papi.tPerso > 0.6) sparisce(t, pausaVia);
+    else if (Math.hypot(papi.x - casa[0], papi.z - casa[1]) < 6) sparisce(t, pausaVia);   // è rientrato in casa
   }
 
   nervosoPapi(dt, vis);
   // lo statico: poco, e solo quando ce l'hai addosso. Ti prende se ti tocca.
   const c = papi.stato !== 'assente' && !sicuro ? Math.max(0, 1 - d / 18) : 0;
   staticoOb = c * c * (vis > 0 ? 0.9 : 0.5) * papi.pres;
-  if ((papi.stato === 'arriva' || papi.stato === 'salta') && !sicuro && Math.hypot(io.x - papi.x, io.z - papi.z) < 3.2) preso();
+  if ((papi.stato === 'arriva' || papi.stato === 'salta' || papi.stato === 'riprova') && !sicuro && Math.hypot(io.x - papi.x, io.z - papi.z) < 3.2) preso();
 }
 
 /* ════════ I FIGLI DI PAPI: CARO E BIMBA ════════
@@ -2404,7 +2492,7 @@ function animaFigli(dt) {
 const sg = ui.statico.getContext('2d');
 const sImg = sg.createImageData(160, 90);
 function disegnaStatico(dt) {
-  const ob = fase === 'morto' ? (PRESA.t >= 0 && !PRESA.fatto ? 0.35 : 1) : storia === 'caccia' ? staticoOb : 0;
+  const ob = fase === 'morto' ? (PRESA.t >= 0 && !PRESA.fatto ? 0.1 : 0.55) : storia === 'caccia' ? staticoOb * 0.7 : 0;   // meno statico, e sfumato (Leo, 17/11)
   staticoV += Math.max(-dt * 0.55, Math.min(dt * 3, ob - staticoV));
   const k = staticoV;
   ui.statico.style.opacity = (k * k * 0.85).toFixed(3);
@@ -3148,7 +3236,7 @@ function colpoAndato() {
     versoPapi('scricchiolio', 1, 0.5 + Math.random() * 0.2);
     if (BOSS.vita <= 0) { BOSS.stato = 'morto'; const c = recita(papi, 'crollo', true, 0.1); if (c) c.timeScale = 1.2; didascalia('Papi crolla. La ninna nanna si ferma.', 5000); }
     else { BOSS.stato = 'colpito'; const c = recita(papi, 'crollo', true, 0.1); if (c) c.timeScale = 1.3; didascalia(['Ancora.', "Non s'arrende.", 'Barcolla.', 'Un altro.'][4 - BOSS.vita] || '', 1800); }
-  } else if (papi.stato !== 'assente') sparisce(tGioco, 20);   // fuori: lo scacci per un po'
+  } else if (papi.stato !== 'assente') { arrendePapi(true); papi.pausaVia = 20; papi.tRiprova = tGioco + 8; }   // fuori: lo scacci verso casa sua, e per un po' non torna
 }
 
 /* ── il boss: Papi in fondo alla sala. Ti guarda, poi ti viene addosso a quattro zampe, sempre più
@@ -3349,7 +3437,7 @@ function squilla() {
 }
 
 /* ════════ STATI DEL GIOCO ════════ */
-const PRESA = { t: -1, luce: new THREE.PointLight(0xc8d8b0, 0, 2.5, 2) };
+const PRESA = { t: -1, luce: new THREE.PointLight(0xc8d8b0, 0, 4, 1.6) };
 PRESA.luce.position.set(0, -0.15, -0.05); camera.add(PRESA.luce);
 function preso() {
   if (fase !== 'gioco') return;
@@ -3365,44 +3453,53 @@ function preso() {
   PRESA.neb0 = scena.fog.density; PRESA.torcia0 = torcia.intensity;
   suono('colpo', 0.6, 1, 'papiVersi'); suono('scricchiolio', 0.4, 1, 'papiVersi');
 }
-/* la spirale della presa (Leo, 17/11): il bosco viene disegnato in una texture e poi avvitato attorno
-   alla faccia di Papi, sempre più a fondo, finché una spirale nera inghiotte tutto */
-const SPIRALE = { forza: 0, rt: null, c: new THREE.Vector2(0.5, 0.5), t0: 0, scena: new THREE.Scene(), cam: new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1) };
-SPIRALE.mat = new THREE.ShaderMaterial({
-  uniforms: { mappa: { value: null }, centro: { value: SPIRALE.c }, forza: { value: 0 }, aspetto: { value: 1 }, tempo: { value: 0 } },
-  vertexShader: 'varying vec2 vUv; void main() { vUv = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }',
-  fragmentShader: `uniform sampler2D mappa; uniform vec2 centro; uniform float forza, aspetto, tempo; varying vec2 vUv;
-	void main() {
-		vec2 p = vUv - centro; p.x *= aspetto;
-		float r = length(p) + 1e-4, a0 = atan(p.y, p.x), f = forza;
-		// avvitamento: più stretto vicino al centro; e lo sguardo cade dentro (zoom verso la faccia)
-		float a = a0 + f * (2.0 + 7.0 * f) / (0.12 + r * 2.2) + tempo * f * 1.5;
-		vec2 q = vec2(cos(a), sin(a)) * r * mix(1.0, 0.3, f * f); q.x /= aspetto;
-		vec3 col = texture2D(mappa, clamp(centro + q, 0.001, 0.999)).rgb;
-		// bracci scuri che girano verso il centro
-		float bracci = 0.5 + 0.5 * sin(3.0 * a0 + 11.0 * log(r) - tempo * 7.0);
-		col *= 1.0 - f * 0.75 * bracci;
-		// il buco nero si allarga a spirale fino a coprire tutto
-		float orlo = f * f * 1.25 + 0.07 * f * sin(3.0 * a0 + 12.0 * log(r) - tempo * 8.0);
-		col *= smoothstep(orlo - 0.06, orlo + 0.06, r);
-		gl_FragColor = vec4(col, 1.0);
-		#include <colorspace_fragment>
-	}`,
-  depthTest: false, depthWrite: false
-});
-SPIRALE.scena.add(new THREE.Mesh(new THREE.PlaneGeometry(2, 2), SPIRALE.mat));
-const _dim = new THREE.Vector2();
-function disegnaSpirale() {
-  renderer.getDrawingBufferSize(_dim);
-  if (!SPIRALE.rt || SPIRALE.rt.width !== _dim.x || SPIRALE.rt.height !== _dim.y) {
-    SPIRALE.rt?.dispose();
-    SPIRALE.rt = new THREE.WebGLRenderTarget(_dim.x, _dim.y, { minFilter: THREE.NearestFilter, magFilter: THREE.NearestFilter });
-    SPIRALE.rt.texture.colorSpace = THREE.SRGBColorSpace;   // come la tela: gli shader già compilati vanno bene così
+/* il vortice della presa (Leo, 17/11, alla Uzumaki di Junji Ito): non un effetto sullo schermo ma sul modello.
+   Nel vertex shader di Papi i vertici girano attorno alla sua faccia (in coordinate di vista), tanto più stretti
+   quanto più sono vicini al centro, e sprofondano: la faccia si avvita in una spirale che ti inghiotte */
+const VORTICE = { forza: { value: 0 }, centro: { value: new THREE.Vector3() } };
+function shaderPapi(sh, peso) {
+  ps1Shader(sh);
+  sh.uniforms.vortForza = VORTICE.forza; sh.uniforms.vortCentro = VORTICE.centro; sh.uniforms.vortPeso = { value: peso };
+  sh.vertexShader = 'uniform float vortForza, vortPeso;\nuniform vec3 vortCentro;\n' + sh.vertexShader.replace('#include <project_vertex>', `#include <project_vertex>
+	if (vortForza > 0.0) {
+		vec3 vp = mvPosition.xyz - vortCentro;
+		float vr = length(vp.xy), vf = vortForza * vortPeso;
+		// spirale logaritmica: l'angolo cresce col logaritmo della vicinanza al centro,
+		// cosi' i tratti del viso si stirano in anelli che si stringono senza fine (il corpo, rado, gira poco)
+		float va = vf * (2.0 + 9.0 * vf) * log(1.0 + 0.06 / (vr + 0.002)) * exp(-vr / 0.12);
+		float vc = cos(va), vs = sin(va);
+		vp.xy = mat2(vc, vs, -vs, vc) * vp.xy;
+		vp.xy *= 1.0 - vf * 0.12 * exp(-vr / 0.03);
+		vp.xy *= 1.0 + vortForza * vortForza * 1.6;   // e si allarga fino a inghiottire tutta la visuale
+		vp.z -= vf * 0.03 * exp(-vr / 0.04);
+		mvPosition.xyz = vortCentro + vp;
+		gl_Position = projectionMatrix * mvPosition;
+	}`);
+}
+// spezza in 4 (livelli volte) i triangoli vicini al centro; restituisce una geometria non indicizzata
+function suddividiViso(geo, M, c, R, livelli) {
+  const g = geo.index ? geo.toNonIndexed() : geo, A = g.attributes;
+  const P = A.position, N = A.normal, U = A.uv, out = { p: [], n: [], u: [] };
+  const vt = k => ({ p: [P.getX(k), P.getY(k), P.getZ(k)], n: N ? [N.getX(k), N.getY(k), N.getZ(k)] : [0, 0, 1], u: U ? [U.getX(k), U.getY(k)] : [0, 0] });
+  const mez = (a, b) => ({ p: a.p.map((x, j) => (x + b.p[j]) / 2), n: a.n.map((x, j) => (x + b.n[j]) / 2), u: a.u.map((x, j) => (x + b.u[j]) / 2) });
+  const _v = new THREE.Vector3(), lontano = q => _v.fromArray(q.p).applyMatrix4(M).distanceTo(c);
+  const metti = (...v) => { for (const q of v) { out.p.push(...q.p); out.n.push(...q.n); out.u.push(...q.u); } };
+  const taglia = (a, b, d, l) => {
+    if (!l) { metti(a, b, d); return; }
+    const ab = mez(a, b), bd = mez(b, d), da = mez(d, a);
+    taglia(a, ab, da, l - 1); taglia(ab, b, bd, l - 1); taglia(da, bd, d, l - 1); taglia(ab, bd, da, l - 1);
+  };
+  for (let k = 0; k < P.count; k += 3) {
+    const a = vt(k), b = vt(k + 1), d = vt(k + 2);
+    const vicino = [a, b, d].some(q => lontano(q) < R);
+    taglia(a, b, d, vicino ? livelli : 0);
   }
-  renderer.setRenderTarget(SPIRALE.rt); renderer.render(scena, camera); renderer.setRenderTarget(null);
-  const u = SPIRALE.mat.uniforms;
-  u.mappa.value = SPIRALE.rt.texture; u.forza.value = Math.min(1, SPIRALE.forza); u.aspetto.value = _dim.x / _dim.y; u.tempo.value = tGioco - SPIRALE.t0;
-  renderer.render(SPIRALE.scena, SPIRALE.cam);
+  const r = new THREE.BufferGeometry();
+  r.setAttribute('position', new THREE.Float32BufferAttribute(out.p, 3));
+  r.setAttribute('normal', new THREE.Float32BufferAttribute(out.n, 3));
+  r.setAttribute('uv', new THREE.Float32BufferAttribute(out.u, 2));
+  console.log('viso suddiviso', P.count / 3, '->', out.p.length / 9);
+  return r;
 }
 const _testa = new THREE.Vector3(), _nero = new THREE.Color(0);
 // la presa (Leo, 17/11): il bosco sprofonda nel nero, la faccia si vede per un attimo mentre ti viene
@@ -3414,38 +3511,42 @@ function animaPresa(dt) {
   // la testa girata a forza: svelta, con uno strattone morbido
   const strappo = PRESA.dietro ? Math.sin(c01(T / PRESA.giro) * Math.PI) * 0.05 : 0;
   io.yaw = PRESA.yaw0 + PRESA.dy * kG;
-  io.pitch = PRESA.pitch0 + (0.04 - PRESA.pitch0) * kG;
+  io.pitch = PRESA.pitch0 + (0 - PRESA.pitch0) * kG;
   camera.rotation.set(io.pitch + Math.sin(T * 41) * strappo * 0.5, io.yaw, Math.sin(T * 29) * strappo, 'YXZ');
   // tutto intorno si fa nero: nebbia nera e fitta, la torcia quasi spenta
   const kN = liscio(c01(T / 0.3));
   scena.fog.color.copy(NEBBIA).lerp(_nero, kN); scena.background = scena.fog.color;
   scena.fog.density = PRESA.neb0 + (0.45 - PRESA.neb0) * kN;
   torcia.intensity = PRESA.torcia0 * (1 - 0.9 * kN); alone.intensity = 0.1 * (1 - kN);
-  // lui: una manciata di fotogrammi mentre si avvicina, poi la spirale
-  const u = T - PRESA.giro * 0.5, d1 = 0.95, VORTICE = 1.15;
-  const dist = u < 0.4 ? PRESA.d0 + (d1 - PRESA.d0) * (1 - Math.pow(1 - c01(u / 0.4), 2)) : d1 - 0.4 * liscio(c01((u - 0.4) / VORTICE));
-  if (u > 0.4 && !SPIRALE.forza) SPIRALE.t0 = tGioco;
-  SPIRALE.forza = u > 0.4 ? Math.max(0.001, Math.pow(c01((u - 0.4) / VORTICE), 1.4)) : 0;
+  // lui: viene avanti senza mai fermarsi, fino a riempire tutto; dopo una manciata di fotogrammi
+  // in cui lo vedi in faccia, la faccia comincia ad avvitarsi, e la spirale cresce mentre ti inghiotte
+  const u = T - PRESA.giro * 0.5, DURATA = 1.75, sP = c01(u / DURATA);
+  // fino a dentro la faccia: alla fine non resta altro che la spirale
+  const dist = 0.06 + (PRESA.d0 - 0.06) * Math.pow(1 - sP, 1.45);
+  if (camera.near !== 0.01) { camera.near = 0.01; camera.updateProjectionMatrix(); }
+  VORTICE.forza.value = Math.pow(liscio(c01((sP - 0.24) / 0.66)), 1.15);
   const fx = -Math.sin(PRESA.yaw0 + PRESA.dy), fz = -Math.cos(PRESA.yaw0 + PRESA.dy);
   papi.rot = Math.atan2(-fx, -fz);
   papi.g.rotation.set(0, papi.rot, 0);
   papi.g.updateMatrixWorld(true);
   if (papi.testa) {
-    papi.testa.localToWorld(_testa.set(0, OCCHI[1], OCCHI[2] - 0.05));   // in mezzo agli occhi
+    papi.testa.localToWorld(_testa.set(0, OCCHI[1] - 0.03, OCCHI[2]));   // la radice del naso, sotto la visiera
     papi.g.position.x += camera.position.x + fx * dist - _testa.x;
     papi.g.position.z += camera.position.z + fz * dist - _testa.z;
-    papi.g.position.y += camera.position.y - 0.04 - _testa.y;
+    papi.g.position.y += camera.position.y - _testa.y;
   }
   papi.x = papi.g.position.x; papi.z = papi.g.position.z;
-  // appena un filo di luce: il viso resta scuro
-  PRESA.luce.intensity = 0.9 * liscio(c01(u / 0.3));
-  // il centro della spirale: la faccia
-  _v.set(camera.position.x + fx * dist, camera.position.y - 0.04, camera.position.z + fz * dist).project(camera); SPIRALE.c.set(Math.min(0.8, Math.max(0.2, _v.x * 0.5 + 0.5)), Math.min(0.8, Math.max(0.2, _v.y * 0.5 + 0.5)));
-  if (u > 0.4 + VORTICE + 0.08 && !PRESA.fatto) {
-    PRESA.fatto = true; SPIRALE.forza = 0;
+  // una luce livida sul viso, che si vede bene
+  PRESA.luce.intensity = 5.5 * liscio(c01(u / 0.3));
+  // il centro del vortice: la faccia, in coordinate di vista
+  camera.updateMatrixWorld();
+  VORTICE.centro.value.set(camera.position.x + fx * dist, camera.position.y, camera.position.z + fz * dist).applyMatrix4(camera.matrixWorldInverse);
+  if (papi.testaHD) papi.testaHD.visible = true;
+  if (sP >= 1 && !PRESA.fatto) {
+    PRESA.fatto = true;
     ui.buio.style.transition = 'none'; ui.buio.style.opacity = 1; void ui.buio.offsetWidth; ui.buio.style.transition = '';
     scena.background = NEBBIA;
-    setTimeout(() => { PRESA.t = -1; PRESA.luce.intensity = 0; mostraMorte("Papi t'ha preso", pesca(BATTUTE.preso)); }, 450);
+    setTimeout(() => { PRESA.t = -1; PRESA.luce.intensity = 0; VORTICE.forza.value = 0; camera.near = 0.08; camera.updateProjectionMatrix(); if (papi.testaHD) papi.testaHD.visible = false; mostraMorte("Papi t'ha preso", pesca(BATTUTE.preso)); }, 450);
   }
 }
 function riprova() {
@@ -3713,6 +3814,7 @@ function costruisci(bin, bosco, colori, osm, modello, roncola, modelloPapi, texA
   }
   preparaFossiEPonti(osm);
   spianaSentiero(SENTIERO_GREPPO);
+  raccordaPonti();
   scavaGreppo();
   // lo spiazzo della casa di Papi: terreno in piano sotto la casa, raccordato intorno
   {
@@ -3869,7 +3971,7 @@ function ciclo() {
   // oltre gli 80 m la nebbia copre tutto: conta il punto del blocco più vicino a me
   const LB = HALF / NB;
   for (const b of BLOCCHI) b.visible = Math.hypot(Math.max(0, Math.abs(b.userData.cx - io.x) - LB), Math.max(0, Math.abs(b.userData.cz - io.z) - LB)) < (TOCCO ? 70 : 80);
-  if (SPIRALE.forza > 0) disegnaSpirale(); else renderer.render(scena, camera);
+  renderer.render(scena, camera);
   if (TEL3D.g.visible) { rendTel.render(scenaTel, camTel); telDisegnato = true; }
   else if (telDisegnato) { rendTel.clear(); telDisegnato = false; }
 }
