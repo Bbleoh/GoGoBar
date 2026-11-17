@@ -3542,11 +3542,14 @@ function animaPresa(dt) {
   camera.updateMatrixWorld();
   VORTICE.centro.value.set(camera.position.x + fx * dist, camera.position.y, camera.position.z + fz * dist).applyMatrix4(camera.matrixWorldInverse);
   if (papi.testaHD) papi.testaHD.visible = true;
+  // con la spirale comincia anche il buio, che arriva pieno quando lei ha inghiottito tutto
+  // (Leo, 17/11: fino alla schermata "Papi t'ha preso" senza stacchi)
+  if (!PRESA.fatto) { ui.buio.style.transition = 'none'; ui.buio.style.opacity = Math.pow(c01((sP - 0.24) / 0.76), 1.5); }
   if (sP >= 1 && !PRESA.fatto) {
     PRESA.fatto = true;
-    ui.buio.style.transition = 'none'; ui.buio.style.opacity = 1; void ui.buio.offsetWidth; ui.buio.style.transition = '';
+    ui.buio.style.opacity = 1; void ui.buio.offsetWidth; ui.buio.style.transition = '';
     scena.background = NEBBIA;
-    setTimeout(() => { PRESA.t = -1; PRESA.luce.intensity = 0; VORTICE.forza.value = 0; camera.near = 0.08; camera.updateProjectionMatrix(); if (papi.testaHD) papi.testaHD.visible = false; mostraMorte("Papi t'ha preso", pesca(BATTUTE.preso)); }, 450);
+    setTimeout(() => { PRESA.t = -1; PRESA.luce.intensity = 0; VORTICE.forza.value = 0; camera.near = 0.08; camera.updateProjectionMatrix(); if (papi.testaHD) papi.testaHD.visible = false; mostraMorte("Papi t'ha preso", pesca(BATTUTE.preso)); }, 250);
   }
 }
 function riprova() {
