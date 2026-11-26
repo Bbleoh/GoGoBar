@@ -31,7 +31,7 @@ const CONTENUTI = {
       titolo: 'La Bisca der Tromba',
       descrizione: 'Godi popolo',
       link: 'giochi/bisca-del-tromba/',
-      immagine: 'giochi/bisca-del-tromba/assets/copertina.jpg?v=2',
+      immagine: 'giochi/bisca-del-tromba/copertina.jpg?v=2',
       tag: ['Bighelloni', 'Dipendenza', 'Salute'],
       inEvidenza: true,
     },
