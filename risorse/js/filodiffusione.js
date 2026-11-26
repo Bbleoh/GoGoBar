@@ -4,14 +4,14 @@
  * ════════════════════════════════════════════════════════════════
  *
  *  Tra le pagine "in filodiffusione" i link non ricaricano il sito: questo script scarica la
- *  pagina nuova e ne sostituisce solo il contenuto, così la radio (js/radio.js) continua a
+ *  pagina nuova e ne sostituisce solo il contenuto, così la radio (risorse/js/radio.js) continua a
  *  suonare senza buchi. L'indirizzo nella barra cambia lo stesso e avanti/indietro funzionano.
  *
  *  Per mettere una pagina in filodiffusione:
  *    1. <html lang="it" data-filodiffusione>
  *    2. nel <head>, prima di tutto il resto degli script:
- *         <script src="js/filodiffusione.js?v=2"></script>      (con ../ se la pagina è in una cartella)
- *    3. carica anche js/radio.js, prima degli script scritti nella pagina.
+ *         <script src="risorse/js/filodiffusione.js?v=2"></script>      (con ../ se la pagina è in una cartella)
+ *    3. carica anche risorse/js/radio.js, prima degli script scritti nella pagina.
  *    4. il codice scritto nella pagina sta dentro (function () { ... })(), come nelle altre
  *       pagine: ogni volta che ci torni viene rieseguito da capo.
  *
@@ -30,7 +30,7 @@
 (function () {
   if (window.GoGoFilo) return;
   var me = document.currentScript;
-  var radice = new URL('../', me.src);                 // cartella principale del sito
+  var radice = new URL('../../', me.src);                 // cartella principale del sito
 
   var uscite = [];
   function alUscita(fn) { if (typeof fn === 'function') uscite.push(fn); }

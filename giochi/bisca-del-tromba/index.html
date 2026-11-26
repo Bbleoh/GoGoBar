@@ -444,9 +444,9 @@
   @media (prefers-reduced-motion:reduce){ *{animation:none !important;transition:none !important;} }
 </style>
   <link rel="icon" href="../../favicon.ico" sizes="48x48">
-  <link rel="icon" type="image/png" sizes="32x32" href="../../img/icone/favicon-32.png">
-  <link rel="icon" type="image/png" sizes="16x16" href="../../img/icone/favicon-16.png">
-  <link rel="apple-touch-icon" href="../../img/icone/apple-touch-icon.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="../../risorse/img/icone/favicon-32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="../../risorse/img/icone/favicon-16.png">
+  <link rel="apple-touch-icon" href="../../risorse/img/icone/apple-touch-icon.png">
 </head>
 <body data-mode="bet" data-gioco="lobby">
 
@@ -486,7 +486,7 @@
   <div class="modal-box" role="dialog" aria-labelledby="moneta-title">
     <h2 id="moneta-title">🪙 Testa o croce?</h2>
     <p id="moneta-msg"></p>
-    <div id="moneta-scena"><div id="moneta"><div class="faccia testa"><img src="../../img/maneki-neko.webp" alt="Testa"></div><div class="faccia croce"><span>&#xE000;</span></div></div></div>
+    <div id="moneta-scena"><div id="moneta"><div class="faccia testa"><img src="../../risorse/img/maneki-neko.webp" alt="Testa"></div><div class="faccia croce"><span>&#xE000;</span></div></div></div>
     <p id="moneta-esito" aria-live="polite"></p>
     <div class="modal-btns" id="moneta-btns">
       <button class="btn" onclick="sceltaMoneta('testa')">🐱 Testa <kbd>T</kbd></button>
@@ -613,7 +613,7 @@
 
   <!-- ══ PALCO ══ -->
   <main id="stage">
-    <aside id="croupier-panel"><img id="croupier-img" src="assets/croupier-init.png" alt="Il Tromba, il croupier"><button type="button" id="moneta-btn" onclick="apriMoneta()" aria-label="Testa o croce sugli spiccioli"><span class="mb-disco"><span class="mb-faccia"><img src="../../img/maneki-neko.webp" alt=""></span></span></button></aside>
+    <aside id="croupier-panel"><img id="croupier-img" src="assets/croupier-init.png" alt="Il Tromba, il croupier"><button type="button" id="moneta-btn" onclick="apriMoneta()" aria-label="Testa o croce sugli spiccioli"><span class="mb-disco"><span class="mb-faccia"><img src="../../risorse/img/maneki-neko.webp" alt=""></span></span></button></aside>
     <section id="table">
       <div class="seat">
         <div class="seat-head">
@@ -900,8 +900,8 @@
 
 <audio id="musica" preload="auto"></audio>
 
-<script src="../../js/account.js?v=5"></script>
-<script src="../../js/gogoldbar.js?v=7"></script>
+<script src="../../risorse/js/account.js?v=5"></script>
+<script src="../../risorse/js/gogoldbar.js?v=7"></script>
 <script src="classifica.js?v=9"></script>
 <script>
 /* Tavolo in uso: 'lobby' | 'blackjack' | 'roulette' | 'slot' (roulette.js e slot.js) */
@@ -1137,13 +1137,13 @@ function datiAccount() {
 }
 /* ════════════════════════════════════════════════════════════════
    GOGOLDBAR: il saldo della bisca è il portafogli GGB dell'account,
-   lo stesso di tutto il sito (js/gogoldbar.js).
+   lo stesso di tutto il sito (risorse/js/gogoldbar.js).
    balance resta la copia locale per il tavolo; ogni volta che si salva,
    la differenza dall'ultima spedizione va al portafogli come incremento.
    Le GGB arrivate da fuori (clic sul gatto in home, altre schede) entrano
    appena il tavolo è libero.
 ════════════════════════════════════════════════════════════════ */
-const ggb = n => (window.GoGoldBar ? GoGoldBar.formatta(n) : Math.floor(Number(n) || 0).toLocaleString('it-IT')) + ' \uE000';   // glifo GoGoldBar (mini font di js/gogoldbar.js)
+const ggb = n => (window.GoGoldBar ? GoGoldBar.formatta(n) : Math.floor(Number(n) || 0).toLocaleString('it-IT')) + ' \uE000';   // glifo GoGoldBar (mini font di risorse/js/gogoldbar.js)
 // il portafogli si tocca solo col buy-in (meno) e col cash-out (più): vedi BUY-IN E STACK
 
 // platino: tutti i trofei fino agli epici (+5 GGB a click) e poi tutti i leggendari (+5)
@@ -2663,7 +2663,7 @@ postoMoneta();
 betArea(true);
 setCroupier('init');
 </script>
-<script src="../../js/radio.js?v=16"></script>
+<script src="../../risorse/js/radio.js?v=16"></script>
 <script src="roulette.js?v=8"></script>
 <script src="slot.js?v=6"></script>
 <script src="plinko.js?v=5"></script>

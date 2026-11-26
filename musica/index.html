@@ -2,8 +2,8 @@
 <html lang="it" data-filodiffusione>
 <head>
   <meta charset="UTF-8" />
-  <!-- filodiffusione: tra le pagine con data-filodiffusione la musica non si ferma (vedi js/filodiffusione.js) -->
-  <script src="../js/filodiffusione.js?v=2"></script>
+  <!-- filodiffusione: tra le pagine con data-filodiffusione la musica non si ferma (vedi risorse/js/filodiffusione.js) -->
+  <script src="../risorse/js/filodiffusione.js?v=2"></script>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Musica · GoGoBar</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -175,19 +175,19 @@
     }
   </style>
   <link rel="icon" href="../favicon.ico" sizes="48x48">
-  <link rel="icon" type="image/png" sizes="32x32" href="../img/icone/favicon-32.png">
-  <link rel="icon" type="image/png" sizes="16x16" href="../img/icone/favicon-16.png">
-  <link rel="apple-touch-icon" href="../img/icone/apple-touch-icon.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="../risorse/img/icone/favicon-32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="../risorse/img/icone/favicon-16.png">
+  <link rel="apple-touch-icon" href="../risorse/img/icone/apple-touch-icon.png">
 </head>
 <body data-radio="nascosta">
 
 <div class="top">
-  <a href="../" class="logo"><img src="../img/icone/icona-96.png" alt="" width="40" height="40">Go<em>Go</em>Bar</a>
+  <a href="../" class="logo"><img src="../risorse/img/icone/icona-96.png" alt="" width="40" height="40">Go<em>Go</em>Bar</a>
   <a href="../">← Home</a>
 </div>
 
 <section class="player" id="player">
-  <div class="disc" aria-hidden="true"><div class="label" id="etichetta"><img id="etichetta-img" src="../img/maneki-neko.webp" alt=""></div></div>
+  <div class="disc" aria-hidden="true"><div class="label" id="etichetta"><img id="etichetta-img" src="../risorse/img/maneki-neko.webp" alt=""></div></div>
   <div class="info">
     <p class="kicker" id="kicker">Musica</p>
     <h1 id="titolo">—</h1>
@@ -219,10 +219,10 @@
 <section class="list" id="scaletta"></section>
 
 <script src="../contenuti.js?v=28"></script>
-<script src="../js/copertina.js?v=2"></script>
-<script src="../js/account.js?v=5"></script>
-<script src="../js/gogoldbar.js?v=7"></script>
-<script src="../js/radio.js?v=16"></script>
+<script src="../risorse/js/copertina.js?v=2"></script>
+<script src="../risorse/js/account.js?v=5"></script>
+<script src="../risorse/js/gogoldbar.js?v=7"></script>
+<script src="../risorse/js/radio.js?v=16"></script>
 <script>
 /*
  * Player musicale: legge i brani da contenuti.js (sezione musica).
@@ -393,7 +393,7 @@
     });
   }
 
-  // ── il player è la radio (js/radio.js): stesso audio e stessa coda in tutto il sito, così con la
+  // ── il player è la radio (risorse/js/radio.js): stesso audio e stessa coda in tutto il sito, così con la
   //    filodiffusione la musica continua quando cambi pagina. Qui sotto c'è solo come si vede e i comandi. ──
   const G = window.GoGoldBar;
   function chiediAlbum(nome) { if (G) G.chiediSblocco(G.sbloccoDi(nome)); }
@@ -412,7 +412,7 @@
     mostraAlbum(b.album);
     // al centro del vinile: la copertina dell'album, se c'è, altrimenti il gatto
     $('etichetta').classList.toggle('foto', !!b.copertina);
-    $('etichetta-img').src = b.copertina ? (/^(https?:)?\/\//.test(b.copertina) ? b.copertina : '../' + b.copertina) : '../img/maneki-neko.webp';
+    $('etichetta-img').src = b.copertina ? (/^(https?:)?\/\//.test(b.copertina) ? b.copertina : '../' + b.copertina) : '../risorse/img/maneki-neko.webp';
     history.replaceState(history.state, '', '#' + slug(b));
     mostraTempo();
   }

@@ -1,7 +1,7 @@
 /*
  * Copertina di un album, quadrata.
  *
- *   GoGoCopertina({ album: 'OG Tracks', copertina: 'img/copertine/og.jpg' }, '../')
+ *   GoGoCopertina({ album: 'OG Tracks', copertina: 'musica/copertine/og-tracks-fronte.jpg' }, '../')
  *
  * Se l'album ha una copertina (in contenuti.js) mostra quell'immagine,
  * altrimenti disegna una copertina provvisoria col nome dell'album,
@@ -55,7 +55,7 @@
     box.classList.add('provvisoria');
     box.style.setProperty('--h', tinta(a.album));
     const neko = document.createElement('img');
-    neko.className = 'gg-neko'; neko.alt = ''; neko.src = base + 'img/maneki-neko.webp';
+    neko.className = 'gg-neko'; neko.alt = ''; neko.src = base + 'risorse/img/maneki-neko.webp';
     const t = document.createElement('span'); t.className = 'gg-titolo'; t.textContent = a.album || 'GoGoBar';
     const n = document.createElement('span'); n.className = 'gg-nota'; n.textContent = 'Copertina in arrivo';
     const dentro = document.createElement('div'); dentro.className = 'gg-in';

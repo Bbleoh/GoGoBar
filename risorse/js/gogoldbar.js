@@ -1,6 +1,6 @@
 /* ════════════════════════════════════════════════════════════════
    GOGOLDBAR (GGB) — la valuta di GoGoBar
-   Script classico, da caricare dopo js/account.js.
+   Script classico, da caricare dopo risorse/js/account.js.
 
    Il portafogli è dell'account GoGoBar (niente account = niente GGB) ed è
    lo stesso per tutto il sito: home (clicker sul maneki neko), bisca,
@@ -44,7 +44,7 @@
   if (window.GoGoldBar) return;
   var A = window.GoGoAccount;
   var me = document.currentScript;
-  var radice = me ? new URL('../', me.src).href : '/';
+  var radice = me ? new URL('../../', me.src).href : '/';
 
   var SBLOCCHI = {
     corrimarf: { nome: 'Corri Marf!', prezzo: 5000 },

@@ -2,13 +2,13 @@
 <html lang="it" data-filodiffusione>
 <head>
   <meta charset="UTF-8" />
-  <!-- filodiffusione: tra le pagine con data-filodiffusione la musica non si ferma (vedi js/filodiffusione.js) -->
-  <script src="../js/filodiffusione.js?v=2"></script>
+  <!-- filodiffusione: tra le pagine con data-filodiffusione la musica non si ferma (vedi risorse/js/filodiffusione.js) -->
+  <script src="../risorse/js/filodiffusione.js?v=2"></script>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Chi siamo · GoGoBar</title>
   <meta name="description" content="Le facce del Collettivo M.I.A.O. e i posti dove siamo passati.">
   <link rel="icon" href="../favicon.ico" sizes="48x48">
-  <link rel="icon" type="image/png" sizes="32x32" href="../img/icone/favicon-32.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="../risorse/img/icone/favicon-32.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=DM+Mono:wght@400;500&family=DM+Sans:wght@400;500&display=swap" rel="stylesheet">
@@ -102,7 +102,7 @@
 </head>
 <body>
 <header class="top">
-  <a class="logo" href="../"><img src="../img/icone/icona-96.png" alt="" width="40" height="40">Go<em>Go</em>Bar</a>
+  <a class="logo" href="../"><img src="../risorse/img/icone/icona-96.png" alt="" width="40" height="40">Go<em>Go</em>Bar</a>
   <div class="top-dx">
     <a class="indietro" href="../">← Home</a>
     <button type="button" class="radio-top" data-gogobar-radio aria-label="Radio GoGoBar" title="Radio"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="8" width="18" height="12" rx="2.5"/><path d="M7 8l10-4"/><circle cx="15.5" cy="14" r="2.6"/><path d="M6.5 12.5h4M6.5 15.5h4"/></svg></button>
@@ -137,9 +137,9 @@
 <footer><strong>GoGoBar</strong> · Collettivo M.I.A.O.</footer>
 
 <script src="../contenuti.js?v=28"></script>
-<script src="../js/account.js?v=5"></script>
-<script src="../js/gogoldbar.js?v=7"></script>
-<script src="../js/radio.js?v=16"></script>
+<script src="../risorse/js/account.js?v=5"></script>
+<script src="../risorse/js/gogoldbar.js?v=7"></script>
+<script src="../risorse/js/radio.js?v=16"></script>
 <script>
 /*
  * Chi siamo: i 10 membri e il planisfero "a calore".
@@ -161,7 +161,7 @@
       const img = el('img', 'vera'); img.src = percorso(m.foto); img.alt = m.nome || 'Membro ' + (i + 1); img.loading = 'lazy';
       foto.append(img);
     } else {
-      const img = el('img'); img.src = '../img/maneki-neko.webp'; img.alt = '';
+      const img = el('img'); img.src = '../risorse/img/maneki-neko.webp'; img.alt = '';
       foto.append(img, el('span', null, 'Foto in arrivo'));
     }
     li.append(foto, el('p', 'nome', m.nome || 'Membro ' + (i + 1)));
@@ -171,7 +171,7 @@
   document.querySelector('[data-quanti]').textContent = conFoto ? conFoto + ' di 10' : '10 posti';
 
   // ── planisfero ──
-  // img/planisfero.svg: Natural Earth 1:110m (pubblico dominio), proiezione equirettangolare
+  // risorse/img/planisfero.svg: Natural Earth 1:110m (pubblico dominio), proiezione equirettangolare
   // larga 1000, da 84° N a 58° S (senza Antartide): x = (lon + 180) · K, y = (84 − lat) · K
   const K = 1000 / 360, NORD = 84;
   const LIVELLI = { 1: 'Visitato', 2: 'Ci abitiamo' };
@@ -187,7 +187,7 @@
   });
 
   const box = document.getElementById('mappa');
-  fetch('../img/planisfero.svg?v=1').then(r => r.ok ? r.text() : Promise.reject()).then(function (testo) {
+  fetch('../risorse/img/planisfero.svg?v=1').then(r => r.ok ? r.text() : Promise.reject()).then(function (testo) {
     const doc = new DOMParser().parseFromString(testo, 'image/svg+xml');
     const svg = doc.documentElement;
     if (!svg || svg.nodeName !== 'svg') throw new Error('svg');

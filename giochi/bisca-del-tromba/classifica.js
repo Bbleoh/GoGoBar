@@ -32,7 +32,7 @@
     return nome.trim().toLowerCase().replace(/[.$#\[\]\/\s]+/g, '_');
   }
 
-  // Le scritture portano il token dell'account GoGoBar (js/account.js), se c'è:
+  // Le scritture portano il token dell'account GoGoBar (risorse/js/account.js), se c'è:
   // un nome preso da un account si può scrivere solo dai suoi dispositivi.
   function conAuth(url, opzioni) {
     var metodo = (opzioni && opzioni.method) || 'GET';
