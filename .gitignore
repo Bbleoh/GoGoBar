@@ -1,0 +1,21 @@
+# Segreti e impostazioni personali: mai nella repo (il sito è pubblico)
+.env
+.env.*
+*-firebase-adminsdk-*.json
+service-account*.json
+.claude/settings.local.json
+
+# Roba locale
+node_modules/
+.firebase/
+firebase-debug.log
+database-debug.log
+.DS_Store
+Thumbs.db
+__pycache__/
+*.pyc
+
+# Sorgenti pesanti: restano fuori (in repo vanno MP3, WebP/JPG, GLB alleggeriti)
+*.wav
+*.zip
+*.obj
