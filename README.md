@@ -4,14 +4,14 @@ Il sito del Collettivo M.I.A.O., online su **[gogobar.org](https://gogobar.org)*
 
 È un sito statico: GitHub Pages pubblica così com'è la radice del ramo `main`, senza build.
 Ogni cartella con un `index.html` è un indirizzo del sito, quindi **spostare o rinominare una
-cartella di pagina cambia un link pubblico** (vedi [Indirizzi vecchi](#indirizzi-vecchi)).
+cartella di pagina cambia un link pubblico**: GitHub Pages non fa redirect, e il vecchio indirizzo
+smette di funzionare.
 
 ## Com'è fatto il repo
 
 ```
 index.html              home (giochi, musica, video, maneki neko che dà le GoGoldBar)
 contenuti.js            ← l'unico file da toccare per aggiungere giochi, brani, album e video
-404.html                pagina "non esiste" + tabella dei vecchi indirizzi
 CNAME, favicon.ico, .nojekyll   roba di GitHub Pages: non spostare
 
 musica/  video/  profilo/  chi-siamo/     le altre pagine del sito (un index.html ciascuna)
@@ -75,13 +75,6 @@ python3 -m http.server 8000
 
 e apri <http://localhost:8000>. Aprire i file direttamente (`file://`) non funziona: i giochi
 caricano dati con `fetch` e Resident Crevil usa i moduli ES.
-
-## Indirizzi vecchi
-
-GitHub Pages non fa redirect. Quando sposti o rinomini una pagina, non lasciare una cartella
-vuota col solo redirect: aggiungi una riga nella tabella `SPOSTATI` di `404.html`
-(`'/vecchio/': '/nuovo/'`). Chi apre il vecchio indirizzo arriva alla 404, che lo rimanda subito
-a quello nuovo.
 
 ## Firebase
 
