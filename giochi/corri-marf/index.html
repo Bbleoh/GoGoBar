@@ -3,16 +3,16 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
-  <link rel="preload" as="image" href="marf.webp">
-  <link rel="preload" as="image" href="mercante.webp">
-  <link rel="preload" as="image" href="vito.webp">
+  <link rel="preload" as="image" href="personaggi/marf.webp">
+  <link rel="preload" as="image" href="personaggi/mercante.webp">
+  <link rel="preload" as="image" href="personaggi/vito.webp">
   <title>Corri Marf! · GoGoBar</title>
   <meta name="description" content="Marf corre e scappa dalle femmine. Quanto lontano arrivi?">
   <meta property="og:title" content="Corri Marf!">
   <meta property="og:description" content="Marf corre e scappa dalle femmine. Quanto lontano arrivi?">
   <meta property="og:image" content="copertina.jpg">
-  <link rel="preload" as="image" href="marf-pezzi.webp?v=3">
-  <link rel="preload" as="image" href="ragazza-pezzi.webp?v=3">
+  <link rel="preload" as="image" href="personaggi/marf-pezzi.webp?v=3">
+  <link rel="preload" as="image" href="personaggi/ragazza-pezzi.webp?v=3">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:ital,wght@0,500;0,600;0,700;1,600;1,700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -88,9 +88,9 @@
     .avviso-missione.r-comune small, .avviso-missione.r-raro small, .avviso-missione.r-epico small, .avviso-missione.r-leggendario small { color: var(--rc); }
     .avviso-missione.r-raro b, .avviso-missione.r-epico b, .avviso-missione.r-leggendario b { color: var(--rc); }
     /* Officina di Vito: stesso pannello del Crivo Shop, cambia il negoziante */
-    #market.crivo-ok .negoziante { background-image: url(mercante.webp); }
+    #market.crivo-ok .negoziante { background-image: url(personaggi/mercante.webp); }
     #market.vito .negoziante { background-image: url(data:image/webp;base64,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); }
-    #market.vito.vito-ok .negoziante { background-image: url(vito.webp); }
+    #market.vito.vito-ok .negoziante { background-image: url(personaggi/vito.webp); }
     /* Crivo Shop: lista di nomi con "ora" e prezzo; cliccando un nome si apre la scheda fra mercante e lista */
     #market { grid-template-columns: minmax(0, .8fr) 0fr minmax(0, 1.2fr); transition: grid-template-columns .28s ease; }
     #market.aperta { grid-template-columns: minmax(0, .5fr) minmax(0, .46fr) minmax(0, 1.04fr); }
@@ -219,7 +219,7 @@
     .consigli-boss h3 { font-family: var(--mono); font-size: calc(.8em + 0.2 * var(--piu)); color: var(--pink); font-weight: 500; letter-spacing: .16em; text-transform: uppercase; }
     .livelli em { width: 14px; height: 6px; background: rgba(255,255,255,.14); transform: skewX(-30deg); }
     .livelli em.si { background: var(--gold); }
-    .pannello .ritratto { height: 92%; align-self: end; background: url(marf.webp) center bottom / contain no-repeat; filter: drop-shadow(0 10px 18px rgba(0,0,0,.5)); }
+    .pannello .ritratto { height: 92%; align-self: end; background: url(personaggi/marf.webp) center bottom / contain no-repeat; filter: drop-shadow(0 10px 18px rgba(0,0,0,.5)); }
 
     /* schermata d'avvio: Marf scontornato con il logo davanti */
     #menu { background: radial-gradient(ellipse at 30% 60%, rgba(228,179,60,.14), transparent 60%), linear-gradient(100deg, rgba(9,9,11,.2) 40%, rgba(9,9,11,.82) 70%); grid-template-columns: minmax(0, 1.15fr) minmax(0, .85fr); }
@@ -394,7 +394,7 @@
 
       <div class="pannello" id="menu">
         <div class="poster">
-          <img id="posterMarf" class="lq" src="data:image/webp;base64,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" data-vera="marf.webp" alt="Marf che corre">
+          <img id="posterMarf" class="lq" src="data:image/webp;base64,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" data-vera="personaggi/marf.webp" alt="Marf che corre">
           <div class="logo" aria-hidden="true"><span class="uno">Corri</span><span class="due">Marf!!</span></div>
         </div>
         <div class="testo">
@@ -504,11 +504,11 @@
     </div>
   </div>
   <p class="hint">Salta: spazio, ↑ o tocca lo schermo (anche due volte) · Scivola: ↓ o swipe in giù · Tira: tieni → (o swipe in su) e lascia</p>
-  <audio id="musica" src="musica.mp3" preload="metadata"></audio>
-  <audio id="musicaJungle" data-musica src="musica-jungle.mp3?v=2" preload="none"></audio>
-  <audio id="musicaLobby" data-musica src="musica-lobby.mp3" loop preload="auto"></audio>
-  <audio id="musicaMorte" data-musica src="musica-morte.mp3" loop preload="none"></audio>
-  <audio id="musicaBoss" data-musica src="musica-boss.mp3" loop preload="none"></audio>
+  <audio id="musica" src="../../musica/brani/corri-marf-corsa.mp3" preload="metadata"></audio>
+  <audio id="musicaJungle" data-musica src="../../musica/brani/corri-marf-jungle.mp3" preload="none"></audio>
+  <audio id="musicaLobby" data-musica src="../../musica/brani/corri-marf-lobby.mp3" loop preload="auto"></audio>
+  <audio id="musicaMorte" data-musica src="../../musica/brani/corri-marf-preso.mp3" loop preload="none"></audio>
+  <audio id="musicaBoss" data-musica src="../../musica/brani/corri-marf-boss.mp3" loop preload="none"></audio>
 
 <script src="../../risorse/js/account.js?v=5"></script>
 <script src="../../risorse/js/gogoldbar.js?v=7"></script>
@@ -941,7 +941,7 @@
   var TRACCE = { gioco: musica, jungle: document.getElementById('musicaJungle'), lobby: document.getElementById('musicaLobby'), morte: document.getElementById('musicaMorte'), boss: document.getElementById('musicaBoss') };
   Object.keys(TRACCE).forEach(function (k) { TRACCE[k].volume = k === 'jungle' || k === 'boss' ? 0.87 : 0.55; });   // jungle e boss 4 dB sopra (Leo)
   var traccia = 'lobby';
-  // in corsa le due tracce si alternano: parte sempre la prima (musica.mp3), finita quella la jungle, poi di nuovo la prima
+  // in corsa le due tracce si alternano: parte sempre la prima (corri-marf-corsa.mp3), finita quella la jungle, poi di nuovo la prima
   var DOPO = { gioco: 'jungle', jungle: 'gioco' };
   Object.keys(DOPO).forEach(function (k) {
     TRACCE[k].addEventListener('ended', function () { if (traccia === k) suona(DOPO[k]); });
@@ -1307,7 +1307,7 @@
   var negozio = NEGOZI.crivo;
   // i negozianti si caricano e si decodificano subito, così aprendo lo shop compaiono all'istante
   // finché non sono pronti, il pannello mostra la loro anteprima leggera (nel CSS)
-  var NEGOZIANTI_IMG = [['mercante.webp', 'crivo-ok'], ['vito.webp', 'vito-ok']].map(function (x) {
+  var NEGOZIANTI_IMG = [['personaggi/mercante.webp', 'crivo-ok'], ['personaggi/vito.webp', 'vito-ok']].map(function (x) {
     var im = new Image();
     im.onload = function () {
       var ok = function () { document.getElementById('market').classList.add(x[1]); };
@@ -4049,7 +4049,7 @@
   // oggetti disegnati da Leo: la canna (al posto della birra) e la ragazza accovacciata (al posto della sedia)
   var OGG = {};
   ['canna', 'bifase', 'trifase', 'pringles', 'ragazza-a-terra', 'durex', 'transenna', 'juve', 'lazio', 'carabiniere', 'pesce-spada', 'aygo', 'jet', 'quattro-quadri', 'super-santos', 'punto', 'punto-ruota', 'carrello', 'carrello-davanti', 'biscotto', 'pappagallo', 'suppli', 'arancino'].forEach(function (n) {
-    var img = new Image(); img.src = (CANNE_GIAN.indexOf(n) >= 0 ? '' : 'ogg/') + n + '.webp?v=1'; OGG[n] = img;
+    var img = new Image(); img.src = 'ogg/' + n + '.webp?v=1'; OGG[n] = img;
   });
   // contorno nero sottile (BORDO px) attorno a ostacoli e nemici, per farli notare meglio:
   // si fa la sagoma nera dell'immagine e la si stampa tutt'intorno, poi sopra l'immagine
@@ -4262,7 +4262,7 @@
     var r = { d: d, img: img, pronto: false, K: 0.062 };
     r.gamba = d.parti.coscia.L + d.parti.stinco.L + (d.parti.piede.h - d.parti.piede.p[1]); // anca → suola
     img.onload = function () { r.pronto = true; };
-    img.src = nome + '-pezzi.webp?v=3';
+    img.src = 'personaggi/' + nome + '-pezzi.webp?v=3';
     RIG[nome] = r;
   });
   var PEZZI = RIG.marf;
