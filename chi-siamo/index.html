@@ -87,6 +87,10 @@
 
     footer { margin-top: 4rem; border-top: 1px solid var(--line); padding: 2rem var(--pad); font-family: var(--mono); font-size: .7rem; letter-spacing: .08em; color: var(--muted); }
     footer strong { color: var(--ivory); font-weight: 500; }
+    footer { display: flex; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap; }
+    /* creato da: Fucine Creative Micidiali (logo in risorse/img/fucine-creative-micidiali.svg) */
+    footer .fcm { display: inline-flex; align-items: center; gap: .6rem; }
+    footer .fcm img { height: 2.6rem; width: auto; display: block; }
 
     @media (max-width: 900px) { .banda { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
     @media (max-width: 560px) {
@@ -134,7 +138,10 @@
   </section>
 </main>
 
-<footer><strong>GoGoBar</strong> · Collettivo M.I.A.O.</footer>
+<footer>
+  <div><strong>GoGoBar</strong> · Collettivo M.I.A.O.</div>
+  <div class="fcm"><img src="../risorse/img/fucine-creative-micidiali.svg" alt="" width="92" height="90"><span>Creato da <strong>Fucine Creative Micidiali</strong></span></div>
+</footer>
 
 <script src="../contenuti.js?v=29"></script>
 <script src="../risorse/js/database.js?v=1"></script>
