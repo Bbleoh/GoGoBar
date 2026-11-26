@@ -31,7 +31,7 @@ const CONTENUTI = {
       titolo: 'La Bisca der Tromba',
       descrizione: 'Godi popolo',
       link: 'giochi/bisca-del-tromba/',
-      immagine: 'giochi/bisca-del-tromba/assets/copertina.jpg?v=2',
+      immagine: 'giochi/bisca-del-tromba/copertina.jpg?v=2',
       tag: ['Bighelloni', 'Dipendenza', 'Salute'],
       inEvidenza: true,
     },
@@ -109,7 +109,7 @@ const CONTENUTI = {
   // Il file MP3 va nella cartella musica/brani/.
   // Per aggiungere un brano, copia una riga e cambia i testi.
   // Per un album nuovo, copia un blocco { album: ..., copertina: ..., brani: [...] }.
-  // copertina: immagine quadrata in img/copertine/ (es. 'img/copertine/og-tracks.jpg').
+  // copertina: immagine quadrata in musica/copertine/ (es. 'musica/copertine/og-tracks-fronte.jpg').
   // Se la lasci vuota ('') il sito disegna una copertina provvisoria col nome dell'album.
   // (Se hai un WAV, mandalo in chat: lo converto io in MP3.)
   musica: [ // l'ordine qui è l'ordine degli album sul sito
@@ -186,7 +186,7 @@ const CONTENUTI = {
 
   // ── CHI SIAMO (pagina chi-siamo/) ──
   chiSiamo: {
-    // 10 posti per i membri. foto: immagine quadrata in img/membri/ (es. 'img/membri/leo.webp').
+    // 10 posti per i membri. foto: immagine quadrata in risorse/img/membri/ (es. 'risorse/img/membri/leo.webp').
     // Se foto è vuota si vede il posto "foto in arrivo"; se nome è vuoto, "Membro N".
     membri: [
       { nome: '', foto: '' },

@@ -2,12 +2,12 @@
 <html lang="it" data-filodiffusione>
 <head>
   <meta charset="UTF-8" />
-  <!-- filodiffusione: tra le pagine con data-filodiffusione la musica non si ferma (vedi js/filodiffusione.js) -->
-  <script src="../js/filodiffusione.js?v=2"></script>
+  <!-- filodiffusione: tra le pagine con data-filodiffusione la musica non si ferma (vedi risorse/js/filodiffusione.js) -->
+  <script src="../risorse/js/filodiffusione.js?v=2"></script>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Area personale · GoGoBar</title>
   <link rel="icon" href="../favicon.ico" sizes="48x48">
-  <link rel="icon" type="image/png" sizes="32x32" href="../img/icone/favicon-32.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="../risorse/img/icone/favicon-32.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=DM+Mono:wght@400;500&family=DM+Sans:wght@400;500&display=swap" rel="stylesheet">
@@ -30,7 +30,7 @@
     .top a.logo img { width: 1.15em; height: 1.15em; display: block; }
     .logo em { color: var(--gold); font-style: normal; }
     .top-dx { display: flex; align-items: center; gap: .6rem; }
-    /* radio: la musica partita in home o in Musica continua anche qui (js/radio.js) */
+    /* radio: la musica partita in home o in Musica continua anche qui (risorse/js/radio.js) */
     .radio-top { display: grid; place-items: center; width: 2.4rem; height: 2.4rem; padding: 0; border-radius: 999px; border: 0; background: none; color: var(--cream); cursor: pointer; }
     .radio-top:hover { background: var(--raised, rgba(255,255,255,.06)); color: var(--gold); }
     .radio-top.radio-on { color: var(--gold); }
@@ -107,7 +107,7 @@
 </head>
 <body>
 <header class="top">
-  <a class="logo" href="../"><img src="../img/icone/icona-96.png" alt="" width="40" height="40">Go<em>Go</em>Bar</a>
+  <a class="logo" href="../"><img src="../risorse/img/icone/icona-96.png" alt="" width="40" height="40">Go<em>Go</em>Bar</a>
   <div class="top-dx">
     <a class="indietro" href="../">← Home</a>
     <button type="button" class="radio-top" data-gogobar-radio aria-label="Radio GoGoBar" title="Radio"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="8" width="18" height="12" rx="2.5"/><path d="M7 8l10-4"/><circle cx="15.5" cy="14" r="2.6"/><path d="M6.5 12.5h4M6.5 15.5h4"/></svg></button>
@@ -119,15 +119,16 @@
   <p class="vuoto">Carico il tuo account...</p>
 </main>
 
-<script src="../contenuti.js?v=28"></script>
-<script src="../js/account.js?v=5"></script>
-<script src="../js/account-ui.js?v=5"></script>
-<script src="../js/gogoldbar.js?v=7"></script>
-<script src="../js/radio.js?v=16"></script>
+<script src="../contenuti.js?v=29"></script>
+<script src="../risorse/js/database.js?v=1"></script>
+<script src="../risorse/js/account.js?v=6"></script>
+<script src="../risorse/js/account-ui.js?v=6"></script>
+<script src="../risorse/js/gogoldbar.js?v=7"></script>
+<script src="../risorse/js/radio.js?v=16"></script>
 <script>
 /*
  * Area personale: GoGoldBar, statistiche dell'account, sblocchi e trofei
- * (i trofei aumentano le GGB a click sul maneki neko). Tutto da js/gogoldbar.js.
+ * (i trofei aumentano le GGB a click sul maneki neko). Tutto da risorse/js/gogoldbar.js.
  */
 (function () {
   const A = window.GoGoAccount, G = window.GoGoldBar;

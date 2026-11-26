@@ -1,6 +1,6 @@
 /* ════════════════════════════════════════════════════════════════
    PANNELLO ACCOUNT GOGOBAR (👤)
-   Script classico, da caricare dopo js/account.js.
+   Script classico, da caricare dopo risorse/js/account.js.
    Ogni elemento con l'attributo data-gogobar-account diventa il pulsante
    che apre il pannello: mostra "Entra" oppure il nome dell'account.
    Se gli account sono spenti (manca la chiave API) il pulsante resta nascosto.
@@ -9,7 +9,8 @@
   'use strict';
   var A = window.GoGoAccount;
   if (!A || !A.attivo) return;
-  var radice = document.currentScript ? new URL('../', document.currentScript.src).href : '/';
+  if (document.querySelector('dialog.gga')) return;   // già caricato (scheda aperta da prima di un aggiornamento)
+  var radice = document.currentScript ? new URL('../../', document.currentScript.src).href : '/';
 
   var CSS = '' +
     '.gga{margin:auto;max-height:calc(100dvh - 32px);overflow:auto;border:1px solid #2a2a26;border-radius:18px;background:#161614;color:#f4efe2;padding:0;width:min(420px,calc(100vw - 32px));' +
