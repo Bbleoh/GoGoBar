@@ -1,6 +1,6 @@
 /* ════════════════════════════════════════════════════════════════
    ACCOUNT GOGOBAR, SENZA PASSWORD
-   Script classico (niente module): definisce window.GoGoAccount.
+   Script classico (niente module): definisce window.GoGoAccount. Va caricato dopo risorse/js/database.js.
    Lo usano la home (pannello 👤) e i giochi (nome del giocatore e token).
 
    Come funziona
@@ -14,7 +14,7 @@
    - Il nome dell'account è "prenotato": solo i suoi dispositivi possono
      scrivere classifiche e salvataggi dei giochi con quel nome.
 
-   Database (Realtime Database, stesse regole in docs/regole-firebase.json)
+   Database (Realtime Database, regole in firebase/regole.json)
      account/<id>          = { nome, creato, dispositivi: { <uid>: { nome, data, codice? } } }
      uid2account/<uid>     = <id>
      nomi/<chiave>         = <id>          chiave = come chiaveDa() delle classifiche
@@ -41,15 +41,19 @@
 ════════════════════════════════════════════════════════════════ */
 (function () {
   'use strict';
+  // già caricato: succede in una scheda aperta da prima di un aggiornamento del sito (filodiffusione)
+  if (window.GoGoAccount) return;
 
   var API_KEY = 'AIzaSyB-sscNzrRcgPXjHdo-6QE2KKB219PbjOY';  // Chiave API web di Firebase (Impostazioni progetto → Generali). Vuota = account spenti
-  var DB_URL = 'https://gogobar-ed267-default-rtdb.europe-west1.firebasedatabase.app';
+  var DB = window.GoGoDB;                // risorse/js/database.js, da caricare prima di questo file
+  var DB_URL = DB ? DB.URL : '';
   var AUTH_URL = 'https://identitytoolkit.googleapis.com/v1';
   var TOKEN_URL = 'https://securetoken.googleapis.com/v1';
   var DB_QUERY = '';
   // solo per i test con gli emulatori Firebase (non serve sul sito)
   var T = window.GOGOBAR_ACCOUNT_TEST;
-  if (T) { API_KEY = T.apiKey || 'test'; DB_URL = T.db; AUTH_URL = T.auth; TOKEN_URL = T.token; DB_QUERY = T.dbQuery || ''; }
+  if (T) { API_KEY = T.apiKey || 'test'; AUTH_URL = T.auth; TOKEN_URL = T.token; DB_QUERY = T.dbQuery || ''; }
+  if (!DB) API_KEY = '';                 // senza database gli account restano spenti, invece di rompere la pagina
 
   var MEM = 'gogobarAccount.v1';
   var TIMEOUT_MS = 8000;
@@ -57,10 +61,8 @@
   var ALFABETO = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // niente I, O, 0, 1: non si confondono
   var NOME_OK = /^[\wÀ-ÿ _\-]+$/;
 
-  function chiave(nome) {
-    // uguale a chiaveDa() di bisca e corri-marf/classifica.js: stesso nome = stessa riga
-    return String(nome || '').trim().toLowerCase().replace(/[.$#\[\]\/\s]+/g, '_');
-  }
+  // la stessa chiave delle classifiche dei giochi: stesso nome = stessa riga
+  var chiave = DB ? DB.chiave : function (nome) { return String(nome || '').trim().toLowerCase(); };
 
   /* ── Memoria del dispositivo ── */
   function leggiMem() {

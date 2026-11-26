@@ -14,53 +14,21 @@
    window.CorriMarfClassifica.caricaMissioni(nome) / salvaMissioni(nome, { grado, fatte, slot, aggiornato })
        le missioni del giocatore online.
 
-   Servizio: Firebase Realtime Database via REST (fetch, HTTPS, CORS ok).
-   Per attivarlo basta mettere qui sotto l'URL del database, ad esempio
-   'https://gogobar-xxxxx-default-rtdb.europe-west1.firebasedatabase.app'
+   Servizio: Firebase Realtime Database via REST, con l'indirizzo e le richieste
+   in comune in risorse/js/database.js (da caricare prima di questo file).
 ════════════════════════════════════════════════════════════════ */
 (function () {
   'use strict';
 
-  var DB_URL = 'https://gogobar-ed267-default-rtdb.europe-west1.firebasedatabase.app'; // vuoto = classifica spenta
+  // il database è condiviso da tutto il sito: risorse/js/database.js (se manca, la classifica resta spenta)
+  var DB = window.GoGoDB || { URL: '' };
+  var DB_URL = DB.URL;
   var PERCORSO = 'corrimarf/classifica';
-  var TIMEOUT_MS = 8000;
+  var NEGATO = 'Questo nome è di un account GoGoBar: per salvarci sopra entra con il tuo account dalla home.';
 
-  function base() { return DB_URL.replace(/\/+$/, ''); }
-
-  function chiaveDa(nome) {
-    // Firebase non accetta . $ # [ ] / nelle chiavi; stesso nome = stessa riga
-    return nome.trim().toLowerCase().replace(/[.$#\[\]\/\s]+/g, '_');
-  }
-
-  // Le scritture portano il token dell'account GoGoBar (risorse/js/account.js), se c'è:
-  // un nome preso da un account si può scrivere solo dai suoi dispositivi.
-  function conAuth(url, opzioni) {
-    var metodo = (opzioni && opzioni.method) || 'GET';
-    if (metodo === 'GET' || !window.GoGoAccount || !window.GoGoAccount.attivo) return Promise.resolve(url);
-    return window.GoGoAccount.token().then(function (t) {
-      return t ? url + (url.indexOf('?') < 0 ? '?' : '&') + 'auth=' + encodeURIComponent(t) : url;
-    }, function () { return url; });
-  }
-
-  function richiesta(url, opzioni) {
-    return conAuth(url, opzioni).then(function (u) { return richiestaDiretta(u, opzioni); });
-  }
-
-  function richiestaDiretta(url, opzioni) {
-    var ctrl = typeof AbortController !== 'undefined' ? new AbortController() : null;
-    var timer = ctrl ? setTimeout(function () { ctrl.abort(); }, TIMEOUT_MS) : null;
-    opzioni = opzioni || {};
-    if (ctrl) opzioni.signal = ctrl.signal;
-    return fetch(url, opzioni).then(function (r) {
-      if (timer) clearTimeout(timer);
-      if (r.status === 401 || r.status === 403) throw new Error('Questo nome è di un account GoGoBar: per salvarci sopra entra con il tuo account dalla home.');
-      if (!r.ok) throw new Error('Errore classifica (' + r.status + ')');
-      return r.json();
-    }, function (e) {
-      if (timer) clearTimeout(timer);
-      throw new Error(e && e.name === 'AbortError' ? 'La classifica non risponde' : 'Classifica non raggiungibile');
-    });
-  }
+  function base() { return DB_URL; }
+  function chiaveDa(nome) { return DB.chiave(nome); }
+  function richiesta(url, opzioni) { return DB.richiesta(url, opzioni, NEGATO); }
 
   function carica(limite) {
     limite = limite || 10;

@@ -10,6 +10,7 @@
  * del sito ('' dalla home, '../' da musica/).
  */
 (function () {
+  if (window.GoGoCopertina) return;   // già caricato (scheda aperta da prima di un aggiornamento)
   const css = `
     .gg-cover { position: relative; width: 100%; aspect-ratio: 1; overflow: hidden; container-type: inline-size; background: #111; }
     .gg-cover > .gg-in { position: absolute; inset: 0; display: flex; flex-direction: column; justify-content: flex-end; padding: 8cqw; }

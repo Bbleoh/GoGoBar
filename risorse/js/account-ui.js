@@ -9,6 +9,7 @@
   'use strict';
   var A = window.GoGoAccount;
   if (!A || !A.attivo) return;
+  if (document.querySelector('dialog.gga')) return;   // già caricato (scheda aperta da prima di un aggiornamento)
   var radice = document.currentScript ? new URL('../../', document.currentScript.src).href : '/';
 
   var CSS = '' +

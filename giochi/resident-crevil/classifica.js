@@ -1,6 +1,7 @@
 /* ════════════════════════════════════════════════════════════════
    CLASSIFICA DI RESIDENT CREVIL: MORTE SUL GREPPO
    Script classico (niente module): definisce window.ResidentCrevilClassifica.
+   Usa risorse/js/database.js, da caricare prima di questo file.
    Lo usano sia il gioco sia la homepage del sito.
 
    attiva                 → true se il database è configurato
@@ -14,37 +15,15 @@
 ════════════════════════════════════════════════════════════════ */
 (function () {
   'use strict';
-  var DB_URL = 'https://gogobar-ed267-default-rtdb.europe-west1.firebasedatabase.app';
+  // il database è condiviso da tutto il sito: risorse/js/database.js (se manca, la classifica resta spenta)
+  var DB = window.GoGoDB || { URL: '' };
+  var DB_URL = DB.URL;
   var PERCORSO = 'residentcrevil/classifica';
-  var TIMEOUT_MS = 8000;
+  var NEGATO = 'Non posso salvare con questo nome (è di un account GoGoBar, o le regole del database non sono ancora aggiornate).';
 
-  function base() { return DB_URL.replace(/\/+$/, ''); }
-  function chiaveDa(nome) { return nome.trim().toLowerCase().replace(/[.$#\[\]\/\s]+/g, '_'); }
-
-  function conAuth(url, opzioni) {
-    var metodo = (opzioni && opzioni.method) || 'GET';
-    if (metodo === 'GET' || !window.GoGoAccount || !window.GoGoAccount.attivo) return Promise.resolve(url);
-    return window.GoGoAccount.token().then(function (t) {
-      return t ? url + (url.indexOf('?') < 0 ? '?' : '&') + 'auth=' + encodeURIComponent(t) : url;
-    }, function () { return url; });
-  }
-  function richiesta(url, opzioni) {
-    return conAuth(url, opzioni).then(function (u) {
-      var ctrl = typeof AbortController !== 'undefined' ? new AbortController() : null;
-      var timer = ctrl ? setTimeout(function () { ctrl.abort(); }, TIMEOUT_MS) : null;
-      opzioni = opzioni || {};
-      if (ctrl) opzioni.signal = ctrl.signal;
-      return fetch(u, opzioni).then(function (r) {
-        if (timer) clearTimeout(timer);
-        if (r.status === 401 || r.status === 403) throw new Error('Non posso salvare con questo nome (è di un account GoGoBar, o le regole del database non sono ancora aggiornate).');
-        if (!r.ok) throw new Error('Errore classifica (' + r.status + ')');
-        return r.json();
-      }, function (e) {
-        if (timer) clearTimeout(timer);
-        throw new Error(e && e.name === 'AbortError' ? 'La classifica non risponde' : 'Classifica non raggiungibile');
-      });
-    });
-  }
+  function base() { return DB_URL; }
+  function chiaveDa(nome) { return DB.chiave(nome); }
+  function richiesta(url, opzioni) { return DB.richiesta(url, opzioni, NEGATO); }
 
   // due classifiche: Normale (residentcrevil/classifica) e Incubo (residentcrevil/classificaIncubo)
   function percorso(modo) { return modo === 'incubo' ? PERCORSO + 'Incubo' : PERCORSO; }
